@@ -21,7 +21,7 @@ class KnowledgeManager {
     // Each repo gets its own database
     const baseDir = options.baseDir || path.join(__dirname, '../data/knowledge');
     this.dbPath = path.join(baseDir, this.repoName);
-    this.tableName = options.tableName || 'army_knowledge';
+    this.tableName = options.tableName || 'orchestra_knowledge';
 
     this.db = null;
     this.table = null;
