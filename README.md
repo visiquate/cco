@@ -1,15 +1,22 @@
-# Claude Orchestra 🤖⚔️
+# Claude Orchestra
 
-A sophisticated multi-agent development system powered by Claude Code, featuring specialized coding agents, an architect for strategic decisions, and support agents for QA, security, documentation, and credential management.
+A sophisticated multi-agent development system powered by Claude Code, featuring **116 specialized agents** organized across **15 agent types** in a TDD-aware pipeline.
 
 ## Overview
 
-The Claude Orchestra consists of:
+The Claude Orchestra is a complete development team on demand:
 
-- **1 Chief Architect** (Opus 4.1) - Makes strategic architecture decisions and coordinates the team
-- **5 Coding Specialists** - Expert agents for Python, Swift, Go, Rust, and Flutter
-- **3 Integration Specialists** - API Explorer, Salesforce API, and Authentik API experts
-- **5 Support Agents** - Documentation, QA/Testing, Security Auditing, Credential Management, and DevOps/Deployment
+- **1 Chief Architect** (Claude Opus 4.1) - Strategic decisions and coordination
+- **88 Specialized Agents** (Sonnet 4.5) - Complex reasoning, coding, analysis, and implementation
+- **28 Optimized Agents** (Haiku) - Documentation, utilities, lightweight tasks (24% cost savings)
+- **15 Agent Types** - Developers, architects, security auditors, testers, researchers, writers, and more
+
+**Reconciliation Achievements:**
+- Eliminated 15 duplicate entries
+- Added 6 missing agents
+- Reduced generic "coder" usage from 52.7% to 3.4% (94% reduction)
+- Implemented 28 haiku optimizations for cost efficiency
+- Improved orchestration accuracy with specialized type assignments
 
 All agents work in parallel using Claude Code's Task tool with Knowledge Manager coordination for efficient, high-quality development.
 

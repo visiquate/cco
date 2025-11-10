@@ -39,7 +39,7 @@
   "codingAgents": [
     {
       "name": "TDD Coding Agent",
-      "type": "test-automator",
+      "type": "coder",
       "model": "sonnet-4.5",
       "ccproxyMapping": {
         "apiAlias": "claude-3-5-sonnet",
@@ -327,7 +327,7 @@
   "developmentAgents": [
     {
       "name": "Frontend Developer",
-      "type": "backend-dev",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/frontend-developer.md",
       "role": "Frontend development specialist for React applications and responsive design",
@@ -362,7 +362,7 @@
     },
     {
       "name": "Fullstack Developer",
-      "type": "backend-dev",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/fullstack-developer.md",
       "role": "Full-stack development specialist covering frontend, backend, and database technologies",
@@ -434,7 +434,7 @@
     },
     {
       "name": "Typescript Pro",
-      "type": "backend-dev",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/typescript-pro.md",
       "role": "Write idiomatic TypeScript with advanced type system features, strict typing, and modern patterns",
@@ -455,7 +455,7 @@
     },
     {
       "name": "Javascript Pro",
-      "type": "backend-dev",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/javascript-pro.md",
       "role": "Master modern JavaScript with ES6+, async patterns, and Node",
@@ -557,7 +557,7 @@
     },
     {
       "name": "Nextjs Architecture Expert",
-      "type": "system-architect",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/nextjs-architecture-expert.md",
       "role": "Master of Next",
@@ -578,7 +578,7 @@
     },
     {
       "name": "React Performance Optimization",
-      "type": "backend-dev",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/react-performance-optimization.md",
       "role": "React performance optimization specialist",
@@ -595,7 +595,7 @@
     },
     {
       "name": "React Performance Optimizer",
-      "type": "backend-dev",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/react-performance-optimizer.md",
       "role": "Specialist in React performance patterns, bundle optimization, and Core Web Vitals",
@@ -615,7 +615,7 @@
     },
     {
       "name": "Graphql Architect",
-      "type": "system-architect",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/graphql-architect.md",
       "role": "GraphQL schema design and API architecture specialist",
@@ -651,7 +651,7 @@
     },
     {
       "name": "Graphql Security Specialist",
-      "type": "security-auditor",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/graphql-security-specialist.md",
       "role": "GraphQL API security and authorization specialist",
@@ -670,7 +670,7 @@
     },
     {
       "name": "Shell Scripting Pro",
-      "type": "deployment-engineer",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/shell-scripting-pro.md",
       "role": "Write robust shell scripts with proper error handling, POSIX compliance, and automation patterns",
@@ -688,7 +688,7 @@
     },
     {
       "name": "Legacy Modernizer",
-      "type": "system-architect",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/legacy-modernizer.md",
       "role": "Refactor legacy codebases, migrate outdated frameworks, and implement gradual modernization",
@@ -706,7 +706,7 @@
     },
     {
       "name": "Architecture Modernizer",
-      "type": "system-architect",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/architecture-modernizer.md",
       "role": "Software architecture modernization specialist",
@@ -723,8 +723,8 @@
     },
     {
       "name": "Dx Optimizer",
-      "type": "deployment-engineer",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/dx-optimizer.md",
       "role": "Developer Experience specialist for tooling, setup, and workflow optimization",
       "specialties": [
@@ -736,17 +736,12 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
       "name": "Git Flow Manager",
-      "type": "deployment-engineer",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/git-flow-manager.md",
       "role": "Git Flow workflow manager",
       "specialties": [
@@ -760,17 +755,12 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
       "name": "Dependency Manager",
-      "type": "deployment-engineer",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/dependency-manager.md",
       "role": "Use this agent to manage project dependencies",
       "specialties": [
@@ -786,84 +776,17 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
       "name": "Error Detective",
-      "type": "debugger",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/error-detective.md",
       "role": "Log analysis and error pattern detection specialist",
       "specialties": [
         "Log",
         "Use"
-      ],
-      "autonomousAuthority": {
-        "lowRisk": true,
-        "mediumRisk": true,
-        "highRisk": false,
-        "requiresArchitectApproval": true
-      }
-    },
-    {
-      "name": "Architect Review",
-      "type": "reviewer",
-      "model": "sonnet-4.5",
-      "agentFile": "~/.claude/agents/architect-review.md",
-      "role": "Code architecture review specialist for SOLID principles and pattern adherence",
-      "specialties": [
-        "Pattern Adherence",
-        "SOLID Compliance",
-        "Dependency Analysis",
-        "Abstraction Levels",
-        "Future-Proofing"
-      ],
-      "autonomousAuthority": {
-        "lowRisk": true,
-        "mediumRisk": true,
-        "highRisk": false,
-        "requiresArchitectApproval": true
-      }
-    },
-    {
-      "name": "Flutter Go Reviewer",
-      "type": "reviewer",
-      "model": "sonnet-4.5",
-      "agentFile": "~/.claude/agents/flutter-go-reviewer.md",
-      "role": "Comprehensive code reviewer for Golang backend and Flutter frontend",
-      "specialties": [
-        "Code Quality",
-        "Testing",
-        "Feature Protection",
-        "Operational Safety",
-        "Security & Performance",
-        "Backend (Golang + Protobuf + PostgreSQL)",
-        "Frontend (Flutter + Riverpod + GetX)"
-      ],
-      "autonomousAuthority": {
-        "lowRisk": true,
-        "mediumRisk": true,
-        "highRisk": false,
-        "requiresArchitectApproval": true
-      }
-    },
-    {
-      "name": "Web Vitals Optimizer",
-      "type": "backend-dev",
-      "model": "sonnet-4.5",
-      "agentFile": "~/.claude/agents/web-vitals-optimizer.md",
-      "role": "Core Web Vitals optimization specialist for LCP, FID, CLS metrics",
-      "specialties": [
-        "Largest Contentful Paint (LCP)",
-        "First Input Delay (FID)",
-        "Cumulative Layout Shift (CLS)",
-        "Time to First Byte (TTFB)",
-        "Performance Monitoring"
       ],
       "autonomousAuthority": {
         "lowRisk": true,
@@ -893,7 +816,7 @@
     },
     {
       "name": "Database Admin",
-      "type": "backend-dev",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/database-admin.md",
       "role": "Database administration specialist for operations, backups, replication, and monitoring",
@@ -910,7 +833,7 @@
     },
     {
       "name": "Database Optimization",
-      "type": "backend-dev",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/database-optimization.md",
       "role": "Database performance optimization and query tuning specialist",
@@ -927,7 +850,7 @@
     },
     {
       "name": "Database Optimizer",
-      "type": "backend-dev",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/database-optimizer.md",
       "role": "SQL query optimization and database schema design specialist",
@@ -943,7 +866,7 @@
     },
     {
       "name": "Data Engineer",
-      "type": "backend-dev",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/data-engineer.md",
       "role": "Data pipeline and analytics infrastructure specialist",
@@ -999,7 +922,7 @@
     },
     {
       "name": "Nosql Specialist",
-      "type": "backend-dev",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/nosql-specialist.md",
       "role": "NoSQL database specialist for MongoDB, Redis, Cassandra, and document/key-value stores",
@@ -1020,7 +943,7 @@
     },
     {
       "name": "Sql Pro",
-      "type": "backend-dev",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/sql-pro.md",
       "role": "Write complex SQL queries, optimize execution plans, and design normalized schemas",
@@ -1028,46 +951,6 @@
         "Write",
         "Masters",
         "Use"
-      ],
-      "autonomousAuthority": {
-        "lowRisk": true,
-        "mediumRisk": true,
-        "highRisk": false,
-        "requiresArchitectApproval": true
-      }
-    },
-    {
-      "name": "Supabase Schema Architect",
-      "type": "system-architect",
-      "model": "sonnet-4.5",
-      "agentFile": "~/.claude/agents/supabase-schema-architect.md",
-      "role": "Supabase database schema design and RLS policy specialist",
-      "specialties": [
-        "Schema Design",
-        "Migration Management",
-        "RLS Policy Architecture",
-        "PostgreSQL Advanced Features",
-        "Supabase Integration"
-      ],
-      "autonomousAuthority": {
-        "lowRisk": true,
-        "mediumRisk": true,
-        "highRisk": false,
-        "requiresArchitectApproval": true
-      }
-    },
-    {
-      "name": "Supabase Realtime Optimizer",
-      "type": "backend-dev",
-      "model": "sonnet-4.5",
-      "agentFile": "~/.claude/agents/supabase-realtime-optimizer.md",
-      "role": "Supabase realtime performance and WebSocket optimization specialist",
-      "specialties": [
-        "Realtime Performance Optimization",
-        "Connection Management",
-        "Subscription Architecture",
-        "WebSocket Optimization",
-        "Performance Monitoring"
       ],
       "autonomousAuthority": {
         "lowRisk": true,
@@ -1136,7 +1019,7 @@
     },
     {
       "name": "Cloud Migration Specialist",
-      "type": "deployment-engineer",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/cloud-migration-specialist.md",
       "role": "Cloud migration and infrastructure modernization specialist",
@@ -1153,7 +1036,7 @@
     },
     {
       "name": "Terraform Specialist",
-      "type": "deployment-engineer",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/terraform-specialist.md",
       "role": "Terraform and Infrastructure as Code specialist",
@@ -1174,7 +1057,7 @@
     },
     {
       "name": "Network Engineer",
-      "type": "deployment-engineer",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/network-engineer.md",
       "role": "Network connectivity and infrastructure specialist",
@@ -1191,8 +1074,8 @@
     },
     {
       "name": "Monitoring Specialist",
-      "type": "deployment-engineer",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/monitoring-specialist.md",
       "role": "Monitoring and observability infrastructure specialist",
       "specialties": [
@@ -1204,16 +1087,11 @@
         "mediumRisk": false,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
       "name": "Devops Troubleshooter",
-      "type": "deployment-engineer",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/devops-troubleshooter.md",
       "role": "Production troubleshooting and incident response specialist",
@@ -1230,7 +1108,7 @@
     },
     {
       "name": "Incident Responder",
-      "type": "deployment-engineer",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/incident-responder.md",
       "role": "Handles production incidents with urgency and precision",
@@ -1302,7 +1180,7 @@
     },
     {
       "name": "Api Security Audit",
-      "type": "security-auditor",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/api-security-audit.md",
       "role": "API security audit specialist",
@@ -1318,7 +1196,7 @@
     },
     {
       "name": "Penetration Tester",
-      "type": "security-auditor",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/penetration-tester.md",
       "role": "Penetration testing and ethical hacking specialist",
@@ -1335,7 +1213,7 @@
     },
     {
       "name": "Compliance Specialist",
-      "type": "security-auditor",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/compliance-specialist.md",
       "role": "Security compliance and regulatory framework specialist",
@@ -1352,7 +1230,7 @@
     },
     {
       "name": "Mcp Security Auditor",
-      "type": "security-auditor",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/mcp-security-auditor.md",
       "role": "MCP server security specialist",
@@ -1368,8 +1246,8 @@
     },
     {
       "name": "Web Accessibility Checker",
-      "type": "test-automator",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/web-accessibility-checker.md",
       "role": "Web accessibility compliance specialist",
       "specialties": [
@@ -1381,17 +1259,12 @@
         "mediumRisk": false,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
       "name": "Risk Manager",
-      "type": "planner",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/risk-manager.md",
       "role": "Risk management and portfolio analysis specialist",
       "specialties": [
@@ -1403,18 +1276,13 @@
         "mediumRisk": false,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     }
   ],
   "aiMlAgents": [
     {
       "name": "Ai Engineer",
-      "type": "backend-dev",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/ai-engineer.md",
       "role": "LLM application and RAG system specialist",
@@ -1430,7 +1298,7 @@
     },
     {
       "name": "Ml Engineer",
-      "type": "backend-dev",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/ml-engineer.md",
       "role": "ML production systems and model deployment specialist",
@@ -1462,7 +1330,7 @@
     },
     {
       "name": "Model Evaluator",
-      "type": "researcher",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/model-evaluator.md",
       "role": "AI model evaluation and benchmarking specialist",
@@ -1479,7 +1347,7 @@
     },
     {
       "name": "Prompt Engineer",
-      "type": "researcher",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/prompt-engineer.md",
       "role": "Expert prompt optimization for LLMs and AI systems",
@@ -1497,8 +1365,8 @@
     },
     {
       "name": "Llms Maintainer",
-      "type": "deployment-engineer",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/llms-maintainer.md",
       "role": "LLMs",
       "specialties": [
@@ -1511,18 +1379,13 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     }
   ],
   "mcpAgents": [
     {
       "name": "Mcp Expert",
-      "type": "backend-dev",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/mcp-expert.md",
       "role": "Model Context Protocol (MCP) integration specialist for the cli-tool components system",
@@ -1555,7 +1418,7 @@
     },
     {
       "name": "Mcp Integration Engineer",
-      "type": "backend-dev",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/mcp-integration-engineer.md",
       "role": "MCP server integration and orchestration specialist",
@@ -1571,7 +1434,7 @@
     },
     {
       "name": "Mcp Deployment Orchestrator",
-      "type": "deployment-engineer",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/mcp-deployment-orchestrator.md",
       "role": "MCP server deployment and operations specialist",
@@ -1588,7 +1451,7 @@
     },
     {
       "name": "Mcp Protocol Specialist",
-      "type": "researcher",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/mcp-protocol-specialist.md",
       "role": "MCP protocol specification and standards specialist",
@@ -1604,7 +1467,7 @@
     },
     {
       "name": "Mcp Testing Engineer",
-      "type": "test-automator",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/mcp-testing-engineer.md",
       "role": "MCP server testing and quality assurance specialist",
@@ -1623,7 +1486,7 @@
     {
       "name": "Documentation Expert",
       "type": "technical-writer",
-      "model": "haiku",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/documentation-expert.md",
       "role": "Use this agent to create, improve, and maintain project documentation",
       "specialties": [
@@ -1639,17 +1502,12 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
       "name": "Technical Writer",
       "type": "technical-writer",
-      "model": "haiku",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/technical-writer.md",
       "role": "Technical writing and content creation specialist",
       "specialties": [
@@ -1661,17 +1519,12 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
       "name": "Api Documenter",
       "type": "technical-writer",
-      "model": "haiku",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/api-documenter.md",
       "role": "Create OpenAPI/Swagger specs, generate SDKs, and write developer documentation",
       "specialties": [
@@ -1685,17 +1538,12 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
       "name": "Changelog Generator",
-      "type": "technical-writer",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/changelog-generator.md",
       "role": "Changelog and release notes specialist",
       "specialties": [
@@ -1707,17 +1555,12 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
       "name": "Markdown Syntax Formatter",
-      "type": "technical-writer",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/markdown-syntax-formatter.md",
       "role": "Markdown formatting specialist",
       "specialties": [
@@ -1729,11 +1572,6 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
@@ -1756,8 +1594,8 @@
     },
     {
       "name": "Report Generator",
-      "type": "technical-writer",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/report-generator.md",
       "role": "Use this agent when you need to transform synthesized research findings into a comprehensive, well-structured final report",
       "specialties": [
@@ -1773,11 +1611,6 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     }
   ],
@@ -1822,7 +1655,7 @@
     },
     {
       "name": "Research Orchestrator",
-      "type": "planner",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/research-orchestrator.md",
       "role": "Use this agent when you need to coordinate a comprehensive research project that requires multiple specialized agents working in sequence",
@@ -1843,7 +1676,7 @@
     },
     {
       "name": "Research Coordinator",
-      "type": "planner",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/research-coordinator.md",
       "role": "Use this agent when you need to strategically plan and coordinate complex research tasks across multiple specialist researchers",
@@ -1864,7 +1697,7 @@
     },
     {
       "name": "Research Synthesizer",
-      "type": "researcher",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/research-synthesizer.md",
       "role": "Use this agent when you need to consolidate and synthesize findings from multiple research sources or specialist researchers into a unified, comprehensive analysis",
@@ -1885,8 +1718,8 @@
     },
     {
       "name": "Research Brief Generator",
-      "type": "researcher",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/research-brief-generator.md",
       "role": "Use this agent when you need to transform a user's research query into a structured, actionable research brief that will guide subsequent research activities",
       "specialties": [
@@ -1902,16 +1735,11 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
       "name": "Comprehensive Researcher",
-      "type": "researcher",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/comprehensive-researcher.md",
       "role": "Comprehensive research specialist",
@@ -1928,8 +1756,8 @@
     },
     {
       "name": "Fact Checker",
-      "type": "researcher",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/fact-checker.md",
       "role": "Fact verification and source validation specialist",
       "specialties": [
@@ -1941,17 +1769,12 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
       "name": "Query Clarifier",
-      "type": "planner",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/query-clarifier.md",
       "role": "Use this agent when you need to analyze research queries for clarity and determine if user clarification is needed before proceeding with research",
       "specialties": [
@@ -1967,17 +1790,12 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
       "name": "Search Specialist",
-      "type": "researcher",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/search-specialist.md",
       "role": "Expert web researcher using advanced search techniques and synthesis",
       "specialties": [
@@ -1991,11 +1809,6 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     }
   ],
@@ -2053,8 +1866,8 @@
     },
     {
       "name": "Cli Ui Designer",
-      "type": "ux-designer",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/cli-ui-designer.md",
       "role": "CLI interface design specialist",
       "specialties": [
@@ -2066,16 +1879,11 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
       "name": "Performance Engineer",
-      "type": "backend-dev",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/performance-engineer.md",
       "role": "Profile applications, optimize bottlenecks, and implement caching strategies",
@@ -2093,7 +1901,7 @@
     },
     {
       "name": "Performance Profiler",
-      "type": "backend-dev",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/performance-profiler.md",
       "role": "Performance analysis and optimization specialist",
@@ -2146,8 +1954,8 @@
     },
     {
       "name": "Command Expert",
-      "type": "backend-dev",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/command-expert.md",
       "role": "CLI command development specialist for the claude-code-templates system",
       "specialties": [
@@ -2158,17 +1966,12 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
       "name": "Connection Agent",
-      "type": "backend-dev",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/connection-agent.md",
       "role": "Obsidian vault connection specialist",
       "specialties": [
@@ -2180,17 +1983,12 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
       "name": "Metadata Agent",
-      "type": "backend-dev",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/metadata-agent.md",
       "role": "Obsidian metadata management specialist",
       "specialties": [
@@ -2202,17 +2000,12 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
       "name": "Tag Agent",
-      "type": "backend-dev",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/tag-agent.md",
       "role": "Obsidian tag taxonomy specialist",
       "specialties": [
@@ -2224,17 +2017,12 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
       "name": "Document Structure Analyzer",
-      "type": "researcher",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/document-structure-analyzer.md",
       "role": "Document structure analysis specialist",
       "specialties": [
@@ -2246,17 +2034,12 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
       "name": "Url Link Extractor",
-      "type": "researcher",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/url-link-extractor.md",
       "role": "URL and link extraction specialist",
       "specialties": [
@@ -2267,17 +2050,12 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
       "name": "Project Supervisor Orchestrator",
-      "type": "planner",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/project-supervisor-orchestrator.md",
       "role": "Project workflow orchestrator",
       "specialties": [
@@ -2289,11 +2067,6 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
@@ -2314,23 +2087,237 @@
       }
     },
     {
-      "name": "Unused Code Cleaner",
-      "type": "coder",
-      "model": "haiku",
-      "agentFile": "~/.claude/agents/unused-code-cleaner.md",
-      "role": "Dead code detection and safe removal specialist",
+      "name": "Test Automator",
+      "type": "test-automator",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/test-automator.md",
+      "role": "Create comprehensive test suites with unit, integration, and e2e tests",
       "specialties": [
-        "Unused Imports",
-        "Unused Functions/Classes",
-        "Dynamic Usage Safety",
-        "Framework Preservation",
-        "Safe Removal"
+        "Create",
+        "Sets",
+        "Use"
       ],
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
-      },
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Ui Ux Designer",
+      "type": "ux-designer",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/ui-ux-designer.md",
+      "role": "UI/UX design specialist for user-centered design and interface systems",
+      "specialties": [
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Cli Ui Designer",
+      "type": "coder",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/cli-ui-designer.md",
+      "role": "CLI interface design specialist",
+      "specialties": [
+        "Use",
+        "Expert"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Performance Engineer",
+      "type": "coder",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/performance-engineer.md",
+      "role": "Profile applications, optimize bottlenecks, and implement caching strategies",
+      "specialties": [
+        "Profile",
+        "Handles",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Performance Profiler",
+      "type": "coder",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/performance-profiler.md",
+      "role": "Performance analysis and optimization specialist",
+      "specialties": [
+        "Performance",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Context Manager",
+      "type": "system-architect",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/context-manager.md",
+      "role": "Context management specialist for multi-agent workflows and long-running tasks",
+      "specialties": [
+        "Context",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Task Decomposition Expert",
+      "type": "planner",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/task-decomposition-expert.md",
+      "role": "Complex goal breakdown specialist",
+      "specialties": [
+        "Complex",
+        "Use",
+        "Masters",
+        "Chroma"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Command Expert",
+      "type": "coder",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/command-expert.md",
+      "role": "CLI command development specialist for the claude-code-templates system",
+      "specialties": [
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Connection Agent",
+      "type": "coder",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/connection-agent.md",
+      "role": "Obsidian vault connection specialist",
+      "specialties": [
+        "Obsidian",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Metadata Agent",
+      "type": "coder",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/metadata-agent.md",
+      "role": "Obsidian metadata management specialist",
+      "specialties": [
+        "Obsidian",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Tag Agent",
+      "type": "coder",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/tag-agent.md",
+      "role": "Obsidian tag taxonomy specialist",
+      "specialties": [
+        "Obsidian",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Document Structure Analyzer",
+      "type": "coder",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/document-structure-analyzer.md",
+      "role": "Document structure analysis specialist",
+      "specialties": [
+        "Document",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Url Link Extractor",
+      "type": "coder",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/url-link-extractor.md",
+      "role": "URL and link extraction specialist",
+      "specialties": [
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Project Supervisor Orchestrator",
+      "type": "coder",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/project-supervisor-orchestrator.md",
+      "role": "Project workflow orchestrator",
+      "specialties": [
+        "Project",
+        "Use"
+      ],
       "autonomousAuthority": {
         "lowRisk": true,
         "mediumRisk": true,
@@ -2342,7 +2329,7 @@
   "businessAgents": [
     {
       "name": "Product Strategist",
-      "type": "planner",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/product-strategist.md",
       "role": "Product strategy and roadmap planning specialist",
@@ -2359,8 +2346,8 @@
     },
     {
       "name": "Business Analyst",
-      "type": "researcher",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/business-analyst.md",
       "role": "Business metrics analysis and reporting specialist",
       "specialties": [
@@ -2373,17 +2360,12 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
       "name": "Content Marketer",
-      "type": "technical-writer",
-      "model": "haiku",
+      "type": "coder",
+      "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/content-marketer.md",
       "role": "Content marketing and SEO optimization specialist",
       "specialties": [
@@ -2396,16 +2378,11 @@
         "mediumRisk": true,
         "highRisk": false,
         "requiresArchitectApproval": true
-      },
-      "ccproxyMapping": {
-        "apiAlias": "claude-3-haiku",
-        "ollama": "qwen-fast:latest",
-        "phase": "Phase 1 - Lightweight"
       }
     },
     {
       "name": "Quant Analyst",
-      "type": "researcher",
+      "type": "coder",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/quant-analyst.md",
       "role": "Quantitative finance and algorithmic trading specialist",
