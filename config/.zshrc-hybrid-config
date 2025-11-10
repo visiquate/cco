@@ -1,0 +1,50 @@
+# Claude Army Hybrid Routing Configuration
+# Add this to your ~/.zshrc
+
+# ==========================================
+# ANTHROPIC API KEYS
+# ==========================================
+
+# Real Anthropic API key (used by ccproxy for Architect pass-through)
+export ANTHROPIC_API_KEY_REAL="sk-ant-api03-xxxxx"  # Replace with your real Anthropic key
+
+# ccproxy bearer token (used by Claude Code to authenticate with ccproxy)
+export ANTHROPIC_API_KEY="your-ccproxy-bearer-token"  # Replace with your ccproxy token
+
+# ==========================================
+# CLAUDE CODE CONFIGURATION
+# ==========================================
+
+# Point Claude Code to ccproxy (not direct Anthropic API)
+export ANTHROPIC_BASE_URL="https://coder.visiquate.com"
+
+# ==========================================
+# ROUTING BEHAVIOR
+# ==========================================
+
+# With this config:
+# 1. Claude Code sends ALL requests to ccproxy (coder.visiquate.com)
+# 2. ccproxy routes based on model name:
+#    - claude-opus-4       → Anthropic API (uses ANTHROPIC_API_KEY_REAL)
+#    - claude-sonnet-4-5   → Anthropic API (uses ANTHROPIC_API_KEY_REAL)
+#    - claude-3-5-sonnet   → Local Ollama qwen2.5-coder
+#    - claude-3-haiku      → Local Ollama qwen-fast
+#    - gpt-4               → Local Ollama qwen-quality-128k
+
+# ==========================================
+# USAGE
+# ==========================================
+
+# After adding this to .zshrc:
+# 1. source ~/.zshrc
+# 2. claude /logout
+# 3. claude (say "No" to claude.ai, "Yes" to API key)
+# 4. Deploy hybrid config: /Users/brent/git/cc-army/scripts/deploy-hybrid-ccproxy.sh
+
+# ==========================================
+# COST SAVINGS
+# ==========================================
+
+# - Chief Architect: ~$0.01-0.10 per request (Opus/Sonnet API)
+# - All coding agents: $0.00 (local Ollama)
+# - Total: ~$1-5/day vs $50-200/day all-API

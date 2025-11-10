@@ -1,0 +1,73 @@
+# LiteLLM Proxy Configuration for ccproxy - HYBRID ROUTING
+# Ready to deploy - API key already injected
+#
+# HYBRID MODEL ASSIGNMENTS:
+# Phase 0 (Architect):    claude-opus-4/claude-sonnet-4-5 → Real Claude API
+# Phase 1 (Agents 1-10):  qwen2.5-coder:32b-instruct (32B, 32k)
+# Phase 1 (Agent 11):     qwen-fast:latest (7B, 32k)
+# Phase 2 (Agents 13-15): qwen-quality-128k:latest (32B, 128k)
+
+general_settings:
+  litellm_settings:
+    drop_params: true
+    set_verbose: false
+
+server:
+  host: "127.0.0.1"
+  port: 8081
+
+# Hybrid Model Configuration (5 MODELS)
+model_list:
+  # PHASE 0 ARCHITECT: Chief Architect (Real Claude API)
+  - model_name: claude-opus-4
+    litellm_params:
+      model: anthropic/claude-opus-4-20250514
+      api_key: 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
+      max_tokens: 200000
+      stream: true
+
+  - model_name: claude-sonnet-4-5
+    litellm_params:
+      model: anthropic/claude-sonnet-4-20250514
+      api_key: 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
+      max_tokens: 200000
+      stream: true
+
+  # PHASE 1 CODING: Agents 1-10 (TDD, Python, Swift, Go, Rust, Flutter, API Explorer, Salesforce, Authentik, DevOps)
+  - model_name: claude-3-5-sonnet
+    litellm_params:
+      model: ollama/qwen2.5-coder:32b-instruct
+      api_base: http://localhost:11434
+      max_tokens: 32768
+      stream: true
+
+  # PHASE 1 LIGHTWEIGHT: Agent 11 (Credential Manager)
+  - model_name: claude-3-haiku
+    litellm_params:
+      model: ollama/qwen-fast:latest
+      api_base: http://localhost:11434
+      max_tokens: 32768
+      stream: true
+
+  # PHASE 2 REASONING: Agents 13-15 (QA, Security, Documentation)
+  - model_name: gpt-4
+    litellm_params:
+      model: ollama/qwen-quality-128k:latest
+      api_base: http://localhost:11434
+      max_tokens: 131072
+      stream: true
+
+logging:
+  log_file: /Users/brent/ccproxy/logs/litellm.log
+  log_level: INFO
+  request_log: true
+  response_log: false
+
+router_settings:
+  timeout: 300
+  num_retries: 0
+  routing_strategy: "simple-shuffle"
+  # CRITICAL: Disable health checks to prevent model thrashing
+  disable_cooldowns: true
+  allowed_fails: 1000
+  cooldown_time: 0
