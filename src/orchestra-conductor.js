@@ -53,7 +53,7 @@ class ClaudeOrchestra {
   }
 
   /**
-   * Initialize the army with Knowledge Manager coordination
+   * Initialize the orchestra with Knowledge Manager coordination
    * This sets up the coordination but doesn't spawn agents yet
    */
   async initializeCoordination() {
@@ -128,7 +128,7 @@ YOUR RESPONSIBILITIES:
 
 COORDINATION PROTOCOL:
 - Search Knowledge Manager for relevant context before starting
-- Store architecture decisions: 'node ~/git/cc-army/src/knowledge-manager.js store "Decision: ..." --type decision'
+- Store architecture decisions: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Decision: ..." --type decision'
 - Share decisions with agents via Knowledge Manager storage
 - Review code from all agents before approval
 - Ensure security and QA agents review all implementations
@@ -172,9 +172,9 @@ YOUR RESPONSIBILITIES:
 7. Address security concerns raised by Security Auditor
 
 COORDINATION PROTOCOL:
-- Before coding: 'node ~/git/cc-army/src/knowledge-manager.js search "architect decisions"'
-- After coding: 'node ~/git/cc-army/src/knowledge-manager.js store "Edit: [filename] - [changes]" --type edit --agent ${agent.name}'
-- Store your decisions: 'node ~/git/cc-army/src/knowledge-manager.js store "Implementation: ..." --type implementation --agent ${agent.name}'
+- Before coding: 'node ~/git/cc-orchestra/src/knowledge-manager.js search "architect decisions"'
+- After coding: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Edit: [filename] - [changes]" --type edit --agent ${agent.name}'
+- Store your decisions: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Implementation: ..." --type implementation --agent ${agent.name}'
 - Share completion status in Knowledge Manager
 
 QUALITY STANDARDS:
@@ -487,10 +487,10 @@ module.exports = ClaudeOrchestra;
 
 // CLI usage
 if (require.main === module) {
-  const army = new ClaudeOrchestra();
+  const orchestra = new ClaudeOrchestra();
   console.log('Claude Orchestra Orchestrator');
   console.log('========================\n');
-  console.log(`Total Agents: ${army.getTotalAgentCount()}`);
+  console.log(`Total Agents: ${orchestra.getTotalAgentCount()}`);
   console.log(`- 1 Architect (${config.architect.model})`);
   console.log(`- ${config.codingAgents.length} Coding Specialists`);
   console.log(`- ${config.supportAgents.length} Support Agents\n`);
@@ -500,7 +500,7 @@ if (require.main === module) {
     console.log('Generating workflow for requirement:');
     console.log(`"${requirement}"\n`);
 
-    const workflow = army.generateWorkflow(requirement);
+    const workflow = orchestra.generateWorkflow(requirement);
     console.log(JSON.stringify(workflow, null, 2));
   } else {
     console.log('Usage: node orchestra-conductor.js "<your requirement>"');
