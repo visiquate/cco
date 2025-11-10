@@ -26,11 +26,11 @@ These agents should be part of almost every project:
 
 | Agent | Type | Why Always Include |
 |-------|------|-------------------|
-| **Chief Architect** | system-architect | Strategic decisions, coordinates agents |
-| **TDD Coding Agent** | coder | Ensures tests written before implementation |
+| **Chief Architect** | backend-architect | Strategic decisions, coordinates agents |
+| **TDD Coding Agent** | fullstack-developer | Ensures tests written before implementation |
 | **QA Engineer** | test-automator | Integration testing, E2E tests, autonomous fixing |
 | **Security Auditor** | security-auditor | Security review, vulnerability scanning |
-| **Documentation Lead** | coder | Technical documentation, keeps docs updated |
+| **Documentation Lead** | fullstack-developer | Technical documentation, keeps docs updated |
 
 **Minimum viable team: 5 agents** (above list)
 
@@ -40,14 +40,14 @@ These agents should be part of almost every project:
 
 **Simple (6-8 agents):**
 ```javascript
-Task("Chief Architect", "Design architecture", "system-architect")
-Task("TDD Coding Agent", "Write tests first", "coder")
-Task("Frontend Developer", "Build React UI", "coder")
-Task("Backend Architect", "Design REST API", "system-architect")
-Task("Database Architect", "Design schema", "system-architect")
+Task("Chief Architect", "Design architecture", "backend-architect")
+Task("TDD Coding Agent", "Write tests first", "fullstack-developer")
+Task("Frontend Developer", "Build React UI", "fullstack-developer")
+Task("Backend Architect", "Design REST API", "backend-architect")
+Task("Database Architect", "Design schema", "backend-architect")
 Task("QA Engineer", "Integration tests", "test-automator")
 Task("Security Auditor", "Security review", "security-auditor")
-Task("Documentation Lead", "API docs", "coder")
+Task("Documentation Lead", "API docs", "fullstack-developer")
 ```
 
 **Production-Ready (12-15 agents):**
@@ -74,15 +74,15 @@ Add to production:
 
 **iOS (7-9 agents):**
 ```javascript
-Task("Chief Architect", "Design app architecture", "system-architect")
-Task("TDD Coding Agent", "Write tests first", "coder")
+Task("Chief Architect", "Design app architecture", "backend-architect")
+Task("TDD Coding Agent", "Write tests first", "fullstack-developer")
 Task("Swift Specialist", "Build SwiftUI app", "ios-developer")
-Task("Backend Architect", "Design API", "system-architect")
-Task("API Explorer", "Explore third-party APIs", "researcher")
+Task("Backend Architect", "Design API", "backend-architect")
+Task("API Explorer", "Explore third-party APIs", "technical-researcher")
 Task("QA Engineer", "UI/integration tests", "test-automator")
 Task("Security Auditor", "App security review", "security-auditor")
-Task("UI/UX Designer", "Design user experience", "ux-designer")
-Task("Documentation Lead", "User guides", "coder")
+Task("UI/UX Designer", "Design user experience", "ui-ux-designer")
+Task("Documentation Lead", "User guides", "fullstack-developer")
 ```
 
 **Cross-Platform Flutter (8-10 agents):**
@@ -101,11 +101,11 @@ Add backend specialists:
 
 **Single API (6-8 agents):**
 ```javascript
-Task("Chief Architect", "Design API architecture", "system-architect")
-Task("TDD Coding Agent", "Write tests first", "coder")
-Task("Backend Architect", "Design REST/GraphQL API", "system-architect")
-Task("Python Specialist", "FastAPI implementation", "python-expert")
-Task("Database Architect", "Design data model", "system-architect")
+Task("Chief Architect", "Design API architecture", "backend-architect")
+Task("TDD Coding Agent", "Write tests first", "fullstack-developer")
+Task("Backend Architect", "Design REST/GraphQL API", "backend-architect")
+Task("Python Specialist", "FastAPI implementation", "python-pro")
+Task("Database Architect", "Design data model", "backend-architect")
 Task("QA Engineer", "API testing", "test-automator")
 Task("Security Auditor", "API security", "security-auditor")
 Task("API Documenter", "OpenAPI spec", "technical-writer")
@@ -130,16 +130,16 @@ Add to single API:
 
 **Basic Pipeline (8-10 agents):**
 ```javascript
-Task("Chief Architect", "Design pipeline architecture", "system-architect")
-Task("TDD Coding Agent", "Write pipeline tests", "coder")
-Task("Data Engineer", "Build ETL pipeline", "coder")
-Task("Python Specialist", "Implement data processing", "python-expert")
-Task("Database Architect", "Design data warehouse", "system-architect")
-Task("Cloud Architect", "AWS/GCP infrastructure", "system-architect")
+Task("Chief Architect", "Design pipeline architecture", "backend-architect")
+Task("TDD Coding Agent", "Write pipeline tests", "fullstack-developer")
+Task("Data Engineer", "Build ETL pipeline", "fullstack-developer")
+Task("Python Specialist", "Implement data processing", "python-pro")
+Task("Database Architect", "Design data warehouse", "backend-architect")
+Task("Cloud Architect", "AWS/GCP infrastructure", "backend-architect")
 Task("QA Engineer", "Data quality tests", "test-automator")
-Task("Monitoring Specialist", "Pipeline monitoring", "coder")
+Task("Monitoring Specialist", "Pipeline monitoring", "fullstack-developer")
 Task("Security Auditor", "Data security review", "security-auditor")
-Task("Documentation Lead", "Pipeline docs", "coder")
+Task("Documentation Lead", "Pipeline docs", "fullstack-developer")
 ```
 
 **ML Pipeline (add 4-6 agents):**
@@ -158,17 +158,17 @@ Task("Documentation Lead", "Pipeline docs", "coder")
 
 **Model Training (10-12 agents):**
 ```javascript
-Task("Chief Architect", "Design ML architecture", "system-architect")
-Task("TDD Coding Agent", "Write model tests", "coder")
-Task("Data Scientist", "Exploratory analysis", "researcher")
-Task("ML Engineer", "Model implementation", "coder")
+Task("Chief Architect", "Design ML architecture", "backend-architect")
+Task("TDD Coding Agent", "Write model tests", "fullstack-developer")
+Task("Data Scientist", "Exploratory analysis", "technical-researcher")
+Task("ML Engineer", "Model implementation", "fullstack-developer")
 Task("MLOps Engineer", "Training pipeline", "deployment-engineer")
-Task("Data Engineer", "Feature engineering", "coder")
-Task("Python Specialist", "Python implementation", "python-expert")
-Task("Model Evaluator", "Model evaluation", "coder")
+Task("Data Engineer", "Feature engineering", "fullstack-developer")
+Task("Python Specialist", "Python implementation", "python-pro")
+Task("Model Evaluator", "Model evaluation", "fullstack-developer")
 Task("QA Engineer", "ML testing", "test-automator")
 Task("Security Auditor", "Model security", "security-auditor")
-Task("Documentation Lead", "Model documentation", "coder")
+Task("Documentation Lead", "Model documentation", "fullstack-developer")
 Task("Technical Writer", "Model cards", "technical-writer")
 ```
 
@@ -189,14 +189,14 @@ Task("Technical Writer", "Model cards", "technical-writer")
 
 **Third-Party API (6-8 agents):**
 ```javascript
-Task("Chief Architect", "Design integration", "system-architect")
-Task("TDD Coding Agent", "Write integration tests", "coder")
-Task("API Explorer", "Explore API endpoints", "researcher")
-Task("Backend Architect", "Design wrapper API", "system-architect")
-Task("Python Specialist", "Implement integration", "python-expert")
+Task("Chief Architect", "Design integration", "backend-architect")
+Task("TDD Coding Agent", "Write integration tests", "fullstack-developer")
+Task("API Explorer", "Explore API endpoints", "technical-researcher")
+Task("Backend Architect", "Design wrapper API", "backend-architect")
+Task("Python Specialist", "Implement integration", "python-pro")
 Task("QA Engineer", "Integration tests", "test-automator")
 Task("Security Auditor", "API security", "security-auditor")
-Task("Documentation Lead", "Integration docs", "coder")
+Task("Documentation Lead", "Integration docs", "fullstack-developer")
 ```
 
 **Salesforce Integration (add 1 agent):**
@@ -214,13 +214,13 @@ Task("Documentation Lead", "Integration docs", "coder")
 
 **Literature Review (6-8 agents):**
 ```javascript
-Task("Research Coordinator", "Coordinate research", "coder")
-Task("Academic Researcher", "Scholarly sources", "researcher")
-Task("Technical Researcher", "Technical papers", "researcher")
-Task("Fact Checker", "Verify claims", "coder")
-Task("Research Synthesizer", "Synthesize findings", "coder")
-Task("Report Generator", "Generate report", "coder")
-Task("Documentation Lead", "Format documentation", "coder")
+Task("Research Coordinator", "Coordinate research", "fullstack-developer")
+Task("Academic Researcher", "Scholarly sources", "technical-researcher")
+Task("Technical Researcher", "Technical papers", "technical-researcher")
+Task("Fact Checker", "Verify claims", "fullstack-developer")
+Task("Research Synthesizer", "Synthesize findings", "fullstack-developer")
+Task("Report Generator", "Generate report", "fullstack-developer")
+Task("Documentation Lead", "Format documentation", "fullstack-developer")
 Task("Technical Writer", "Final editing", "technical-writer")
 ```
 
@@ -238,15 +238,15 @@ Task("Technical Writer", "Final editing", "technical-writer")
 
 **Security Audit (8-10 agents):**
 ```javascript
-Task("Chief Architect", "Review architecture", "system-architect")
+Task("Chief Architect", "Review architecture", "backend-architect")
 Task("Security Auditor", "Security assessment", "security-auditor")
-Task("Security Engineer", "Infrastructure security", "coder")
-Task("Penetration Tester", "Penetration testing", "coder")
-Task("API Security Audit", "API security", "coder")
-Task("Compliance Specialist", "Compliance review", "coder")
-Task("Code Reviewer", "Code security review", "reviewer")
+Task("Security Engineer", "Infrastructure security", "fullstack-developer")
+Task("Penetration Tester", "Penetration testing", "fullstack-developer")
+Task("API Security Audit", "API security", "fullstack-developer")
+Task("Compliance Specialist", "Compliance review", "fullstack-developer")
+Task("Code Reviewer", "Code security review", "code-reviewer")
 Task("QA Engineer", "Security testing", "test-automator")
-Task("Documentation Lead", "Security docs", "coder")
+Task("Documentation Lead", "Security docs", "fullstack-developer")
 Task("Technical Writer", "Compliance reports", "technical-writer")
 ```
 
@@ -261,15 +261,15 @@ Task("Technical Writer", "Compliance reports", "technical-writer")
 
 **CI/CD Pipeline (8-10 agents):**
 ```javascript
-Task("Chief Architect", "Design CI/CD architecture", "system-architect")
+Task("Chief Architect", "Design CI/CD architecture", "backend-architect")
 Task("DevOps Engineer", "Implement CI/CD", "deployment-engineer")
-Task("Cloud Architect", "Cloud infrastructure", "system-architect")
-Task("Terraform Specialist", "Infrastructure as code", "coder")
-Task("Security Engineer", "Pipeline security", "coder")
-Task("Monitoring Specialist", "Pipeline monitoring", "coder")
+Task("Cloud Architect", "Cloud infrastructure", "backend-architect")
+Task("Terraform Specialist", "Infrastructure as code", "fullstack-developer")
+Task("Security Engineer", "Pipeline security", "fullstack-developer")
+Task("Monitoring Specialist", "Pipeline monitoring", "fullstack-developer")
 Task("QA Engineer", "Pipeline tests", "test-automator")
-Task("Network Engineer", "Network configuration", "coder")
-Task("Documentation Lead", "DevOps docs", "coder")
+Task("Network Engineer", "Network configuration", "fullstack-developer")
+Task("Documentation Lead", "DevOps docs", "fullstack-developer")
 Task("Deployment Engineer", "Deployment automation", "deployment-engineer")
 ```
 
@@ -285,16 +285,16 @@ Task("Deployment Engineer", "Deployment automation", "deployment-engineer")
 
 **Basic MCP Server (8-10 agents):**
 ```javascript
-Task("Chief Architect", "Design MCP architecture", "system-architect")
-Task("TDD Coding Agent", "Write protocol tests", "coder")
-Task("MCP Server Architect", "Design server", "coder")
-Task("MCP Protocol Specialist", "Protocol compliance", "coder")
-Task("Backend Architect", "Server architecture", "system-architect")
-Task("TypeScript Pro", "TypeScript implementation", "coder")
+Task("Chief Architect", "Design MCP architecture", "backend-architect")
+Task("TDD Coding Agent", "Write protocol tests", "fullstack-developer")
+Task("MCP Server Architect", "Design server", "fullstack-developer")
+Task("MCP Protocol Specialist", "Protocol compliance", "fullstack-developer")
+Task("Backend Architect", "Server architecture", "backend-architect")
+Task("TypeScript Pro", "TypeScript implementation", "fullstack-developer")
 Task("QA Engineer", "Protocol testing", "test-automator")
 Task("Security Auditor", "Protocol security", "security-auditor")
 Task("API Documenter", "Protocol docs", "technical-writer")
-Task("Documentation Lead", "Server docs", "coder")
+Task("Documentation Lead", "Server docs", "fullstack-developer")
 ```
 
 **MCP Integration (add 2-3 agents):**
@@ -449,12 +449,12 @@ Is it an integration project?
 ### Combo 1: "Basic Web App"
 ```javascript
 // 8 agents, covers 80% of web projects
-Task("Chief Architect", "Design app", "system-architect")
-Task("TDD Coding Agent", "Tests first", "coder")
-Task("Frontend Developer", "React UI", "coder")
-Task("Backend Architect", "REST API", "system-architect")
-Task("Python Specialist", "FastAPI", "python-expert")
-Task("Database Architect", "PostgreSQL schema", "system-architect")
+Task("Chief Architect", "Design app", "backend-architect")
+Task("TDD Coding Agent", "Tests first", "fullstack-developer")
+Task("Frontend Developer", "React UI", "fullstack-developer")
+Task("Backend Architect", "REST API", "backend-architect")
+Task("Python Specialist", "FastAPI", "python-pro")
+Task("Database Architect", "PostgreSQL schema", "backend-architect")
 Task("QA Engineer", "Integration tests", "test-automator")
 Task("Security Auditor", "Security review", "security-auditor")
 ```
@@ -463,61 +463,61 @@ Task("Security Auditor", "Security review", "security-auditor")
 ```javascript
 // Add to Basic Web App (5 more = 13 total)
 Task("DevOps Engineer", "CI/CD", "deployment-engineer")
-Task("Cloud Architect", "AWS setup", "system-architect")
-Task("Monitoring Specialist", "Observability", "coder")
-Task("Documentation Lead", "API docs", "coder")
-Task("Credential Manager", "Secrets", "coder")
+Task("Cloud Architect", "AWS setup", "backend-architect")
+Task("Monitoring Specialist", "Observability", "fullstack-developer")
+Task("Documentation Lead", "API docs", "fullstack-developer")
+Task("Credential Manager", "Secrets", "fullstack-developer")
 ```
 
 ### Combo 3: "Mobile + Backend"
 ```javascript
 // 12 agents
-Task("Chief Architect", "Design system", "system-architect")
-Task("TDD Coding Agent", "Tests first", "coder")
+Task("Chief Architect", "Design system", "backend-architect")
+Task("TDD Coding Agent", "Tests first", "fullstack-developer")
 Task("Flutter Specialist", "Cross-platform app", "mobile-developer")
-Task("Go Specialist", "Backend API", "backend-dev")
-Task("Database Architect", "Data model", "system-architect")
-Task("API Explorer", "Third-party APIs", "researcher")
+Task("Go Specialist", "Backend API", "backend-architect")
+Task("Database Architect", "Data model", "backend-architect")
+Task("API Explorer", "Third-party APIs", "technical-researcher")
 Task("QA Engineer", "Testing", "test-automator")
 Task("Security Auditor", "Security", "security-auditor")
 Task("DevOps Engineer", "Deployment", "deployment-engineer")
-Task("UI/UX Designer", "User experience", "ux-designer")
-Task("Documentation Lead", "Documentation", "coder")
-Task("Credential Manager", "API keys", "coder")
+Task("UI/UX Designer", "User experience", "ui-ux-designer")
+Task("Documentation Lead", "Documentation", "fullstack-developer")
+Task("Credential Manager", "API keys", "fullstack-developer")
 ```
 
 ### Combo 4: "ML Pipeline"
 ```javascript
 // 14 agents
-Task("Chief Architect", "ML architecture", "system-architect")
-Task("TDD Coding Agent", "Tests", "coder")
-Task("Data Scientist", "Analysis", "researcher")
-Task("ML Engineer", "Model training", "coder")
+Task("Chief Architect", "ML architecture", "backend-architect")
+Task("TDD Coding Agent", "Tests", "fullstack-developer")
+Task("Data Scientist", "Analysis", "technical-researcher")
+Task("ML Engineer", "Model training", "fullstack-developer")
 Task("MLOps Engineer", "ML pipeline", "deployment-engineer")
-Task("Data Engineer", "Feature engineering", "coder")
-Task("Python Specialist", "Implementation", "python-expert")
-Task("Model Evaluator", "Evaluation", "coder")
-Task("Cloud Architect", "ML infrastructure", "system-architect")
-Task("Database Architect", "Feature store", "system-architect")
+Task("Data Engineer", "Feature engineering", "fullstack-developer")
+Task("Python Specialist", "Implementation", "python-pro")
+Task("Model Evaluator", "Evaluation", "fullstack-developer")
+Task("Cloud Architect", "ML infrastructure", "backend-architect")
+Task("Database Architect", "Feature store", "backend-architect")
 Task("QA Engineer", "ML testing", "test-automator")
 Task("Security Auditor", "Model security", "security-auditor")
-Task("Monitoring Specialist", "Model monitoring", "coder")
-Task("Documentation Lead", "ML docs", "coder")
+Task("Monitoring Specialist", "Model monitoring", "fullstack-developer")
+Task("Documentation Lead", "ML docs", "fullstack-developer")
 ```
 
 ### Combo 5: "API Integration"
 ```javascript
 // 10 agents (with Salesforce)
-Task("Chief Architect", "Integration design", "system-architect")
-Task("TDD Coding Agent", "Tests", "coder")
-Task("API Explorer", "API exploration", "researcher")
-Task("Salesforce API Specialist", "Salesforce integration", "backend-dev")
-Task("Backend Architect", "Wrapper API", "system-architect")
-Task("Python Specialist", "Implementation", "python-expert")
-Task("Database Architect", "Sync strategy", "system-architect")
+Task("Chief Architect", "Integration design", "backend-architect")
+Task("TDD Coding Agent", "Tests", "fullstack-developer")
+Task("API Explorer", "API exploration", "technical-researcher")
+Task("Salesforce API Specialist", "Salesforce integration", "backend-architect")
+Task("Backend Architect", "Wrapper API", "backend-architect")
+Task("Python Specialist", "Implementation", "python-pro")
+Task("Database Architect", "Sync strategy", "backend-architect")
 Task("QA Engineer", "Integration tests", "test-automator")
 Task("Security Auditor", "API security", "security-auditor")
-Task("Documentation Lead", "Integration docs", "coder")
+Task("Documentation Lead", "Integration docs", "fullstack-developer")
 ```
 
 ## Anti-Patterns (What NOT to Do)
@@ -526,7 +526,7 @@ Task("Documentation Lead", "Integration docs", "coder")
 **Problem:** Using only 1-2 agents for complex projects
 ```javascript
 // BAD: Only 2 agents for full-stack production app
-Task("Python Specialist", "Build everything", "python-expert")
+Task("Python Specialist", "Build everything", "python-pro")
 Task("QA Engineer", "Test everything", "test-automator")
 ```
 
@@ -536,8 +536,8 @@ Task("QA Engineer", "Test everything", "test-automator")
 **Problem:** Using 20+ agents for simple task
 ```javascript
 // BAD: 20 agents to fix a typo in documentation
-Task("Chief Architect", "Review typo", "system-architect")
-Task("Documentation Lead", "Fix typo", "coder")
+Task("Chief Architect", "Review typo", "backend-architect")
+Task("Documentation Lead", "Fix typo", "fullstack-developer")
 // ... 18 more agents ...
 ```
 
@@ -547,7 +547,7 @@ Task("Documentation Lead", "Fix typo", "coder")
 **Problem:** Using wrong language/framework specialists
 ```javascript
 // BAD: Python specialist for Go project
-Task("Python Specialist", "Build Go microservice", "python-expert")
+Task("Python Specialist", "Build Go microservice", "python-pro")
 ```
 
 **Solution:** Use Go Specialist or Backend Architect for Go projects
@@ -556,7 +556,7 @@ Task("Python Specialist", "Build Go microservice", "python-expert")
 **Problem:** Skipping essential agents (security, QA, docs)
 ```javascript
 // BAD: No security or QA for production API
-Task("Backend Architect", "Build API", "system-architect")
+Task("Backend Architect", "Build API", "backend-architect")
 Task("DevOps Engineer", "Deploy", "deployment-engineer")
 ```
 
@@ -577,9 +577,9 @@ Message 3: Task("Agent 3", ...)
 **Problem:** Multiple agents doing the same thing
 ```javascript
 // BAD: 3 agents all doing backend work
-Task("Backend Architect", "Design API", "system-architect")
-Task("Python Specialist", "Design API", "python-expert")
-Task("Go Specialist", "Design API", "backend-dev")
+Task("Backend Architect", "Design API", "backend-architect")
+Task("Python Specialist", "Design API", "python-pro")
+Task("Go Specialist", "Design API", "backend-architect")
 ```
 
 **Solution:** Clear role separation, one agent per responsibility
@@ -588,8 +588,8 @@ Task("Go Specialist", "Design API", "backend-dev")
 **Problem:** Complex project without architectural oversight
 ```javascript
 // BAD: 15 agents, no architect coordination
-Task("Python Specialist", "Build backend", "python-expert")
-Task("Frontend Developer", "Build UI", "coder")
+Task("Python Specialist", "Build backend", "python-pro")
+Task("Frontend Developer", "Build UI", "fullstack-developer")
 // ... 13 more agents, no coordination
 ```
 

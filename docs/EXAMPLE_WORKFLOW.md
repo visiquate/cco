@@ -63,7 +63,7 @@ OUTPUT:
 - Database schema
 - Security requirements
 - Testing requirements`,
-  "system-architect",
+  "backend-architect",
   { model: "opus" }
 )
 
@@ -138,7 +138,7 @@ QUALITY STANDARDS:
 - Logging
 - Input validation
 - Performance optimization`,
-  "backend-dev",
+  "backend-architect",
   { model: "sonnet" }
 )
 
@@ -174,7 +174,7 @@ QUALITY STANDARDS:
 - Model performance metrics
 - API documentation
 - Testing`,
-  "python-expert",
+  "python-pro",
   { model: "sonnet" }
 )
 
@@ -291,7 +291,7 @@ DOCUMENTATION REQUIRED:
 - Code examples
 - Troubleshooting
 - FAQ`,
-  "coder",
+  "fullstack-developer",
   { model: "haiku" }
 )
 
@@ -332,7 +332,7 @@ OUTPUT:
 - Rotation procedures
 - Environment variable template
 - Security best practices`,
-  "coder",
+  "fullstack-developer",
   { model: "haiku" }
 )
 

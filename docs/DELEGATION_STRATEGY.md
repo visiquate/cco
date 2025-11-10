@@ -56,7 +56,7 @@ Write("app.py", updatedCode)
 // Spawn agent to do the work
 Task("Python Specialist",
   "Read app.py, analyze the authentication flow, and add rate limiting to the login endpoint. Report back what you changed and why.",
-  "python-expert")
+  "python-pro")
 ```
 
 ### Rule 2: Batch Related Tasks to Same Agent
@@ -80,7 +80,7 @@ Task("Python Specialist",
   4. Write tests for all new features
 
   Report back: What you implemented, any issues, test results.",
-  "python-expert")
+  "python-pro")
 ```
 
 ### Rule 3: Use Research Agents for Exploration
@@ -105,7 +105,7 @@ Task("Code Researcher",
   - Configuration patterns
 
   Return a concise summary with file paths and key functions.",
-  "researcher")
+  "technical-researcher")
 ```
 
 ### Rule 4: Let Agents Make Implementation Decisions
@@ -128,7 +128,7 @@ Task("Python Specialist",
 
   You decide: framework choices, file organization, libraries.
   Report back: Your architectural decisions and why.",
-  "python-expert")
+  "python-pro")
 ```
 
 ### Rule 5: Request Results, Not Step-by-Step Updates
@@ -156,7 +156,7 @@ Task("Python Specialist",
   - Files changed
   - Test results
   - Any issues encountered",
-  "python-expert")
+  "python-pro")
 ```
 
 ---
@@ -340,7 +340,7 @@ Task("Python Specialist",
 
   Review the context above before starting work.
   Follow established patterns and decisions.`,
-  "python-expert")
+  "python-pro")
 ```
 
 ## Layer 3: Persistent Documentation
@@ -401,7 +401,7 @@ Task("Chief Architect",
 
   Store decisions in memory.
   Report: Architecture summary, security considerations.`,
-  "system-architect", "opus")
+  "backend-architect", "opus")
 
 Task("Python Specialist",
   `${context}
@@ -414,7 +414,7 @@ Task("Python Specialist",
   - Tests with mocking
 
   Report: Files created, how to test, any issues.`,
-  "python-expert")
+  "python-pro")
 
 Task("Security Auditor",
   `${context}

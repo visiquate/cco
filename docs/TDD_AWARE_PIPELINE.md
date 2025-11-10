@@ -179,7 +179,7 @@ Task("Chief Architect",
    - Establish data models
    - Document architectural decisions
    Store all decisions in memory at 'architect/decisions'`,
-  "system-architect",
+  "backend-architect",
   "opus"  // Falls back to Sonnet 4.5 if Opus unavailable
 )
 ```
@@ -198,14 +198,14 @@ Task("TDD Coding Agent",
    - Integration test skeletons
    - Minimum 90% coverage requirement
    Store tests at 'tdd/failing-tests'`,
-  "coder",
+  "fullstack-developer",
   "sonnet-4.5"  // Maps to qwen2.5-coder:32b-instruct via claude-3-5-sonnet
 )
 
 // Implementation agents (retrieve tests and implement) - qwen2.5-coder
 Task("Python Expert",
   "Retrieve tests from 'tdd/failing-tests' and implement Python code to pass them",
-  "python-expert", "sonnet-4.5")  // Maps to qwen2.5-coder
+  "python-pro", "sonnet-4.5")  // Maps to qwen2.5-coder
 
 Task("Swift Expert",
   "Retrieve tests from 'tdd/failing-tests' and implement Swift code to pass them",
@@ -216,15 +216,15 @@ Task("Swift Expert",
 // Integration specialists - qwen2.5-coder
 Task("API Explorer",
   "Research APIs and create integration patterns",
-  "researcher", "sonnet-4.5")  // Maps to qwen2.5-coder
+  "technical-researcher", "sonnet-4.5")  // Maps to qwen2.5-coder
 
 Task("Salesforce API Expert",
   "Implement Salesforce integration following TDD tests",
-  "backend-dev", "sonnet-4.5")  // Maps to qwen2.5-coder
+  "backend-architect", "sonnet-4.5")  // Maps to qwen2.5-coder
 
 Task("Authentik API Expert",
   "Implement Authentik authentication following TDD tests",
-  "backend-dev", "sonnet-4.5")  // Maps to qwen2.5-coder
+  "backend-architect", "sonnet-4.5")  // Maps to qwen2.5-coder
 
 // DevOps - qwen2.5-coder
 Task("DevOps Engineer",
@@ -234,7 +234,7 @@ Task("DevOps Engineer",
 // Credential Manager - qwen-fast (lightweight)
 Task("Credential Manager",
   "Securely manage all credentials and secrets",
-  "coder", "haiku")  // Maps to qwen-fast:latest via claude-3-haiku
+  "fullstack-developer", "haiku")  // Maps to qwen-fast:latest via claude-3-haiku
 ```
 
 ### Phase 2: Deep Analysis & Documentation (qwen-quality-128k)
@@ -275,7 +275,7 @@ Task("Documentation Lead",
    - Test documentation
    - Inline code comments
    Include architectural decisions from memory`,
-  "coder",
+  "fullstack-developer",
   "gpt-4"  // Maps to qwen-quality-128k:latest
 )
 ```
@@ -616,7 +616,7 @@ TodoWrite({
 
   "agents": {
     "chief-architect": {
-      "type": "system-architect",
+      "type": "backend-architect",
       "model": "opus",
       "fallback": "claude-3-5-sonnet",
       "phase": "independent"
@@ -630,8 +630,8 @@ TodoWrite({
       "description": "Writes failing tests before any implementation"
     },
 
-    "python-expert": {
-      "type": "python-expert",
+    "python-pro": {
+      "type": "python-pro",
       "model": "gpt-3.5-turbo",
       "phase": "1-implementation",
       "dependencies": ["tdd-coding-agent"]
@@ -659,7 +659,7 @@ TodoWrite({
     },
 
     "documentation-lead": {
-      "type": "coder",
+      "type": "fullstack-developer",
       "model": "gpt-4",
       "phase": "2-quality",
       "dependencies": ["*-implementation"]
@@ -679,7 +679,7 @@ TodoWrite({
         "model": "qwen-fast",
         "agents": [
           "tdd-coding-agent",
-          "python-expert",
+          "python-pro",
           "swift-expert",
           "go-expert",
           "rust-expert",

@@ -28,24 +28,24 @@
 
 ### Core Development (Every Project)
 ```javascript
-Task("TDD Coding Agent", "Write tests first", "coder")
-Task("Python Specialist", "Implement FastAPI", "python-expert")
-Task("Frontend Developer", "Build React UI", "coder")
-Task("Backend Architect", "Design API", "system-architect")
+Task("TDD Coding Agent", "Write tests first", "fullstack-developer")
+Task("Python Specialist", "Implement FastAPI", "python-pro")
+Task("Frontend Developer", "Build React UI", "fullstack-developer")
+Task("Backend Architect", "Design API", "backend-architect")
 ```
 
 ### Quality Assurance (Every Project)
 ```javascript
 Task("QA Engineer", "Integration tests", "test-automator")
 Task("Security Auditor", "Security review", "security-auditor")
-Task("Code Reviewer", "Code review", "reviewer")
+Task("Code Reviewer", "Code review", "code-reviewer")
 ```
 
 ### Infrastructure (Production Projects)
 ```javascript
 Task("DevOps Engineer", "CI/CD setup", "deployment-engineer")
-Task("Cloud Architect", "AWS infrastructure", "system-architect")
-Task("Monitoring Specialist", "Observability", "coder")
+Task("Cloud Architect", "AWS infrastructure", "backend-architect")
+Task("Monitoring Specialist", "Observability", "fullstack-developer")
 ```
 
 ## Agent Selection by Task Type
@@ -96,19 +96,19 @@ Task("Monitoring Specialist", "Observability", "coder")
 
 | Type | Purpose | Examples |
 |------|---------|----------|
-| `system-architect` | Architecture & design | Chief Architect, Backend Architect, Cloud Architect |
-| `coder` | Implementation | TDD Agent, Frontend Dev, most specialists |
-| `python-expert` | Python development | Python Specialist |
+| `backend-architect` | Architecture & design | Chief Architect, Backend Architect, Cloud Architect |
+| `fullstack-developer` | Implementation | TDD Agent, Frontend Dev, most specialists |
+| `python-pro` | Python development | Python Specialist |
 | `ios-developer` | iOS/Swift | Swift Specialist |
 | `mobile-developer` | Mobile apps | Flutter Specialist, Mobile Developer |
-| `backend-dev` | Backend services | Go Specialist, Rust Specialist |
+| `backend-architect` | Backend services | Go Specialist, Rust Specialist |
 | `deployment-engineer` | DevOps/Infrastructure | DevOps Engineer, MLOps Engineer |
 | `security-auditor` | Security review | Security Auditor, Penetration Tester |
 | `test-automator` | Testing & QA | QA Engineer, Test Engineer |
 | `technical-writer` | Documentation | Technical Writer, API Documenter |
-| `researcher` | Research & analysis | Researchers, Data Scientist |
-| `reviewer` | Code review | Code Reviewer, Architect Review |
-| `ux-designer` | UX/UI design | User Experience Designer |
+| `technical-researcher` | Research & analysis | Researchers, Data Scientist |
+| `code-reviewer` | Code review | Code Reviewer, Architect Review |
+| `ui-ux-designer` | UX/UI design | User Experience Designer |
 
 ## Model Routing (via ccproxy)
 
@@ -132,8 +132,8 @@ Task("Agent Name", "Task description", "agent-type")
 ### Multiple Agents (Parallel)
 ```javascript
 // ONE message with ALL agents
-Task("Frontend Developer", "Build React UI...", "coder")
-Task("Backend Architect", "Design API...", "system-architect")
+Task("Frontend Developer", "Build React UI...", "fullstack-developer")
+Task("Backend Architect", "Design API...", "backend-architect")
 Task("QA Engineer", "Create tests...", "test-automator")
 Task("Security Auditor", "Review security...", "security-auditor")
 

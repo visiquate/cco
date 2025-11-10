@@ -55,12 +55,12 @@ node src/knowledge-manager.js stats
 ```
 [Single Message - Parallel Agent Spawn]:
 
-Task("Chief Architect", "Analyze REST API with auth requirement...", "system-architect", model="opus")
-Task("Python Specialist", "Implement FastAPI with JWT auth...", "python-expert", model="sonnet")
+Task("Chief Architect", "Analyze REST API with auth requirement...", "backend-architect", model="opus")
+Task("Python Specialist", "Implement FastAPI with JWT auth...", "python-pro", model="sonnet")
 Task("QA Engineer", "Create integration tests for auth API...", "test-automator", model="sonnet")
 Task("Security Auditor", "Review authentication security...", "security-auditor", model="sonnet")
-Task("Documentation Lead", "Document API endpoints and auth flow...", "coder", model="haiku")
-Task("Credential Manager", "Setup secure secret management...", "coder", model="haiku")
+Task("Documentation Lead", "Document API endpoints and auth flow...", "fullstack-developer", model="haiku")
+Task("Credential Manager", "Setup secure secret management...", "fullstack-developer", model="haiku")
 ```
 
 ### Advanced Workflow: Multi-Language Project
@@ -72,14 +72,14 @@ Task("Credential Manager", "Setup secure secret management...", "coder", model="
 [Single Message - Full Army Deployment]:
 
 // Spawn All Agents (Knowledge Manager handles coordination)
-Task("Chief Architect", "Design 3-tier architecture...", "system-architect", model="opus")
+Task("Chief Architect", "Design 3-tier architecture...", "backend-architect", model="opus")
 Task("Flutter Specialist", "Build mobile app UI...", "mobile-developer", model="sonnet")
-Task("Go Specialist", "Implement REST API backend...", "backend-dev", model="sonnet")
-Task("Python Specialist", "Create ML inference service...", "python-expert", model="sonnet")
+Task("Go Specialist", "Implement REST API backend...", "backend-architect", model="sonnet")
+Task("Python Specialist", "Create ML inference service...", "python-pro", model="sonnet")
 Task("QA Engineer", "E2E testing across all services...", "test-automator", model="sonnet")
 Task("Security Auditor", "Security review of all components...", "security-auditor", model="sonnet")
-Task("Documentation Lead", "System documentation...", "coder", model="haiku")
-Task("Credential Manager", "Manage API keys, DB credentials...", "coder", model="haiku")
+Task("Documentation Lead", "System documentation...", "fullstack-developer", model="haiku")
+Task("Credential Manager", "Manage API keys, DB credentials...", "fullstack-developer", model="haiku")
 
 TodoWrite({ todos: [10+ todos for all phases] })
 ```
@@ -182,12 +182,12 @@ node src/credential-manager.js retrieve db_password
 
 [Parallel Execution]:
   # All Agents (Knowledge Manager handles coordination)
-  Task("Architect", "Design auth system architecture with JWT, email service, rate limiting", "system-architect", "opus")
-  Task("Python Dev", "Implement FastAPI auth endpoints with JWT", "python-expert", "sonnet")
+  Task("Architect", "Design auth system architecture with JWT, email service, rate limiting", "backend-architect", "opus")
+  Task("Python Dev", "Implement FastAPI auth endpoints with JWT", "python-pro", "sonnet")
   Task("QA", "Integration tests for all auth flows", "test-automator", "sonnet")
   Task("Security", "Audit JWT implementation, rate limiting, password storage", "security-auditor", "sonnet")
-  Task("Docs", "API docs, setup guide, security notes", "coder", "haiku")
-  Task("Credentials", "Manage JWT secret, email API key, DB credentials", "coder", "haiku")
+  Task("Docs", "API docs, setup guide, security notes", "fullstack-developer", "haiku")
+  Task("Credentials", "Manage JWT secret, email API key, DB credentials", "fullstack-developer", "haiku")
 
   # Todos (all at once)
   TodoWrite({
@@ -233,7 +233,7 @@ node ~/git/cc-army/src/knowledge-manager.js search "implementation status"
 ### Review Agent Activity
 ```bash
 # Search for agent-specific updates
-node ~/git/cc-army/src/knowledge-manager.js search "agent:python-expert"
+node ~/git/cc-army/src/knowledge-manager.js search "agent:python-pro"
 node ~/git/cc-army/src/knowledge-manager.js search "type:edit"
 node ~/git/cc-army/src/knowledge-manager.js search "type:completion"
 ```

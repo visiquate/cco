@@ -59,11 +59,11 @@ curl -X POST "$ENDPOINT/api/generate" \
 // Spawn agents for complex task - all use 32B model
 Task("Chief Architect",
   "Design authentication system with JWT, refresh tokens, and role-based access control",
-  "system-architect", "opus")
+  "backend-architect", "opus")
 
 Task("Python Expert",
   "Implement FastAPI backend with authentication endpoints and middleware. Use qwen2.5-coder:32b-instruct",
-  "python-expert", "sonnet")
+  "python-pro", "sonnet")
 
 Task("Security Auditor",
   "Review authentication implementation for vulnerabilities (OWASP Top 10). Use qwen2.5-coder:32b-instruct",
@@ -80,7 +80,7 @@ Task("QA Engineer",
 // Quick task - could use 7B for faster results
 Task("Python Expert",
   "Write a utility function to validate email addresses with regex. Use qwen2.5-coder:7b-instruct for speed",
-  "python-expert", "sonnet")
+  "python-pro", "sonnet")
 ```
 
 ---
@@ -341,7 +341,7 @@ Task("Python Expert",
   IMPORTANT: Use qwen2.5-coder:32b-instruct for high quality.
   Store implementation decisions in memory.
   Coordinate with Security Auditor via hooks.`,
-  "python-expert",
+  "python-pro",
   "sonnet")
 
 // For quick documentation
@@ -349,7 +349,7 @@ Task("Documentation Lead",
   `Document the API endpoints with examples.
   OPTIONAL: Can use qwen2.5-coder:7b-instruct for speed.
   Retrieve API spec from memory.`,
-  "coder",
+  "fullstack-developer",
   "haiku")
 ```
 

@@ -386,14 +386,14 @@ Direct control over phases with explicit model management:
 
 ```javascript
 // Phase 1: Implementation (qwen-latest loaded)
-Task("Python Specialist", "Build REST API", "python-expert", "gpt-4")
+Task("Python Specialist", "Build REST API", "python-pro", "gpt-4")
 Task("Swift Specialist", "Create iOS app", "ios-developer", "gpt-4")
-Task("Go Specialist", "Implement microservices", "backend-dev", "gpt-4")
-Task("Rust Specialist", "Build performance components", "backend-dev", "gpt-4")
+Task("Go Specialist", "Implement microservices", "backend-architect", "gpt-4")
+Task("Rust Specialist", "Build performance components", "backend-architect", "gpt-4")
 Task("Flutter Specialist", "Create mobile UI", "mobile-developer", "gpt-4")
-Task("API Explorer", "Analyze third-party APIs", "researcher", "gpt-4")
-Task("Salesforce API", "Integrate CRM", "backend-dev", "gpt-4")
-Task("Authentik API", "Setup authentication", "backend-dev", "gpt-4")
+Task("API Explorer", "Analyze third-party APIs", "technical-researcher", "gpt-4")
+Task("Salesforce API", "Integrate CRM", "backend-architect", "gpt-4")
+Task("Authentik API", "Setup authentication", "backend-architect", "gpt-4")
 Task("DevOps Engineer", "Configure infrastructure", "deployment-engineer", "gpt-4")
 
 // Wait for Phase 1 completion (Historical command - no longer needed)
@@ -404,7 +404,7 @@ Task("DevOps Engineer", "Configure infrastructure", "deployment-engineer", "gpt-
 Bash("curl -X POST https://coder.visiquate.com/admin/swap-model -d 'from=qwen-latest&to=qwen-quality'")
 
 // Phase 2: Quality (qwen-quality loaded)
-Task("Documentation Lead", "Write technical docs", "coder", "gpt-4-quality")
+Task("Documentation Lead", "Write technical docs", "fullstack-developer", "gpt-4-quality")
 Task("QA Engineer", "Run integration tests", "test-automator", "gpt-4-quality")
 Task("Security Auditor", "Audit code security", "security-auditor", "gpt-4-quality")
 
@@ -917,28 +917,28 @@ async function executeArmy(requirements) {
   // Phase 1: Architecture (Opus or qwen-latest)
   const architecture = await Task("Chief Architect",
     "Design system architecture",
-    "system-architect",
+    "backend-architect",
     "opus"  // Falls back to gpt-4 (qwen-latest) if needed
   );
 
   // Phase 2: Everything else with qwen-latest (gpt-4 alias)
   const implementation = await Promise.all([
     // Coding specialists
-    Task("Python Specialist", "...", "python-expert", "gpt-4"),
+    Task("Python Specialist", "...", "python-pro", "gpt-4"),
     Task("Swift Specialist", "...", "ios-developer", "gpt-4"),
-    Task("Go Specialist", "...", "backend-dev", "gpt-4"),
-    Task("Rust Specialist", "...", "backend-dev", "gpt-4"),
+    Task("Go Specialist", "...", "backend-architect", "gpt-4"),
+    Task("Rust Specialist", "...", "backend-architect", "gpt-4"),
     Task("Flutter Specialist", "...", "mobile-developer", "gpt-4"),
 
     // Integration specialists
-    Task("API Explorer", "...", "researcher", "gpt-4"),
-    Task("Salesforce API", "...", "backend-dev", "gpt-4"),
-    Task("Authentik API", "...", "backend-dev", "gpt-4"),
+    Task("API Explorer", "...", "technical-researcher", "gpt-4"),
+    Task("Salesforce API", "...", "backend-architect", "gpt-4"),
+    Task("Authentik API", "...", "backend-architect", "gpt-4"),
 
     // Quality and documentation
     Task("QA Engineer", "...", "test-automator", "gpt-4"),
     Task("Security Auditor", "...", "security-auditor", "gpt-4"),
-    Task("Documentation Lead", "...", "coder", "gpt-4"),
+    Task("Documentation Lead", "...", "fullstack-developer", "gpt-4"),
     Task("DevOps Engineer", "...", "deployment-engineer", "gpt-4")
   ]);
 
@@ -946,7 +946,7 @@ async function executeArmy(requirements) {
   // Model swap: qwen-latest → qwen-fast (automatic via Ollama)
   const credentials = await Task("Credential Manager",
     "Secure all credentials",
-    "coder",
+    "fullstack-developer",
     "ollama/qwen2.5-coder:7b-instruct"
   );
 

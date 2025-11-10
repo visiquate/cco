@@ -80,7 +80,7 @@ Write("tests/test_auth.py", tests)  // ❌ WRONG!
     - Tests with 90% coverage
 
     Coordinate with Security Auditor for review.",
-    "python-expert", "sonnet")
+    "python-pro", "sonnet")
 
   Task("Security Auditor",
     "Review Python Specialist's JWT implementation for:
@@ -136,12 +136,12 @@ Orchestrator thinks:
 ### Step 2: Spawn ALL Agents in ONE Message
 ```javascript
 [Single Message with all Task calls]:
-  Task("Chief Architect", "Design API architecture...", "system-architect", "opus")
-  Task("Python Specialist", "Implement API...", "python-expert", "sonnet")
+  Task("Chief Architect", "Design API architecture...", "backend-architect", "opus")
+  Task("Python Specialist", "Implement API...", "python-pro", "sonnet")
   Task("Security Auditor", "Review security...", "security-auditor", "sonnet")
   Task("QA Engineer", "Create tests...", "test-automator", "sonnet")
   Task("Technical Writer", "Write API guide...", "technical-writer", "sonnet")
-  Task("Documentation Lead", "Add code docs...", "coder", "haiku")
+  Task("Documentation Lead", "Add code docs...", "fullstack-developer", "haiku")
 
   TodoWrite({ todos: [...all tasks...] })
 ```
@@ -249,7 +249,7 @@ User asked: "Should we bring on lancedb for RAG?"
     - Integration with army orchestrator
     - Pre/post-compaction hooks
     - Store decisions in memory",
-    "system-architect", "opus")
+    "backend-architect", "opus")
 
   Task("Python Specialist",
     "Implement Knowledge Manager with LanceDB:
@@ -260,7 +260,7 @@ User asked: "Should we bring on lancedb for RAG?"
     - CLI interface
     - Run test suite
     Report: Implementation complete with test results",
-    "python-expert", "sonnet")
+    "python-pro", "sonnet")
 
   Task("Technical Writer",
     "Document Knowledge Manager:
