@@ -16,7 +16,7 @@
       "tokenThreshold": 0.8,
       "automatic": true
     },
-    "type": "system-architect",
+    "type": "backend-architect",
     "role": "Strategic decision-making and project guidance",
     "capabilities": [
       "System design",
@@ -63,7 +63,7 @@
     },
     {
       "name": "Python Specialist",
-      "type": "python-expert",
+      "type": "python-pro",
       "model": "sonnet-4.5",
       "ccproxyMapping": {
         "apiAlias": "claude-3-5-sonnet",
@@ -113,7 +113,7 @@
     },
     {
       "name": "Go Specialist",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "ccproxyMapping": {
         "apiAlias": "claude-3-5-sonnet",
@@ -138,7 +138,7 @@
     },
     {
       "name": "Rust Specialist",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "ccproxyMapping": {
         "apiAlias": "claude-3-5-sonnet",
@@ -191,7 +191,7 @@
   "integrationAgents": [
     {
       "name": "API Explorer",
-      "type": "researcher",
+      "type": "technical-researcher",
       "model": "sonnet-4.5",
       "ccproxyMapping": {
         "apiAlias": "claude-3-5-sonnet",
@@ -227,7 +227,7 @@
     },
     {
       "name": "Salesforce API Specialist",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "ccproxyMapping": {
         "apiAlias": "claude-3-5-sonnet",
@@ -276,7 +276,7 @@
     },
     {
       "name": "Authentik API Specialist",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "ccproxyMapping": {
         "apiAlias": "claude-3-5-sonnet",
@@ -327,7 +327,7 @@
   "developmentAgents": [
     {
       "name": "Frontend Developer",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/frontend-developer.md",
       "role": "Frontend development specialist for React applications and responsive design",
@@ -345,7 +345,7 @@
     },
     {
       "name": "Backend Architect",
-      "type": "system-architect",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/backend-architect.md",
       "role": "Backend system architecture and API design specialist",
@@ -362,7 +362,7 @@
     },
     {
       "name": "Fullstack Developer",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/fullstack-developer.md",
       "role": "Full-stack development specialist covering frontend, backend, and database technologies",
@@ -379,7 +379,7 @@
     },
     {
       "name": "Code Reviewer",
-      "type": "reviewer",
+      "type": "code-reviewer",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/code-reviewer.md",
       "role": "Expert code review specialist for quality, security, and maintainability",
@@ -413,7 +413,7 @@
     },
     {
       "name": "Python Pro",
-      "type": "python-expert",
+      "type": "python-pro",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/python-pro.md",
       "role": "Write idiomatic Python code with advanced features like decorators, generators, and async/await",
@@ -434,7 +434,7 @@
     },
     {
       "name": "Typescript Pro",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/typescript-pro.md",
       "role": "Write idiomatic TypeScript with advanced type system features, strict typing, and modern patterns",
@@ -455,7 +455,7 @@
     },
     {
       "name": "Javascript Pro",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/javascript-pro.md",
       "role": "Master modern JavaScript with ES6+, async patterns, and Node",
@@ -476,7 +476,7 @@
     },
     {
       "name": "Golang Pro",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/golang-pro.md",
       "role": "Write idiomatic Go code with goroutines, channels, and interfaces",
@@ -497,7 +497,7 @@
     },
     {
       "name": "Rust Pro",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/rust-pro.md",
       "role": "Write idiomatic Rust with ownership patterns, lifetimes, and trait implementations",
@@ -557,7 +557,7 @@
     },
     {
       "name": "Nextjs Architecture Expert",
-      "type": "system-architect",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/nextjs-architecture-expert.md",
       "role": "Master of Next",
@@ -578,7 +578,7 @@
     },
     {
       "name": "React Performance Optimization",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/react-performance-optimization.md",
       "role": "React performance optimization specialist",
@@ -595,7 +595,7 @@
     },
     {
       "name": "React Performance Optimizer",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/react-performance-optimizer.md",
       "role": "Specialist in React performance patterns, bundle optimization, and Core Web Vitals",
@@ -615,7 +615,7 @@
     },
     {
       "name": "Graphql Architect",
-      "type": "system-architect",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/graphql-architect.md",
       "role": "GraphQL schema design and API architecture specialist",
@@ -633,7 +633,7 @@
     },
     {
       "name": "Graphql Performance Optimizer",
-      "type": "coder",
+      "type": "fullstack-developer",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/graphql-performance-optimizer.md",
       "role": "GraphQL performance analysis and optimization specialist",
@@ -688,7 +688,7 @@
     },
     {
       "name": "Legacy Modernizer",
-      "type": "system-architect",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/legacy-modernizer.md",
       "role": "Refactor legacy codebases, migrate outdated frameworks, and implement gradual modernization",
@@ -706,7 +706,7 @@
     },
     {
       "name": "Architecture Modernizer",
-      "type": "system-architect",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/architecture-modernizer.md",
       "role": "Software architecture modernization specialist",
@@ -812,7 +812,7 @@
     },
     {
       "name": "Architect Review",
-      "type": "reviewer",
+      "type": "code-reviewer",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/architect-review.md",
       "role": "Code architecture review specialist for SOLID principles and pattern adherence",
@@ -832,7 +832,7 @@
     },
     {
       "name": "Flutter Go Reviewer",
-      "type": "reviewer",
+      "type": "code-reviewer",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/flutter-go-reviewer.md",
       "role": "Comprehensive code reviewer for Golang backend and Flutter frontend",
@@ -854,7 +854,7 @@
     },
     {
       "name": "Web Vitals Optimizer",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/web-vitals-optimizer.md",
       "role": "Core Web Vitals optimization specialist for LCP, FID, CLS metrics",
@@ -876,7 +876,7 @@
   "dataAgents": [
     {
       "name": "Database Architect",
-      "type": "system-architect",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/database-architect.md",
       "role": "Database architecture and design specialist",
@@ -893,7 +893,7 @@
     },
     {
       "name": "Database Admin",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/database-admin.md",
       "role": "Database administration specialist for operations, backups, replication, and monitoring",
@@ -910,7 +910,7 @@
     },
     {
       "name": "Database Optimization",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/database-optimization.md",
       "role": "Database performance optimization and query tuning specialist",
@@ -927,7 +927,7 @@
     },
     {
       "name": "Database Optimizer",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/database-optimizer.md",
       "role": "SQL query optimization and database schema design specialist",
@@ -943,7 +943,7 @@
     },
     {
       "name": "Data Engineer",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/data-engineer.md",
       "role": "Data pipeline and analytics infrastructure specialist",
@@ -961,7 +961,7 @@
     },
     {
       "name": "Data Scientist",
-      "type": "researcher",
+      "type": "technical-researcher",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/data-scientist.md",
       "role": "Data analysis and statistical modeling specialist",
@@ -978,7 +978,7 @@
     },
     {
       "name": "Data Analyst",
-      "type": "researcher",
+      "type": "technical-researcher",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/data-analyst.md",
       "role": "Use this agent when you need quantitative analysis, statistical insights, or data-driven research",
@@ -999,7 +999,7 @@
     },
     {
       "name": "Nosql Specialist",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/nosql-specialist.md",
       "role": "NoSQL database specialist for MongoDB, Redis, Cassandra, and document/key-value stores",
@@ -1020,7 +1020,7 @@
     },
     {
       "name": "Sql Pro",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/sql-pro.md",
       "role": "Write complex SQL queries, optimize execution plans, and design normalized schemas",
@@ -1038,7 +1038,7 @@
     },
     {
       "name": "Supabase Schema Architect",
-      "type": "system-architect",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/supabase-schema-architect.md",
       "role": "Supabase database schema design and RLS policy specialist",
@@ -1058,7 +1058,7 @@
     },
     {
       "name": "Supabase Realtime Optimizer",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/supabase-realtime-optimizer.md",
       "role": "Supabase realtime performance and WebSocket optimization specialist",
@@ -1117,7 +1117,7 @@
     },
     {
       "name": "Cloud Architect",
-      "type": "system-architect",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/cloud-architect.md",
       "role": "Cloud infrastructure design and optimization specialist for AWS/Azure/GCP",
@@ -1248,7 +1248,7 @@
     },
     {
       "name": "Load Testing Specialist",
-      "type": "coder",
+      "type": "fullstack-developer",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/load-testing-specialist.md",
       "role": "Load testing and stress testing specialist",
@@ -1390,7 +1390,7 @@
     },
     {
       "name": "Risk Manager",
-      "type": "planner",
+      "type": "task-decomposition-expert",
       "model": "haiku",
       "agentFile": "~/.claude/agents/risk-manager.md",
       "role": "Risk management and portfolio analysis specialist",
@@ -1414,7 +1414,7 @@
   "aiMlAgents": [
     {
       "name": "Ai Engineer",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/ai-engineer.md",
       "role": "LLM application and RAG system specialist",
@@ -1430,7 +1430,7 @@
     },
     {
       "name": "Ml Engineer",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/ml-engineer.md",
       "role": "ML production systems and model deployment specialist",
@@ -1462,7 +1462,7 @@
     },
     {
       "name": "Model Evaluator",
-      "type": "researcher",
+      "type": "technical-researcher",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/model-evaluator.md",
       "role": "AI model evaluation and benchmarking specialist",
@@ -1479,7 +1479,7 @@
     },
     {
       "name": "Prompt Engineer",
-      "type": "researcher",
+      "type": "technical-researcher",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/prompt-engineer.md",
       "role": "Expert prompt optimization for LLMs and AI systems",
@@ -1522,7 +1522,7 @@
   "mcpAgents": [
     {
       "name": "Mcp Expert",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/mcp-expert.md",
       "role": "Model Context Protocol (MCP) integration specialist for the cli-tool components system",
@@ -1539,7 +1539,7 @@
     },
     {
       "name": "Mcp Server Architect",
-      "type": "system-architect",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/mcp-server-architect.md",
       "role": "MCP server architecture and implementation specialist",
@@ -1555,7 +1555,7 @@
     },
     {
       "name": "Mcp Integration Engineer",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/mcp-integration-engineer.md",
       "role": "MCP server integration and orchestration specialist",
@@ -1588,7 +1588,7 @@
     },
     {
       "name": "Mcp Protocol Specialist",
-      "type": "researcher",
+      "type": "technical-researcher",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/mcp-protocol-specialist.md",
       "role": "MCP protocol specification and standards specialist",
@@ -1738,7 +1738,7 @@
     },
     {
       "name": "Llms Maintainer",
-      "type": "coder",
+      "type": "fullstack-developer",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/llms-maintainer.md",
       "role": "LLMs",
@@ -1784,7 +1784,7 @@
   "researchAgents": [
     {
       "name": "Technical Researcher",
-      "type": "researcher",
+      "type": "technical-researcher",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/technical-researcher.md",
       "role": "Use this agent when you need to analyze code repositories, technical documentation, implementation details, or evaluate technical solutions",
@@ -1805,7 +1805,7 @@
     },
     {
       "name": "Academic Researcher",
-      "type": "researcher",
+      "type": "technical-researcher",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/academic-researcher.md",
       "role": "Academic research specialist for scholarly sources, peer-reviewed papers, and academic literature",
@@ -1822,7 +1822,7 @@
     },
     {
       "name": "Research Orchestrator",
-      "type": "planner",
+      "type": "task-decomposition-expert",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/research-orchestrator.md",
       "role": "Use this agent when you need to coordinate a comprehensive research project that requires multiple specialized agents working in sequence",
@@ -1843,7 +1843,7 @@
     },
     {
       "name": "Research Coordinator",
-      "type": "planner",
+      "type": "task-decomposition-expert",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/research-coordinator.md",
       "role": "Use this agent when you need to strategically plan and coordinate complex research tasks across multiple specialist researchers",
@@ -1864,7 +1864,7 @@
     },
     {
       "name": "Research Synthesizer",
-      "type": "researcher",
+      "type": "technical-researcher",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/research-synthesizer.md",
       "role": "Use this agent when you need to consolidate and synthesize findings from multiple research sources or specialist researchers into a unified, comprehensive analysis",
@@ -1885,7 +1885,7 @@
     },
     {
       "name": "Research Brief Generator",
-      "type": "researcher",
+      "type": "technical-researcher",
       "model": "haiku",
       "agentFile": "~/.claude/agents/research-brief-generator.md",
       "role": "Use this agent when you need to transform a user's research query into a structured, actionable research brief that will guide subsequent research activities",
@@ -1911,7 +1911,7 @@
     },
     {
       "name": "Comprehensive Researcher",
-      "type": "researcher",
+      "type": "technical-researcher",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/comprehensive-researcher.md",
       "role": "Comprehensive research specialist",
@@ -1928,7 +1928,7 @@
     },
     {
       "name": "Fact Checker",
-      "type": "researcher",
+      "type": "technical-researcher",
       "model": "haiku",
       "agentFile": "~/.claude/agents/fact-checker.md",
       "role": "Fact verification and source validation specialist",
@@ -1950,7 +1950,7 @@
     },
     {
       "name": "Query Clarifier",
-      "type": "planner",
+      "type": "task-decomposition-expert",
       "model": "haiku",
       "agentFile": "~/.claude/agents/query-clarifier.md",
       "role": "Use this agent when you need to analyze research queries for clarity and determine if user clarification is needed before proceeding with research",
@@ -1976,7 +1976,7 @@
     },
     {
       "name": "Search Specialist",
-      "type": "researcher",
+      "type": "technical-researcher",
       "model": "haiku",
       "agentFile": "~/.claude/agents/search-specialist.md",
       "role": "Expert web researcher using advanced search techniques and synthesis",
@@ -2037,7 +2037,7 @@
     },
     {
       "name": "Ui Ux Designer",
-      "type": "ux-designer",
+      "type": "ui-ux-designer",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/ui-ux-designer.md",
       "role": "UI/UX design specialist for user-centered design and interface systems",
@@ -2053,7 +2053,7 @@
     },
     {
       "name": "Cli Ui Designer",
-      "type": "ux-designer",
+      "type": "ui-ux-designer",
       "model": "haiku",
       "agentFile": "~/.claude/agents/cli-ui-designer.md",
       "role": "CLI interface design specialist",
@@ -2075,7 +2075,7 @@
     },
     {
       "name": "Performance Engineer",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/performance-engineer.md",
       "role": "Profile applications, optimize bottlenecks, and implement caching strategies",
@@ -2093,7 +2093,7 @@
     },
     {
       "name": "Performance Profiler",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/performance-profiler.md",
       "role": "Performance analysis and optimization specialist",
@@ -2110,7 +2110,7 @@
     },
     {
       "name": "Context Manager",
-      "type": "system-architect",
+      "type": "backend-architect",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/context-manager.md",
       "role": "Context management specialist for multi-agent workflows and long-running tasks",
@@ -2127,7 +2127,7 @@
     },
     {
       "name": "Task Decomposition Expert",
-      "type": "planner",
+      "type": "task-decomposition-expert",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/task-decomposition-expert.md",
       "role": "Complex goal breakdown specialist",
@@ -2146,7 +2146,7 @@
     },
     {
       "name": "Command Expert",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "haiku",
       "agentFile": "~/.claude/agents/command-expert.md",
       "role": "CLI command development specialist for the claude-code-templates system",
@@ -2167,7 +2167,7 @@
     },
     {
       "name": "Connection Agent",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "haiku",
       "agentFile": "~/.claude/agents/connection-agent.md",
       "role": "Obsidian vault connection specialist",
@@ -2189,7 +2189,7 @@
     },
     {
       "name": "Metadata Agent",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "haiku",
       "agentFile": "~/.claude/agents/metadata-agent.md",
       "role": "Obsidian metadata management specialist",
@@ -2211,7 +2211,7 @@
     },
     {
       "name": "Tag Agent",
-      "type": "backend-dev",
+      "type": "backend-architect",
       "model": "haiku",
       "agentFile": "~/.claude/agents/tag-agent.md",
       "role": "Obsidian tag taxonomy specialist",
@@ -2233,7 +2233,7 @@
     },
     {
       "name": "Document Structure Analyzer",
-      "type": "researcher",
+      "type": "technical-researcher",
       "model": "haiku",
       "agentFile": "~/.claude/agents/document-structure-analyzer.md",
       "role": "Document structure analysis specialist",
@@ -2255,7 +2255,7 @@
     },
     {
       "name": "Url Link Extractor",
-      "type": "researcher",
+      "type": "technical-researcher",
       "model": "haiku",
       "agentFile": "~/.claude/agents/url-link-extractor.md",
       "role": "URL and link extraction specialist",
@@ -2276,7 +2276,7 @@
     },
     {
       "name": "Project Supervisor Orchestrator",
-      "type": "planner",
+      "type": "task-decomposition-expert",
       "model": "haiku",
       "agentFile": "~/.claude/agents/project-supervisor-orchestrator.md",
       "role": "Project workflow orchestrator",
@@ -2315,7 +2315,7 @@
     },
     {
       "name": "Unused Code Cleaner",
-      "type": "coder",
+      "type": "fullstack-developer",
       "model": "haiku",
       "agentFile": "~/.claude/agents/unused-code-cleaner.md",
       "role": "Dead code detection and safe removal specialist",
@@ -2342,7 +2342,7 @@
   "businessAgents": [
     {
       "name": "Product Strategist",
-      "type": "planner",
+      "type": "task-decomposition-expert",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/product-strategist.md",
       "role": "Product strategy and roadmap planning specialist",
@@ -2359,7 +2359,7 @@
     },
     {
       "name": "Business Analyst",
-      "type": "researcher",
+      "type": "technical-researcher",
       "model": "haiku",
       "agentFile": "~/.claude/agents/business-analyst.md",
       "role": "Business metrics analysis and reporting specialist",
@@ -2405,7 +2405,7 @@
     },
     {
       "name": "Quant Analyst",
-      "type": "researcher",
+      "type": "technical-researcher",
       "model": "sonnet-4.5",
       "agentFile": "~/.claude/agents/quant-analyst.md",
       "role": "Quantitative finance and algorithmic trading specialist",
