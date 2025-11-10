@@ -3,7 +3,7 @@
 /**
  * Secure Credential Manager
  *
- * Manages credentials for the Claude Army, ensuring secure storage,
+ * Manages credentials for the Claude Orchestra, ensuring secure storage,
  * retrieval, and tracking of all secrets used across agents.
  */
 

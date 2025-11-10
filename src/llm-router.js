@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * LLM Router for Claude Army
+ * LLM Router for Claude Orchestra
  *
  * Routes different types of tasks to appropriate LLM endpoints:
  * - Architecture/Planning → Claude API (via Claude Code)
@@ -335,7 +335,7 @@ if (require.main === module) {
         process.exit(1);
       });
   } else {
-    console.log('LLM Router for Claude Army');
+    console.log('LLM Router for Claude Orchestra');
     console.log('==========================\n');
     console.log('Commands:');
     console.log('  stats                           - Show routing configuration');

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Claude Army Orchestrator
+ * Claude Orchestra Orchestrator
  *
  * Coordinates multi-agent development teams with specialized coding agents,
  * an architect for strategic decisions, and support agents for QA, security,
@@ -12,7 +12,7 @@ const config = require('../config/orchestra-config.json');
 const LLMRouter = require('./llm-router');
 const KnowledgeManager = require('./knowledge-manager');
 
-class ClaudeArmy {
+class ClaudeOrchestra {
   constructor(options = {}) {
     this.config = config;
     this.activeAgents = new Map();
@@ -57,7 +57,7 @@ class ClaudeArmy {
    * This sets up the coordination but doesn't spawn agents yet
    */
   async initializeCoordination() {
-    console.log('🏗️  Initializing Claude Army coordination...');
+    console.log('🏗️  Initializing Claude Orchestra coordination...');
 
     console.log('Coordination: Knowledge Manager (LanceDB vector search)');
     console.log('Leader: Chief Architect (Opus 4.1)');
@@ -193,7 +193,7 @@ QUALITY STANDARDS:
       baseInstructions.prompt += `
 
 NOTE: This coding task should be executed using the custom LLM endpoint.
-The Claude Army orchestrator will handle routing your implementation requests appropriately.`;
+The Claude Orchestra orchestrator will handle routing your implementation requests appropriately.`;
     }
 
     return baseInstructions;
@@ -483,12 +483,12 @@ OUTPUT:
 }
 
 // Export for use
-module.exports = ClaudeArmy;
+module.exports = ClaudeOrchestra;
 
 // CLI usage
 if (require.main === module) {
-  const army = new ClaudeArmy();
-  console.log('Claude Army Orchestrator');
+  const army = new ClaudeOrchestra();
+  console.log('Claude Orchestra Orchestrator');
   console.log('========================\n');
   console.log(`Total Agents: ${army.getTotalAgentCount()}`);
   console.log(`- 1 Architect (${config.architect.model})`);
