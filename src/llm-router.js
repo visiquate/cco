@@ -27,7 +27,7 @@ class LLMRouter {
     try {
       return require('../config/orchestra-config.json');
     } catch (error) {
-      console.error('Failed to load army config:', error.message);
+      console.error('Failed to load orchestra config:', error.message);
       return { llmRouting: { endpoints: {}, rules: {} } };
     }
   }
