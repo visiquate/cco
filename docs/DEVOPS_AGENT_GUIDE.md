@@ -271,31 +271,31 @@ From `config/orchestra-config.json`:
 ### Before Work
 ```bash
 # Retrieve architecture decisions from Knowledge Manager
-node ~/git/cc-army/src/knowledge-manager.js search "architect decisions"
-node ~/git/cc-army/src/knowledge-manager.js search "architecture"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "architect decisions"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "architecture"
 
 # Retrieve application details from coding agents
-node ~/git/cc-army/src/knowledge-manager.js search "python implementation"
-node ~/git/cc-army/src/knowledge-manager.js search "go implementation"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "python implementation"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "go implementation"
 ```
 
 ### During Work
 ```bash
 # After creating each infrastructure file
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Edit: Dockerfile - Created production-ready container image" \
   --type edit --agent devops-engineer
 
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Edit: docker-compose.yml - Set up local development environment" \
   --type edit --agent devops-engineer
 
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Edit: .github/workflows/ci-cd.yml - Configured CI/CD pipeline" \
   --type edit --agent devops-engineer
 
 # Store infrastructure decisions
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Infrastructure: AWS ECS in us-east-1 with ECR container registry" \
   --type decision --agent devops-engineer
 ```
@@ -303,12 +303,12 @@ node ~/git/cc-army/src/knowledge-manager.js store \
 ### After Work
 ```bash
 # Notify other agents
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Status: CI/CD pipeline ready - deploy command: aws ecs update-service" \
   --type status --agent devops-engineer
 
 # Complete task
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Task complete: DevOps setup finished" \
   --type completion --agent devops-engineer
 ```

@@ -2,7 +2,7 @@
 
 ## What Was Implemented
 
-This implementation enables the Claude Orchestra to operate autonomously for **4-8 hours** without user intervention, addressing your goal: *"ultimately the goal is to allow the claude code army to work autonomously for hours and hours, without intervention from me."*
+This implementation enables the Claude Orchestra to operate autonomously for **4-8 hours** without user intervention, addressing your goal: *"ultimately the goal is to allow the claude code orchestra to work autonomously for hours and hours, without intervention from me."*
 
 ---
 
@@ -232,17 +232,17 @@ compaction/<SESSION_ID>/
 **User Experience:**
 ```
 User: "Build a Python API with JWT auth"
-Army: [Starts work]
-Army: [Encounters error] "What should I do about this timeout?"
+Orchestra: [Starts work]
+Orchestra: [Encounters error] "What should I do about this timeout?"
 User: [Provides guidance]
-Army: [Continues]
-Army: "Which database index strategy?"
+Orchestra: [Continues]
+Orchestra: "Which database index strategy?"
 User: [Makes decision]
-Army: [Continues]
-Army: [Test fails] "Test is failing, need help"
+Orchestra: [Continues]
+Orchestra: [Test fails] "Test is failing, need help"
 User: [Fixes test]
-Army: [Compaction occurs]
-Army: "What were we building again?"
+Orchestra: [Compaction occurs]
+Orchestra: "What were we building again?"
 User: [Re-explains everything]
 
 Result: Constant intervention, slow progress, frustration
@@ -254,11 +254,11 @@ Result: Constant intervention, slow progress, frustration
 ```
 User: "Build a Python API with JWT auth and deploy to AWS"
 
-Army: [Runs discovery interview - 60-80 questions]
-Army: [Generates complete specification]
-Army: [Stores everything in persistent memory]
+Orchestra: [Runs discovery interview - 60-80 questions]
+Orchestra: [Generates complete specification]
+Orchestra: [Stores everything in persistent memory]
 
-Army: [Works autonomously for 4 hours]
+Orchestra: [Works autonomously for 4 hours]
   ├─ Architecture designed
   ├─ Code implemented
   ├─ 12 errors recovered autonomously
@@ -268,9 +268,9 @@ Army: [Works autonomously for 4 hours]
   ├─ Security issues found → fixed autonomously
   └─ Checkpoint: deployment_ready
 
-Army: "Ready for production deployment. Approve?"
+Orchestra: "Ready for production deployment. Approve?"
 User: [Reviews, approves]
-Army: [Deploys to AWS]
+Orchestra: [Deploys to AWS]
 
 Result: Minimal intervention, fast progress, confidence
 ```
@@ -330,9 +330,9 @@ You: "Build a full-stack app with Python backend, Flutter frontend,
      Authentik authentication, Salesforce integration, and deploy to AWS ECS
      with monitoring and documentation"
 
-# Army auto-activates and runs discovery
-# Army works autonomously for 4-8 hours
-# Army only checkpoints for high-risk decisions
+# Orchestra auto-activates and runs discovery
+# Orchestra works autonomously for 4-8 hours
+# Orchestra only checkpoints for high-risk decisions
 
 # Result: Production-ready implementation
 ```
@@ -347,7 +347,7 @@ You: "Build a full-stack app with Python backend, Flutter frontend,
 
 ### Monitoring Progress
 
-**Army broadcasts progress every 30 minutes:**
+**Orchestra broadcasts progress every 30 minutes:**
 - Current phase and milestone
 - Percent complete
 - Estimated time remaining
@@ -382,7 +382,7 @@ You: "Build a full-stack app with Python backend, Flutter frontend,
 ## Questions Answered
 
 ### Original Request
-> "ultimately the goal is to allow the claude code army to work autonomously for hours and hours, without intervention from me. describe any obstacles to achieving that goal. let's figure out what it will take to overcome those obstacles. if the architect uses up all the opus tokens, then it should fall back to sonnet 4.5. all the other agents should use sonnet 4.5."
+> "ultimately the goal is to allow the claude code orchestra to work autonomously for hours and hours, without intervention from me. describe any obstacles to achieving that goal. let's figure out what it will take to overcome those obstacles. if the architect uses up all the opus tokens, then it should fall back to sonnet 4.5. all the other agents should use sonnet 4.5."
 
 ### What Was Delivered
 

@@ -487,7 +487,7 @@ The Knowledge Manager uses LanceDB to provide:
 ### Database Location
 
 ```
-/Users/brent/git/cc-army/data/knowledge/
+/Users/brent/git/cc-orchestra/data/knowledge/
 ├── cc-army/              # Claude Orchestra project knowledge
 │   └── army_knowledge/   # LanceDB table
 ├── statushub/            # StatusHub project knowledge
@@ -517,7 +517,7 @@ node src/knowledge-manager.js test
 
 # Expected output:
 # 📦 Knowledge Manager initialized for repository: cc-army
-# 📁 Database path: /Users/brent/git/cc-army/data/knowledge/cc-army
+# 📁 Database path: /Users/brent/git/cc-orchestra/data/knowledge/cc-army
 # ✅ Connected to existing knowledge base for cc-army
 #
 # 1. Storing test knowledge...
@@ -531,11 +531,11 @@ node src/knowledge-manager.js test
 ```bash
 # Test with different repositories
 cd ~/git/statushub
-node ~/git/cc-army/src/knowledge-manager.js stats
+node ~/git/cc-orchestra/src/knowledge-manager.js stats
 # Should show: "repository": "statushub"
 
 cd ~/git/slack-broker
-node ~/git/cc-army/src/knowledge-manager.js stats
+node ~/git/cc-orchestra/src/knowledge-manager.js stats
 # Should show: "repository": "slack-broker"
 
 cd ~/git/cc-army
@@ -604,9 +604,9 @@ diff ~/Desktop/knowledge-pre-migration.json ~/Desktop/knowledge-post-migration.j
 | `~/.claude/CLAUDE.md` | Global Claude Code instructions | CRITICAL | Direct copy |
 | `~/.claude/settings.local.json` | Claude Code configuration (MCP no longer needed) | MEDIUM | Direct copy |
 | `~/.gitignore_global` | Prevents Claude files from git | HIGH | Direct copy |
-| `/Users/brent/git/cc-army/` | Full Claude Orchestra repository | CRITICAL | Git clone or tar |
-| `/Users/brent/git/cc-army/config/orchestra-config.json` | Agent and routing config | CRITICAL | Via repository |
-| `/Users/brent/git/cc-army/data/knowledge/` | LanceDB knowledge databases | HIGH | Tar archive |
+| `/Users/brent/git/cc-orchestra/` | Full Claude Orchestra repository | CRITICAL | Git clone or tar |
+| `/Users/brent/git/cc-orchestra/config/orchestra-config.json` | Agent and routing config | CRITICAL | Via repository |
+| `/Users/brent/git/cc-orchestra/data/knowledge/` | LanceDB knowledge databases | HIGH | Tar archive |
 | `/tmp/credentials.json` | Temporary credentials (dev only) | MEDIUM | Encrypted transfer |
 | `~/.npmrc` | npm configuration (if customized) | LOW | Direct copy |
 
@@ -758,7 +758,7 @@ node src/knowledge-manager.js stats | jq .
 
 # ✅ Per-repository isolation works
 cd ~/git/statushub
-node ~/git/cc-army/src/knowledge-manager.js stats | grep repository
+node ~/git/cc-orchestra/src/knowledge-manager.js stats | grep repository
 # Should show: "repository": "statushub"
 ```
 
@@ -785,7 +785,7 @@ Open Claude Code and test:
 
 4. Check knowledge was stored:
    cd [project-dir]
-   node ~/git/cc-army/src/knowledge-manager.js stats
+   node ~/git/cc-orchestra/src/knowledge-manager.js stats
 ```
 
 ---
@@ -865,10 +865,10 @@ cd ~/git/cc-army && \
 alias army-status='cd ~/git/cc-army && node src/llm-router.js stats && node src/knowledge-manager.js stats'
 
 # Search knowledge across all repos
-alias army-search='node ~/git/cc-army/src/knowledge-manager.js search'
+alias army-search='node ~/git/cc-orchestra/src/knowledge-manager.js search'
 
 # View routing configuration
-alias army-routing='node ~/git/cc-army/src/llm-router.js stats | jq .'
+alias army-routing='node ~/git/cc-orchestra/src/llm-router.js stats | jq .'
 ```
 
 Add to `~/.zshrc` or `~/.bash_profile`:
@@ -937,7 +937,7 @@ ls -la data/knowledge/
 **Solution:**
 ```bash
 # Create database directory
-mkdir -p ~/git/cc-army/data/knowledge
+mkdir -p ~/git/cc-orchestra/data/knowledge
 
 # Run test to initialize
 cd ~/git/cc-army
@@ -1150,6 +1150,6 @@ This guide covered:
 5. Update any project-specific configurations
 
 For additional help, refer to:
-- `/Users/brent/git/cc-army/docs/ARMY_USAGE_GUIDE.md`
-- `/Users/brent/git/cc-army/docs/KNOWLEDGE_MANAGER_GUIDE.md`
-- `/Users/brent/git/cc-army/docs/LLM_ROUTING_GUIDE.md`
+- `/Users/brent/git/cc-orchestra/docs/ARMY_USAGE_GUIDE.md`
+- `/Users/brent/git/cc-orchestra/docs/KNOWLEDGE_MANAGER_GUIDE.md`
+- `/Users/brent/git/cc-orchestra/docs/LLM_ROUTING_GUIDE.md`

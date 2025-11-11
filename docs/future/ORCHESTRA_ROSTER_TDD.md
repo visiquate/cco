@@ -198,16 +198,16 @@ documentation-lead:
 ```bash
 # Must run FIRST in Phase 1 (logically)
 # Retrieve architecture decisions from Knowledge Manager
-node ~/git/cc-army/src/knowledge-manager.js search "architect decisions"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "architect decisions"
 
 # Write comprehensive tests
 # Store tests in Knowledge Manager
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Tests written: Comprehensive test suite for all features" \
   --type implementation --agent tdd-agent
 
 # Notify other agents
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Status: Tests ready for implementation" \
   --type status --agent tdd-agent
 ```
@@ -216,14 +216,14 @@ node ~/git/cc-army/src/knowledge-manager.js store \
 ```bash
 # Depends on TDD tests being available
 # Retrieve test specifications from Knowledge Manager
-node ~/git/cc-army/src/knowledge-manager.js search "tdd agent tests"
-node ~/git/cc-army/src/knowledge-manager.js search "test specifications"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "tdd agent tests"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "test specifications"
 
 # Implement to make tests pass
 pytest tests/  # Verify green
 
 # Store implementation in Knowledge Manager
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Implementation complete: All tests passing" \
   --type implementation --agent coding-specialist
 ```
@@ -232,12 +232,12 @@ node ~/git/cc-army/src/knowledge-manager.js store \
 ```bash
 # Reviews and enhances after implementation
 # Retrieve tests and implementation from Knowledge Manager
-node ~/git/cc-army/src/knowledge-manager.js search "tdd agent tests"
-node ~/git/cc-army/src/knowledge-manager.js search "implementation"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "tdd agent tests"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "implementation"
 
 # Add edge cases and integration tests
 # Store QA enhancements in Knowledge Manager
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "QA enhancements: Added edge cases and integration tests" \
   --type implementation --agent qa-engineer
 ```

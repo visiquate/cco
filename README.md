@@ -38,7 +38,7 @@ All agents work in parallel using Claude Code's Task tool with Knowledge Manager
 
 The Claude Orchestra uses the built-in Knowledge Manager for coordination. No additional installation needed!
 
-### 2. Deploy Your Army
+### 2. Deploy Your Orchestra
 
 In Claude Code, simply describe what you want to build:
 

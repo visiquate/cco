@@ -158,13 +158,13 @@ scripts/build-comprehensive-config.js  → Update references inside
 
 **Explicit Path References to Update:**
 ```bash
-Line 11:  /Users/brent/git/cc-army/ORCHESTRATOR_RULES.md
-Line 45:  /Users/brent/git/cc-army/ORCHESTRATOR_RULES.md
-Line 50:  /Users/brent/git/cc-army/src/knowledge-manager.js
-Line 51:  /Users/brent/git/cc-army/src/knowledge-manager.js
-Line 548: /Users/brent/git/cc-army/config/orchestra-config.json
-Line 549: /Users/brent/git/cc-army/docs/
-Line 771: ~/git/cc-army/src/knowledge-manager.js (3 instances)
+Line 11:  /Users/brent/git/cc-orchestra/ORCHESTRATOR_RULES.md
+Line 45:  /Users/brent/git/cc-orchestra/ORCHESTRATOR_RULES.md
+Line 50:  /Users/brent/git/cc-orchestra/src/knowledge-manager.js
+Line 51:  /Users/brent/git/cc-orchestra/src/knowledge-manager.js
+Line 548: /Users/brent/git/cc-orchestra/config/orchestra-config.json
+Line 549: /Users/brent/git/cc-orchestra/docs/
+Line 771: ~/git/cc-orchestra/src/knowledge-manager.js (3 instances)
 ```
 
 **Terminology Updates:**

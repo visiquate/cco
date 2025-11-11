@@ -1410,10 +1410,10 @@ Task("DevOps Engineer",
 
 **Location**: `~/.claude/CLAUDE.md`
 
-**Purpose**: Configure army behavior across ALL projects
+**Purpose**: Configure orchestra behavior across ALL projects
 
 **Key Sections:**
-- Army roster and capabilities
+- Orchestra roster and capabilities
 - Auto-detection trigger patterns
 - Coordination protocol
 - Model routing configuration
@@ -1422,7 +1422,7 @@ Task("DevOps Engineer",
 
 **Location**: `<project-root>/CLAUDE.md`
 
-**Purpose**: Override army behavior for specific project
+**Purpose**: Override orchestra behavior for specific project
 
 **Example**:
 ```markdown
@@ -1450,7 +1450,7 @@ Task("DevOps Engineer",
 
 From global `CLAUDE.md` lines 24-95:
 
-**✅ ACTIVATE ARMY for:**
+**✅ ACTIVATE ORCHESTRA for:**
 - Full-stack applications ("Build a mobile app with backend")
 - Multi-technology projects ("Create with Python and Go")
 - Complex features ("API with Salesforce integration")
@@ -1458,7 +1458,7 @@ From global `CLAUDE.md` lines 24-95:
 - Enterprise integrations ("Set up Authentik authentication")
 - Production systems ("Build with tests, security, monitoring")
 
-**❌ BYPASS ARMY for:**
+**❌ BYPASS ORCHESTRA for:**
 - Single-file changes ("Fix typo in README")
 - Simple queries ("What does this function do?")
 - Basic operations ("Run tests", "Check git status")
@@ -1535,7 +1535,7 @@ From `config/orchestra-config.json`:
 {
   "name": "claude-army",
   "version": "2.0.0",
-  "description": "Multi-agent development army with autonomous operation capabilities",
+  "description": "Multi-agent development orchestra with autonomous operation capabilities",
   "architect": { ... },
   "codingAgents": [ ... ],
   "integrationAgents": [ ... ],
@@ -1824,14 +1824,14 @@ Update `ORCHESTRA_ROSTER_V2.md` with agent details.
 **GitHub Actions**:
 ```yaml
 # .github/workflows/army-review.yml
-name: Army Code Review
+name: Orchestra Code Review
 on: [pull_request]
 jobs:
   review:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Run Army Review
+      - name: Run Orchestra Review
         run: |
           node ~/git/cc-orchestra/src/orchestra-conductor.js \
             "Review PR #${{ github.event.pull_request.number }}"
@@ -1856,7 +1856,7 @@ fi
 **CI/CD Integration**:
 ```yaml
 # gitlab-ci.yml
-army-review:
+orchestra-review:
   stage: test
   script:
     - node ~/git/cc-orchestra/src/orchestra-conductor.js "Review branch $CI_COMMIT_REF_NAME"
@@ -2254,7 +2254,7 @@ curl http://localhost:8081/v1/models
 - `/Users/brent/git/cc-orchestra/config/orchestra-config.json` - Main config
 - `/Users/brent/git/cc-orchestra/config/ccproxy/ccproxy-config-tdd-pipeline.yaml` - ccproxy config
 - `/Users/brent/ccproxy/config.yaml` - Active ccproxy config (symlink to above)
-- `~/.claude/CLAUDE.md` - Global army instructions
+- `~/.claude/CLAUDE.md` - Global orchestra instructions
 - `<project>/CLAUDE.md` - Project-specific overrides
 
 **Implementation:**

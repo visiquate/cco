@@ -36,12 +36,12 @@ This file provides project-specific guidance to Claude Code when working in this
 
 ### Custom Trigger Patterns
 
-**Activate Army for:**
+**Activate Orchestra for:**
 - "Update [specific feature in your project]"
 - "Add [project-specific pattern]"
 - [Add your project-specific triggers]
 
-**Bypass Army for:**
+**Bypass Orchestra for:**
 - "Quick fix to [specific area]"
 - "Update [specific config file]"
 - [Add your project-specific bypass patterns]
@@ -187,14 +187,14 @@ OPTIONAL_VAR=description
 
 ---
 
-**Note:** This file is read by Claude Code and helps configure the Claude Orchestra for this specific project. The global army configuration is at `/Users/brent/git/cc-army/`.
+**Note:** This file is read by Claude Code and helps configure the Claude Orchestra for this specific project. The global orchestra configuration is at `/Users/brent/git/cc-orchestra/`.
 ```
 
 ## How to Use This Template
 
 1. **Copy to Your Project:**
    ```bash
-   cp /Users/brent/git/cc-army/docs/PROJECT_CLAUDE_TEMPLATE.md /path/to/your/project/CLAUDE.md
+   cp /Users/brent/git/cc-orchestra/docs/PROJECT_CLAUDE_TEMPLATE.md /path/to/your/project/CLAUDE.md
    ```
 
 2. **Customize Sections:**
@@ -215,8 +215,8 @@ OPTIONAL_VAR=description
 4. **Start Using:**
    - Navigate to your project directory
    - Invoke Claude Code
-   - The army will automatically detect your project configuration
-   - Army operates in your project directory, not cc-army
+   - The orchestra will automatically detect your project configuration
+   - Orchestra operates in your project directory, not cc-orchestra
 
 ## Examples
 
@@ -306,7 +306,7 @@ OPTIONAL_VAR=description
 
 ## Notes
 
-- The global `~/.claude/CLAUDE.md` provides army auto-detection
+- The global `~/.claude/CLAUDE.md` provides orchestra auto-detection
 - Project-specific `./CLAUDE.md` customizes behavior
 - Both files are read by Claude Code
 - Project file takes precedence for project-specific settings

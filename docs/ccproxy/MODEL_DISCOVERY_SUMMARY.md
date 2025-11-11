@@ -134,9 +134,9 @@ It's the **"pro" version** for serious coding work.
 
 ## Files Created
 
-- `/Users/brent/git/cc-army/docs/ccproxy/AVAILABLE_MODELS_REPORT.md` - Full analysis
-- `/Users/brent/git/cc-army/docs/ccproxy/RECOMMENDED_CONFIG_UPDATE.yaml` - Config update
-- `/Users/brent/git/cc-army/docs/ccproxy/MODEL_DISCOVERY_SUMMARY.md` - This summary
+- `/Users/brent/git/cc-orchestra/docs/ccproxy/AVAILABLE_MODELS_REPORT.md` - Full analysis
+- `/Users/brent/git/cc-orchestra/docs/ccproxy/RECOMMENDED_CONFIG_UPDATE.yaml` - Config update
+- `/Users/brent/git/cc-orchestra/docs/ccproxy/MODEL_DISCOVERY_SUMMARY.md` - This summary
 
 ---
 

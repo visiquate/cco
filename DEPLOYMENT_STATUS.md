@@ -13,7 +13,7 @@
   - `ANTHROPIC_BASE_URL="https://coder.visiquate.com"`
 
 ### 2. Hybrid Configuration Created
-- ✅ Config file: `/Users/brent/git/cc-army/config/ccproxy/hybrid-config-ready-to-deploy.yaml`
+- ✅ Config file: `/Users/brent/git/cc-orchestra/config/ccproxy/hybrid-config-ready-to-deploy.yaml`
 - ✅ 5 models configured:
   1. `claude-opus-4` → Anthropic API (Architect)
   2. `claude-sonnet-4-5` → Anthropic API (Architect fallback)
@@ -179,11 +179,11 @@ curl https://api.anthropic.com/v1/messages \
 
 ## 📁 Files Created
 
-- `/Users/brent/git/cc-army/config/ccproxy/hybrid-config-ready-to-deploy.yaml` - Deployed config
-- `/Users/brent/git/cc-army/DEPLOY_WHEN_READY.sh` - Quick deploy script
-- `/Users/brent/git/cc-army/VERIFY_DEPLOYMENT.sh` - Verification script
-- `/Users/brent/git/cc-army/docs/HYBRID_ROUTING_SETUP.md` - Full setup guide
-- `/Users/brent/git/cc-army/docs/MANUAL_HYBRID_DEPLOYMENT.md` - Manual deployment steps
+- `/Users/brent/git/cc-orchestra/config/ccproxy/hybrid-config-ready-to-deploy.yaml` - Deployed config
+- `/Users/brent/git/cc-orchestra/DEPLOY_WHEN_READY.sh` - Quick deploy script
+- `/Users/brent/git/cc-orchestra/VERIFY_DEPLOYMENT.sh` - Verification script
+- `/Users/brent/git/cc-orchestra/docs/HYBRID_ROUTING_SETUP.md` - Full setup guide
+- `/Users/brent/git/cc-orchestra/docs/MANUAL_HYBRID_DEPLOYMENT.md` - Manual deployment steps
 
 ## 📝 Summary
 

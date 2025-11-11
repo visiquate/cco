@@ -35,7 +35,7 @@ This causes **constant model thrashing**, completely defeating the TDD pipeline 
 
 ### ⭐ DEPLOYED: 3-Model Configuration with Disabled Health Checks
 
-**File**: `/Users/brent/git/cc-army/config/ccproxy/ccproxy-config-tdd-pipeline.yaml`
+**File**: `/Users/brent/git/cc-orchestra/config/ccproxy/ccproxy-config-tdd-pipeline.yaml`
 
 **User-approved configuration** uses all 3 models with specific agent assignments:
 - `claude-3-5-sonnet` → **qwen2.5-coder:32b-instruct** (Agents 1-10)
@@ -223,6 +223,6 @@ Result: Zero thrashing, 100% reliable
 ---
 
 **Files Referenced**:
-- `/Users/brent/git/cc-army/config/ccproxy/ccproxy-config-tdd-pipeline.yaml` - Deployed config
-- `/Users/brent/git/cc-army/docs/DEPLOYMENT_STATUS.md` - Full deployment status
+- `/Users/brent/git/cc-orchestra/config/ccproxy/ccproxy-config-tdd-pipeline.yaml` - Deployed config
+- `/Users/brent/git/cc-orchestra/docs/DEPLOYMENT_STATUS.md` - Full deployment status
 - `/Users/brent/ccproxy/config.yaml` - Production config (deployed)

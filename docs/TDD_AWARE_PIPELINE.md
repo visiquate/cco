@@ -299,7 +299,7 @@ graph LR
 
 ```bash
 # TDD Agent protocol
-node ~/git/cc-army/src/knowledge-manager.js search "architect decisions"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "architect decisions"
 
 # Analyze requirements and write tests
 cat > tests/test_feature_x.py << 'EOF'
@@ -334,11 +334,11 @@ EOF
 pytest tests/test_feature_x.py  # Should see RED
 
 # Store tests in Knowledge Manager
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Tests: test_feature_x.py - Failing tests created (RED phase), coverage: 0%" \
   --type implementation --agent tdd-agent
 
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Task complete: Failing tests written for Feature X" \
   --type completion --agent tdd-agent
 ```
@@ -347,8 +347,8 @@ node ~/git/cc-army/src/knowledge-manager.js store \
 
 ```bash
 # Python Expert protocol
-node ~/git/cc-army/src/knowledge-manager.js search "failing tests feature"
-node ~/git/cc-army/src/knowledge-manager.js search "architect decisions"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "failing tests feature"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "architect decisions"
 
 # Implement minimal code to pass tests
 cat > app/feature_x.py << 'EOF'
@@ -372,11 +372,11 @@ EOF
 pytest tests/test_feature_x.py  # Should see GREEN
 
 # Store implementation status
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Implementation: app/feature_x.py - GREEN phase complete, coverage: 95%, all tests passing" \
   --type implementation --agent python-specialist
 
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Edit: app/feature_x.py - Implemented FeatureX to pass all tests" \
   --type edit --agent python-specialist
 ```
@@ -394,7 +394,7 @@ node ~/git/cc-army/src/knowledge-manager.js store \
 # Verify tests still pass after each refactor
 pytest tests/test_feature_x.py  # Must stay GREEN
 
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Status: FeatureX implementation complete with TDD (RED-GREEN-REFACTOR cycle finished)" \
   --type status --agent python-specialist
 ```
@@ -460,18 +460,18 @@ node ~/git/cc-army/src/knowledge-manager.js store \
 
 ```bash
 # Write Pattern (Producer)
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Feature X implementation complete with tests" \
   --type implementation --agent python-specialist
 
 # Read Pattern (Consumer)
-node ~/git/cc-army/src/knowledge-manager.js search "feature x implementation"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "feature x implementation"
 
 # List Pattern (Discovery)
-node ~/git/cc-army/src/knowledge-manager.js list --limit 20
+node ~/git/cc-orchestra/src/knowledge-manager.js list --limit 20
 
 # Update Pattern (Append new data)
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Feature X - Updated with edge case handling" \
   --type status --agent python-specialist
 ```
@@ -918,11 +918,11 @@ class TDDAwarePipeline {
 
 ```bash
 # Validate TDD compliance
-node ~/git/cc-army/src/knowledge-manager.js search "failing tests RED phase"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "failing tests RED phase"
 # Should show recent TDD agent entries with "RED phase" status
 
 # Check implementation status
-node ~/git/cc-army/src/knowledge-manager.js search "implementation complete GREEN"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "implementation complete GREEN"
 # Should show coding agent entries with "tests passing" status
 
 # Verify test coverage
@@ -930,7 +930,7 @@ pytest --cov=app --cov-report=term-missing
 # Should show ≥90% coverage
 
 # Review QA enhancements
-node ~/git/cc-army/src/knowledge-manager.js search "qa review edge cases"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "qa review edge cases"
 # Should show QA engineer entries with additional test cases
 ```
 

@@ -10,7 +10,7 @@
 
 ### 1. Bearer Token Authentication in LLM Router
 
-**File Modified**: `/Users/brent/git/cc-army/src/llm-router.js`
+**File Modified**: `/Users/brent/git/cc-orchestra/src/llm-router.js`
 
 **Changes**:
 1. Added `CredentialManager` import
@@ -163,23 +163,23 @@ node src/llm-router.js route python-expert implement
 
 ## Files Modified
 
-1. `/Users/brent/git/cc-army/src/llm-router.js`
+1. `/Users/brent/git/cc-orchestra/src/llm-router.js`
    - Added credential manager integration
    - Implemented bearer token retrieval
    - Applied token to Authorization header
 
-2. `/Users/brent/git/cc-army/docs/REMOTE_LLM_SETUP.md`
+2. `/Users/brent/git/cc-orchestra/docs/REMOTE_LLM_SETUP.md`
    - Updated authentication section
    - Added bearer token setup instructions
    - Documented all three authentication methods
 
-3. `/Users/brent/git/cc-army/docs/BEARER_TOKEN_SETUP.md` (NEW)
+3. `/Users/brent/git/cc-orchestra/docs/BEARER_TOKEN_SETUP.md` (NEW)
    - Complete bearer token authentication guide
    - Detailed setup instructions for all methods
    - Troubleshooting section
    - Security best practices
 
-4. `/Users/brent/git/cc-army/tests/test-bearer-auth.sh` (NEW)
+4. `/Users/brent/git/cc-orchestra/tests/test-bearer-auth.sh` (NEW)
    - Comprehensive test suite
    - Tests all authentication methods
    - Validates both models
@@ -310,14 +310,14 @@ node src/credential-manager.js list
 ## Documentation
 
 **Primary Documentation**:
-- `/Users/brent/git/cc-army/docs/BEARER_TOKEN_SETUP.md` - Complete setup guide
-- `/Users/brent/git/cc-army/docs/REMOTE_LLM_SETUP.md` - Remote LLM integration guide
+- `/Users/brent/git/cc-orchestra/docs/BEARER_TOKEN_SETUP.md` - Complete setup guide
+- `/Users/brent/git/cc-orchestra/docs/REMOTE_LLM_SETUP.md` - Remote LLM integration guide
 
 **Test Suite**:
-- `/Users/brent/git/cc-army/tests/test-bearer-auth.sh` - Automated test suite
+- `/Users/brent/git/cc-orchestra/tests/test-bearer-auth.sh` - Automated test suite
 
 **Implementation**:
-- `/Users/brent/git/cc-army/src/llm-router.js` - Main implementation
+- `/Users/brent/git/cc-orchestra/src/llm-router.js` - Main implementation
 
 ---
 

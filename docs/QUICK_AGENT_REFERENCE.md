@@ -4,7 +4,7 @@
 - **Total Agents**: 125
 - **Categories**: 13
 - **Model**: All use `sonnet-4.5` (except Chief Architect: `opus`)
-- **Config**: `/Users/brent/git/cc-army/config/orchestra-config.json`
+- **Config**: `/Users/brent/git/cc-orchestra/config/orchestra-config.json`
 
 ## Agent Categories at a Glance
 
@@ -191,9 +191,9 @@ TodoWrite({ todos: [
 
 ## Documentation
 
-- Full roster: `/Users/brent/git/cc-army/docs/COMPREHENSIVE_ORCHESTRA_ROSTER.md`
-- Update summary: `/Users/brent/git/cc-army/docs/CONFIG_UPDATE_SUMMARY.md`
-- Config file: `/Users/brent/git/cc-army/config/orchestra-config.json`
+- Full roster: `/Users/brent/git/cc-orchestra/docs/COMPREHENSIVE_ORCHESTRA_ROSTER.md`
+- Update summary: `/Users/brent/git/cc-orchestra/docs/CONFIG_UPDATE_SUMMARY.md`
+- Config file: `/Users/brent/git/cc-orchestra/config/orchestra-config.json`
 
 ---
 

@@ -51,7 +51,7 @@ The army is configured in your **global CLAUDE.md** (`~/.claude/CLAUDE.md`) to a
                   ├─> Detects complex task
                   │
 ┌─────────────────▼───────────────────────────────────┐
-│  Army Config (/Users/brent/git/cc-army/)            │
+│  Army Config (/Users/brent/git/cc-orchestra/)            │
 │  - 14 agent definitions                             │
 │  - Agent capabilities                               │
 │  - Coordination protocols                           │
@@ -75,7 +75,7 @@ The army is configured in your **global CLAUDE.md** (`~/.claude/CLAUDE.md`) to a
    - References to army config location
    - Applies to ALL projects
 
-2. **Army Config** (`/Users/brent/git/cc-army/config/orchestra-config.json`)
+2. **Army Config** (`/Users/brent/git/cc-orchestra/config/orchestra-config.json`)
    - 14 agent definitions (types, models, capabilities)
    - Coordination protocols
    - Single source of truth for army
@@ -176,7 +176,7 @@ The army is configured in your **global CLAUDE.md** (`~/.claude/CLAUDE.md`) to a
 
 ```bash
 # Copy template
-cp /Users/brent/git/cc-army/docs/PROJECT_CLAUDE_TEMPLATE.md ~/git/your-project/CLAUDE.md
+cp /Users/brent/git/cc-orchestra/docs/PROJECT_CLAUDE_TEMPLATE.md ~/git/your-project/CLAUDE.md
 
 # Edit for your project
 vim ~/git/your-project/CLAUDE.md
@@ -309,16 +309,16 @@ All agents use **Knowledge Manager** for coordination:
 
 ```bash
 # Before starting work - retrieve context
-node ~/git/cc-army/src/knowledge-manager.js search "architect decisions"
-node ~/git/cc-army/src/knowledge-manager.js search "authentication patterns"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "architect decisions"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "authentication patterns"
 
 # During work - store progress
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Edit: auth.py - Implemented JWT authentication" \
   --type edit --agent python-expert
 
 # After completing - notify completion
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Task complete: Authentication implemented and tested" \
   --type completion --agent python-expert
 ```
@@ -492,9 +492,9 @@ cd ~/git/enterprise-portal
 **Problem:** Agents not coordinating properly
 
 **Solution:**
-1. Verify Knowledge Manager is working: `node ~/git/cc-army/src/knowledge-manager.js stats`
+1. Verify Knowledge Manager is working: `node ~/git/cc-orchestra/src/knowledge-manager.js stats`
 2. Check Knowledge Manager directory exists: `ls -la ~/.cc-army-knowledge/`
-3. Test Knowledge Manager: `node ~/git/cc-army/src/knowledge-manager.js list --limit 5`
+3. Test Knowledge Manager: `node ~/git/cc-orchestra/src/knowledge-manager.js list --limit 5`
 
 ## Best Practices
 
@@ -524,7 +524,7 @@ claude code  # Agents might create files in src/
 
 ```bash
 # ✅ Good - Customize per project
-cp /Users/brent/git/cc-army/docs/PROJECT_CLAUDE_TEMPLATE.md ./CLAUDE.md
+cp /Users/brent/git/cc-orchestra/docs/PROJECT_CLAUDE_TEMPLATE.md ./CLAUDE.md
 # Edit for your project
 
 # ❌ Bad - Rely only on global defaults
@@ -548,7 +548,7 @@ cp /Users/brent/git/cc-army/docs/PROJECT_CLAUDE_TEMPLATE.md ./CLAUDE.md
 
 # ✅ Good - Knowledge Manager is always available
 # Verify it's working:
-node ~/git/cc-army/src/knowledge-manager.js stats
+node ~/git/cc-orchestra/src/knowledge-manager.js stats
 
 # ❌ Bad - Don't try to use external MCP servers for army coordination
 # The army is self-contained and uses Knowledge Manager
@@ -556,12 +556,12 @@ node ~/git/cc-army/src/knowledge-manager.js stats
 
 ## Reference
 
-- **Army Config**: `/Users/brent/git/cc-army/config/orchestra-config.json`
+- **Army Config**: `/Users/brent/git/cc-orchestra/config/orchestra-config.json`
 - **Global CLAUDE.md**: `~/.claude/CLAUDE.md`
-- **Project Template**: `/Users/brent/git/cc-army/docs/PROJECT_CLAUDE_TEMPLATE.md`
-- **Army Roster**: `/Users/brent/git/cc-army/ORCHESTRA_ROSTER.md`
-- **Usage Guide**: `/Users/brent/git/cc-army/docs/ARMY_USAGE_GUIDE.md`
-- **API Integration**: `/Users/brent/git/cc-army/docs/API_INTEGRATION_GUIDE.md`
+- **Project Template**: `/Users/brent/git/cc-orchestra/docs/PROJECT_CLAUDE_TEMPLATE.md`
+- **Army Roster**: `/Users/brent/git/cc-orchestra/ORCHESTRA_ROSTER.md`
+- **Usage Guide**: `/Users/brent/git/cc-orchestra/docs/ARMY_USAGE_GUIDE.md`
+- **API Integration**: `/Users/brent/git/cc-orchestra/docs/API_INTEGRATION_GUIDE.md`
 
 ## Support
 

@@ -53,7 +53,7 @@ YOUR RESPONSIBILITIES:
 6. Review final implementation
 
 COORDINATION:
-- Store architecture: 'node ~/git/cc-army/src/knowledge-manager.js store "Architecture: [architecture details]" --type decision --agent architect'
+- Store architecture: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Architecture: [architecture details]" --type decision --agent architect'
 - Notify agents when design is complete
 
 OUTPUT:
@@ -89,10 +89,10 @@ YOUR RESPONSIBILITIES:
 6. Coordinate with QA for testing
 
 COORDINATION:
-Before: 'node ~/git/cc-army/src/knowledge-manager.js search "architecture"'
-During: 'node ~/git/cc-army/src/knowledge-manager.js store "Edit: lib/main.dart - Implemented mobile app features" --type edit --agent flutter-specialist'
-After: 'node ~/git/cc-army/src/knowledge-manager.js store "Implementation: Flutter mobile app complete" --type implementation --agent flutter-specialist'
-Notify: 'node ~/git/cc-army/src/knowledge-manager.js store "Status: Mobile app features complete" --type status --agent flutter-specialist'
+Before: 'node ~/git/cc-orchestra/src/knowledge-manager.js search "architecture"'
+During: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Edit: lib/main.dart - Implemented mobile app features" --type edit --agent flutter-specialist'
+After: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Implementation: Flutter mobile app complete" --type implementation --agent flutter-specialist'
+Notify: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Status: Mobile app features complete" --type status --agent flutter-specialist'
 
 QUALITY STANDARDS:
 - Material Design UI
@@ -127,10 +127,10 @@ YOUR RESPONSIBILITIES:
 5. Coordinate with Python and Flutter agents
 
 COORDINATION:
-Before: 'node ~/git/cc-army/src/knowledge-manager.js search "architecture"'
-During: 'node ~/git/cc-army/src/knowledge-manager.js store "Edit: main.go - Implemented backend API" --type edit --agent go-specialist'
-Store API contracts: 'node ~/git/cc-army/src/knowledge-manager.js store "API Contracts: [contract details]" --type decision --agent go-specialist'
-Notify: 'node ~/git/cc-army/src/knowledge-manager.js store "Status: Backend API complete" --type status --agent go-specialist'
+Before: 'node ~/git/cc-orchestra/src/knowledge-manager.js search "architecture"'
+During: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Edit: main.go - Implemented backend API" --type edit --agent go-specialist'
+Store API contracts: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "API Contracts: [contract details]" --type decision --agent go-specialist'
+Notify: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Status: Backend API complete" --type status --agent go-specialist'
 
 QUALITY STANDARDS:
 - Clean architecture
@@ -162,11 +162,11 @@ YOUR RESPONSIBILITIES:
 4. Coordinate with Go backend for integration
 
 COORDINATION:
-Before: 'node ~/git/cc-army/src/knowledge-manager.js search "architecture"'
-Before: 'node ~/git/cc-army/src/knowledge-manager.js search "api contracts"'
-During: 'node ~/git/cc-army/src/knowledge-manager.js store "Edit: main.py - Implemented ML prioritization service" --type edit --agent python-specialist'
-Store: 'node ~/git/cc-army/src/knowledge-manager.js store "Implementation: Python ML service complete" --type implementation --agent python-specialist'
-Notify: 'node ~/git/cc-army/src/knowledge-manager.js store "Status: ML service complete" --type status --agent python-specialist'
+Before: 'node ~/git/cc-orchestra/src/knowledge-manager.js search "architecture"'
+Before: 'node ~/git/cc-orchestra/src/knowledge-manager.js search "api contracts"'
+During: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Edit: main.py - Implemented ML prioritization service" --type edit --agent python-specialist'
+Store: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Implementation: Python ML service complete" --type implementation --agent python-specialist'
+Notify: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Status: ML service complete" --type status --agent python-specialist'
 
 QUALITY STANDARDS:
 - Async operations
@@ -200,11 +200,11 @@ YOUR RESPONSIBILITIES:
 5. Coordinate with all coding agents
 
 COORDINATION:
-Monitor: 'node ~/git/cc-army/src/knowledge-manager.js list'
-Retrieve specs: 'node ~/git/cc-army/src/knowledge-manager.js search "api contracts"'
-During: 'node ~/git/cc-army/src/knowledge-manager.js store "Edit: tests/integration_test.go - Added comprehensive test suite" --type edit --agent qa-engineer'
-Store results: 'node ~/git/cc-army/src/knowledge-manager.js store "Test Results: [coverage and results]" --type completion --agent qa-engineer'
-Notify: 'node ~/git/cc-army/src/knowledge-manager.js store "Status: Test suite complete - X% coverage" --type status --agent qa-engineer'
+Monitor: 'node ~/git/cc-orchestra/src/knowledge-manager.js list'
+Retrieve specs: 'node ~/git/cc-orchestra/src/knowledge-manager.js search "api contracts"'
+During: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Edit: tests/integration_test.go - Added comprehensive test suite" --type edit --agent qa-engineer'
+Store results: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Test Results: [coverage and results]" --type completion --agent qa-engineer'
+Notify: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Status: Test suite complete - X% coverage" --type status --agent qa-engineer'
 
 TEST REQUIREMENTS:
 - Unit tests for all services
@@ -240,11 +240,11 @@ YOUR RESPONSIBILITIES:
 5. Coordinate with Credential Manager
 
 COORDINATION:
-Retrieve code: 'node ~/git/cc-army/src/knowledge-manager.js search "go implementation"'
-Retrieve code: 'node ~/git/cc-army/src/knowledge-manager.js search "flutter implementation"'
-During: 'node ~/git/cc-army/src/knowledge-manager.js store "Edit: SECURITY_AUDIT.md - Documented security findings" --type edit --agent security-auditor'
-Store findings: 'node ~/git/cc-army/src/knowledge-manager.js store "Security Audit Results: [findings]" --type completion --agent security-auditor'
-Notify critical: 'node ~/git/cc-army/src/knowledge-manager.js store "Status: CRITICAL - JWT secret in code" --type status --agent security-auditor'
+Retrieve code: 'node ~/git/cc-orchestra/src/knowledge-manager.js search "go implementation"'
+Retrieve code: 'node ~/git/cc-orchestra/src/knowledge-manager.js search "flutter implementation"'
+During: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Edit: SECURITY_AUDIT.md - Documented security findings" --type edit --agent security-auditor'
+Store findings: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Security Audit Results: [findings]" --type completion --agent security-auditor'
+Notify critical: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Status: CRITICAL - JWT secret in code" --type status --agent security-auditor'
 
 SECURITY FOCUS:
 - Authentication/authorization
@@ -278,10 +278,10 @@ YOUR RESPONSIBILITIES:
 4. Coordinate with all agents for accurate info
 
 COORDINATION:
-Retrieve arch: 'node ~/git/cc-army/src/knowledge-manager.js search "architecture"'
-Retrieve APIs: 'node ~/git/cc-army/src/knowledge-manager.js search "api contracts"'
-During: 'node ~/git/cc-army/src/knowledge-manager.js store "Edit: docs/API.md - Documented API endpoints" --type edit --agent documentation-lead'
-Store: 'node ~/git/cc-army/src/knowledge-manager.js store "Status: Documentation complete" --type completion --agent documentation-lead'
+Retrieve arch: 'node ~/git/cc-orchestra/src/knowledge-manager.js search "architecture"'
+Retrieve APIs: 'node ~/git/cc-orchestra/src/knowledge-manager.js search "api contracts"'
+During: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Edit: docs/API.md - Documented API endpoints" --type edit --agent documentation-lead'
+Store: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Status: Documentation complete" --type completion --agent documentation-lead'
 
 DOCUMENTATION REQUIRED:
 - System architecture
@@ -321,10 +321,10 @@ CREDENTIALS TO MANAGE:
 - ML_SERVICE_KEY (medium security)
 
 COORDINATION:
-Before: 'node ~/git/cc-army/src/knowledge-manager.js search "architecture"'
+Before: 'node ~/git/cc-orchestra/src/knowledge-manager.js search "architecture"'
 Store credentials: Use src/credential-manager.js
-Document: 'node ~/git/cc-army/src/knowledge-manager.js store "Edit: docs/CREDENTIALS.md - Documented credential management" --type edit --agent credential-manager'
-Notify: 'node ~/git/cc-army/src/knowledge-manager.js store "Status: Credential system ready" --type status --agent credential-manager'
+Document: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Edit: docs/CREDENTIALS.md - Documented credential management" --type edit --agent credential-manager'
+Notify: 'node ~/git/cc-orchestra/src/knowledge-manager.js store "Status: Credential system ready" --type status --agent credential-manager'
 
 OUTPUT:
 - Credential inventory

@@ -329,24 +329,24 @@ All integration agents follow this protocol:
 ### Before Integration Work
 ```bash
 # Retrieve architecture decisions from Knowledge Manager
-node ~/git/cc-army/src/knowledge-manager.js search "architect decisions"
-node ~/git/cc-army/src/knowledge-manager.js search "architecture patterns"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "architect decisions"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "architecture patterns"
 ```
 
 ### During Integration
 ```bash
 # Store API exploration results in Knowledge Manager
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "API Schema: Salesforce objects (Contact, Lead) with endpoints documented" \
   --type implementation --agent salesforce-expert
 
 # Store file edits
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Edit: salesforce_client.py - Implemented OAuth and API client" \
   --type edit --agent salesforce-expert
 
 # Notify other agents of completion
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Status: Salesforce OAuth configured, ready for integration" \
   --type status --agent salesforce-expert
 ```
@@ -354,12 +354,12 @@ node ~/git/cc-army/src/knowledge-manager.js store \
 ### After Integration
 ```bash
 # Store final configuration in Knowledge Manager
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Integration complete: Salesforce API with endpoints and rate limits configured" \
   --type completion --agent salesforce-expert
 
 # Document final status
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Task complete: Salesforce integration ready for production" \
   --type completion --agent salesforce-expert
 ```

@@ -478,7 +478,7 @@ All haiku agents received:
 ### Short-term (Weeks 2-4)
 
 4. **Documentation Updates**
-   - Update ARMY_ROSTER.md with new agent list
+   - Update ORCHESTRA_ROSTER.md with new agent list
    - Update CLAUDE.md with category changes
    - Update README.md with performance metrics
 
@@ -603,4 +603,4 @@ Configuration is ready for deployment. Recommend monitoring haiku agent performa
 **Report Status:** FINAL
 **Approval Required:** None (all phases complete)
 **Next Action:** Monitor cost savings and agent performance
-**Documentation Updates:** ARMY_ROSTER.md, CLAUDE.md, README.md (pending)
+**Documentation Updates:** ORCHESTRA_ROSTER.md, CLAUDE.md, README.md (pending)

@@ -16,7 +16,7 @@ The LLM Router is **FULLY INTEGRATED** into the Claude Orchestra orchestrator. T
 
 ### Code Integration
 
-**File**: `/Users/brent/git/cc-army/src/orchestra-conductor.js`
+**File**: `/Users/brent/git/cc-orchestra/src/orchestra-conductor.js`
 
 ```javascript
 // Line 12: LLMRouter is imported
@@ -35,7 +35,7 @@ const routing = this.llmRouter.routeTask(agent.type, 'implement');
 
 ## 2. Configuration Status: ✅ ENABLED
 
-**File**: `/Users/brent/git/cc-army/config/orchestra-config.json`
+**File**: `/Users/brent/git/cc-orchestra/config/orchestra-config.json`
 
 ```json
 {

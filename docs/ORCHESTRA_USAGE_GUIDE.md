@@ -69,7 +69,7 @@ Task("Credential Manager", "Setup secure secret management...", "fullstack-devel
 
 **Claude Code Response:**
 ```
-[Single Message - Full Army Deployment]:
+[Single Message - Full Orchestra Deployment]:
 
 // Spawn All Agents (Knowledge Manager handles coordination)
 Task("Chief Architect", "Design 3-tier architecture...", "backend-architect", model="opus")
@@ -91,7 +91,7 @@ TodoWrite({ todos: [10+ todos for all phases] })
 2. Analyzes and creates architecture design
 3. Stores decisions in Knowledge Manager:
    ```bash
-   node ~/git/cc-army/src/knowledge-manager.js store \
+   node ~/git/cc-orchestra/src/knowledge-manager.js store \
      "Decision: Microservices architecture with Go/Flutter/Python stack" \
      --type decision --agent architect
    ```
@@ -102,25 +102,25 @@ TodoWrite({ todos: [10+ todos for all phases] })
 ### Coding Agent Flow
 1. Search Knowledge Manager for context:
    ```bash
-   node ~/git/cc-army/src/knowledge-manager.js search "architect decisions"
+   node ~/git/cc-orchestra/src/knowledge-manager.js search "architect decisions"
    ```
 2. Retrieve architecture decisions from search results
 3. Implement code following specs
 4. Store file edits in Knowledge Manager:
    ```bash
-   node ~/git/cc-army/src/knowledge-manager.js store \
+   node ~/git/cc-orchestra/src/knowledge-manager.js store \
      "Edit: src/user-service.go - Implemented user CRUD operations" \
      --type edit --agent go-expert
    ```
 5. Store implementation details:
    ```bash
-   node ~/git/cc-army/src/knowledge-manager.js store \
+   node ~/git/cc-orchestra/src/knowledge-manager.js store \
      "Implementation: User service with /users and /auth endpoints, tests complete" \
      --type implementation --agent go-expert
    ```
 6. Notify QA when ready:
    ```bash
-   node ~/git/cc-army/src/knowledge-manager.js store \
+   node ~/git/cc-orchestra/src/knowledge-manager.js store \
      "Status: User service ready for testing" \
      --type status --agent go-expert
    ```
@@ -178,7 +178,7 @@ node src/credential-manager.js retrieve db_password
 - Integration tests
 - Security audit"
 
-# Claude Code spawns the army in ONE message:
+# Claude Code spawns the orchestra in ONE message:
 
 [Parallel Execution]:
   # All Agents (Knowledge Manager handles coordination)
@@ -221,21 +221,21 @@ node src/credential-manager.js retrieve db_password
 ### Check Knowledge Manager Status
 ```bash
 # View knowledge base statistics
-node ~/git/cc-army/src/knowledge-manager.js stats
+node ~/git/cc-orchestra/src/knowledge-manager.js stats
 
 # List recent knowledge entries
-node ~/git/cc-army/src/knowledge-manager.js list --limit 20
+node ~/git/cc-orchestra/src/knowledge-manager.js list --limit 20
 
 # Search for specific information
-node ~/git/cc-army/src/knowledge-manager.js search "implementation status"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "implementation status"
 ```
 
 ### Review Agent Activity
 ```bash
 # Search for agent-specific updates
-node ~/git/cc-army/src/knowledge-manager.js search "agent:python-pro"
-node ~/git/cc-army/src/knowledge-manager.js search "type:edit"
-node ~/git/cc-army/src/knowledge-manager.js search "type:completion"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "agent:python-pro"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "type:edit"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "type:completion"
 ```
 
 ## Troubleshooting
@@ -243,13 +243,13 @@ node ~/git/cc-army/src/knowledge-manager.js search "type:completion"
 ### Knowledge Manager Issues
 ```bash
 # Verify Knowledge Manager is working
-node ~/git/cc-army/src/knowledge-manager.js stats
+node ~/git/cc-orchestra/src/knowledge-manager.js stats
 
 # Check if directory exists
 ls -la ~/.cc-army-knowledge/
 
 # Re-initialize if needed (will preserve existing data)
-node ~/git/cc-army/src/knowledge-manager.js stats
+node ~/git/cc-orchestra/src/knowledge-manager.js stats
 ```
 
 ### Agent Coordination Issues

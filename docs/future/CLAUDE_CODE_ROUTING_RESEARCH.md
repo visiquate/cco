@@ -515,7 +515,7 @@ export ANTHROPIC_AUTH_TOKEN="sk-ant-your-key"
 export CODER_LLM_TOKEN="your-ollama-token"
 
 # Start proxy
-alias start-llm-proxy="node ~/git/cc-army/src/llm-proxy-server.js"
+alias start-llm-proxy="node ~/git/cc-orchestra/src/llm-proxy-server.js"
 
 # Normal Claude Code usage
 claude

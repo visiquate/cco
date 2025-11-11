@@ -250,7 +250,7 @@ The following agents are configured to use **Qwen 2.5 Coder 32B**:
 - ✅ `qwen2.5-coder:32b-instruct` or `qwen2.5-coder:32b-instruct-q8` (qwen-quality-128k)
 
 ### Test Script Reference
-See `/Users/brent/git/cc-army/tests/test-bearer-auth.sh` lines 147-174 for model testing examples.
+See `/Users/brent/git/cc-orchestra/tests/test-bearer-auth.sh` lines 147-174 for model testing examples.
 
 ---
 

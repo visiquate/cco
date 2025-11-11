@@ -22,7 +22,7 @@ Implemented comprehensive knowledge retention system using LanceDB vector databa
   - Statistics and monitoring
   - CLI interface
 
-### 2. Army Orchestrator Integration (`src/orchestra-conductor.js`)
+### 2. Orchestra Conductor Integration (`src/orchestra-conductor.js`)
 - Added Knowledge Manager initialization
 - Pre-compaction hook integration
 - Post-compaction hook integration
@@ -47,7 +47,7 @@ Implemented comprehensive knowledge retention system using LanceDB vector databa
 
 ```
 Repository Structure:
-/Users/brent/git/cc-army/
+/Users/brent/git/cc-orchestra/
 ├── src/
 │   ├── knowledge-manager.js          [NEW] Core implementation
 │   ├── orchestra-conductor.js           [UPDATED] Integration
@@ -59,7 +59,7 @@ Repository Structure:
 │   ├── DELEGATION_STRATEGY.md         [UPDATED] Implementation status
 │   └── KNOWLEDGE_RETENTION_IMPLEMENTATION.md [NEW] This file
 ├── data/knowledge/                    [NEW] Per-repo databases
-│   ├── cc-army/                       Repository-specific
+│   ├── cc-orchestra/                       Repository-specific
 │   ├── statushub/                     Repository-specific
 │   └── [other-repos]/                 Repository-specific
 ├── package.json                       [UPDATED] Added vectordb
@@ -146,11 +146,11 @@ const knowledge = await km.getProjectKnowledge("repo-name");
 const stats = await km.getStats();
 ```
 
-### Army Orchestrator API
+### Orchestra Conductor API
 ```javascript
 const ClaudeArmy = require('./src/orchestra-conductor');
 
-const army = new ClaudeArmy({ repoPath: '/path/to/repo' });
+const orchestra = new ClaudeArmy({ repoPath: '/path/to/repo' });
 
 // Pre-compaction
 await army.preCompactionHook(conversation, { project_id: 'repo' });
@@ -169,9 +169,9 @@ const stats = await army.getKnowledgeStats();
 ```bash
 $ node src/knowledge-manager.js test
 
-📦 Knowledge Manager initialized for repository: cc-army
-📁 Database path: /Users/brent/git/cc-army/data/knowledge/cc-army
-✅ Connected to existing knowledge base for cc-army
+📦 Knowledge Manager initialized for repository: cc-orchestra
+📁 Database path: /Users/brent/git/cc-orchestra/data/knowledge/cc-orchestra
+✅ Connected to existing knowledge base for cc-orchestra
 
 Running Knowledge Manager test...
 
@@ -188,7 +188,7 @@ Running Knowledge Manager test...
 
 4. Knowledge base statistics:
 {
-  "repository": "cc-army",
+  "repository": "cc-orchestra",
   "totalRecords": 7,
   "byType": {
     "system": 1,
@@ -262,7 +262,7 @@ In `config/orchestra-config.json`:
 
 When context reaches 80% capacity:
 
-1. **Detect**: Army orchestrator detects high context usage
+1. **Detect**: Orchestra conductor detects high context usage
 2. **Extract**: Parse conversation for critical knowledge
 3. **Categorize**: Classify by type (architecture, decision, etc.)
 4. **Attribute**: Identify which agent created each piece
@@ -383,7 +383,7 @@ Note: `vectordb` is deprecated, but works fine. Future upgrade to `@lancedb/lanc
 7. ✅ `docs/KNOWLEDGE_RETENTION_IMPLEMENTATION.md` - **NEW** (this file)
 8. ✅ `package.json` - **UPDATED** (added vectordb dependency)
 
-## Integration with 16-Agent Army
+## Integration with 16-Agent Orchestra
 
 All 16 agents can now:
 - ✅ Store knowledge during their work
@@ -464,7 +464,7 @@ const context = await army.postCompactionHook(
 
 ✅ **Implementation Complete**: All planned features implemented
 ✅ **Testing Passed**: Full test suite passes
-✅ **Integration Working**: Army orchestrator integration functional
+✅ **Integration Working**: Orchestra conductor integration functional
 ✅ **Documentation Complete**: Comprehensive guides written
 ✅ **Per-Repository Isolation**: Each repo has separate database
 ✅ **Semantic Search**: Vector-based search working

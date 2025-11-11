@@ -5,7 +5,7 @@ const path = require('path');
 
 // Read current config
 const currentConfig = JSON.parse(
-  fs.readFileSync('/Users/brent/git/cc-army/config/orchestra-config.json', 'utf8')
+  fs.readFileSync('/Users/brent/git/cc-orchestra/config/orchestra-config.json', 'utf8')
 );
 
 // Read extracted agents
@@ -233,7 +233,7 @@ newConfig.decisionAuthority = currentConfig.decisionAuthority;
 
 // Write new config
 fs.writeFileSync(
-  '/Users/brent/git/cc-army/config/orchestra-config.json',
+  '/Users/brent/git/cc-orchestra/config/orchestra-config.json',
   JSON.stringify(newConfig, null, 2)
 );
 

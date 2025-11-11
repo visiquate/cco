@@ -225,7 +225,7 @@ with blue-green deployments, full CI/CD, and monitoring"
 - AWS secrets management
 - Rotation procedures
 
-## How to Deploy Your Army
+## How to Deploy Your Orchestra
 
 ### In Claude Code, simply describe what you want:
 

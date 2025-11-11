@@ -22,18 +22,18 @@ The Claude Orchestra now uses **Knowledge Manager** instead of MCP servers for c
 
 ```bash
 # Store knowledge (replaces npx claude-flow memory store)
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Architecture: microservices with REST API" \
   --type decision --agent architect
 
 # Search knowledge (replaces npx claude-flow memory retrieve)
-node ~/git/cc-army/src/knowledge-manager.js search "architecture decisions"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "architecture decisions"
 
 # List all knowledge
-node ~/git/cc-army/src/knowledge-manager.js list --limit 20
+node ~/git/cc-orchestra/src/knowledge-manager.js list --limit 20
 
 # View statistics
-node ~/git/cc-army/src/knowledge-manager.js stats
+node ~/git/cc-orchestra/src/knowledge-manager.js stats
 ```
 
 **Benefits of Knowledge Manager:**
@@ -79,7 +79,7 @@ Task("QA Engineer", "Create tests...", "test-automator", "sonnet")
 
 ### Evidence from Documentation
 
-From `/Users/brent/git/cc-army/ORCHESTRATOR_RULES.md`:
+From `/Users/brent/git/cc-orchestra/ORCHESTRATOR_RULES.md`:
 ```javascript
 [Single Message with all Task calls]:
   Task("Chief Architect", "Design API architecture...", "system-architect", "opus")
@@ -131,12 +131,12 @@ npx claude-flow@alpha hooks post-edit --file "src/auth.py"
 **Current equivalent (Knowledge Manager):**
 ```bash
 # Store decisions
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Architecture: implement auth with JWT" \
   --type decision --agent architect
 
 # Store edit notifications
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Edit: src/auth.py - Implemented JWT authentication" \
   --type edit --agent python-specialist
 ```
@@ -438,7 +438,7 @@ All 4 are enabled, not disabled. The initial assessment was incorrect.
 ```bash
 # MCP servers have been removed from configuration
 # Knowledge Manager is now used for all coordination
-node ~/git/cc-army/src/knowledge-manager.js stats
+node ~/git/cc-orchestra/src/knowledge-manager.js stats
 ```
 
 ### Historical Implementation Guide
@@ -490,11 +490,11 @@ node ~/git/cc-army/src/knowledge-manager.js stats
 
 ```bash
 # 1. Verify Knowledge Manager is working
-node ~/git/cc-army/src/knowledge-manager.js stats
+node ~/git/cc-orchestra/src/knowledge-manager.js stats
 
 # 2. Test storage and retrieval
-node ~/git/cc-army/src/knowledge-manager.js store "Test entry" --type decision --agent architect
-node ~/git/cc-army/src/knowledge-manager.js search "test entry"
+node ~/git/cc-orchestra/src/knowledge-manager.js store "Test entry" --type decision --agent architect
+node ~/git/cc-orchestra/src/knowledge-manager.js search "test entry"
 
 # 3. Test army with simple task
 # Example: "Add JWT auth to a Python API"
@@ -502,7 +502,7 @@ node ~/git/cc-army/src/knowledge-manager.js search "test entry"
 # 4. Verify agents spawn correctly via Task tool
 
 # 5. Check knowledge coordination
-node ~/git/cc-army/src/knowledge-manager.js list --limit 10
+node ~/git/cc-orchestra/src/knowledge-manager.js list --limit 10
 ```
 
 ---
@@ -537,13 +537,13 @@ node ~/git/cc-army/src/knowledge-manager.js list --limit 10
 **Current Recommended Action**: Use Knowledge Manager for all coordination:
 ```bash
 # Store knowledge
-node ~/git/cc-army/src/knowledge-manager.js store "content" --type decision --agent architect
+node ~/git/cc-orchestra/src/knowledge-manager.js store "content" --type decision --agent architect
 
 # Search knowledge
-node ~/git/cc-army/src/knowledge-manager.js search "query"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "query"
 
 # View statistics
-node ~/git/cc-army/src/knowledge-manager.js stats
+node ~/git/cc-orchestra/src/knowledge-manager.js stats
 ```
 
 ### Historical Configuration (No Longer Used)

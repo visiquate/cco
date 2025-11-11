@@ -568,7 +568,7 @@ echo "Load test complete"
 
 # Retrieve Claude API key
 echo "Retrieving ANTHROPIC_API_KEY from credential manager..."
-ANTHROPIC_API_KEY=$(node /Users/brent/git/cc-army/src/credential-manager.js retrieve ANTHROPIC_API_KEY)
+ANTHROPIC_API_KEY=$(node /Users/brent/git/cc-orchestra/src/credential-manager.js retrieve ANTHROPIC_API_KEY)
 
 if [ -z "$ANTHROPIC_API_KEY" ]; then
   echo "ERROR: Failed to retrieve ANTHROPIC_API_KEY"

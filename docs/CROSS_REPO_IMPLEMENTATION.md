@@ -11,13 +11,13 @@ The Claude Orchestra now works seamlessly from **any directory** on your system 
 **Added Section:** "🤖 Claude Orchestra Auto-Detection" (lines 1156-1410)
 
 **What it does:**
-- Automatically detects when to activate the army based on task complexity
+- Automatically detects when to activate the orchestra based on task complexity
 - Provides trigger patterns for activation (full-stack apps, multi-tech, integrations, etc.)
 - Provides bypass patterns for simple tasks (typos, queries, basic ops)
 - Documents all 14 agents and their capabilities
 - Includes smart agent selection logic
 - Shows coordination protocol
-- References army config location
+- References orchestra config location
 - Provides example invocation patterns
 
 **Key Features:**
@@ -29,7 +29,7 @@ The Claude Orchestra now works seamlessly from **any directory** on your system 
 
 ### 2. Project Template (`docs/PROJECT_CLAUDE_TEMPLATE.md`)
 
-**Location:** `/Users/brent/git/cc-army/docs/PROJECT_CLAUDE_TEMPLATE.md`
+**Location:** `/Users/brent/git/cc-orchestra/docs/PROJECT_CLAUDE_TEMPLATE.md`
 
 **What it provides:**
 - Complete template for project-specific CLAUDE.md files
@@ -44,13 +44,13 @@ The Claude Orchestra now works seamlessly from **any directory** on your system 
 
 **How to use:**
 ```bash
-cp /Users/brent/git/cc-army/docs/PROJECT_CLAUDE_TEMPLATE.md ~/git/your-project/CLAUDE.md
+cp /Users/brent/git/cc-orchestra/docs/PROJECT_CLAUDE_TEMPLATE.md ~/git/your-project/CLAUDE.md
 # Edit to customize for your project
 ```
 
 ### 3. Cross-Repository Usage Guide (`docs/CROSS_REPO_USAGE.md`)
 
-**Location:** `/Users/brent/git/cc-army/docs/CROSS_REPO_USAGE.md`
+**Location:** `/Users/brent/git/cc-orchestra/docs/CROSS_REPO_USAGE.md`
 
 **What it covers:**
 - Detailed architecture explanation (3-tier config)
@@ -65,7 +65,7 @@ cp /Users/brent/git/cc-army/docs/PROJECT_CLAUDE_TEMPLATE.md ~/git/your-project/C
 
 ### 4. Updated README (`README.md`)
 
-**Location:** `/Users/brent/git/cc-army/README.md`
+**Location:** `/Users/brent/git/cc-orchestra/README.md`
 
 **Added Section:** "🌐 Cross-Repository Usage" (lines 73-168)
 
@@ -78,9 +78,9 @@ cp /Users/brent/git/cc-army/docs/PROJECT_CLAUDE_TEMPLATE.md ~/git/your-project/C
 - Benefits
 - Reference to detailed guides
 
-### 5. Updated Army Roster (`ORCHESTRA_ROSTER.md`)
+### 5. Updated Orchestra Roster (`ORCHESTRA_ROSTER.md`)
 
-**Location:** `/Users/brent/git/cc-army/ORCHESTRA_ROSTER.md`
+**Location:** `/Users/brent/git/cc-orchestra/ORCHESTRA_ROSTER.md`
 
 **Added Note:** Line 5 - "🌐 Works from ANY directory!"
 
@@ -94,7 +94,7 @@ cp /Users/brent/git/cc-army/docs/PROJECT_CLAUDE_TEMPLATE.md ~/git/your-project/C
 │  ----------------------------------------------------------- │
 │  - Auto-detection rules for ALL projects                    │
 │  - Trigger patterns (activate/bypass)                       │
-│  - References to army config location                       │
+│  - References to orchestra config location                       │
 │  - Agent roster and capabilities                            │
 │  - Default coordination protocol                            │
 │  ----------------------------------------------------------- │
@@ -104,14 +104,14 @@ cp /Users/brent/git/cc-army/docs/PROJECT_CLAUDE_TEMPLATE.md ~/git/your-project/C
                          │ References
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Tier 2: Army Config (/Users/brent/git/cc-army/)            │
+│  Tier 2: Army Config (/Users/brent/git/cc-orchestra/)            │
 │  ----------------------------------------------------------- │
 │  - config/orchestra-config.json (14 agent definitions)           │
 │  - Agent types, models, capabilities                        │
 │  - Coordination topology (hierarchical)                     │
 │  - MCP server requirements                                  │
 │  ----------------------------------------------------------- │
-│  Single source of truth for army structure                  │
+│  Single source of truth for orchestra structure                  │
 └────────────────────────┬────────────────────────────────────┘
                          │
                          │ Agents spawn in
@@ -141,14 +141,14 @@ cp /Users/brent/git/cc-army/docs/PROJECT_CLAUDE_TEMPLATE.md ~/git/your-project/C
    ```
 
 3. **Claude Code reads configuration in order:**
-   - Global `~/.claude/CLAUDE.md` (army auto-detection rules)
+   - Global `~/.claude/CLAUDE.md` (orchestra auto-detection rules)
    - Project `./CLAUDE.md` (if exists - project overrides)
-   - Army config from `/Users/brent/git/cc-army/config/orchestra-config.json`
+   - Army config from `/Users/brent/git/cc-orchestra/config/orchestra-config.json`
 
 4. **Auto-detection logic executes:**
    - Analyzes task complexity
    - Matches against trigger patterns
-   - Determines if army activation needed
+   - Determines if orchestra activation needed
    - Selects relevant agents based on keywords
 
 5. **If triggered, Claude Code spawns agents:**
@@ -166,7 +166,7 @@ cp /Users/brent/git/cc-army/docs/PROJECT_CLAUDE_TEMPLATE.md ~/git/your-project/C
    - Production-ready code with tests, security, docs
    - 2.8-4.4x faster than sequential development
    - 32% token reduction via coordination
-   - Files created in user's project, not cc-army
+   - Files created in user's project, not cc-orchestra
 
 ## Usage Patterns
 
@@ -184,7 +184,7 @@ cd ~/git/customer-portal
 
 **What happens:**
 1. Global CLAUDE.md detects: "Authentik" + "authentication" → complex task
-2. Loads army config from cc-army
+2. Loads orchestra config from cc-orchestra
 3. Spawns: Architect, Python Expert, Authentik API Expert, Security, QA, Docs, Credentials
 4. Agents work in ~/git/customer-portal
 5. Results: auth.py, tests/, docs/AUTH.md, credentials documented
@@ -196,7 +196,7 @@ cd ~/git/customer-portal
 **User creates project CLAUDE.md:**
 ```bash
 cd ~/git/mobile-app
-cp /Users/brent/git/cc-army/docs/PROJECT_CLAUDE_TEMPLATE.md ./CLAUDE.md
+cp /Users/brent/git/cc-orchestra/docs/PROJECT_CLAUDE_TEMPLATE.md ./CLAUDE.md
 ```
 
 **User edits CLAUDE.md:**
@@ -223,14 +223,14 @@ cp /Users/brent/git/cc-army/docs/PROJECT_CLAUDE_TEMPLATE.md ./CLAUDE.md
 
 ### Pattern 3: Explicit Invocation
 
-**User wants army for simple task:**
+**User wants orchestra for simple task:**
 ```
 "Use the Claude Orchestra to refactor this module"
 ```
 
 **What happens:**
 1. Explicit "Claude Orchestra" keyword overrides bypass patterns
-2. Army activates even though task might be simple
+2. Orchestra activates even though task might be simple
 3. Full quality assurance (QA, Security, Docs)
 
 **Benefit:** Quality even for smaller tasks
@@ -249,14 +249,14 @@ cd ~/git/api-server
 
 **What happens:**
 1. Global CLAUDE.md detects: "Fix typo" → simple task
-2. Bypass army activation
+2. Bypass orchestra activation
 3. Handle directly without agent spawning
 
 **Benefit:** Fast response for simple tasks
 
 ## Trigger Pattern Examples
 
-### ✅ Will Activate Army
+### ✅ Will Activate Orchestra
 
 ```
 "Build a REST API with FastAPI and PostgreSQL"
@@ -278,7 +278,7 @@ cd ~/git/api-server
 └─> Production: Multiple quality aspects
 ```
 
-### ❌ Will Bypass Army
+### ❌ Will Bypass Orchestra
 
 ```
 "Fix typo in README"
@@ -339,14 +339,14 @@ cd ~/git/api-server
 
 ### 1. No Context Switching
 ```
-Before: cd ~/git/project → cd ~/git/cc-army → invoke → cd ~/git/project
+Before: cd ~/git/project → cd ~/git/cc-orchestra → invoke → cd ~/git/project
 After:  cd ~/git/project → invoke army directly
 ```
 
 ### 2. Automatic Detection
 ```
-Before: Manually decide if army needed
-After:  Army auto-activates based on complexity
+Before: Manually decide if orchestra needed
+After:  Orchestra auto-activates based on complexity
 ```
 
 ### 3. Project-Specific
@@ -364,7 +364,7 @@ After:  Built-in QA, security, docs for all complex tasks
 ### 5. Speed
 ```
 Sequential Development: 10 hours
-Army Parallel: 4 hours (2.5x faster)
+Orchestra Parallel: 4 hours (2.5x faster)
 ```
 
 ### 6. Token Efficiency
@@ -381,25 +381,25 @@ With Shared Memory: 68,000 tokens (32% reduction)
    - Added 254 lines (1156-1410)
    - Section: "🤖 Claude Orchestra Auto-Detection"
 
-2. **`/Users/brent/git/cc-army/README.md`**
+2. **`/Users/brent/git/cc-orchestra/README.md`**
    - Added 96 lines (73-168)
    - Section: "🌐 Cross-Repository Usage"
 
-3. **`/Users/brent/git/cc-army/ORCHESTRA_ROSTER.md`**
+3. **`/Users/brent/git/cc-orchestra/ORCHESTRA_ROSTER.md`**
    - Added 2 lines (5-6)
    - Note about cross-repository capability
 
 ### Created Files
 
-1. **`/Users/brent/git/cc-army/docs/PROJECT_CLAUDE_TEMPLATE.md`**
+1. **`/Users/brent/git/cc-orchestra/docs/PROJECT_CLAUDE_TEMPLATE.md`**
    - 300+ line template for project customization
    - Includes examples for Python, Flutter, Salesforce projects
 
-2. **`/Users/brent/git/cc-army/docs/CROSS_REPO_USAGE.md`**
+2. **`/Users/brent/git/cc-orchestra/docs/CROSS_REPO_USAGE.md`**
    - 700+ line comprehensive guide
    - Architecture, patterns, examples, troubleshooting
 
-3. **`/Users/brent/git/cc-army/docs/CROSS_REPO_IMPLEMENTATION.md`** (this file)
+3. **`/Users/brent/git/cc-orchestra/docs/CROSS_REPO_IMPLEMENTATION.md`** (this file)
    - Implementation summary
    - Architecture documentation
    - Usage patterns
@@ -416,7 +416,7 @@ cd ~/git/test-project
 "Build a Python API with FastAPI"
 
 # Expected result:
-- Army activates automatically
+- Orchestra activates automatically
 - Spawns: Architect, Python Expert, Security, QA, Docs, Credentials
 - Files created in ~/git/test-project
 ```
@@ -428,7 +428,7 @@ cd ~/git/test-project
 "Fix typo in README"
 
 # Expected result:
-- Army does NOT activate
+- Orchestra does NOT activate
 - Direct fix without spawning agents
 ```
 
@@ -439,7 +439,7 @@ cd ~/git/test-project
 "Use the Claude Orchestra to refactor this module"
 
 # Expected result:
-- Army activates despite "refactor" being potentially simple
+- Orchestra activates despite "refactor" being potentially simple
 - Full quality assurance applied
 ```
 
@@ -447,7 +447,7 @@ cd ~/git/test-project
 
 ```bash
 # Create project CLAUDE.md
-cp /Users/brent/git/cc-army/docs/PROJECT_CLAUDE_TEMPLATE.md ./CLAUDE.md
+cp /Users/brent/git/cc-orchestra/docs/PROJECT_CLAUDE_TEMPLATE.md ./CLAUDE.md
 
 # Edit to only include Python Expert
 vim ./CLAUDE.md
@@ -456,7 +456,7 @@ vim ./CLAUDE.md
 "Build a feature"
 
 # Expected result:
-- Army activates
+- Orchestra activates
 - Only spawns agents selected in project CLAUDE.md
 ```
 
@@ -466,8 +466,8 @@ vim ./CLAUDE.md
 
 1. **NPM Global Package**
    ```bash
-   npm install -g @username/claude-army
-   claude-army init my-project
+   npm install -g @username/claude-orchestra
+   claude-orchestra init my-project
    ```
 
 2. **VS Code Extension**
@@ -477,7 +477,7 @@ vim ./CLAUDE.md
 
 3. **Enhanced Auto-Detection**
    - Machine learning from past activations
-   - User feedback loop (was army needed?)
+   - User feedback loop (was orchestra needed?)
    - Project-type detection (detect if mobile, web, etc.)
 
 4. **Agent Metrics**

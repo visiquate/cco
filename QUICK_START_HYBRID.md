@@ -92,7 +92,7 @@ Check which models are being used:
 ssh brent@192.168.9.123 'tail -50 /Users/brent/ccproxy/logs/litellm.log | grep -E "model|anthropic|ollama"'
 
 # Calculate current savings
-/Users/brent/git/cc-army/scripts/calculate-ccproxy-savings.sh
+/Users/brent/git/cc-orchestra/scripts/calculate-ccproxy-savings.sh
 ```
 
 ## ⚠️ Important Notes
@@ -162,10 +162,10 @@ If you need to access Mac mini:
 
 ## 📚 Additional Resources
 
-- **Full Documentation**: `/Users/brent/git/cc-army/docs/`
-- **Army Roster**: `/Users/brent/git/cc-army/docs/ORCHESTRA_ROSTER_TDD.md`
-- **Dashboard Guide**: `/Users/brent/git/cc-army/docs/COST_TRACKING_DASHBOARD.md`
-- **Deployment Status**: `/Users/brent/git/cc-army/DEPLOYMENT_STATUS.md`
+- **Full Documentation**: `/Users/brent/git/cc-orchestra/docs/`
+- **Army Roster**: `/Users/brent/git/cc-orchestra/docs/ORCHESTRA_ROSTER_TDD.md`
+- **Dashboard Guide**: `/Users/brent/git/cc-orchestra/docs/COST_TRACKING_DASHBOARD.md`
+- **Deployment Status**: `/Users/brent/git/cc-orchestra/DEPLOYMENT_STATUS.md`
 
 ## 🎉 You're Ready!
 

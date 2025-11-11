@@ -2,7 +2,7 @@
 
 ## What Was Done
 
-Successfully expanded `/Users/brent/git/cc-army/config/orchestra-config.json` from **17 agents** to **125 agents** by integrating all agent definitions from `~/.claude/agents/`.
+Successfully expanded `/Users/brent/git/cc-orchestra/config/orchestra-config.json` from **17 agents** to **125 agents** by integrating all agent definitions from `~/.claude/agents/`.
 
 ## Changes Made
 
@@ -147,13 +147,13 @@ All agents (except Chief Architect) use `"model": "sonnet-4.5"` which routes thr
 ## Files Created/Modified
 
 ### Modified
-- `/Users/brent/git/cc-army/config/orchestra-config.json` - Expanded from 17 to 125 agents
+- `/Users/brent/git/cc-orchestra/config/orchestra-config.json` - Expanded from 17 to 125 agents
 
 ### Created
-- `/Users/brent/git/cc-army/scripts/extract-agents.js` - Agent metadata extraction
-- `/Users/brent/git/cc-army/scripts/build-comprehensive-config.js` - Config builder
-- `/Users/brent/git/cc-army/docs/COMPREHENSIVE_ORCHESTRA_ROSTER.md` - Complete agent roster
-- `/Users/brent/git/cc-army/docs/CONFIG_UPDATE_SUMMARY.md` - This summary
+- `/Users/brent/git/cc-orchestra/scripts/extract-agents.js` - Agent metadata extraction
+- `/Users/brent/git/cc-orchestra/scripts/build-comprehensive-config.js` - Config builder
+- `/Users/brent/git/cc-orchestra/docs/COMPREHENSIVE_ORCHESTRA_ROSTER.md` - Complete agent roster
+- `/Users/brent/git/cc-orchestra/docs/CONFIG_UPDATE_SUMMARY.md` - This summary
 
 ## Validation
 
@@ -210,5 +210,5 @@ Task("Report Generator", "Generate comprehensive report", "technical-writer")
 
 **Completed**: 2025-11-10
 **Total Agents**: 125
-**Config Location**: `/Users/brent/git/cc-army/config/orchestra-config.json`
-**Documentation**: `/Users/brent/git/cc-army/docs/`
+**Config Location**: `/Users/brent/git/cc-orchestra/config/orchestra-config.json`
+**Documentation**: `/Users/brent/git/cc-orchestra/docs/`

@@ -192,13 +192,13 @@ if (architectTokenUsage > opusTokenLimit * 0.8) {
 **Before Starting Work:**
 ```bash
 # Agent retrieves architecture decisions from Knowledge Manager
-node ~/git/cc-army/src/knowledge-manager.js search "architect decisions" > /tmp/architecture.txt
+node ~/git/cc-orchestra/src/knowledge-manager.js search "architect decisions" > /tmp/architecture.txt
 
 # Agent retrieves API contracts
-node ~/git/cc-army/src/knowledge-manager.js search "api contracts" > /tmp/api-contracts.txt
+node ~/git/cc-orchestra/src/knowledge-manager.js search "api contracts" > /tmp/api-contracts.txt
 
 # Agent reviews relevant context
-node ~/git/cc-army/src/knowledge-manager.js search "authentication implementation"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "authentication implementation"
 ```
 
 **During Work:**
@@ -207,17 +207,17 @@ node ~/git/cc-army/src/knowledge-manager.js search "authentication implementatio
 # ... coding happens ...
 
 # Agent stores progress after each file edit
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Edit: backend/auth.py - Implemented JWT authentication with refresh tokens" \
   --type edit --agent python-specialist
 
 # Agent updates progress in Knowledge Manager
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Progress: Completed auth.py and jwt.py, working on tests.py" \
   --type status --agent python-specialist
 
 # Agent sends heartbeat updates (every 10 minutes)
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Heartbeat: Python specialist working on auth implementation" \
   --type status --agent python-specialist
 ```
@@ -225,17 +225,17 @@ node ~/git/cc-army/src/knowledge-manager.js store \
 **After Completing Task:**
 ```bash
 # Agent notifies completion in Knowledge Manager
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Task complete: User authentication with JWT implementation ready for QA" \
   --type completion --agent python-specialist
 
 # Agent stores final status
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Status: Authentication implementation complete, all tests passing" \
   --type status --agent python-specialist
 
 # Agent documents completed work
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Completed: JWT auth with refresh tokens, password hashing, rate limiting" \
   --type completion --agent python-specialist
 ```
@@ -749,11 +749,11 @@ Compactions Handled: 2 (both seamless)
 
 ```bash
 # If something goes wrong, retrieve checkpoint from Knowledge Manager
-node ~/git/cc-army/src/knowledge-manager.js search "checkpoint component_2_complete" > /tmp/rollback-state.txt
+node ~/git/cc-orchestra/src/knowledge-manager.js search "checkpoint component_2_complete" > /tmp/rollback-state.txt
 
 # Review rollback state and manually restore if needed
 # Knowledge Manager stores all critical decisions and checkpoints
-node ~/git/cc-army/src/knowledge-manager.js list --limit 50
+node ~/git/cc-orchestra/src/knowledge-manager.js list --limit 50
 ```
 
 ### Manual Intervention
@@ -761,7 +761,7 @@ node ~/git/cc-army/src/knowledge-manager.js list --limit 50
 ```bash
 # User can intervene at any time
 # Simply provide guidance in Claude Code chat
-# Army will incorporate guidance and continue autonomously
+# Orchestra will incorporate guidance and continue autonomously
 ```
 
 ---
@@ -778,4 +778,4 @@ The Claude Orchestra autonomous operation workflow provides:
 6. **Quality Assurance** - Automated testing and security auditing
 7. **Full Transparency** - Progress broadcasting and logging
 
-**Result:** User can start the army, walk away for 4-8 hours, and return to a production-ready implementation that meets their exact specification.
+**Result:** User can start the orchestra, walk away for 4-8 hours, and return to a production-ready implementation that meets their exact specification.

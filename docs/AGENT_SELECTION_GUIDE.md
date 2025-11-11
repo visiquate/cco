@@ -764,8 +764,8 @@ Task("Frontend Developer", "Build UI", "fullstack-developer")
 
 - **Full Roster**: [COMPREHENSIVE_ORCHESTRA_ROSTER.md](COMPREHENSIVE_ORCHESTRA_ROSTER.md)
 - **Quick Reference**: [QUICK_AGENT_REFERENCE.md](QUICK_AGENT_REFERENCE.md)
-- **Config File**: `/Users/brent/git/cc-army/config/orchestra-config.json`
-- **Usage Guide**: [ARMY_USAGE_GUIDE.md](ARMY_USAGE_GUIDE.md)
+- **Config File**: `/Users/brent/git/cc-orchestra/config/orchestra-config.json`
+- **Usage Guide**: [ORCHESTRA_USAGE_GUIDE.md](ORCHESTRA_USAGE_GUIDE.md)
 
 ---
 

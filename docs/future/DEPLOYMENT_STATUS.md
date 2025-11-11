@@ -52,8 +52,8 @@
 **Timestamp**: 2025-11-04 ~20:30-21:00 UTC
 
 ### Config File Relocation
-1. ✅ **Created permanent config location**: `/Users/brent/git/cc-army/config/ccproxy/`
-2. ✅ **Moved correct config**: `/tmp/ccproxy-config-correct-tdd.yaml` → `/Users/brent/git/cc-army/config/ccproxy/ccproxy-config-tdd-pipeline.yaml`
+1. ✅ **Created permanent config location**: `/Users/brent/git/cc-orchestra/config/ccproxy/`
+2. ✅ **Moved correct config**: `/tmp/ccproxy-config-correct-tdd.yaml` → `/Users/brent/git/cc-orchestra/config/ccproxy/ccproxy-config-tdd-pipeline.yaml`
 3. ✅ **Deleted superseded /tmp configs**:
    - `/tmp/ccproxy-config-2-models.yaml` (wrong assignments)
    - `/tmp/ccproxy-config-minimal.yaml` (wrong assignments)

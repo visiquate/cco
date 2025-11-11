@@ -55,7 +55,7 @@ Choose the right model for your task based on complexity and requirements:
 
 ## Recommended orchestra-config.json Configuration
 
-Update `/Users/brent/git/cc-army/config/orchestra-config.json` with these settings:
+Update `/Users/brent/git/cc-orchestra/config/orchestra-config.json` with these settings:
 
 ```json
 {

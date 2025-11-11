@@ -180,15 +180,15 @@ When Claude's context fills up, compaction summarizes the conversation, losing:
 
 ```bash
 # Before compaction - store critical knowledge
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Architecture: JWT auth with refresh tokens in app/auth/jwt.py, 30-day key rotation. Decided by Chief Architect for security+UX balance" \
   --type decision --agent architect
 
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Config: PostgreSQL with connection pooling, Alembic migrations in config/database.py" \
   --type decision --agent architect
 
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Pattern: Custom exceptions with error codes in app/exceptions.py, using RFC 7807 Problem Details" \
   --type decision --agent architect
 ```
@@ -197,9 +197,9 @@ node ~/git/cc-army/src/knowledge-manager.js store \
 
 ```bash
 # Agents search Knowledge Manager for critical context
-node ~/git/cc-army/src/knowledge-manager.js search "architecture decisions"
-node ~/git/cc-army/src/knowledge-manager.js search "configuration"
-node ~/git/cc-army/src/knowledge-manager.js search "patterns"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "architecture decisions"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "configuration"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "patterns"
 ```
 
 **Orchestrator should:**

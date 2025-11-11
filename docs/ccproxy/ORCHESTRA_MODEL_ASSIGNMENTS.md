@@ -3,7 +3,7 @@
 **Date**: 2025-11-04
 **Version**: 3.0 (TDD Edition)
 **Status**: ✅ Deployed and Operational
-**Configuration**: `/Users/brent/git/cc-army/config/orchestra-config.json`
+**Configuration**: `/Users/brent/git/cc-orchestra/config/orchestra-config.json`
 
 ---
 
@@ -80,7 +80,7 @@ On-demand loading via Ollama
 ## 🔧 ccproxy Configuration
 
 **Location**: `/Users/brent/ccproxy/config.yaml`
-**Backup**: `/Users/brent/git/cc-army/config/ccproxy/ccproxy-config-tdd-pipeline.yaml`
+**Backup**: `/Users/brent/git/cc-orchestra/config/ccproxy/ccproxy-config-tdd-pipeline.yaml`
 
 **Key Settings**:
 ```yaml

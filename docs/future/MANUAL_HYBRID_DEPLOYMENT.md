@@ -15,7 +15,7 @@ Your hybrid configuration is ready to deploy when you have access to the Mac min
 # Then run:
 
 # Copy config from this repo
-scp /Users/brent/git/cc-army/config/ccproxy/hybrid-config-ready-to-deploy.yaml brent@192.168.9.123:/tmp/
+scp /Users/brent/git/cc-orchestra/config/ccproxy/hybrid-config-ready-to-deploy.yaml brent@192.168.9.123:/tmp/
 
 # SSH to Mac mini
 ssh brent@192.168.9.123
@@ -231,8 +231,8 @@ Expected costs:
 
 ## Files Ready for Deployment
 
-- **Config**: `/Users/brent/git/cc-army/config/ccproxy/hybrid-config-ready-to-deploy.yaml`
-- **Deploy Script**: `/Users/brent/git/cc-army/scripts/deploy-hybrid-ccproxy.sh` (for SSH)
+- **Config**: `/Users/brent/git/cc-orchestra/config/ccproxy/hybrid-config-ready-to-deploy.yaml`
+- **Deploy Script**: `/Users/brent/git/cc-orchestra/scripts/deploy-hybrid-ccproxy.sh` (for SSH)
 - **Environment**: API key already added to `~/.zshrc`
 
 ## Summary
@@ -243,7 +243,7 @@ Expected costs:
 - `ANTHROPIC_BASE_URL` (points to ccproxy)
 
 ✅ **Hybrid config is ready** at:
-- `/Users/brent/git/cc-army/config/ccproxy/hybrid-config-ready-to-deploy.yaml`
+- `/Users/brent/git/cc-orchestra/config/ccproxy/hybrid-config-ready-to-deploy.yaml`
 
 ⏳ **Waiting for Mac mini access** to deploy
 

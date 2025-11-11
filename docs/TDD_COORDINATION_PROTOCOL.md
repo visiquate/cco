@@ -18,12 +18,12 @@ This document defines the precise coordination protocol for the TDD-aware Claude
 
 ```bash
 # Store architectural decisions
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Architecture: microservices with REST API, JWT auth, PostgreSQL database. Components: Python/FastAPI (api), Swift/SwiftUI (mobile), Go/Gin (backend). Test requirements: 90% coverage, unit/integration/e2e tests with pytest." \
   --type decision --agent architect
 
 # Alternative: Store detailed JSON in a separate decision
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Test Requirements: 90% coverage, types: unit/integration/e2e, framework: pytest" \
   --type decision --agent architect
 ```
@@ -38,7 +38,7 @@ node ~/git/cc-army/src/knowledge-manager.js store \
 
 ```bash
 # Retrieve architecture decisions
-node ~/git/cc-army/src/knowledge-manager.js search "architecture decisions"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "architecture decisions"
 
 # Write failing tests for each component
 # Python API Tests
@@ -109,7 +109,7 @@ EOF
 pytest tests/test_api.py -v || true  # Expected to fail
 
 # Store test artifacts
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Tests: tests/test_api.py - 6 failing tests created (RED phase), coverage target: 90%, types: unit/integration, fixtures needed: test_client/test_db/auth_token, run: pytest tests/test_api.py -v" \
   --type implementation --agent tdd-agent
 
@@ -165,7 +165,7 @@ final class AppTests: XCTestCase {
 EOF
 
 # Store Swift tests
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Tests: Tests/AppTests.swift - 3 failing tests created (RED phase), coverage target: 85%, types: unit/integration, run: swift test" \
   --type implementation --agent tdd-agent
 
@@ -219,17 +219,17 @@ func TestAuthentication(t *testing.T) {
 EOF
 
 # Store Go tests
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Tests: backend/api_test.go - 3 failing tests created (RED phase), coverage target: 90%, types: unit/integration, run: go test ./..." \
   --type implementation --agent tdd-agent
 
 # Create test fixtures and mocks
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Test Fixtures: Database mock (setup: create_test_db, teardown: drop_test_db), Auth (test user: test@example.com, test token), API client (base_url: http://localhost:8000, timeout: 5)" \
   --type implementation --agent tdd-agent
 
 # Notify tests ready
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Status: All failing tests ready for implementation (Python/Swift/Go)" \
   --type status --agent tdd-agent
 ```
@@ -238,8 +238,8 @@ node ~/git/cc-army/src/knowledge-manager.js store \
 
 ```bash
 # Retrieve tests and architecture
-node ~/git/cc-army/src/knowledge-manager.js search "failing tests python RED"
-node ~/git/cc-army/src/knowledge-manager.js search "architecture decisions"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "failing tests python RED"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "architecture decisions"
 
 # Implement minimal code to pass tests
 cat > app/main.py << 'EOF'
@@ -291,11 +291,11 @@ EOF
 pytest tests/test_api.py -v
 
 # Store implementation status
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Implementation: Python API (GREEN phase) - 6 tests passing, coverage: 92%, files: app/main.py/models.py/auth.py, refactoring needed: extract auth logic, add database layer" \
   --type implementation --agent python-specialist
 
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Edit: app/main.py - Implemented FastAPI endpoints to pass all tests" \
   --type edit --agent python-specialist
 ```
@@ -304,7 +304,7 @@ node ~/git/cc-army/src/knowledge-manager.js store \
 
 ```bash
 # Retrieve tests
-node ~/git/cc-army/src/knowledge-manager.js search "failing tests swift RED"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "failing tests swift RED"
 
 # Implement code to pass tests
 cat > Sources/LoginViewModel.swift << 'EOF'
@@ -330,11 +330,11 @@ EOF
 swift test
 
 # Store status
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Implementation: Swift iOS app (GREEN phase) - 3 tests passing, coverage: 88%, files: LoginViewModel.swift/APIClient.swift/AuthManager.swift" \
   --type implementation --agent swift-specialist
 
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Edit: Sources/LoginViewModel.swift - Implemented authentication view model" \
   --type edit --agent swift-specialist
 ```
@@ -343,23 +343,23 @@ node ~/git/cc-army/src/knowledge-manager.js store \
 
 ```bash
 # API Explorer - Research and document API patterns
-node ~/git/cc-army/src/knowledge-manager.js search "architecture decisions"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "architecture decisions"
 
 # Research and store patterns
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "API Patterns: REST conventions (versioning: /api/v1, pagination: limit/offset, errors: RFC7807), authentication: JWT with refresh (expiry: 1h)" \
   --type decision --agent api-explorer
 
 # Salesforce API Expert - Implement Salesforce integration
-node ~/git/cc-army/src/knowledge-manager.js search "failing tests salesforce"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "failing tests salesforce"
 
 # Store Salesforce integration
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Integration: Salesforce implementation complete - endpoints: contacts/opportunities/accounts, auth: OAuth2, sync: webhook" \
   --type implementation --agent salesforce-specialist
 
 # Authentik API Expert - Store Authentik integration
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Integration: Authentik authentication - OAuth2/OIDC, SAML/OAuth2/LDAP providers, SSO and user sync enabled" \
   --type implementation --agent authentik-specialist
 ```
@@ -372,14 +372,14 @@ node ~/git/cc-army/src/knowledge-manager.js store \
 
 ```bash
 # Phase 1 completion notification
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Status: Phase 1 complete (TDD and implementation finished), initiating Phase 2" \
   --type status --agent architect
 
 # Wait for model swap (handled by orchestrator)
 sleep 40
 
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Status: Model swap complete, Phase 2 (quality and documentation) starting" \
   --type status --agent architect
 ```
@@ -388,8 +388,8 @@ node ~/git/cc-army/src/knowledge-manager.js store \
 
 ```bash
 # Retrieve all test data and implementations
-node ~/git/cc-army/src/knowledge-manager.js search "failing tests RED phase"
-node ~/git/cc-army/src/knowledge-manager.js search "implementation GREEN phase"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "failing tests RED phase"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "implementation GREEN phase"
 
 # Analyze test coverage and add edge cases
 cat >> tests/test_api_edge_cases.py << 'EOF'
@@ -444,11 +444,11 @@ EOF
 pytest tests/ -v --cov=app --cov-report=term-missing
 
 # Store review results
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "QA Review: Original tests: 12, edge cases added: 15, integration: 8, performance: 5, security: 10, total: 50 tests, coverage: 94%. Recommendations: add load testing for concurrent users, implement contract testing for APIs, add mutation testing" \
   --type completion --agent qa-engineer
 
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Status: QA review complete - 94% coverage, 50 total tests" \
   --type status --agent qa-engineer
 ```
@@ -457,7 +457,7 @@ node ~/git/cc-army/src/knowledge-manager.js store \
 
 ```bash
 # Retrieve implementation for security analysis
-node ~/git/cc-army/src/knowledge-manager.js search "implementation GREEN phase"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "implementation GREEN phase"
 
 # Perform security analysis
 # Check for vulnerabilities
@@ -465,11 +465,11 @@ bandit -r app/ -f json > security_report.json
 safety check --json > dependencies_report.json
 
 # Store findings
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Security Audit: Vulnerabilities (critical: 0, high: 0, medium: 2, low: 5), OWASP compliance (injection/broken_auth/xxe/access_control/security_config/xss/deserialization: passed, sensitive_data/components: review needed, logging: improve). Recommendations: implement rate limiting, add CSRF protection, enable security headers, implement audit logging, add input sanitization middleware. Threat model: 12 identified threats, 10 mitigated, 2 pending" \
   --type completion --agent security-auditor
 
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Status: Security audit complete - no critical vulnerabilities found" \
   --type status --agent security-auditor
 ```
@@ -478,10 +478,10 @@ node ~/git/cc-army/src/knowledge-manager.js store \
 
 ```bash
 # Retrieve all context for documentation
-node ~/git/cc-army/src/knowledge-manager.js search "architecture decisions"
-node ~/git/cc-army/src/knowledge-manager.js search "implementation GREEN phase"
-node ~/git/cc-army/src/knowledge-manager.js search "QA review"
-node ~/git/cc-army/src/knowledge-manager.js search "security audit"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "architecture decisions"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "implementation GREEN phase"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "QA review"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "security audit"
 
 # Create documentation
 cat > docs/API_DOCUMENTATION.md << 'EOF'
@@ -535,11 +535,11 @@ Docker-based deployment with:
 EOF
 
 # Store documentation status
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Documentation: Created API_DOCUMENTATION.md, DEPLOYMENT_GUIDE.md, TESTING_STRATEGY.md, SECURITY_GUIDE.md. Diagrams: architecture.mermaid, sequence_flows.mermaid, data_model.dbml. Status: complete" \
   --type completion --agent documentation-lead
 
-node ~/git/cc-army/src/knowledge-manager.js store \
+node ~/git/cc-orchestra/src/knowledge-manager.js store \
   "Status: Technical documentation complete" \
   --type status --agent documentation-lead
 ```
@@ -596,21 +596,21 @@ docs/technical:
 
 ```bash
 # Validate TDD compliance
-node ~/git/cc-army/src/knowledge-manager.js search "failing tests RED phase"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "failing tests RED phase"
 # Should show TDD agent entries with "RED phase" initially
-node ~/git/cc-army/src/knowledge-manager.js search "implementation GREEN phase"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "implementation GREEN phase"
 # Should show coding agent entries with "GREEN phase" after implementation
 
 # Check test coverage
-node ~/git/cc-army/src/knowledge-manager.js search "QA review coverage"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "QA review coverage"
 # Should show QA engineer entries with ≥90% coverage
 
 # Verify security
-node ~/git/cc-army/src/knowledge-manager.js search "security audit vulnerabilities"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "security audit vulnerabilities"
 # Should show security auditor entries with 0 critical vulnerabilities
 
 # Confirm documentation
-node ~/git/cc-army/src/knowledge-manager.js search "documentation complete"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "documentation complete"
 # Should show documentation lead entries with "complete" status
 ```
 

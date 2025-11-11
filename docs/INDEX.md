@@ -99,7 +99,7 @@ The Claude Orchestra is a comprehensive multi-agent development system with **11
 - Capabilities coverage checklist
 - Usage example
 
-**When to use**: Want a quick visual overview of the complete army deployment.
+**When to use**: Want a quick visual overview of the complete orchestra deployment.
 
 ## Agent Categories Quick Reference
 

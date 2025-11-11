@@ -325,7 +325,7 @@ If you catch yourself about to violate these rules:
 
 ## This Document
 
-- **Location**: `/Users/brent/git/cc-army/ORCHESTRATOR_RULES.md`
+- **Location**: `/Users/brent/git/cc-orchestra/ORCHESTRATOR_RULES.md`
 - **Purpose**: Prevent orchestrator from doing agent work
 - **Priority**: **CRITICAL** - Read this FIRST before any task
 - **Update**: When new agent types added or new violations discovered

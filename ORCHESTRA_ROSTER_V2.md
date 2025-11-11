@@ -230,9 +230,9 @@ node src/llm-router.js call-coding-llm "Write a Python function..."
 
 ## ⚙️ Configuration Files
 
-- **Army Config**: `/Users/brent/git/cc-army/config/orchestra-config.json`
-- **LLM Router**: `/Users/brent/git/cc-army/src/llm-router.js`
-- **Orchestrator**: `/Users/brent/git/cc-army/src/orchestra-conductor.js`
+- **Army Config**: `/Users/brent/git/cc-orchestra/config/orchestra-config.json`
+- **LLM Router**: `/Users/brent/git/cc-orchestra/src/llm-router.js`
+- **Orchestrator**: `/Users/brent/git/cc-orchestra/src/orchestra-conductor.js`
 
 ---
 

@@ -910,7 +910,7 @@ Inference Time Breakdown:
 
 ### Claude Code Army Integration
 
-**Configuration File**: `/Users/brent/git/cc-army/config/orchestra-config.json`
+**Configuration File**: `/Users/brent/git/cc-orchestra/config/orchestra-config.json`
 
 **Example Agent Configuration**:
 ```json
