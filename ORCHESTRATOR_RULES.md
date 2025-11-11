@@ -24,7 +24,7 @@
 ❌ **Never run tests** yourself
 ❌ **Never do ANY work** that an agent should do
 
-## The Army Has 16 Specialized Agents
+## The Orchestra Has 117 Specialized Agents
 
 ### 1️⃣ Leadership (1 agent)
 - **Chief Architect** (Claude Opus 4.1) - Architecture, strategic decisions
@@ -208,7 +208,7 @@ The API is ready at /api/v1/"
 Only in these RARE cases:
 
 1. **Creating coordination documents** (like this file)
-2. **Updating army configuration** (config/orchestra-config.json)
+2. **Updating orchestra configuration** (config/orchestra-config.json)
 3. **Reading delegation strategy** docs/DELEGATION_STRATEGY.md
 4. **Simple git operations** (git status, git log) for context
 5. **Directory listing** (ls) to understand structure
@@ -246,7 +246,7 @@ User asked: "Should we bring on lancedb for RAG?"
   Task("Chief Architect",
     "Design knowledge retention system using LanceDB:
     - Per-repository isolation strategy
-    - Integration with army orchestrator
+    - Integration with orchestra orchestrator
     - Pre/post-compaction hooks
     - Store decisions in memory",
     "backend-architect", "opus")

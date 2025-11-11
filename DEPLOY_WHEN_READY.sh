@@ -27,7 +27,7 @@ echo ""
 
 # Copy config
 echo "📦 Copying hybrid config to Mac mini..."
-scp /Users/brent/git/cc-army/config/ccproxy/hybrid-config-ready-to-deploy.yaml brent@192.168.9.123:/tmp/
+scp /Users/brent/git/cc-orchestra/config/ccproxy/hybrid-config-ready-to-deploy.yaml brent@192.168.9.123:/tmp/
 
 # Deploy via SSH
 echo "🔧 Deploying config..."
@@ -64,5 +64,5 @@ echo ""
 echo "📝 Next steps:"
 echo "  1. claude /logout"
 echo "  2. claude (say 'No' to claude.ai, 'Yes' to API key)"
-echo "  3. Test with: 'Use the Claude Army to add a health endpoint'"
+echo "  3. Test with: 'Use the Claude Orchestra to add a health endpoint'"
 echo ""

@@ -49,7 +49,7 @@ if [ "$HTTP_CODE" = "200" ]; then
     echo "Next steps:"
     echo "  1. claude /logout"
     echo "  2. claude (say 'No' to claude.ai, 'Yes' to API key)"
-    echo "  3. Test: 'Use the Claude Army to add a health endpoint'"
+    echo "  3. Test: 'Use the Claude Orchestra to add a health endpoint'"
 else
     echo "❌ Public endpoint still not working (HTTP $HTTP_CODE)"
     echo ""

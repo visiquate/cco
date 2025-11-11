@@ -73,7 +73,7 @@ Claude Code will automatically:
 cd ~/git/my-awesome-project
 
 # Open Claude Code and describe what you want
-# The army automatically deploys if task matches trigger patterns
+# The orchestra automatically deploys if task matches trigger patterns
 ```
 
 **Example:**
@@ -98,7 +98,7 @@ The orchestra **automatically activates** for:
 - Enterprise integrations ("Set up Authentik authentication")
 - Production systems ("Build with tests, security, and monitoring")
 
-The army **bypasses** for simple tasks:
+The orchestra **bypasses** for simple tasks:
 - Single-file changes ("Fix typo in README")
 - Simple queries ("What does this function do?")
 - Basic operations ("Run tests", "Check git status")
@@ -106,15 +106,15 @@ The army **bypasses** for simple tasks:
 
 ### Explicit Invocation
 
-You can always explicitly request the army:
+You can always explicitly request the orchestra:
 ```
 "Use the Claude Orchestra to build this feature"
-"Deploy the full army for this task"
+"Deploy the full orchestra for this task"
 ```
 
 ### Project-Specific Customization
 
-Create a `CLAUDE.md` in your project root to customize army behavior:
+Create a `CLAUDE.md` in your project root to customize orchestra behavior:
 
 ```bash
 # Copy template to your project
@@ -142,7 +142,7 @@ cp /Users/brent/git/cc-orchestra/docs/PROJECT_CLAUDE_TEMPLATE.md ~/git/your-proj
 
 ### Benefits
 
-✅ **No context switching** - Army works wherever you are
+✅ **No context switching** - Orchestra works wherever you are
 ✅ **Automatic detection** - Smart activation based on task complexity
 ✅ **Project-specific** - Customize per project with local CLAUDE.md
 ✅ **Consistent quality** - Same high standards across all projects
@@ -186,7 +186,7 @@ See [docs/PROJECT_CLAUDE_TEMPLATE.md](docs/PROJECT_CLAUDE_TEMPLATE.md) for proje
 ```
 User: "Add JWT authentication to the Python API"
 
-Army Response:
+Orchestra Response:
 - Architect designs auth flow
 - Python expert implements JWT
 - Security audits implementation
@@ -199,7 +199,7 @@ Army Response:
 ```
 User: "Build a mobile app (Flutter) with Go backend and Python ML service"
 
-Army Response:
+Orchestra Response:
 - Architect designs 3-tier architecture
 - Flutter expert builds mobile UI
 - Go expert creates REST API
@@ -289,9 +289,9 @@ node ~/git/cc-orchestra/src/knowledge-manager.js store "Task complete: [task]" -
 
 ## Documentation
 
-- **[Army Roster](ORCHESTRA_ROSTER.md)** - Complete agent specifications and capabilities
+- **[Orchestra Roster](ORCHESTRA_ROSTER.md)** - Complete agent specifications and capabilities
 - **[Quick Start](docs/QUICK_START.md)** - Get started quickly with examples
-- **[Usage Guide](docs/ARMY_USAGE_GUIDE.md)** - Comprehensive usage instructions
+- **[Usage Guide](docs/ORCHESTRA_USAGE_GUIDE.md)** - Comprehensive usage instructions
 - **[API Integration Guide](docs/API_INTEGRATION_GUIDE.md)** - Salesforce and Authentik integration
 - **[DevOps Guide](docs/DEVOPS_AGENT_GUIDE.md)** - Infrastructure and deployment
 - **[Example Workflow](docs/EXAMPLE_WORKFLOW.md)** - Full example workflow

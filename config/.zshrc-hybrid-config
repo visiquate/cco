@@ -1,4 +1,4 @@
-# Claude Army Hybrid Routing Configuration
+# Claude Orchestra Hybrid Routing Configuration
 # Add this to your ~/.zshrc
 
 # ==========================================
@@ -39,7 +39,7 @@ export ANTHROPIC_BASE_URL="https://coder.visiquate.com"
 # 1. source ~/.zshrc
 # 2. claude /logout
 # 3. claude (say "No" to claude.ai, "Yes" to API key)
-# 4. Deploy hybrid config: /Users/brent/git/cc-army/scripts/deploy-hybrid-ccproxy.sh
+# 4. Deploy hybrid config: /Users/brent/git/cc-orchestra/scripts/deploy-hybrid-ccproxy.sh
 
 # ==========================================
 # COST SAVINGS
