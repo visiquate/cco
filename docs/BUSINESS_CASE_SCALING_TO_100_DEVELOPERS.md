@@ -78,6 +78,10 @@ A single developer on our team is using **Claude Orchestra** - and experiencing 
 - **Built-in quality assurance** with security auditing and code review
 - **Parallel execution** - multiple agents working simultaneously
 - **Persistent knowledge base** that survives context limitations
+- **Hybrid model architecture** (in development):
+  - High-intelligence decisions: Claude Opus 4.1 & Sonnet 4.5
+  - Routine coding tasks: Local models (cost optimization)
+  - Orchestration: Always Claude (quality guarantee)
 
 ### Real-World Results Comparison
 
@@ -203,9 +207,9 @@ For 100 developers over a year:
 
 ## 💰 Business Impact & ROI
 
-### Cost Analysis (Annual)
+### Cost Analysis (Phased Approach)
 
-#### Current State (100 Developers)
+#### Current State (100 Developers - Traditional)
 
 ```
 Assumptions:
@@ -216,35 +220,206 @@ Assumptions:
 Total Annual Cost: $15,000,000
 ```
 
-#### With Claude Orchestra
+#### Phase 1: Proving the Model (All Claude API - Current)
+
+**Status**: In progress with 1 developer proving sustained 3.4x gains
 
 ```
-AI Costs (Estimated):
+AI Costs (All Claude API):
 - Claude API usage per developer: $500-800/month
 - 100 developers × $650/month avg × 12 months = $780,000/year
+
+Hardware: None required (cloud-only)
 
 Total Annual Cost: $15,780,000
 Net Additional Cost: $780,000 (5.2% increase)
 
 Productivity Gain:
-- Effective capacity: 350 developer-units (from 100 physical developers)
-- Equivalent hiring cost: 250 developers × $150K = $37,500,000
-- Cost avoidance: $37,500,000 - $780,000 = $36,720,000
+- Effective capacity: 340 developer-units (from 100 physical developers)
+- Equivalent hiring cost: 240 developers × $150K = $36,000,000
+- Cost avoidance: $36,000,000 - $780,000 = $35,220,000
 
-ROI: 4,700% return on investment
+ROI: 4,515% return on investment
+Payback: Under 1 month
 ```
 
-### Payback Period
+#### Phase 2: Hybrid Optimization (Experimentation - Pending Hardware)
 
+**Status**: Starting with 1 Mac host, determining optimal sharing ratio
+
+```
+Hybrid Model Strategy:
+- High-intelligence (Claude): Chief Architect, reviewers, security (Opus/Sonnet)
+- Routine coding (Local): Language specialists, basic tasks (local models)
+- Orchestration (Claude): Always Claude for quality guarantee
+
+Initial Hardware Investment:
+- 1× Mac Studio (128GB RAM): ~$6,000 one-time
+- Local model hosting (Ollama): Free
+- Experimentation phase: 3-6 months
+
+Experiments to Run:
+1. How many developers can share 1 Mac host effectively?
+   - Start with 5 developers
+   - Monitor: Response time, queue depth, model performance
+   - Scale: Add developers until quality degrades
+
+2. Quality assessment:
+   - Compare local model output vs Claude for same tasks
+   - Measure: Bug rates, test coverage, code review findings
+   - Decision: Which agents can safely use local models?
+
+3. Cost-quality tradeoff:
+   - Calculate: Cost savings vs potential quality reduction
+   - Determine: Acceptable quality threshold
+   - Optimize: Agent assignments for best ROI
+
+Estimated Hybrid Costs (After Optimization):
+- Claude API (Opus/Sonnet only): ~$300-400/dev/month
+- Local model compute: ~$50/dev/month (hardware amortized)
+- 100 developers × $350/month avg × 12 months = $420,000/year
+
+Hardware scaling (based on experimentation):
+- If 1 Mac supports 10 devs: Need 10 Macs = $60K one-time
+- If 1 Mac supports 20 devs: Need 5 Macs = $30K one-time
+- If 1 Mac supports 5 devs: Need 20 Macs = $120K one-time
+
+Total Annual Cost (estimated): $15,420,000
+Net Additional Cost: $420,000 (2.8% increase)
+Annual Savings vs All-Claude: $360,000 (46% reduction in AI costs)
+
+Productivity Gain (same):
+- Effective capacity: 340 developer-units
+- Equivalent hiring cost: 240 developers × $150K = $36,000,000
+- Cost avoidance: $36,000,000 - $420,000 = $35,580,000
+
+ROI: 8,471% return on investment
+Payback: Under 2 weeks
+```
+
+#### Phase 3: Scaled Hybrid Deployment
+
+**Status**: After successful experimentation and quality validation
+
+```
+Mature Hybrid Infrastructure:
+- Proven sharing ratio (e.g., 15 devs per Mac host)
+- Quality metrics validated
+- Agent assignments optimized
+
+Example: 15 developers per Mac host
+- 100 developers ÷ 15 = 7 Mac hosts needed
+- Hardware investment: 7 × $6,000 = $42,000 one-time
+- Annual amortization (3 years): $14,000/year
+
+Annual Operating Costs:
+- Claude API (strategic agents): $300/dev/month × 100 × 12 = $360,000/year
+- Hardware amortization: $14,000/year
+- Maintenance & power: ~$6,000/year
+
+Total Annual Cost: $15,380,000
+Net Additional Cost: $380,000 (2.5% increase)
+Annual Savings vs All-Claude: $400,000 (51% reduction in AI costs)
+
+ROI: 9,347% return on investment
+3-year Total Savings: $1,200,000 in AI costs (vs all-Claude approach)
+```
+
+### Payback Period by Phase
+
+**Phase 1 (All Claude API):**
 ```
 Additional investment: $780,000/year
 Monthly cost: $65,000
 
-At 3.5x productivity:
+At 3.4x productivity:
 - Break-even: ~2 weeks of improved velocity
 - Payback period: Under 1 month
 
-Every month thereafter = $3.06M in equivalent hiring cost avoided
+Every month thereafter = $3.0M in equivalent hiring cost avoided
+```
+
+**Phase 2-3 (Hybrid with Local Models):**
+```
+Additional investment: $380,000/year (after optimization)
+Monthly cost: $31,667
+
+At 3.4x productivity (same):
+- Break-even: ~1 week of improved velocity
+- Payback period: Under 2 weeks
+
+Every month thereafter = $3.0M in equivalent hiring cost avoided
+Annual AI cost savings vs Phase 1: $400,000
+```
+
+### Cost Comparison: 3-Year Total
+
+| Approach | Year 1 | Year 2 | Year 3 | 3-Year Total | Notes |
+|----------|--------|--------|--------|--------------|-------|
+| **All Claude (Phase 1)** | $780K | $780K | $780K | **$2,340K** | Fastest to deploy |
+| **Hybrid Optimized (Phase 2-3)** | $650K* | $380K | $380K | **$1,410K** | After experimentation |
+| **Savings with Hybrid** | - | $400K | $400K | **$930K over 3 years** | 40% cost reduction |
+
+*Year 1 hybrid includes 6 months all-Claude ($390K) + 6 months hybrid experimentation ($260K)
+
+### Hardware Experimentation Strategy
+
+**Goal**: Determine optimal developer-to-host ratio while maintaining quality
+
+**Approach**: Progressive load testing with quality gates
+```
+Month 1-2: Baseline with 1 Mac, 5 developers
+  - Deploy 1 Mac Studio (128GB RAM, M2 Ultra)
+  - Select 5 volunteer developers
+  - Run 100% of their tasks through hybrid system
+  - Metrics: Response time, quality, developer satisfaction
+  - Baseline established
+
+Month 3: Expand to 10 developers
+  - Add 5 more developers to same Mac
+  - Monitor: Queue depth, response degradation
+  - Compare: Quality metrics vs 5-developer baseline
+  - Decision point: Can 1 Mac handle 10 developers?
+
+Month 4: Expand to 15 developers (if Month 3 successful)
+  - Add 5 more developers
+  - Monitor for breaking point
+  - Identify: When does quality/performance degrade?
+  - Determine: Optimal capacity per Mac
+
+Month 5-6: Quality validation and optimization
+  - Run A/B tests: Local models vs Claude for same tasks
+  - Measure: Bug introduction rate, test coverage, code review issues
+  - Optimize: Agent model assignments for best cost/quality ratio
+  - Document: Final recommendations and scaling plan
+```
+
+**Quality Gates** (must pass to continue):
+- Response time: <5 seconds for 90% of requests
+- Developer satisfaction: >80% positive feedback
+- Code quality: Bug rates within 10% of all-Claude baseline
+- Test coverage: Maintained at 90%+
+
+**Decision Matrix**:
+```
+If 1 Mac supports 5-7 developers:
+  - 100 devs need ~15 Macs ($90K investment)
+  - Cost: ~$450/dev/month
+  - Decision: May not be worth hardware complexity
+
+If 1 Mac supports 10-15 developers:
+  - 100 devs need 7-10 Macs ($42-60K investment)
+  - Cost: ~$350/dev/month
+  - Decision: Strong ROI, proceed with rollout
+
+If 1 Mac supports 20+ developers:
+  - 100 devs need 5 Macs ($30K investment)
+  - Cost: ~$300/dev/month
+  - Decision: Excellent ROI, aggressive rollout
+
+If quality degrades unacceptably:
+  - Stay with all-Claude approach
+  - Revisit when better local models available
 ```
 
 ### Competitive Advantage
@@ -295,47 +470,185 @@ Market advantage: 11 weeks (2.75 months) ahead of competition
 
 ## 🏗️ Technical Implementation
 
-### Phase 1: Pilot Program (Months 1-2)
+### Phase 1: Pilot Program - All Claude (Months 1-2)
 
-**Objective**: Validate at small scale, refine processes
+**Objective**: Validate at small scale, refine processes, prove 3.4x productivity gains
 
-- **Participants**: 10 volunteer developers across 3 teams
-- **Support**: Dedicated technical lead + documentation
-- **Metrics**: Track velocity, quality, satisfaction
-- **Outcome**: Proven playbook for broader rollout
+**Model Strategy**: 100% Claude API (Opus/Sonnet/Haiku)
+- Focus: Validate productivity claims
+- No complexity: Cloud-only, no hardware
+- Fast deployment: No infrastructure setup
+
+**Participants**: 10 volunteer developers across 3 teams
+**Support**: Dedicated technical lead + documentation
+**Metrics**: Track velocity, quality, satisfaction
 
 **Investment:**
 - Setup time: 2-3 weeks (one-time)
 - Training: 4-8 hours per developer (one-time)
 - Ongoing support: Part-time technical lead
+- AI costs: 10 devs × $650/month = $6,500/month
 
-### Phase 2: Department Rollout (Months 3-6)
+**Success Criteria:**
+- ✅ 3x+ productivity gain demonstrated
+- ✅ 90%+ pilot developer satisfaction
+- ✅ Zero security incidents
+- ✅ Clear ROI validated
 
-**Objective**: Scale to 50% of engineering team
+---
 
-- **Participants**: 50 developers
-- **Approach**: Team-by-team rollout with champions
-- **Infrastructure**: Shared knowledge bases, team configurations
-- **Training**: Self-serve with office hours
+### Phase 2: Department Rollout - All Claude (Months 3-6)
+
+**Objective**: Scale to 50% of engineering team while proving value
+
+**Model Strategy**: 100% Claude API (maintaining quality baseline)
+- Continue all-Claude approach
+- Establish quality benchmarks for future hybrid comparison
+- Build organizational confidence
+
+**Participants**: 50 developers (40 new + 10 from pilot)
+**Approach**: Team-by-team rollout with champions
+**Infrastructure**: Shared knowledge bases, team configurations
 
 **Investment:**
 - Configuration per team: 4-8 hours (one-time)
 - Training: Self-serve materials + office hours
 - Support: Dedicated technical lead
+- AI costs: 50 devs × $650/month = $32,500/month
 
-### Phase 3: Full Deployment (Months 7-12)
+**Success Criteria:**
+- ✅ 50 developers enabled
+- ✅ 3x+ average productivity maintained
+- ✅ Quality benchmarks established
+- ✅ Champions leading teams independently
 
-**Objective**: Enable entire 100+ person team
+---
 
-- **Participants**: All engineering team members
-- **Maturity**: Centers of excellence, advanced patterns
-- **Optimization**: Cost management, custom agents
-- **Culture**: AI-assisted development becomes standard
+### Phase 2.5: Hybrid Experimentation - PARALLEL (Months 4-9)
+
+**Objective**: Optimize costs with local models while maintaining quality
+
+**Model Strategy**: Experiment with hybrid Claude + local models
+- Runs in parallel with Phase 2 rollout
+- Separate experiment group: 5-15 developers
+- Does not block main rollout
+
+**Timeline:**
+```
+Month 4-5: Infrastructure setup + 5 developer baseline
+  - Purchase 1 Mac Studio (M2 Ultra, 128GB RAM): $6,000
+  - Deploy Ollama for local model hosting
+  - Select 5 volunteer developers (separate from main rollout)
+  - Establish baseline: quality, performance, satisfaction
+  - Run 100% of tasks through hybrid system
+
+Month 6: Expand to 10 developers
+  - Add 5 more developers to same Mac
+  - Monitor: Response time, queue depth
+  - Measure: Quality degradation (if any)
+  - Decision: Can 1 Mac support 10 developers?
+
+Month 7: Expand to 15 developers (if successful)
+  - Add 5 more developers
+  - Find breaking point
+  - Determine optimal capacity per Mac
+
+Month 8-9: Quality validation and optimization
+  - A/B testing: Local vs Claude for same tasks
+  - Measure: Bug rates, test coverage, review findings
+  - Optimize: Which agents use local models?
+  - Document: Scaling recommendations
+```
 
 **Investment:**
+- Hardware: $6,000 one-time (1 Mac Studio)
+- Technical lead time: 25% dedicated to experiments
+- AI costs for experiment group: Mixed (some local, some Claude)
+- Estimated blended cost: $350/dev/month for experiment group
+
+**Quality Gates** (must pass to proceed):
+- Response time: <5 seconds for 90% of requests
+- Developer satisfaction: >80% positive
+- Bug rates: Within 10% of all-Claude baseline
+- Test coverage: Maintained at 90%+
+
+**Decision Points:**
+```
+If experiments successful (quality maintained):
+  → Proceed to Phase 3 with hybrid architecture
+  → Calculate hardware needs based on proven sharing ratio
+  → Roll out hybrid to all remaining developers
+
+If experiments show quality degradation:
+  → Continue with all-Claude approach for Phase 3
+  → Document learnings
+  → Revisit hybrid when better local models available
+  → Still achieve 3.4x productivity, just at higher AI cost
+```
+
+---
+
+### Phase 3: Full Deployment - Hybrid Optimized (Months 7-12)
+
+**Objective**: Enable entire 100+ person team with cost-optimized hybrid architecture
+
+**Model Strategy**: Depends on Phase 2.5 experiment results
+
+**Scenario A: Hybrid Experiments Successful**
+- Deploy hybrid architecture to remaining 50 developers
+- Strategic agents (Opus/Sonnet): Chief Architect, reviewers, security
+- Routine agents (Local): Language specialists, basic coding
+- Scale Mac hardware based on proven sharing ratio
+
+**Scenario B: Hybrid Experiments Inconclusive**
+- Continue all-Claude for remaining 50 developers
+- Full 100-developer deployment at $650/dev/month
+- Continue experimenting with local models in parallel
+- Migrate to hybrid when quality validated
+
+**Participants**: All 100 engineering team members
+**Maturity**: Centers of excellence, advanced patterns
+**Culture**: AI-assisted development becomes standard
+
+**Investment (Scenario A - Hybrid):**
+- Hardware: $42,000 one-time (7 Mac Studios if 15 devs/Mac)
 - Ongoing optimization: 1 full-time technical lead
 - Advanced training: Workshops and deep-dives
-- Cost optimization: Volume discounts, local model integration
+- AI costs: 100 devs × $350/month = $35,000/month
+
+**Investment (Scenario B - All Claude):**
+- No hardware
+- Ongoing optimization: 1 full-time technical lead
+- Advanced training: Workshops and deep-dives
+- AI costs: 100 devs × $650/month = $65,000/month
+
+**Success Criteria:**
+- ✅ 90%+ of engineering team enabled
+- ✅ Cost optimized (hybrid) OR quality validated (all-Claude)
+- ✅ 3.4x+ productivity sustained
+- ✅ Multiple centers of excellence
+
+---
+
+### Parallel Track: Hardware Experimentation (Ongoing)
+
+**Critical Success Factor**: Don't let hardware experiments block productivity gains
+
+```
+Priority 1: Developer productivity (3.4x gains)
+  → Deploy all-Claude immediately to get wins
+  → Proven, reliable, fast to implement
+
+Priority 2: Cost optimization (50% AI cost reduction)
+  → Experiment with hybrid in parallel
+  → No risk to main rollout
+  → Migrate when validated
+
+Philosophy:
+  "Perfect is the enemy of good"
+  Get the 3.4x productivity wins NOW with all-Claude
+  Optimize costs over next 6-12 months with hybrid
+```
 
 ---
 
@@ -349,6 +662,9 @@ Market advantage: 11 weeks (2.75 months) ahead of competition
 | **Cost Overruns** | Per-developer budgets, usage monitoring, automatic alerts |
 | **Quality Issues** | Mandatory code review by humans, gradual autonomy increase |
 | **Knowledge Loss** | Persistent knowledge bases, documentation requirements |
+| **Hybrid Quality Degradation** | Separate experiment group, quality gates, A/B testing, fallback to all-Claude |
+| **Hardware Capacity** | Progressive load testing, clear breaking points, scalable architecture |
+| **Local Model Performance** | Benchmark against Claude baseline, strict quality gates, abort if degraded |
 
 ### Organizational Risks
 
@@ -396,6 +712,30 @@ Market advantage: 11 weeks (2.75 months) ahead of competition
 - **Cost per Feature**: Development cost divided by features (target: -65%)
 - **ROI**: Return on AI investment (target: 4,000%+)
 - **Hiring Needs**: Open engineering positions (target: -50%)
+
+### Hybrid Experimentation Metrics (Phase 2.5)
+
+**Infrastructure Performance:**
+- **Developer Capacity per Mac**: How many devs can share 1 Mac? (target: 10-15)
+- **Response Time**: P50/P90/P99 latency (target: <5s for 90% of requests)
+- **Queue Depth**: Concurrent requests per Mac (target: <10)
+- **Resource Utilization**: CPU/RAM/GPU usage (target: 60-80% average)
+
+**Quality Comparison (Local vs Claude):**
+- **Bug Introduction Rate**: Bugs per 1000 lines (target: within 10% of Claude)
+- **Test Coverage**: Maintained coverage % (target: 90%+)
+- **Code Review Issues**: Findings per PR (target: within 15% of Claude)
+- **Security Findings**: Vulnerabilities detected (target: zero increase)
+
+**Cost Efficiency:**
+- **Cost per Developer**: Blended all-in cost (target: <$400/month)
+- **Cost Reduction**: Savings vs all-Claude (target: 40%+)
+- **Hardware ROI**: Payback period for Mac investment (target: <12 months)
+
+**Developer Experience:**
+- **Satisfaction Score**: Survey results (target: >80% positive)
+- **Perceived Quality**: Do devs notice difference? (target: <20% can tell)
+- **Adoption Willingness**: Would devs recommend? (target: >75% yes)
 
 ---
 
@@ -836,29 +1176,67 @@ Annual capacity:
 
 ### Technology Stack
 
-- **AI Models**: Claude Opus 4.1, Sonnet 4.5, Haiku 4.5
+**Phase 1 (Current - Proving Model):**
+- **AI Models**: Claude Opus 4.1, Sonnet 4.5, Haiku 4.5 (100% cloud)
 - **Coordination**: Knowledge Manager with LanceDB vector database
 - **Agent System**: 117 specialized agents across 15 agent types
 - **Integration**: Claude Code CLI, direct API integration
-- **Future**: Local LLM support via ccproxy (cost optimization)
+- **Deployment**: Cloud-only, no hardware required
+
+**Phase 2-3 (Future - Hybrid Optimization):**
+- **Strategic AI (Cloud)**: Claude Opus 4.1 & Sonnet 4.5
+  - Chief Architect, code reviewers, security auditors
+  - High-intelligence decisions and orchestration
+- **Routine AI (Local)**: Local models via Ollama
+  - Language specialists, basic coding tasks
+  - Cost optimization without quality compromise
+- **Hardware**: Mac Studio (M2 Ultra, 128GB RAM)
+  - Local model hosting (Qwen, DeepSeek, or similar)
+  - Shared across multiple developers (10-20 per host)
+- **Routing**: ccproxy with intelligent agent-to-model mapping
+- **Monitoring**: Response time, quality metrics, cost tracking
 
 ### Financial Model Details
 
-**Cost Breakdown (Per Developer, Annual)**
+**Phase 1: All Claude API (Per Developer, Annual)**
 
 | Item | Cost |
 |------|------|
-| Claude API usage | $6,000 - $9,600 |
-| Infrastructure | $300 - $500 |
-| Support & training (amortized) | $500 - $700 |
-| **Total per developer** | **$6,800 - $10,800** |
-| **Monthly average** | **$567 - $900** |
+| Claude API usage (Opus/Sonnet/Haiku) | $6,000 - $9,600 |
+| Infrastructure (cloud) | $0 |
+| Support & training (amortized) | $600 - $800 |
+| **Total per developer** | **$6,600 - $10,400** |
+| **Monthly average** | **$550 - $867** |
 
-**Scaling Discounts**
-
+**Phase 1 Scaling:**
 - Pilot (10 devs): ~$800/month each
 - Wave 1-2 (50 devs): ~$650/month each
-- Full scale (100 devs): ~$500/month each (with optimizations)
+- Full scale (100 devs): ~$650/month each
+
+**Phase 2-3: Hybrid Optimized (Per Developer, Annual)**
+
+| Item | Cost |
+|------|------|
+| Claude API (Opus/Sonnet only) | $3,000 - $4,800 |
+| Local model compute (hardware amortized) | $400 - $700 |
+| Support & training (amortized) | $600 - $800 |
+| **Total per developer** | **$4,000 - $6,300** |
+| **Monthly average** | **$333 - $525** |
+
+**Phase 2-3 Hardware Economics:**
+
+Assuming 15 developers per Mac Studio:
+- Mac Studio (M2 Ultra, 128GB): $6,000
+- Amortized over 3 years: $2,000/year
+- Per developer: $2,000 ÷ 15 = $133/year = $11/month
+- Power & maintenance: ~$5/dev/month
+- Total hardware cost per dev: ~$16/month
+
+Example calculation:
+- Claude API (strategic only): $300/month
+- Local compute: $16/month
+- Support/training: $50/month
+- **Total: $366/month** (44% cheaper than Phase 1)
 
 ### Comparison to Alternatives
 
@@ -943,11 +1321,21 @@ Effective capacity: 340 developer-units
 ```
 
 **The math is simple:**
+
+**Phase 1 (All Claude - Immediate):**
 - Investment: $780,000/year
-- Return: $36,700,000 equivalent hiring cost avoided
-- ROI: 4,700%
+- Return: $36,000,000 equivalent hiring cost avoided
+- ROI: 4,615%
 - Payback: Under 1 month
 - Time savings: **18,000 developer-days per year**
+
+**Phase 2-3 (Hybrid - After Optimization):**
+- Investment: $380,000/year (51% cost reduction)
+- Return: $36,000,000 equivalent hiring cost avoided
+- ROI: 9,347%
+- Payback: Under 2 weeks
+- 3-year savings vs all-Claude: **$930,000**
+- Time savings: **18,000 developer-days per year** (same productivity)
 
 **The advantages are undeniable:**
 - **10-day sprints → 2-3 day sprints** (same feature, better quality)
