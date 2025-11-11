@@ -1,15 +1,18 @@
 # Claude Orchestra Documentation
 
-Complete documentation for the Claude Orchestra multi-agent development system with autonomous operation capabilities.
+Complete documentation for the Claude Orchestra multi-agent development system with 117 specialized agents using direct Claude API integration.
+
+**Current System**: Opus 4.1 (1 agent) + Sonnet 4.5 (77 agents) + Haiku 4.5 (39 agents)
+**Future Enhancement**: ccproxy integration with local Ollama models (pending hardware)
 
 ---
 
 ## Quick Links
 
 ### Getting Started
+- [Documentation Index](INDEX.md) - Complete documentation index and navigation
 - [Main README](../README.md) - Project overview and quick start
 - [Quick Start Guide](QUICK_START.md) - Get up and running quickly
-- [Army Roster](../ORCHESTRA_ROSTER.md) - Complete agent specifications
 
 ### Usage Guides
 - [Army Usage Guide](ARMY_USAGE_GUIDE.md) - Comprehensive usage instructions
@@ -27,8 +30,16 @@ Complete documentation for the Claude Orchestra multi-agent development system w
 - [Example Workflow](EXAMPLE_WORKFLOW.md) - Full example workflow
 
 ### Configuration
-- [Army Configuration](../config/orchestra-config.json) - Agent definitions and settings
+- [Army Configuration](../config/orchestra-config.json) - All 117 agent definitions
 - [Project Template](PROJECT_CLAUDE_TEMPLATE.md) - Template for project-specific customization
+
+### Future Enhancements
+- [Future Enhancements Overview](future/README.md) - ccproxy deployment roadmap and timeline
+- [ccproxy Documentation](future/ccproxy/) - Complete deployment and configuration guides
+  - Native macOS deployment
+  - Architecture decisions
+  - Hardware requirements
+  - Configuration files
 
 ---
 
@@ -77,9 +88,10 @@ The Claude Orchestra now supports **extended autonomous operation** for 4-8 hour
 - Usage examples
 - Architecture
 
-**[Army Roster](../ORCHESTRA_ROSTER.md)**
-- Complete agent specifications (14 agents)
+**[Comprehensive Orchestra Roster](COMPREHENSIVE_ORCHESTRA_ROSTER.md)**
+- Complete agent specifications (117 agents)
 - Capabilities matrix
+- Model tier assignments
 - Coordination protocol
 - Common deployment scenarios
 - Performance characteristics
@@ -271,7 +283,17 @@ The Claude Orchestra now supports **extended autonomous operation** for 4-8 hour
 
 ## Version History
 
-### v2.0.0 (Current) - Autonomous Operation
+### v3.0.0 (Current) - Documentation Organization & Future Roadmap
+- ✅ 117 specialized agents (1 Opus + 77 Sonnet + 39 Haiku)
+- ✅ Complete documentation reorganization with INDEX.md
+- ✅ Future enhancements section with ccproxy roadmap
+- ✅ Hardware requirements documented (32GB+ RAM Mac mini)
+- ✅ Implementation timeline with 4 deployment phases
+- ✅ Direct Claude API integration (current production system)
+- ✅ Comprehensive future planning (pending hardware)
+- ✅ New /docs/future/ directory for enhancement documentation
+
+### v2.0.0 - Autonomous Operation
 - ✅ Autonomous operation for 4-8 hours
 - ✅ Automatic model fallback (Opus → Sonnet 4.5)
 - ✅ All agents use Sonnet 4.5
@@ -280,14 +302,14 @@ The Claude Orchestra now supports **extended autonomous operation** for 4-8 hour
 - ✅ Error recovery system
 - ✅ Progress checkpointing
 - ✅ Heartbeat monitoring
-- ✅ Comprehensive documentation (3 new guides)
+- ✅ Comprehensive documentation
 
 ### v1.0.0 - Cross-Repository Usage
 - ✅ Cross-repository operation
 - ✅ Three-tier configuration architecture
 - ✅ Auto-detection triggers
 - ✅ Project customization template
-- ✅ 14 specialized agents
+- ✅ 14 initial specialized agents
 - ✅ MCP coordination
 
 ---
@@ -312,6 +334,9 @@ MIT
 
 ---
 
-**Built with Claude Code** - Demonstrating the power of autonomous multi-agent development.
+Multi-agent development system with 117 specialized agents and intelligent orchestration.
 
-Last updated: 2025-01-15
+**Navigation**: Start with [Documentation Index](INDEX.md) for complete navigation and quick links.
+
+Last updated: 2025-11-11
+**Current Version**: 3.0.0

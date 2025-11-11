@@ -1,8 +1,13 @@
-# Comprehensive Army Roster - 125 Specialized Agents
+# Comprehensive Orchestra Roster - 117 Specialized Agents
 
 ## Overview
 
-The Claude Orchestra now consists of **125 specialized agents** organized into 13 categories, providing comprehensive coverage for all aspects of software development, operations, research, and business analysis.
+The Claude Orchestra consists of **117 specialized agents** (1 Chief Architect + 116 specialists) organized into 12 categories, providing comprehensive coverage for all aspects of software development, operations, research, and business analysis.
+
+**Model Distribution**:
+- **1 agent** - Opus 4.1 (Chief Architect - strategic leadership)
+- **77 agents** - Sonnet 4.5 (intelligent managers, reviewers, architects)
+- **39 agents** - Haiku 4.5 (basic coders, documentation, utilities)
 
 ## Agent Categories
 
@@ -220,7 +225,7 @@ Task("Security Auditor", "Review security...", "security-auditor")
 
 ## Total Agent Count
 
-**125 specialized agents** covering:
+**117 specialized agents** covering:
 - ✅ All programming languages and frameworks
 - ✅ Complete DevOps and infrastructure lifecycle
 - ✅ Comprehensive security and compliance
@@ -242,6 +247,6 @@ Potential additions:
 
 ---
 
-**Last Updated**: 2025-11-10
-**Version**: 2.0.0 (Comprehensive Roster)
-**Config File**: `/Users/brent/git/cc-army/config/orchestra-config.json`
+**Last Updated**: 2025-11-11
+**Version**: 2.0.0 (Model-Optimized Configuration)
+**Config File**: `/Users/brent/git/cc-orchestra/config/orchestra-config.json`

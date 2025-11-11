@@ -1,22 +1,22 @@
 # Claude Orchestra
 
-A sophisticated multi-agent development system powered by Claude Code, featuring **116 specialized agents** organized across **15 agent types** in a TDD-aware pipeline.
+A sophisticated multi-agent development system powered by Claude Code, featuring **117 specialized agents** organized across **15 agent types** in a TDD-aware pipeline.
 
 ## Overview
 
 The Claude Orchestra is a complete development team on demand:
 
 - **1 Chief Architect** (Claude Opus 4.1) - Strategic decisions and coordination
-- **88 Specialized Agents** (Sonnet 4.5) - Complex reasoning, coding, analysis, and implementation
-- **28 Optimized Agents** (Haiku) - Documentation, utilities, lightweight tasks (24% cost savings)
+- **77 Intelligent Managers** (Sonnet 4.5) - Complex reasoning, code review, security, testing, architecture
+- **39 Basic Specialists** (Haiku 4.5) - Language coders, documentation, utilities, lightweight tasks (33% cost savings)
 - **15 Agent Types** - Developers, architects, security auditors, testers, researchers, writers, and more
 
-**Reconciliation Achievements:**
-- Eliminated 15 duplicate entries
-- Added 6 missing agents
-- Reduced generic "coder" usage from 52.7% to 3.4% (94% reduction)
-- Implemented 28 haiku optimizations for cost efficiency
-- Improved orchestration accuracy with specialized type assignments
+**Key Statistics:**
+- **Total Agents**: 117 (1 Chief Architect + 116 specialized agents)
+- **Model Distribution**: Optimized by role complexity (Opus for leadership, Sonnet for intelligence, Haiku for basic tasks)
+- **Cost Efficiency**: 33% of agents use cost-effective Haiku 4.5
+- **Type Specialization**: Agents assigned to specific types based on role requirements
+- **ccproxy**: Future enhancement (hardware pending) - currently using direct Claude API
 
 All agents work in parallel using Claude Code's Task tool with Knowledge Manager coordination for efficient, high-quality development.
 
@@ -36,7 +36,7 @@ All agents work in parallel using Claude Code's Task tool with Knowledge Manager
 
 ### 1. Prerequisites
 
-The cc-army system uses the built-in Knowledge Manager for coordination. No additional installation needed!
+The Claude Orchestra uses the built-in Knowledge Manager for coordination. No additional installation needed!
 
 ### 2. Deploy Your Army
 
@@ -58,13 +58,13 @@ Claude Code will automatically:
 
 ## 🌐 Cross-Repository Usage
 
-**The Claude Orchestra works from ANY directory!** You don't need to be in the cc-army repository to use it.
+**The Claude Orchestra works from ANY directory!** You don't need to be in the cc-orchestra repository to use it.
 
 ### How It Works
 
-1. **Army configuration** lives in `/Users/brent/git/cc-army/`
-2. **Army operates** in your current working directory (wherever you invoke Claude Code)
-3. **Auto-detection** triggers army based on task complexity (configured in global `~/.claude/CLAUDE.md`)
+1. **Orchestra configuration** lives in `/Users/brent/git/cc-orchestra/`
+2. **Orchestra operates** in your current working directory (wherever you invoke Claude Code)
+3. **Auto-detection** triggers orchestra based on task complexity (configured in global `~/.claude/CLAUDE.md`)
 
 ### Usage from Any Project
 
@@ -82,7 +82,7 @@ You: "Build a Python API with JWT authentication and deploy with Docker"
 
 Claude Code:
 ✓ Detects complex multi-technology task
-✓ Loads army config from cc-army directory
+✓ Loads orchestra config from cc-orchestra directory
 ✓ Spawns agents in YOUR project directory
 ✓ Agents create files in YOUR project
 ✓ Coordination via Knowledge Manager
@@ -90,7 +90,7 @@ Claude Code:
 
 ### Trigger Patterns (Auto-Activation)
 
-The army **automatically activates** for:
+The orchestra **automatically activates** for:
 - Full-stack applications ("Build a mobile app with backend")
 - Multi-technology projects ("Create with Python and Go")
 - Complex features ("API with Salesforce integration")
@@ -118,7 +118,7 @@ Create a `CLAUDE.md` in your project root to customize army behavior:
 
 ```bash
 # Copy template to your project
-cp /Users/brent/git/cc-army/docs/PROJECT_CLAUDE_TEMPLATE.md ~/git/your-project/CLAUDE.md
+cp /Users/brent/git/cc-orchestra/docs/PROJECT_CLAUDE_TEMPLATE.md ~/git/your-project/CLAUDE.md
 
 # Edit to customize agent selection, trigger patterns, tech stack
 ```
@@ -263,21 +263,21 @@ Every agent follows this workflow:
 **Before Work:**
 ```bash
 # Review knowledge base for relevant context
-node ~/git/cc-army/src/knowledge-manager.js search "task keywords"
-node ~/git/cc-army/src/knowledge-manager.js search "architect decisions"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "task keywords"
+node ~/git/cc-orchestra/src/knowledge-manager.js search "architect decisions"
 ```
 
 **During Work:**
 ```bash
 # Update knowledge base with progress
-node ~/git/cc-army/src/knowledge-manager.js store "Edit: [filename] - [changes]" --type edit --agent [agent-name]
-node ~/git/cc-army/src/knowledge-manager.js store "Progress: [status]" --type status --agent [agent-name]
+node ~/git/cc-orchestra/src/knowledge-manager.js store "Edit: [filename] - [changes]" --type edit --agent [agent-name]
+node ~/git/cc-orchestra/src/knowledge-manager.js store "Progress: [status]" --type status --agent [agent-name]
 ```
 
 **After Work:**
 ```bash
 # Document task completion
-node ~/git/cc-army/src/knowledge-manager.js store "Task complete: [task]" --type completion --agent [agent-name]
+node ~/git/cc-orchestra/src/knowledge-manager.js store "Task complete: [task]" --type completion --agent [agent-name]
 ```
 
 ## Performance

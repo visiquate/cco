@@ -4,77 +4,57 @@ This document provides comprehensive visual representations of the Claude Orches
 
 ## Table of Contents
 
-1. [High-Level System Architecture](#1-high-level-system-architecture)
-2. [Agent Coordination Flow](#2-agent-coordination-flow)
-3. [Knowledge Manager Architecture](#3-knowledge-manager-architecture)
-4. [ccproxy Model Routing](#4-ccproxy-model-routing)
-5. [Autonomous Operation Workflow](#5-autonomous-operation-workflow)
-6. [Cross-Repository Deployment](#6-cross-repository-deployment)
-7. [Agent Phase Architecture](#7-agent-phase-architecture)
-8. [Decision Authority Matrix](#8-decision-authority-matrix)
+1. [High-Level System Architecture](#1-high-level-system-architecture) - 117 agents organized by model tier
+2. [Agent Coordination Flow](#2-agent-coordination-flow) - Cross-agent communication via Knowledge Manager
+3. [Knowledge Manager Architecture](#3-knowledge-manager-architecture) - Persistent memory system
+4. [Model Assignment Strategy](#4-model-assignment-strategy) - Opus/Sonnet/Haiku distribution
+5. [Autonomous Operation Workflow](#5-autonomous-operation-workflow) - Self-managing workflows
+6. [Cross-Repository Deployment](#6-cross-repository-deployment) - Multi-project orchestration
+7. [Decision Authority Matrix](#7-decision-authority-matrix) - Risk-based autonomy levels
+
+**Note**: ccproxy model routing (local LLM integration) is a future enhancement pending hardware availability.
 
 ---
 
 ## 1. High-Level System Architecture
 
-This diagram shows the overall architecture of the Claude Orchestra system with 15 specialized agents, the Chief Architect, and the model routing infrastructure through ccproxy.
+This diagram shows the overall architecture of the Claude Orchestra system with **117 specialized agents** organized by model tier and the Knowledge Manager coordination system.
 
 ```mermaid
 graph TD
     User[User Request] --> CC[Claude Code]
-    CC --> Arch[Chief Architect<br/>Opus 4.1 → Sonnet 4.5<br/>Direct Claude API]
+    CC --> Arch[Chief Architect<br/>Opus 4.1<br/>Strategic Leadership]
 
-    Arch --> Phase1[Phase 1: Implementation]
-    Arch --> Phase2[Phase 2: Quality & Docs]
+    Arch --> Intelligent[Intelligent Managers<br/>77 Agents - Sonnet 4.5]
+    Arch --> Basic[Basic Specialists<br/>39 Agents - Haiku 4.5]
 
-    Phase1 --> Coding[Coding Agents 1-10<br/>qwen2.5-coder:32b<br/>via claude-3-5-sonnet]
-    Phase1 --> Light[Lightweight Agent 11<br/>qwen-fast:latest<br/>via claude-3-haiku]
+    Intelligent --> Reviewers[Code Review & Quality<br/>Reviewers, Debuggers]
+    Intelligent --> Security[Security & Compliance<br/>Auditors, Pen Testers]
+    Intelligent --> Testing[Testing & QA<br/>TDD, Test Engineers]
+    Intelligent --> Architecture[Architecture & Design<br/>Backend, Frontend, Data]
+    Intelligent --> Integration[API Integration<br/>Salesforce, Authentik]
 
-    Phase2 --> Reasoning[Reasoning Agents 13-15<br/>qwen-quality-128k<br/>via gpt-4]
+    Basic --> Coders[Language Specialists<br/>Python, Swift, Go, Rust, etc.]
+    Basic --> Docs[Documentation<br/>Writers, API Docs]
+    Basic --> Utils[Utilities<br/>DevOps Tools, Monitoring]
+    Basic --> Research[Basic Research<br/>Search, Fact-checking]
 
-    Coding --> TDD[1. TDD Coding Agent]
-    Coding --> Python[2. Python Expert]
-    Coding --> Swift[3. Swift Expert]
-    Coding --> Go[4. Go Expert]
-    Coding --> Rust[5. Rust Expert]
-    Coding --> Flutter[6. Flutter Expert]
-    Coding --> API[7. API Explorer]
-    Coding --> SF[8. Salesforce API]
-    Coding --> Auth[9. Authentik API]
-    Coding --> DevOps[10. DevOps Engineer]
-
-    Light --> Creds[11. Credential Manager]
-
-    Reasoning --> QA[13. QA Engineer]
-    Reasoning --> Sec[14. Security Auditor]
-    Reasoning --> Docs[15. Documentation Lead]
-
-    Coding -.-> KM[Knowledge Manager<br/>LanceDB Vector DB]
-    Light -.-> KM
-    Reasoning -.-> KM
-    Arch -.-> KM
-
-    Coding --> ccproxy[ccproxy @ coder.visiquate.com]
-    Light --> ccproxy
-    Reasoning --> ccproxy
-    ccproxy --> Ollama[Ollama<br/>Mac mini 192.168.9.123]
+    Arch -.-> KM[Knowledge Manager<br/>LanceDB Vector DB<br/>Persistent Memory]
+    Intelligent -.-> KM
+    Basic -.-> KM
 
     style Arch fill:#ff9900,stroke:#cc7700,color:#000
-    style Coding fill:#4a9eff,stroke:#2e6cbb,color:#000
-    style Light fill:#66d9ff,stroke:#3399cc,color:#000
-    style Reasoning fill:#9966ff,stroke:#7744cc,color:#000
+    style Intelligent fill:#4a9eff,stroke:#2e6cbb,color:#000
+    style Basic fill:#66d9ff,stroke:#3399cc,color:#000
     style KM fill:#ffcc66,stroke:#cc9933,color:#000
-    style ccproxy fill:#ff6699,stroke:#cc3366,color:#000
-    style Ollama fill:#99cc66,stroke:#669933,color:#000
 ```
 
 **Key Components:**
-- **Chief Architect**: Strategic leadership using Claude API (Opus 4.1 with Sonnet 4.5 fallback)
-- **Phase 1 Coding Agents**: 10 agents using qwen2.5-coder (32B) for TDD and implementation
-- **Phase 1 Lightweight Agent**: 1 agent using qwen-fast (7B) for credential management
-- **Phase 2 Reasoning Agents**: 3 agents using qwen-quality-128k (32B) for QA, security, and docs
-- **Knowledge Manager**: Persistent memory with LanceDB vector search
-- **ccproxy**: LiteLLM proxy routing API calls to local Ollama models
+- **Chief Architect** (1 agent): Strategic leadership using Opus 4.1 - architecture design, coordination
+- **Intelligent Managers** (77 agents): Complex reasoning using Sonnet 4.5 - code review, security, testing, architecture, API integration
+- **Basic Specialists** (39 agents): Simple tasks using Haiku 4.5 - language coding, documentation, utilities, basic research
+- **Knowledge Manager**: Persistent memory with LanceDB vector search for cross-agent coordination
+- **All agents**: Direct Claude API (ccproxy integration is future enhancement pending hardware)
 
 ---
 
@@ -245,96 +225,59 @@ graph TB
 
 ---
 
-## 4. ccproxy Model Routing
+## 4. Model Assignment Strategy
 
-This diagram shows how API calls route from Claude Code through ccproxy to Ollama models with bearer token authentication.
+This diagram shows how the 117 agents are distributed across three Claude models based on role complexity.
 
 ```mermaid
-graph LR
-    subgraph "Claude Code Environment"
-        CC[Claude Code]
-        Agent1[Agents 1-10<br/>model: sonnet-4.5]
-        Agent11[Agent 11<br/>model: haiku]
-        Agent13[Agents 13-15<br/>model: gpt-4]
+graph TD
+    subgraph "Claude Orchestra - 117 Agents"
+        CC[Claude Code<br/>Spawns all agents in parallel]
     end
 
-    subgraph "Public Internet"
-        CF[Cloudflare Tunnel<br/>coder.visiquate.com]
-    end
+    CC --> OpusAgent[Chief Architect<br/>1 Agent<br/>Opus 4.1]
+    CC --> SonnetAgents[Intelligent Managers<br/>77 Agents<br/>Sonnet 4.5]
+    CC --> HaikuAgents[Basic Specialists<br/>39 Agents<br/>Haiku 4.5]
 
-    subgraph "Mac mini @ 192.168.9.123"
-        Traefik[Traefik Reverse Proxy<br/>Port 8080<br/>Bearer Token Auth]
+    OpusAgent --> OpusAPI[Claude Opus 4.1 API<br/>Strategic Leadership<br/>Architecture Design]
 
-        subgraph "ccproxy (LiteLLM)"
-            Proxy[ccproxy<br/>localhost:8081]
+    SonnetAgents --> SonnetAPI[Claude Sonnet 4.5 API<br/>Complex Reasoning<br/>Code Review, Security, Testing]
 
-            subgraph "API Aliases"
-                Alias1[claude-3-5-sonnet]
-                Alias2[claude-3-haiku]
-                Alias3[gpt-4]
-            end
+    HaikuAgents --> HaikuAPI[Claude Haiku 4.5 API<br/>Simple Tasks<br/>Language Coding, Docs, Utils]
 
-            subgraph "Health Checks"
-                HC[Health Checks: DISABLED<br/>Prevents model thrashing]
-            end
-        end
+    SonnetAgents --> ReviewGroup[Code Review & Quality<br/>Reviewers, Debuggers]
+    SonnetAgents --> SecGroup[Security & Compliance<br/>Auditors, Pen Testers]
+    SonnetAgents --> TestGroup[Testing & QA<br/>TDD, Test Engineers]
+    SonnetAgents --> ArchGroup[Architecture & Design<br/>Backend, Frontend, Data]
+    SonnetAgents --> IntegGroup[API Integration<br/>Salesforce, Authentik]
 
-        subgraph "Ollama @ localhost:11434"
-            Model1[qwen2.5-coder:32b<br/>19.8GB<br/>32k context]
-            Model2[qwen-fast:latest<br/>4.6GB<br/>32k context]
-            Model3[qwen-quality-128k<br/>34.8GB<br/>128k context]
-        end
+    HaikuAgents --> CoderGroup[Language Specialists<br/>Python, Swift, Go, Rust]
+    HaikuAgents --> DocGroup[Documentation<br/>Writers, API Docs]
+    HaikuAgents --> UtilGroup[Utilities<br/>DevOps Tools, Monitoring]
+    HaikuAgents --> ResGroup[Basic Research<br/>Search, Fact-checking]
 
-        subgraph "Memory Management"
-            Phase1Mem[Phase 1:<br/>Model1 + Model2<br/>= 25GB ✅]
-            Phase2Mem[Phase 2:<br/>Model3 only<br/>= 35GB ✅<br/>Model1 auto-unloads]
-        end
-    end
-
-    Agent1 -->|https://coder.visiquate.com<br/>model: claude-3-5-sonnet| CF
-    Agent11 -->|https://coder.visiquate.com<br/>model: claude-3-haiku| CF
-    Agent13 -->|https://coder.visiquate.com<br/>model: gpt-4| CF
-
-    CF --> Traefik
-    Traefik -->|Bearer Token| Proxy
-
-    Proxy --> Alias1
-    Proxy --> Alias2
-    Proxy --> Alias3
-
-    Alias1 -.->|routes to| Model1
-    Alias2 -.->|routes to| Model2
-    Alias3 -.->|routes to| Model3
-
-    Model1 -.-> Phase1Mem
-    Model2 -.-> Phase1Mem
-    Model3 -.-> Phase2Mem
-
-    Proxy -.-> HC
-
-    style CC fill:#ffcc99,stroke:#cc9966,color:#000
-    style Agent1 fill:#4a9eff,stroke:#2e6cbb,color:#000
-    style Agent11 fill:#66d9ff,stroke:#3399cc,color:#000
-    style Agent13 fill:#9966ff,stroke:#7744cc,color:#000
-    style CF fill:#ff9900,stroke:#cc7700,color:#000
-    style Traefik fill:#66cc99,stroke:#339966,color:#000
-    style Proxy fill:#ff6699,stroke:#cc3366,color:#000
-    style Model1 fill:#9966ff,stroke:#7744cc,color:#000
-    style Model2 fill:#66d9ff,stroke:#3399cc,color:#000
-    style Model3 fill:#cc66ff,stroke:#9933cc,color:#000
-    style HC fill:#ff6666,stroke:#cc3333,color:#000
+    style OpusAgent fill:#ff9900,stroke:#cc7700,color:#000
+    style SonnetAgents fill:#4a9eff,stroke:#2e6cbb,color:#000
+    style HaikuAgents fill:#66d9ff,stroke:#3399cc,color:#000
+    style OpusAPI fill:#ffcc99,stroke:#cc9966,color:#000
+    style SonnetAPI fill:#99ccff,stroke:#6699cc,color:#000
+    style HaikuAPI fill:#99ffff,stroke:#66cccc,color:#000
 ```
 
-**Routing Details:**
-- **API Aliases**: ccproxy exposes 3 OpenAI-compatible endpoints
-- **Model Mapping**:
-  - `claude-3-5-sonnet` → qwen2.5-coder:32b-instruct (Agents 1-10)
-  - `claude-3-haiku` → qwen-fast:latest (Agent 11)
-  - `gpt-4` → qwen-quality-128k:latest (Agents 13-15)
-- **Security**: Bearer token authentication via Traefik
-- **Public Access**: Cloudflare tunnel to internal Mac mini
-- **Health Checks**: Disabled to prevent model thrashing
-- **Memory Strategy**: Phase 1 (25GB) → Phase 2 (35GB)
+**Model Assignment Criteria:**
+
+| Model | Count | Selection Criteria | Examples |
+|-------|-------|-------------------|----------|
+| **Opus 4.1** | 1 | Strategic leadership, architecture design, coordination | Chief Architect |
+| **Sonnet 4.5** | 77 | Complex reasoning, code review, security analysis, testing strategy, architecture decisions | Code Reviewer, Security Auditor, TDD Agent, Backend Architect, DevOps Engineer |
+| **Haiku 4.5** | 39 | Simple coding, documentation, utilities, basic research | Python Specialist, Technical Writer, Git Flow Manager, Search Specialist |
+
+**Cost Optimization:**
+- **Current**: All agents use direct Claude API
+- **Haiku 4.5**: 33% of agents use most cost-effective model
+- **Future**: ccproxy integration for local LLM routing (pending hardware)
+  - Potential savings: $300-450/month
+  - Target: Mac mini with Ollama for Sonnet/Haiku workloads
 
 ---
 
