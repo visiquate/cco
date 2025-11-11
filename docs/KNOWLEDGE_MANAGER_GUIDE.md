@@ -11,7 +11,7 @@ The Knowledge Manager provides persistent knowledge storage and retrieval across
 - ✅ **Pre-Compaction Capture**: Automatically stores critical knowledge before compaction
 - ✅ **Post-Compaction Retrieval**: Restores relevant context after compaction
 - ✅ **Knowledge Types**: architecture, decision, implementation, configuration, credential, issue, pattern, general
-- ✅ **Agent Integration**: Works seamlessly with all 16 army agents
+- ✅ **Agent Integration**: Works seamlessly with all 16 orchestra agents
 
 ## Architecture
 
@@ -36,7 +36,7 @@ The Knowledge Manager provides persistent knowledge storage and retrieval across
 │   ┌──────────────────────────────────────────────────┐  │
 │   │  Per-Repository Databases:                       │  │
 │   │  - data/knowledge/statushub/                     │  │
-│   │  - data/knowledge/cc-army/                       │  │
+│   │  - data/knowledge/cc-orchestra/                   │  │
 │   │  - data/knowledge/slack-broker/                  │  │
 │   │  Each with semantic vector embeddings            │  │
 │   └──────────────────────────────────────────────────┘  │
@@ -52,11 +52,11 @@ Each repository gets its own LanceDB database:
 ```
 data/knowledge/
 ├── statushub/            # StatusHub project knowledge
-│   └── army_knowledge/   # LanceDB table
-├── cc-army/              # Claude Orchestra project knowledge
-│   └── army_knowledge/   # LanceDB table
+│   └── orchestra_knowledge/   # LanceDB table
+├── cc-orchestra/         # Claude Orchestra project knowledge
+│   └── orchestra_knowledge/   # LanceDB table
 ├── slack-broker/         # Slack Broker project knowledge
-│   └── army_knowledge/   # LanceDB table
+│   └── orchestra_knowledge/   # LanceDB table
 └── [repo-name]/          # Other repositories...
 ```
 
@@ -176,38 +176,38 @@ const projectKnowledge = await km.getProjectKnowledge('statushub', {
 const stats = await km.getStats();
 ```
 
-### Army Orchestrator Integration
+### Orchestra Conductor Integration
 
 ```javascript
-const ClaudeArmy = require('./src/orchestra-conductor');
+const ClaudeOrchestra = require('./src/orchestra-conductor');
 
-const army = new ClaudeArmy({
+const orchestra = new ClaudeOrchestra({
   repoPath: '/path/to/repo'
 });
 
 // Pre-compaction: Store knowledge
-await army.preCompactionHook(conversationText, {
+await orchestra.preCompactionHook(conversationText, {
   project_id: 'statushub',
   session_id: 'session-123'
 });
 
 // Post-compaction: Retrieve context
-const context = await army.postCompactionHook('Implement authentication', {
+const context = await orchestra.postCompactionHook('Implement authentication', {
   project_id: 'statushub'
 });
 
 // Manual knowledge storage
-await army.storeKnowledge({
+await orchestra.storeKnowledge({
   text: 'Implemented JWT with RS256',
   type: 'implementation',
   agent: 'python'
 });
 
 // Search knowledge
-const results = await army.searchKnowledge('database schema');
+const results = await orchestra.searchKnowledge('database schema');
 
 // Get stats
-const stats = await army.getKnowledgeStats();
+const stats = await orchestra.getKnowledgeStats();
 ```
 
 ## Knowledge Types
@@ -296,7 +296,7 @@ General information that doesn't fit other categories
 
 When context reaches 80% capacity:
 
-1. **Automatic Trigger**: Army detects high context usage
+1. **Automatic Trigger**: Orchestra detects high context usage
 2. **Knowledge Extraction**: Analyzes conversation for critical information
 3. **Type Classification**: Categorizes knowledge by type
 4. **Agent Attribution**: Identifies which agent created the knowledge
@@ -307,7 +307,7 @@ When context reaches 80% capacity:
 
 ```javascript
 // Automatic trigger at 80% context
-const result = await army.preCompactionHook(conversation, {
+const result = await orchestra.preCompactionHook(conversation, {
   project_id: repoName,
   session_id: sessionId
 });
@@ -333,7 +333,7 @@ After compaction, when resuming work:
 
 ```javascript
 // Automatic after compaction
-const context = await army.postCompactionHook('Implement authentication', {
+const context = await orchestra.postCompactionHook('Implement authentication', {
   project_id: repoName
 });
 
@@ -356,21 +356,21 @@ const context = await army.postCompactionHook('Implement authentication', {
 ### 1. Store Knowledge Frequently
 ```javascript
 // After major decisions
-await army.storeKnowledge({
+await orchestra.storeKnowledge({
   text: "We chose PostgreSQL for ACID compliance and JSON support",
   type: "decision",
   agent: "architect"
 });
 
 // After implementations
-await army.storeKnowledge({
+await orchestra.storeKnowledge({
   text: "Implemented connection pooling with pgbouncer, max 100 connections",
   type: "implementation",
   agent: "devops"
 });
 
 // When solving issues
-await army.storeKnowledge({
+await orchestra.storeKnowledge({
   text: "Fixed N+1 query by adding eager loading with join",
   type: "issue",
   agent: "python"
@@ -394,7 +394,7 @@ await army.storeKnowledge({
 
 ### 3. Include Context in Metadata
 ```javascript
-await army.storeKnowledge({
+await orchestra.storeKnowledge({
   text: "Database migration from v1.2 to v1.3 adds user_preferences table",
   type: "implementation",
   agent: "python",
@@ -409,12 +409,12 @@ await army.storeKnowledge({
 ### 4. Search Before Implementing
 ```javascript
 // Before starting new feature
-const existingDecisions = await army.searchKnowledge('authentication approach', {
+const existingDecisions = await orchestra.searchKnowledge('authentication approach', {
   type: 'decision'
 });
 
 // Check if pattern already exists
-const patterns = await army.searchKnowledge('error handling pattern', {
+const patterns = await orchestra.searchKnowledge('error handling pattern', {
   type: 'pattern'
 });
 ```
@@ -422,7 +422,7 @@ const patterns = await army.searchKnowledge('error handling pattern', {
 ### 5. Regular Statistics Review
 ```javascript
 // Check knowledge base health
-const stats = await army.getKnowledgeStats();
+const stats = await orchestra.getKnowledgeStats();
 console.log(`Total knowledge items: ${stats.totalRecords}`);
 console.log(`By type:`, stats.byType);
 console.log(`By agent:`, stats.byAgent);
@@ -433,7 +433,7 @@ console.log(`By agent:`, stats.byAgent);
 ### Architect Agent
 ```javascript
 // Store architecture decisions
-await army.storeKnowledge({
+await orchestra.storeKnowledge({
   text: "Microservices architecture: API Gateway → Auth Service → Business Services",
   type: "architecture",
   agent: "architect"
@@ -443,7 +443,7 @@ await army.storeKnowledge({
 ### Coding Agents (Python, Go, Swift, Rust, Flutter)
 ```javascript
 // Store implementation details
-await army.storeKnowledge({
+await orchestra.storeKnowledge({
   text: "Implemented retry logic with exponential backoff: 1s, 2s, 4s, 8s max",
   type: "implementation",
   agent: "python"
@@ -453,7 +453,7 @@ await army.storeKnowledge({
 ### Security Auditor
 ```javascript
 // Store security findings
-await army.storeKnowledge({
+await orchestra.storeKnowledge({
   text: "All API endpoints require JWT authentication, public endpoints explicitly marked",
   type: "decision",
   agent: "security"
@@ -463,7 +463,7 @@ await army.storeKnowledge({
 ### DevOps Engineer
 ```javascript
 // Store deployment configurations
-await army.storeKnowledge({
+await orchestra.storeKnowledge({
   text: "Docker image uses multi-stage build, final size 150MB, deploys to ECS Fargate",
   type: "configuration",
   agent: "devops"
@@ -537,10 +537,10 @@ node src/knowledge-manager.js stats
 
 ### Example 1: Store Architecture Decision
 ```javascript
-const army = new ClaudeArmy({ repoPath: '/path/to/statushub' });
-await army.initializeKnowledgeManager();
+const orchestra = new ClaudeOrchestra({ repoPath: '/path/to/statushub' });
+await orchestra.initializeKnowledgeManager();
 
-await army.storeKnowledge({
+await orchestra.storeKnowledge({
   text: "StatusHub uses Flask for backend with Docker containerization. " +
         "Monitoring data stored in deque with 4-hour retention. " +
         "Docker socket mounted read-only for container monitoring.",
@@ -556,7 +556,7 @@ await army.storeKnowledge({
 ### Example 2: Search and Retrieve Context
 ```javascript
 // After compaction, retrieve authentication-related knowledge
-const results = await army.searchKnowledge("authentication JWT OAuth", {
+const results = await orchestra.searchKnowledge("authentication JWT OAuth", {
   limit: 5
 });
 
@@ -567,7 +567,7 @@ results.forEach(item => {
 
 ### Example 3: Get Project Statistics
 ```javascript
-const stats = await army.getKnowledgeStats();
+const stats = await orchestra.getKnowledgeStats();
 
 console.log(`Repository: ${stats.repository}`);
 console.log(`Total Items: ${stats.totalRecords}`);
@@ -587,11 +587,11 @@ The Knowledge Manager provides a robust, scalable solution for knowledge retenti
 - 🏗️ Per-repository context isolation
 - 🤖 Automatic capture and retrieval
 - 📊 Complete knowledge statistics
-- 🔄 Seamless army integration
+- 🔄 Seamless orchestra integration
 
 **Next Steps:**
 1. Enable Knowledge Manager in `config/orchestra-config.json`
 2. Run `node src/knowledge-manager.js test` to verify setup
-3. Use `await army.storeKnowledge()` to capture critical decisions
+3. Use `await orchestra.storeKnowledge()` to capture critical decisions
 4. Let pre/post-compaction hooks work automatically
-5. Search knowledge with `await army.searchKnowledge()` when needed
+5. Search knowledge with `await orchestra.searchKnowledge()` when needed

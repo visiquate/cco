@@ -89,7 +89,7 @@ Everything else is **100% FREE**:
 - **Loaded**: qwen-quality-128k (35GB) OR qwen2.5-coder (20GB) + qwen-fast (5GB)
 - **Strategy**: Models auto-swap based on request pattern
 
-### Phase 2: Army Deployment
+### Phase 2: Orchestra Deployment
 - **Initial**: qwen2.5-coder + qwen-fast loaded (25GB)
 - **Later**: qwen-quality-128k loads, qwen2.5-coder unloads (35GB)
 
@@ -167,5 +167,5 @@ Check logs - should see `anthropic/claude-opus-4-20250514`
 
 - [Quick Start Guide](../QUICK_START_HYBRID.md)
 - [Cost Tracking Dashboard](COST_TRACKING_DASHBOARD.md)
-- [Army Roster (TDD)](ORCHESTRA_ROSTER_TDD.md)
+- [Orchestra Roster (TDD)](ORCHESTRA_ROSTER_TDD.md)
 - [Deployment Status](../DEPLOYMENT_STATUS.md)

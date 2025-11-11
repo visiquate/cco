@@ -531,7 +531,7 @@ After=network.target
 [Service]
 Type=simple
 User=brent
-WorkingDirectory=/Users/brent/git/cc-army
+WorkingDirectory=/Users/brent/git/cc-orchestra
 ExecStart=/usr/local/bin/node src/llm-proxy-server.js
 Restart=always
 Environment="ANTHROPIC_AUTH_TOKEN=sk-ant-key"
@@ -697,8 +697,8 @@ curl -X POST http://127.0.0.1:8080/v1/messages \
 - [Claude Code LLM Gateway Documentation](https://docs.claude.com/en/docs/claude-code/llm-gateway)
 - [LiteLLM Integration Guide](https://docs.litellm.ai/docs/tutorials/claude_responses_api)
 - [Claude Code Proxy (Community)](https://github.com/fuergaosi233/claude-code-proxy)
-- [Army LLM Routing Guide](./LLM_ROUTING_GUIDE.md)
-- [Army Routing Summary v2](./ROUTING_SUMMARY_V2.md)
+- [Orchestra LLM Routing Guide](./LLM_ROUTING_GUIDE.md)
+- [Orchestra Routing Summary v2](./ROUTING_SUMMARY_V2.md)
 
 ---
 

@@ -4,9 +4,9 @@
 
 **Goal:** Enable the Claude Orchestra to work autonomously for hours without user intervention.
 
-**Current State:** Army requires user interaction for error resolution, decision checkpoints, and manual coordination.
+**Current State:** Orchestra requires user interaction for error resolution, decision checkpoints, and manual coordination.
 
-**Target State:** Army operates independently with automatic error recovery, self-checkpointing, and autonomous decision-making within defined boundaries.
+**Target State:** Orchestra operates independently with automatic error recovery, self-checkpointing, and autonomous decision-making within defined boundaries.
 
 ---
 
@@ -16,7 +16,7 @@
 
 **Problem:**
 - Opus 4.1 (Architect) has token limits per session/hour
-- When Architect exhausts tokens, entire army stalls
+- When Architect exhausts tokens, entire orchestra stalls
 - No automatic fallback mechanism exists
 - Other agents using generic "sonnet" instead of specific version
 

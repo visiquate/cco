@@ -244,7 +244,7 @@ node ~/git/cc-orchestra/src/knowledge-manager.js store \
 
 ---
 
-## Key Differences from Original Army
+## Key Differences from Original Orchestra
 
 1. **Added TDD Coding Agent** - 15th agent for test-first development
 2. **Two-phase execution** - Phase 1 (qwen-fast) → Phase 2 (qwen-quality)

@@ -610,7 +610,7 @@ TodoWrite({
 
 ```json
 {
-  "name": "claude-army-tdd",
+  "name": "claude-orchestra-tdd",
   "version": "3.0.0",
   "description": "TDD-aware multi-agent development system",
 
@@ -938,7 +938,7 @@ node ~/git/cc-orchestra/src/knowledge-manager.js search "qa review edge cases"
 
 ## Conclusion
 
-This TDD-aware pipeline ensures that the Claude Orchestra follows proper Test-Driven Development methodology while maintaining high parallelism and efficiency. The addition of a dedicated TDD Coding Agent as the 15th member of the army guarantees that tests are always written before implementation code, leading to better design, higher quality, and more maintainable systems.
+This TDD-aware pipeline ensures that the Claude Orchestra follows proper Test-Driven Development methodology while maintaining high parallelism and efficiency. The addition of a dedicated TDD Coding Agent as the 15th member of the orchestra guarantees that tests are always written before implementation code, leading to better design, higher quality, and more maintainable systems.
 
 **Key Innovation:** Separating test creation (TDD Agent) from test review (QA Engineer) allows for true test-first development while maintaining parallel execution efficiency.
 

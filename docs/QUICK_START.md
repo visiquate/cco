@@ -260,7 +260,7 @@ Claude Code will:
 
 1. **MCP Servers** (Optional)
    ```bash
-   # MCP coordination is optional - the army uses Knowledge Manager
+   # MCP coordination is optional - the orchestra uses Knowledge Manager
    # If you want advanced coordination features, you can enable MCP servers
    # See CLAUDE.md for MCP setup instructions
    ```
@@ -271,11 +271,11 @@ Claude Code will:
    ```
 
 3. **Start Building!**
-   Just describe your project to Claude Code and watch the army deploy!
+   Just describe your project to Claude Code and watch the orchestra deploy!
 
 ## Documentation
 
-- **Full Guide**: [docs/ARMY_USAGE_GUIDE.md](ARMY_USAGE_GUIDE.md)
+- **Full Guide**: [docs/ORCHESTRA_USAGE_GUIDE.md](ORCHESTRA_USAGE_GUIDE.md)
 - **DevOps Details**: [docs/DEVOPS_AGENT_GUIDE.md](DEVOPS_AGENT_GUIDE.md)
 - **Example Workflow**: [docs/EXAMPLE_WORKFLOW.md](EXAMPLE_WORKFLOW.md)
 - **Config Reference**: [config/orchestra-config.json](../config/orchestra-config.json)
@@ -299,8 +299,8 @@ Claude Code will:
 
 ## Example Deployment Times
 
-| Project Type | Without Army | With Army | Speedup |
-|-------------|--------------|-----------|---------|
+| Project Type | Without Orchestra | With Orchestra | Speedup |
+|-------------|-------------------|-----------------|---------|
 | Simple API + Docker | 2 hours | 30 mins | 4x |
 | Full Stack + CI/CD | 8 hours | 2 hours | 4x |
 | Microservices + AWS | 3 days | 1 day | 3x |
@@ -310,4 +310,4 @@ Claude Code will:
 
 ---
 
-**You now have a production-ready development army!** 🤖⚔️
+**You now have a production-ready development orchestra!** 🤖⚔️

@@ -86,7 +86,7 @@
    - Added TDD Coding Agent to roster
    - Updated all example scenarios to include TDD agent
    - Added "via ccproxy" routing notes to all agents
-   - Updated army invocation pattern (maxAgents: 14 → 15)
+   - Updated orchestration invocation pattern (maxAgents: 14 → 15)
    - Emphasized tests-first approach in all scenarios
 
 ### Result

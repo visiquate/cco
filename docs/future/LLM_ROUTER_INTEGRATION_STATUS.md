@@ -156,7 +156,7 @@ const authHeader = bearerToken
 ### When Agents Are Spawned
 
 1. **User provides requirement**: "Build a Python API"
-2. **Army orchestrator generates instructions**:
+2. **Orchestra conductor generates instructions**:
    - Calls `generateCodingAgentInstructions(agent, requirement)`
    - Internally calls `this.llmRouter.routeTask(agent.type, 'implement')`
    - Receives routing decision: `{endpoint: "custom", url: "https://coder.visiquate.com"}`

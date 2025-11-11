@@ -317,5 +317,5 @@ For issues or questions:
 ## Related Documentation
 
 - [Hybrid Routing Setup](HYBRID_ROUTING_SETUP.md)
-- [Army Roster (TDD)](ORCHESTRA_ROSTER_TDD.md)
+- [Orchestra Roster (TDD)](ORCHESTRA_ROSTER_TDD.md)
 - [Deployment Status](../DEPLOYMENT_STATUS.md)

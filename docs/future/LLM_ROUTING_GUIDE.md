@@ -13,7 +13,7 @@ The Claude Orchestra now supports intelligent LLM routing to use different AI mo
                      │
                      ▼
          ┌───────────────────────┐
-         │  Army Orchestrator     │
+         │  Orchestra Conductor   │
          │  with LLM Router       │
          └───────────┬───────────┘
                      │
@@ -33,7 +33,7 @@ The Claude Orchestra now supports intelligent LLM routing to use different AI mo
 
 ## Configuration
 
-### 1. Army Config (`config/orchestra-config.json`)
+### 1. Orchestra Config (`config/orchestra-config.json`)
 
 The routing configuration is defined in the `llmRouting` section:
 
