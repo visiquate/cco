@@ -367,9 +367,9 @@ This diagram illustrates how the orchestra deploys from a global configuration t
 ```mermaid
 graph TB
     subgraph "Global Configuration"
-        GlobalCLAUDE[~/.claude/CLAUDE.md<br/>Global instructions<br/>15-agent roster<br/>Trigger patterns]
+        GlobalCLAUDE[~/.claude/CLAUDE.md<br/>Global instructions<br/>117-agent roster<br/>Trigger patterns]
 
-        ArmyRepo[/Users/brent/git/cc-orchestra/<br/>Army configuration<br/>Knowledge Manager<br/>Agent definitions]
+        OrchestraRepo[/Users/brent/git/cc-orchestra/<br/>Orchestra configuration<br/>Knowledge Manager<br/>Agent definitions]
 
         Config[config/orchestra-config.json<br/>Agent roles & models<br/>ccproxy mappings<br/>Autonomous settings]
     end
@@ -385,7 +385,7 @@ graph TB
 
         CustomB[project-b/CLAUDE.md<br/>Tech stack: Flutter + Go<br/>Agents: Flutter, Go, DevOps]
 
-        CustomC[project-c/CLAUDE.md<br/>Tech stack: Salesforce + Authentik<br/>Agents: All 15]
+        CustomC[project-c/CLAUDE.md<br/>Tech stack: Salesforce + Authentik<br/>Agents: Selected from 117]
     end
 
     subgraph "Auto-Detection Logic"
@@ -399,8 +399,8 @@ graph TB
     CC --> Bypass
 
     Trigger -->|Complex task| GlobalCLAUDE
-    GlobalCLAUDE --> ArmyRepo
-    ArmyRepo --> Config
+    GlobalCLAUDE --> OrchestraRepo
+    OrchestraRepo --> Config
 
     Config -->|Deploy agents to| ProjA
     Config -->|Deploy agents to| ProjB
@@ -420,10 +420,10 @@ graph TB
     ProjB --> KM
     ProjC --> KM
 
-    Bypass -->|Simple task| Direct[Direct execution<br/>No army deployment]
+    Bypass -->|Simple task| Direct[Direct execution<br/>No orchestra deployment]
 
     style GlobalCLAUDE fill:#ff9900,stroke:#cc7700,color:#000
-    style ArmyRepo fill:#ffcc66,stroke:#cc9933,color:#000
+    style OrchestraRepo fill:#ffcc66,stroke:#cc9933,color:#000
     style Config fill:#ffcc99,stroke:#cc9966,color:#000
     style Trigger fill:#66cc99,stroke:#339966,color:#000
     style Bypass fill:#ff6666,stroke:#cc3333,color:#000
@@ -431,9 +431,9 @@ graph TB
 ```
 
 **Cross-Repository Features:**
-- **Global Config**: Army configuration lives in `/Users/brent/git/cc-orchestra/`
+- **Global Config**: Orchestra configuration lives in `/Users/brent/git/cc-orchestra/`
 - **Works Anywhere**: Deploys to current working directory
-- **Auto-Detection**: Smart trigger patterns activate army automatically
+- **Auto-Detection**: Smart trigger patterns activate orchestra automatically
 - **Project Customization**: Local `CLAUDE.md` overrides defaults
 - **Per-Repo Context**: Isolated Knowledge Manager databases
 - **Consistent Quality**: Same standards across all projects
@@ -654,7 +654,7 @@ graph TD
 
 These architecture diagrams provide comprehensive visual documentation of the Claude Orchestra system:
 
-1. **High-Level System**: 15 agents, 3 model tiers, Knowledge Manager coordination
+1. **High-Level System**: 117 agents, 3 model tiers, Knowledge Manager coordination
 2. **Coordination Flow**: TDD-first workflow with parallel execution and checkpoints
 3. **Knowledge Manager**: LanceDB vector database with per-repository isolation
 4. **ccproxy Routing**: API aliases to local Ollama models with bearer auth
