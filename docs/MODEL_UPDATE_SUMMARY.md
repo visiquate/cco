@@ -65,14 +65,14 @@ Updated the Claude Orchestra from inconsistent agent counts and model assignment
 ✅ **README.md**
 - Updated agent count: 116 → 117
 - Updated model distribution: 88/28 → 77/39
-- Updated cc-army → cc-orchestra references (7 instances)
+- Updated cc-orchestra → cc-orchestra references (7 instances)
 - Updated key statistics
 
 ✅ **ORCHESTRA_ROSTER.md**
 - Updated agent count: 125 → 117
 - Updated model configuration section
 - Updated deployment status
-- Updated cc-army paths → cc-orchestra paths
+- Updated cc-orchestra paths → cc-orchestra paths
 - Updated last modified date
 
 ### 4. ccproxy Status
@@ -122,7 +122,7 @@ Created `/scripts/update-agent-models.js` that:
 ✅ CLAUDE.md updated with correct counts
 ✅ README.md updated with correct counts
 ✅ ORCHESTRA_ROSTER.md updated with correct counts
-✅ All cc-army references changed to cc-orchestra in main docs
+✅ All cc-orchestra references changed to cc-orchestra in main docs
 
 ## Cost Impact
 

@@ -37,7 +37,7 @@ node ~/git/cc-orchestra/src/knowledge-manager.js stats
 ```
 
 **Benefits of Knowledge Manager:**
-- ✅ No external dependencies (built into cc-army)
+- ✅ No external dependencies (built into cc-orchestra)
 - ✅ Simpler architecture (one CLI tool vs multiple MCP servers)
 - ✅ Persistent storage (LanceDB with vector search)
 - ✅ Semantic search capabilities (384-dimensional embeddings)
@@ -50,7 +50,7 @@ node ~/git/cc-orchestra/src/knowledge-manager.js stats
 
 ### The Truth: Claude Code Task Tool is Primary
 
-The army operates through **Claude Code's built-in Task tool**, which spawns real agent conversations:
+The orchestra operates through **Claude Code's built-in Task tool**, which spawns real agent conversations:
 
 ```javascript
 // This is what ACTUALLY spawns agents:
@@ -68,7 +68,7 @@ Task("QA Engineer", "Create tests...", "test-automator", "sonnet")
 - Parallel agent execution
 - Code implementation by specialist agents
 - Documentation, testing, security audits
-- All core army functionality
+- All core orchestra functionality
 
 ❌ **What's MISSING:**
 - Shared memory coordination (agents can't easily share data)
@@ -97,9 +97,9 @@ From `/Users/brent/git/cc-orchestra/ORCHESTRATOR_RULES.md`:
 |---------|------------------|-----------|------------|------------------|
 | **Purpose** | Core swarm coordination | Enhanced coordination | Cloud platform | Payment processing |
 | **Status** | ✅ Enabled | ✅ Enabled | ✅ Enabled | ✅ Enabled |
-| **Required for Army?** | No (helpful) | No (optional) | No (advanced) | No (unused) |
+| **Required for Orchestra?** | No (helpful) | No (optional) | No (advanced) | No (unused) |
 | **Primary Use** | Memory, hooks, orchestration | Topology optimization, Byzantine FT | Cloud sandboxes, neural training | Credits, payments |
-| **Army Mentions** | Frequent | Moderate | Rare | Never |
+| **Orchestra Mentions** | Frequent | Moderate | Rare | Never |
 | **User's Bias** | Against ❌ | Neutral | Unknown | Unknown |
 
 ---
@@ -114,7 +114,7 @@ From `/Users/brent/git/cc-orchestra/ORCHESTRATOR_RULES.md`:
 - **Neural features**: Pattern training from successful workflows
 - **GitHub integration**: PR management, issue triage, code review
 
-### How Army Uses It (Historical)
+### How Orchestra Uses It (Historical)
 **⚠️ HISTORICAL**: These commands are no longer used. Knowledge Manager has replaced this functionality.
 
 **Historical commands (no longer used):**
@@ -142,13 +142,13 @@ node ~/git/cc-orchestra/src/knowledge-manager.js store \
 ```
 
 ### Is It Required?
-**NO.** The army works without it, but coordination is manual:
+**NO.** The orchestra works without it, but coordination is manual:
 - Agents must manually communicate findings
 - No automatic tracking of who did what
 - No persistent memory across compactions
 - No hooks automation
 
-### Army Recommendation
+### Orchestra Recommendation
 **KEEP ENABLED** - Provides valuable coordination features:
 - Shared memory reduces token usage by 32%
 - Hooks enable automatic tracking
@@ -167,7 +167,7 @@ node ~/git/cc-orchestra/src/knowledge-manager.js store \
 - **Stability features**: Auto-restart on crashes
 - **Diagnostic tools**: Log analysis, performance optimization
 
-### How Army Uses It (Historical)
+### How Orchestra Uses It (Historical)
 **⚠️ HISTORICAL**: These commands are no longer used. ruv-swarm has been removed along with claude-flow.
 
 **Historical commands (no longer used):**
@@ -215,7 +215,7 @@ npx ruv-swarm monitor --verbose
 - claude-flow = Foundation (memory, hooks, orchestration)
 - ruv-swarm = Enhancement (optimization, stability, diagnostics)
 
-### Army Recommendation
+### Orchestra Recommendation
 **KEEP ENABLED** - Complements claude-flow:
 - Provides advanced features user wants (optimization, diagnostics)
 - Doesn't replace claude-flow (they work together)
@@ -237,8 +237,8 @@ npx ruv-swarm monitor --verbose
 - **Challenges**: Gamified development platform
 - **Marketplace**: App store for deployments
 
-### How Army Uses It (Historical)
-**⚠️ HISTORICAL**: flow-nexus was never integrated with the army and has now been removed.
+### How Orchestra Uses It (Historical)
+**⚠️ HISTORICAL**: flow-nexus was never integrated with the orchestra and has now been removed.
 
 **Historical status:** BARELY USED
 
@@ -253,7 +253,7 @@ From previous config:
 flow-nexus was **NOT listed** in coordination servers even before migration!
 
 ### Potential Uses (Historical - No Longer Available)
-**⚠️ HISTORICAL**: These features were available but never used by the army:
+**⚠️ HISTORICAL**: These features were available but never used by the orchestra:
 
 ```bash
 # Cloud execution (NOT CURRENTLY USED)
@@ -269,7 +269,7 @@ mcp__flow-nexus__template_deploy
 ```
 
 ### Is It Required?
-**ABSOLUTELY NOT.** The army doesn't use it at all currently.
+**ABSOLUTELY NOT.** The orchestra doesn't use it at all currently.
 
 ### Use Cases
 - **If you want:** Cloud-based agent execution
@@ -277,9 +277,9 @@ mcp__flow-nexus__template_deploy
 - **If you want:** Pre-built templates
 - **If you need:** Remote sandboxes for distributed work
 
-### Army Recommendation
-**DISABLE** - Not used by the army:
-- No integration with current army workflow
+### Orchestra Recommendation
+**DISABLE** - Not used by the orchestra:
+- No integration with current orchestra workflow
 - Requires authentication (user registration)
 - Adds complexity without current benefit
 - Could be enabled later if cloud features needed
@@ -294,8 +294,8 @@ mcp__flow-nexus__template_deploy
 - Transaction management
 - Billing integration
 
-### How Army Uses It (Historical)
-**⚠️ HISTORICAL**: agentic-payments was never used by the army and has now been removed.
+### How Orchestra Uses It (Historical)
+**⚠️ HISTORICAL**: agentic-payments was never used by the orchestra and has now been removed.
 
 **Historical status:** NEVER USED. Zero mentions in entire codebase.
 
@@ -307,9 +307,9 @@ mcp__flow-nexus__template_deploy
 - Only if using paid APIs/services that require billing
 - Only if monetizing agent operations
 
-### Army Recommendation
+### Orchestra Recommendation
 **DISABLE IMMEDIATELY** - Completely unused:
-- Zero integration with army
+- Zero integration with orchestra
 - No use case for current workflow
 - Potential security/billing risk if accidentally triggered
 - Can be enabled later if needed
@@ -340,7 +340,7 @@ mcp__flow-nexus__template_deploy
 **Rationale:**
 1. ✅ **claude-flow@alpha** - Provides core coordination, memory, hooks
 2. ✅ **ruv-swarm** - Enhances with optimization, diagnostics, stability
-3. ❌ **flow-nexus** - Not used by army, can enable later if needed
+3. ❌ **flow-nexus** - Not used by orchestra, can enable later if needed
 4. ❌ **agentic-payments** - Not used, potential risk
 
 ### Why Keep Both claude-flow AND ruv-swarm?
@@ -366,7 +366,7 @@ ruv-swarm has **--claude integration** option, showing it's designed to work WIT
 
 ### Performance Impact
 
-| Configuration | Army Works? | Speed | Features | Recommendation |
+| Configuration | Orchestra Works? | Speed | Features | Recommendation |
 |---------------|-------------|-------|----------|----------------|
 | No MCP | ✅ Yes | Normal | Basic | Only if avoiding MCP |
 | claude-flow only | ✅ Yes | +32% tokens saved | Coordination | Good baseline |
@@ -379,7 +379,7 @@ ruv-swarm has **--claude integration** option, showing it's designed to work WIT
 
 ### "Things working with NO MCP servers?"
 
-**YES.** The army works WITHOUT any MCP servers because:
+**YES.** The orchestra works WITHOUT any MCP servers because:
 - Claude Code's Task tool spawns actual agents
 - Agents can communicate through file changes
 - Basic coordination happens via file system
@@ -404,7 +404,7 @@ ruv-swarm has **--claude integration** option, showing it's designed to work WIT
 
 All 4 are enabled, not disabled. The initial assessment was incorrect.
 
-**However:** The army would still work if they were disabled, just without coordination features.
+**However:** The orchestra would still work if they were disabled, just without coordination features.
 
 ### "User biased against claude-flow - can ruv-swarm replace it?"
 
@@ -420,10 +420,10 @@ All 4 are enabled, not disabled. The initial assessment was incorrect.
 - Use ruv-swarm for advanced features
 - Let them complement each other
 
-### "Do they need agentic-payments if army never makes payments?"
+### "Do they need agentic-payments if orchestra never makes payments?"
 
 **NO.** Disable it:
-- Zero use cases in current army
+- Zero use cases in current orchestra
 - Potential billing risk
 - Adds complexity
 - Can enable later if needed
@@ -496,7 +496,7 @@ node ~/git/cc-orchestra/src/knowledge-manager.js stats
 node ~/git/cc-orchestra/src/knowledge-manager.js store "Test entry" --type decision --agent architect
 node ~/git/cc-orchestra/src/knowledge-manager.js search "test entry"
 
-# 3. Test army with simple task
+# 3. Test orchestra with simple task
 # Example: "Add JWT auth to a Python API"
 
 # 4. Verify agents spawn correctly via Task tool
@@ -509,7 +509,7 @@ node ~/git/cc-orchestra/src/knowledge-manager.js list --limit 10
 
 ## Summary Table
 
-| MCP Server | Status | Required? | Used by Army? | Recommendation | User Preference |
+| MCP Server | Status | Required? | Used by Orchestra? | Recommendation | User Preference |
 |------------|--------|-----------|---------------|----------------|-----------------|
 | claude-flow@alpha | ✅ Enabled | No (helpful) | ✅ Yes (coordination) | **KEEP** | ❌ Biased against |
 | ruv-swarm | ✅ Enabled | No (optional) | ✅ Yes (enhancement) | **KEEP** | ✅ Neutral |
@@ -520,7 +520,7 @@ node ~/git/cc-orchestra/src/knowledge-manager.js list --limit 10
 
 ## Key Insights
 
-1. **The Army Works Without MCP** - Claude Code's Task tool is the actual execution engine
+1. **The Orchestra Works Without MCP** - Claude Code's Task tool is the actual execution engine
 2. **MCP Adds Coordination** - Not required, but significantly improves efficiency
 3. **claude-flow + ruv-swarm Work Together** - They complement, not compete
 4. **flow-nexus is Unused** - Cloud features not integrated yet

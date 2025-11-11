@@ -1,4 +1,4 @@
-# CCProxy Integration with Claude Code Army
+# CCProxy Integration with Claude Code Orchestra
 
 This document explains how to configure Claude Code's orchestra-config.json to use the ccproxy deployment.
 
@@ -14,7 +14,7 @@ This document explains how to configure Claude Code's orchestra-config.json to u
 
 ## Available Model Names
 
-Use these model names in Claude Code's army configuration:
+Use these model names in Claude Code's orchestra configuration:
 
 | Model Name | Maps To | Context | Speed | Best For |
 |------------|---------|---------|-------|----------|
@@ -317,7 +317,7 @@ model_list:
       model: ollama/mixtral  # Reasoning tasks
 ```
 
-Then map army agents to specialized models:
+Then map orchestra agents to specialized models:
 - Chief Architect → `architecture` (mixtral)
 - Coding Specialists → `coding` (codellama)
 - Documentation → `gpt-4` (llama2)

@@ -10,7 +10,7 @@ Complete documentation for the ccproxy routing chain deployment.
 1. [SUMMARY.md](./SUMMARY.md) - Executive summary (1 page)
 2. [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) - Code examples
 
-**Using with Claude Code Army?**
+**Using with Claude Code Orchestra?**
 - [CLAUDE_CODE_INTEGRATION.md](./CLAUDE_CODE_INTEGRATION.md) - Integration guide
 
 ---
@@ -27,7 +27,7 @@ Complete documentation for the ccproxy routing chain deployment.
 ### Integration Guides
 | File | Purpose | Audience |
 |------|---------|----------|
-| **[CLAUDE_CODE_INTEGRATION.md](./CLAUDE_CODE_INTEGRATION.md)** | Claude Code army integration | AI orchestration |
+| **[CLAUDE_CODE_INTEGRATION.md](./CLAUDE_CODE_INTEGRATION.md)** | Claude Code orchestra integration | AI orchestration |
 | **[README.md](./README.md)** | Overview and setup | All users |
 
 ### Deployment & Configuration
@@ -149,7 +149,7 @@ response = client.chat.completions.create(
 | 2025-11-04 | TEST_REPORT.md | Comprehensive test results (400+ lines) |
 | 2025-11-04 | QUICK_REFERENCE.md | Quick start guide with examples |
 | 2025-11-04 | SUMMARY.md | Executive summary |
-| 2025-11-04 | CLAUDE_CODE_INTEGRATION.md | Army integration guide |
+| 2025-11-04 | CLAUDE_CODE_INTEGRATION.md | Orchestra integration guide |
 | 2025-11-04 | INDEX.md | This file (documentation index) |
 
 ---

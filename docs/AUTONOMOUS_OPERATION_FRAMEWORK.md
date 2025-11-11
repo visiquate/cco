@@ -521,10 +521,10 @@ if (securityAudit.criticalVulnerabilities > 0) {
 # 1. Run discovery (gather requirements)
 # Use comprehensive questioning to understand project scope
 
-# 2. Initialize army with Knowledge Manager
+# 2. Initialize orchestra with Knowledge Manager
 node src/orchestra-conductor.js "Build [your project]"
 
-# 3. Army works autonomously with:
+# 3. Orchestra works autonomously with:
 #    - Automatic model fallback (Opus → Sonnet 4.5)
 #    - Knowledge Manager for persistent memory
 #    - Error recovery via Knowledge Manager context
@@ -533,7 +533,7 @@ node src/orchestra-conductor.js "Build [your project]"
 
 ### During Operation
 
-**Army automatically:**
+**Orchestra automatically:**
 - ✅ Switches models when needed
 - ✅ Recovers from errors
 - ✅ Makes low/medium risk decisions
@@ -554,7 +554,7 @@ node src/orchestra-conductor.js "Build [your project]"
 # Automatic restoration
 ./scripts/post-compaction.sh <SESSION_ID>
 
-# Army resumes from last checkpoint with full context
+# Orchestra resumes from last checkpoint with full context
 ```
 
 ---

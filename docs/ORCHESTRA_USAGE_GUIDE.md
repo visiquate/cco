@@ -246,7 +246,7 @@ node ~/git/cc-orchestra/src/knowledge-manager.js search "type:completion"
 node ~/git/cc-orchestra/src/knowledge-manager.js stats
 
 # Check if directory exists
-ls -la ~/.cc-army-knowledge/
+ls -la ~/.cc-orchestra-knowledge/
 
 # Re-initialize if needed (will preserve existing data)
 node ~/git/cc-orchestra/src/knowledge-manager.js stats
@@ -271,7 +271,7 @@ node src/credential-manager.js list
 ## Advanced Features
 
 ### Custom Agent Types
-You can extend the army with custom agents by modifying `config/orchestra-config.json`.
+You can extend the orchestra with custom agents by modifying `config/orchestra-config.json`.
 
 ### Knowledge Manager Features
 The built-in Knowledge Manager provides:

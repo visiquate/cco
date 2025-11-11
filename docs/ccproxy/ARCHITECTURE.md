@@ -29,7 +29,7 @@
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         Internet/External Clients                    │
-│              (Claude Code Army, API Clients, etc.)                   │
+│              (Claude Code Orchestra, API Clients, etc.)                   │
 └────────────────────────────┬────────────────────────────────────────┘
                              │ HTTPS (TLS)
                              │ https://coder.visiquate.com/v1/*
@@ -230,7 +230,7 @@ ollama/qwen-fast   → ollama/qwen-fast (7B, direct)
 ### End-to-End Request Path
 
 ```
-1. Client (Claude Code Army Agent)
+1. Client (Claude Code Orchestra Agent)
    │
    ├─ Prepares request
    │  - Model: "claude-3-5-sonnet"
@@ -328,7 +328,7 @@ ollama/qwen-fast   → ollama/qwen-fast (7B, direct)
    │  - CORS headers (if configured)
    │
    ▼
-8. Client (Claude Code Army Agent)
+8. Client (Claude Code Orchestra Agent)
    │
    └─ Receive HTTPS response
       - Parse JSON
@@ -707,7 +707,7 @@ Task("Rust Expert", "Implement zero-copy parser", "rust-expert", "coding")
 Task("Security Auditor", "Review authentication flow", "security-auditor", "architecture")
 ```
 
-### Claude Code Army Model Mapping
+### Claude Code Orchestra Model Mapping
 
 **Recommended Configuration** (future, with multiple models):
 
@@ -908,7 +908,7 @@ Inference Time Breakdown:
 
 ## Integration Guide
 
-### Claude Code Army Integration
+### Claude Code Orchestra Integration
 
 **Configuration File**: `/Users/brent/git/cc-orchestra/config/orchestra-config.json`
 

@@ -71,7 +71,7 @@ source ~/.zshrc
 ### 2. Deploy Hybrid ccproxy Configuration
 
 ```bash
-cd /Users/brent/git/cc-army
+cd /Users/brent/git/cc-orchestra
 ./scripts/deploy-hybrid-ccproxy.sh
 ```
 
@@ -180,7 +180,7 @@ source ~/.zshrc
 echo $ANTHROPIC_API_KEY_REAL
 
 # Redeploy config
-cd /Users/brent/git/cc-army
+cd /Users/brent/git/cc-orchestra
 ./scripts/deploy-hybrid-ccproxy.sh
 ```
 
@@ -243,7 +243,7 @@ You should see:
 ## Next Steps
 
 Once setup is complete:
-1. ✅ Test with a simple army task: "Add a health endpoint to a Python API"
+1. ✅ Test with a simple orchestra task: "Add a health endpoint to a Python API"
 2. ✅ Verify Architect uses real Claude API (check ccproxy logs)
 3. ✅ Verify coding agents use local Ollama (check ccproxy logs)
 4. ✅ Monitor costs via Anthropic console (should be minimal)

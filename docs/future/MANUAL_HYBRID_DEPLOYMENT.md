@@ -205,7 +205,7 @@ claude /logout
 claude  # Say "No" to claude.ai, "Yes" to API key
 ```
 
-### Test the Army
+### Test the Orchestra
 
 ```bash
 # Start Claude Code

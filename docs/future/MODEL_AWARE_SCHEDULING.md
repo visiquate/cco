@@ -36,7 +36,7 @@ This document proposes a **model-aware task scheduling system** that pipelines w
 
 ### Current Model Distribution
 
-Based on the `docs/ccproxy/ARMY_MODEL_ASSIGNMENTS.md`:
+Based on the `docs/ccproxy/ORCHESTRA_MODEL_ASSIGNMENTS.md`:
 
 **qwen-latest (32B, 128k) - 9 agents:**
 - Python Specialist
@@ -827,7 +827,7 @@ function selectModel(task) {
 
 ```json
 {
-  "name": "claude-army",
+  "name": "claude-orchestra",
   "version": "3.0.0",
   "description": "Model-aware pipeline execution system",
 
@@ -913,7 +913,7 @@ memory_management:
 
 ```javascript
 // Simplified two-model approach
-async function executeArmy(requirements) {
+async function executeOrchestra(requirements) {
   // Phase 1: Architecture (Opus or qwen-latest)
   const architecture = await Task("Chief Architect",
     "Design system architecture",
@@ -1022,7 +1022,7 @@ This approach provides:
 - ✅ Minimal model swaps (just 1)
 - ✅ Future scalability without code changes
 
-The Army can execute with full parallelism within each model phase, maintaining high performance while respecting memory constraints.
+The Orchestra can execute with full parallelism within each model phase, maintaining high performance while respecting memory constraints.
 
 ---
 

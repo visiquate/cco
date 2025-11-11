@@ -49,7 +49,7 @@ The Claude Orchestra documentation is organized in a 4-tier structure, progressi
 - Understanding technical capabilities
 - Evaluating technology stack
 - Learning coordination protocols
-- Setting up projects for army usage
+- Setting up projects for orchestra usage
 
 **Key Topics**:
 - System architecture and component breakdown
@@ -135,7 +135,7 @@ The Claude Orchestra documentation is organized in a 4-tier structure, progressi
 
 **Key Resources**:
 - [QUICK_START.md](QUICK_START.md) - Getting started guide
-- [ARMY_USAGE_GUIDE.md](ARMY_USAGE_GUIDE.md) - Comprehensive usage patterns
+- [ORCHESTRA_USAGE_GUIDE.md](ORCHESTRA_USAGE_GUIDE.md) - Comprehensive usage patterns
 - [ARCHITECTURE_DIAGRAMS.md](ARCHITECTURE_DIAGRAMS.md) → Cross-Repository Deployment
 
 ---
@@ -240,7 +240,7 @@ The Claude Orchestra documentation is organized in a 4-tier structure, progressi
 
 ### Additional Guides
 - **[QUICK_START.md](QUICK_START.md)** - Getting started guide
-- **[ARMY_USAGE_GUIDE.md](ARMY_USAGE_GUIDE.md)** - Comprehensive usage patterns
+- **[ORCHESTRA_USAGE_GUIDE.md](ORCHESTRA_USAGE_GUIDE.md)** - Comprehensive usage patterns
 - **[ORCHESTRA_ROSTER_TDD.md](ORCHESTRA_ROSTER_TDD.md)** - Complete 15-agent roster
 - **[TDD_AWARE_PIPELINE.md](TDD_AWARE_PIPELINE.md)** - TDD methodology (956 lines)
 - **[AUTONOMOUS_OPERATION_FRAMEWORK.md](AUTONOMOUS_OPERATION_FRAMEWORK.md)** - Autonomous features

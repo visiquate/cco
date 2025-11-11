@@ -383,7 +383,7 @@ TodoWrite({
 After all agents complete their work:
 
 ```
-claude-army/
+claude-orchestra/
 ├── backend/                    (Go Specialist)
 │   ├── main.go
 │   ├── handlers/

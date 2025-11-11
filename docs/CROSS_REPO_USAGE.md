@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Claude Orchestra can be used from **any directory** on your system. You don't need to be in the cc-army repository to deploy agents.
+The Claude Orchestra can be used from **any directory** on your system. You don't need to be in the cc-orchestra repository to deploy agents.
 
 ## Quick Start
 
@@ -13,12 +13,12 @@ The Claude Orchestra can be used from **any directory** on your system. You don'
 cd ~/git/any-project
 
 # Open Claude Code and describe your task
-# The army automatically deploys if complexity matches trigger patterns
+# The orchestra automatically deploys if complexity matches trigger patterns
 ```
 
-### 2. Army Auto-Detection
+### 2. Orchestra Auto-Detection
 
-The army is configured in your **global CLAUDE.md** (`~/.claude/CLAUDE.md`) to automatically detect when complex tasks are requested.
+The orchestra is configured in your **global CLAUDE.md** (`~/.claude/CLAUDE.md`) to automatically detect when complex tasks are requested.
 
 **Automatic Activation Examples:**
 ```
@@ -43,15 +43,15 @@ The army is configured in your **global CLAUDE.md** (`~/.claude/CLAUDE.md`) to a
 ```
 ┌─────────────────────────────────────────────────────┐
 │  Global CLAUDE.md (~/.claude/CLAUDE.md)             │
-│  - Army auto-detection rules                        │
+│  - Orchestra auto-detection rules                   │
 │  - Trigger patterns                                 │
-│  - References cc-army config                        │
+│  - References cc-orchestra config                   │
 └─────────────────┬───────────────────────────────────┘
                   │
                   ├─> Detects complex task
                   │
 ┌─────────────────▼───────────────────────────────────┐
-│  Army Config (/Users/brent/git/cc-orchestra/)            │
+│  Orchestra Config (/Users/brent/git/cc-orchestra/)      │
 │  - 14 agent definitions                             │
 │  - Agent capabilities                               │
 │  - Coordination protocols                           │
@@ -71,14 +71,14 @@ The army is configured in your **global CLAUDE.md** (`~/.claude/CLAUDE.md`) to a
 
 1. **Global CLAUDE.md** (`~/.claude/CLAUDE.md`)
    - Auto-detection rules
-   - Trigger patterns for army activation
-   - References to army config location
+   - Trigger patterns for orchestra activation
+   - References to orchestra config location
    - Applies to ALL projects
 
-2. **Army Config** (`/Users/brent/git/cc-orchestra/config/orchestra-config.json`)
+2. **Orchestra Config** (`/Users/brent/git/cc-orchestra/config/orchestra-config.json`)
    - 14 agent definitions (types, models, capabilities)
    - Coordination protocols
-   - Single source of truth for army
+   - Single source of truth for orchestra
 
 3. **Project CLAUDE.md** (optional: `~/git/your-project/CLAUDE.md`)
    - Project-specific agent preferences
@@ -88,7 +88,7 @@ The army is configured in your **global CLAUDE.md** (`~/.claude/CLAUDE.md`) to a
 
 ## Trigger Patterns (Detailed)
 
-### ✅ Activate Army For:
+### ✅ Activate Orchestra For:
 
 #### 1. Full-Stack Applications
 ```
@@ -136,7 +136,7 @@ The army is configured in your **global CLAUDE.md** (`~/.claude/CLAUDE.md`) to a
 "Implement with comprehensive documentation"
 ```
 
-### ❌ Bypass Army For:
+### ❌ Bypass Orchestra For:
 
 #### 1. Single-File Changes
 ```
@@ -298,7 +298,7 @@ You can explicitly request specific agents:
 ```
 "Use Python Expert and DevOps Engineer to containerize this application"
 "Deploy Salesforce API Expert to integrate with our CRM"
-"I need the full army with all 14 agents for this complex project"
+"I need the full orchestra with all 14 agents for this complex project"
 ```
 
 ## Coordination Protocol
@@ -388,7 +388,7 @@ cd ~/git/my-api
 # In Claude Code:
 "Build a REST API with FastAPI and JWT authentication"
 
-# Army deploys:
+# Orchestra deploys:
 - Chief Architect
 - Python Expert
 - Security Auditor
@@ -406,7 +406,7 @@ cd ~/git/mobile-app
 # In Claude Code:
 "Create a task management app with Flutter and Go backend"
 
-# Army deploys:
+# Orchestra deploys:
 - Chief Architect
 - Flutter Expert
 - Go Expert
@@ -426,7 +426,7 @@ cd ~/git/crm-sync
 # In Claude Code:
 "Sync Salesforce Opportunities to PostgreSQL database"
 
-# Army deploys:
+# Orchestra deploys:
 - Chief Architect
 - Salesforce API Expert
 - Python Expert (integration code)
@@ -446,7 +446,7 @@ cd ~/git/enterprise-portal
 # In Claude Code:
 "Add Authentik SAML SSO to our web application"
 
-# Army deploys:
+# Orchestra deploys:
 - Chief Architect
 - Authentik API Expert
 - Python/Go Expert (implementation)
@@ -460,14 +460,14 @@ cd ~/git/enterprise-portal
 
 ## Troubleshooting
 
-### Army Not Activating
+### Orchestra Not Activating
 
 **Problem:** Simple task being treated as complex
 
 **Solution:**
 1. Check global CLAUDE.md trigger patterns
 2. Make request more specific: "Quick fix to README" instead of "Update README"
-3. Bypass explicitly: "This is a simple change, don't use the army"
+3. Bypass explicitly: "This is a simple change, don't use the orchestra"
 
 ### Wrong Agents Selected
 
@@ -480,7 +480,7 @@ cd ~/git/enterprise-portal
 
 ### Agents Creating Files in Wrong Location
 
-**Problem:** Files created in cc-army instead of project
+**Problem:** Files created in cc-orchestra instead of project
 
 **Solution:**
 1. Ensure you're running Claude Code from your project directory
@@ -493,7 +493,7 @@ cd ~/git/enterprise-portal
 
 **Solution:**
 1. Verify Knowledge Manager is working: `node ~/git/cc-orchestra/src/knowledge-manager.js stats`
-2. Check Knowledge Manager directory exists: `ls -la ~/.cc-army-knowledge/`
+2. Check Knowledge Manager directory exists: `ls -la ~/.cc-orchestra-knowledge/`
 3. Test Knowledge Manager: `node ~/git/cc-orchestra/src/knowledge-manager.js list --limit 5`
 
 ## Best Practices
@@ -550,17 +550,17 @@ cp /Users/brent/git/cc-orchestra/docs/PROJECT_CLAUDE_TEMPLATE.md ./CLAUDE.md
 # Verify it's working:
 node ~/git/cc-orchestra/src/knowledge-manager.js stats
 
-# ❌ Bad - Don't try to use external MCP servers for army coordination
-# The army is self-contained and uses Knowledge Manager
+# ❌ Bad - Don't try to use external MCP servers for orchestra coordination
+# The orchestra is self-contained and uses Knowledge Manager
 ```
 
 ## Reference
 
-- **Army Config**: `/Users/brent/git/cc-orchestra/config/orchestra-config.json`
+- **Orchestra Config**: `/Users/brent/git/cc-orchestra/config/orchestra-config.json`
 - **Global CLAUDE.md**: `~/.claude/CLAUDE.md`
 - **Project Template**: `/Users/brent/git/cc-orchestra/docs/PROJECT_CLAUDE_TEMPLATE.md`
-- **Army Roster**: `/Users/brent/git/cc-orchestra/ORCHESTRA_ROSTER.md`
-- **Usage Guide**: `/Users/brent/git/cc-orchestra/docs/ARMY_USAGE_GUIDE.md`
+- **Orchestra Roster**: `/Users/brent/git/cc-orchestra/ORCHESTRA_ROSTER.md`
+- **Usage Guide**: `/Users/brent/git/cc-orchestra/docs/ORCHESTRA_USAGE_GUIDE.md`
 - **API Integration**: `/Users/brent/git/cc-orchestra/docs/API_INTEGRATION_GUIDE.md`
 
 ## Support

@@ -381,7 +381,7 @@ constructor(options = {}) {
   // Each repo gets its own database
   const baseDir = options.baseDir || path.join(__dirname, '../data/knowledge');
   this.dbPath = path.join(baseDir, this.repoName);
-  this.tableName = options.tableName || 'army_knowledge';
+  this.tableName = options.tableName || 'orchestra_knowledge';
 
   console.log(`📦 Knowledge Manager initialized for repository: ${this.repoName}`);
   console.log(`📁 Database path: ${this.dbPath}`);
@@ -392,11 +392,11 @@ constructor(options = {}) {
 ```
 data/knowledge/
 ├── cc-orchestra/          # This repository
-│   └── army_knowledge/    # LanceDB table
+│   └── orchestra_knowledge/    # LanceDB table
 ├── my-project/            # Another project
-│   └── army_knowledge/
+│   └── orchestra_knowledge/
 └── awesome-app/           # Yet another project
-    └── army_knowledge/
+    └── orchestra_knowledge/
 ```
 
 **Benefits:**
@@ -1533,7 +1533,7 @@ From `config/orchestra-config.json`:
 **Root Structure:**
 ```json
 {
-  "name": "claude-army",
+  "name": "claude-orchestra",
   "version": "2.0.0",
   "description": "Multi-agent development orchestra with autonomous operation capabilities",
   "architect": { ... },
@@ -1823,7 +1823,7 @@ Update `ORCHESTRA_ROSTER_V2.md` with agent details.
 
 **GitHub Actions**:
 ```yaml
-# .github/workflows/army-review.yml
+# .github/workflows/orchestra-review.yml
 name: Orchestra Code Review
 on: [pull_request]
 jobs:
@@ -1988,18 +1988,18 @@ node src/orchestra-conductor.js "Build a REST API with authentication"
 
 **Programmatic Usage:**
 ```javascript
-const ClaudeArmy = require('./src/orchestra-conductor');
+const ClaudeOrchestra = require('./src/orchestra-conductor');
 
-const army = new ClaudeArmy({ repoPath: process.cwd() });
+const orchestra = new ClaudeOrchestra({ repoPath: process.cwd() });
 
 // Initialize
-await army.initializeCoordination();
+await orchestra.initializeCoordination();
 
 // Generate workflow
-const workflow = army.generateWorkflow("Build REST API");
+const workflow = orchestra.generateWorkflow("Build REST API");
 
 // Generate spawn instructions
-const instructions = army.generateAgentSpawnInstructions("Build REST API");
+const instructions = orchestra.generateAgentSpawnInstructions("Build REST API");
 ```
 
 ### 11.4 Configuration Options

@@ -104,7 +104,7 @@ cp /Users/brent/git/cc-orchestra/docs/PROJECT_CLAUDE_TEMPLATE.md ~/git/your-proj
                          │ References
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Tier 2: Army Config (/Users/brent/git/cc-orchestra/)            │
+│  Tier 2: Orchestra Config (/Users/brent/git/cc-orchestra/)       │
 │  ----------------------------------------------------------- │
 │  - config/orchestra-config.json (14 agent definitions)           │
 │  - Agent types, models, capabilities                        │
@@ -143,7 +143,7 @@ cp /Users/brent/git/cc-orchestra/docs/PROJECT_CLAUDE_TEMPLATE.md ~/git/your-proj
 3. **Claude Code reads configuration in order:**
    - Global `~/.claude/CLAUDE.md` (orchestra auto-detection rules)
    - Project `./CLAUDE.md` (if exists - project overrides)
-   - Army config from `/Users/brent/git/cc-orchestra/config/orchestra-config.json`
+   - Orchestra config from `/Users/brent/git/cc-orchestra/config/orchestra-config.json`
 
 4. **Auto-detection logic executes:**
    - Analyzes task complexity
@@ -340,7 +340,7 @@ cd ~/git/api-server
 ### 1. No Context Switching
 ```
 Before: cd ~/git/project → cd ~/git/cc-orchestra → invoke → cd ~/git/project
-After:  cd ~/git/project → invoke army directly
+After:  cd ~/git/project → invoke orchestra directly
 ```
 
 ### 2. Automatic Detection

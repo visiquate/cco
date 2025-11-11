@@ -374,7 +374,7 @@ node ~/git/cc-orchestra/src/knowledge-manager.js store \
 ```
 "Sync Salesforce Opportunities to our internal database for reporting"
 
-Army deploys:
+Orchestra deploys:
 - Architect
 - Salesforce API Specialist
 - Python Expert (sync service)
@@ -389,7 +389,7 @@ Army deploys:
 ```
 "Listen to Salesforce Platform Events and trigger internal workflows"
 
-Army deploys:
+Orchestra deploys:
 - Architect
 - Salesforce API Specialist
 - Go Expert (event handler)
@@ -404,7 +404,7 @@ Army deploys:
 ```
 "Add Authentik OAuth2 authentication to our Flutter mobile app"
 
-Army deploys:
+Orchestra deploys:
 - Architect
 - Authentik API Specialist
 - Flutter Expert (OAuth2 client)
@@ -418,7 +418,7 @@ Army deploys:
 ```
 "Configure SAML SSO with Authentik for our enterprise SaaS platform"
 
-Army deploys:
+Orchestra deploys:
 - Architect
 - Authentik API Specialist
 - Go/Python Expert (SAML service provider)
@@ -431,7 +431,7 @@ Army deploys:
 ```
 "Automatically create Authentik users when they join via our registration flow"
 
-Army deploys:
+Orchestra deploys:
 - Architect
 - Authentik API Specialist
 - Python Expert (provisioning service)

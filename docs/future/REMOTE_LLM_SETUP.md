@@ -7,7 +7,7 @@
 2. [Available Models](#available-models)
 3. [Model Selection Strategy](#model-selection-strategy)
 4. [LLM Router Architecture](#llm-router-architecture)
-5. [Integration with Claude Orchestra](#integration-with-claude-army)
+5. [Integration with Claude Orchestra](#integration-with-claude-orchestra)
 6. [Testing & Validation](#testing--validation)
 7. [Network Requirements](#network-requirements)
 8. [Troubleshooting](#troubleshooting)

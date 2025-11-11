@@ -15,8 +15,8 @@ Complete documentation for the Claude Orchestra multi-agent development system w
 - [Quick Start Guide](QUICK_START.md) - Get up and running quickly
 
 ### Usage Guides
-- [Army Usage Guide](ARMY_USAGE_GUIDE.md) - Comprehensive usage instructions
-- [Cross-Repository Usage](CROSS_REPO_USAGE.md) - Use army from any directory
+- [Orchestra Usage Guide](ORCHESTRA_USAGE_GUIDE.md) - Comprehensive usage instructions
+- [Cross-Repository Usage](CROSS_REPO_USAGE.md) - Use orchestra from any directory
 - [Cross-Repo Implementation](CROSS_REPO_IMPLEMENTATION.md) - Implementation details
 
 ### Autonomous Operation (NEW)
@@ -30,7 +30,7 @@ Complete documentation for the Claude Orchestra multi-agent development system w
 - [Example Workflow](EXAMPLE_WORKFLOW.md) - Full example workflow
 
 ### Configuration
-- [Army Configuration](../config/orchestra-config.json) - All 117 agent definitions
+- [Orchestra Configuration](../config/orchestra-config.json) - All 117 agent definitions
 - [Project Template](PROJECT_CLAUDE_TEMPLATE.md) - Template for project-specific customization
 
 ### Future Enhancements
@@ -98,7 +98,7 @@ The Claude Orchestra now supports **extended autonomous operation** for 4-8 hour
 
 ### Usage Documentation
 
-**[Army Usage Guide](ARMY_USAGE_GUIDE.md)**
+**[Orchestra Usage Guide](ORCHESTRA_USAGE_GUIDE.md)**
 - Detailed usage instructions
 - Workflow phases
 - Coordination protocols
@@ -170,7 +170,7 @@ The Claude Orchestra now supports **extended autonomous operation** for 4-8 hour
 
 ## Quick Navigation by Use Case
 
-### "I want to use the army in my project"
+### "I want to use the orchestra in my project"
 1. Read [Cross-Repository Usage](CROSS_REPO_USAGE.md)
 2. Copy [Project Template](PROJECT_CLAUDE_TEMPLATE.md) to your project
 3. Follow [Quick Start Guide](QUICK_START.md)
@@ -182,15 +182,15 @@ The Claude Orchestra now supports **extended autonomous operation** for 4-8 hour
 
 ### "I need to integrate with Salesforce"
 1. Read [API Integration Guide](API_INTEGRATION_GUIDE.md) - Salesforce section
-2. Check [Army Roster](../ORCHESTRA_ROSTER.md) - Salesforce API Specialist
+2. Check [Orchestra Roster](../ORCHESTRA_ROSTER.md) - Salesforce API Specialist
 3. See [Example Workflow](EXAMPLE_WORKFLOW.md) - Salesforce example
 
 ### "I need to deploy infrastructure"
 1. Read [DevOps Agent Guide](DEVOPS_AGENT_GUIDE.md)
-2. Check [Army Roster](../ORCHESTRA_ROSTER.md) - DevOps Engineer
+2. Check [Orchestra Roster](../ORCHESTRA_ROSTER.md) - DevOps Engineer
 3. Review deployment examples
 
-### "I want to customize army behavior"
+### "I want to customize orchestra behavior"
 1. Read [Cross-Repository Usage](CROSS_REPO_USAGE.md) - Project Customization
 2. Copy [Project Template](PROJECT_CLAUDE_TEMPLATE.md)
 3. Edit for your project needs
@@ -199,7 +199,7 @@ The Claude Orchestra now supports **extended autonomous operation** for 4-8 hour
 
 ## Configuration Files
 
-### Army Configuration
+### Orchestra Configuration
 **File:** [`config/orchestra-config.json`](../config/orchestra-config.json)
 
 **Contains:**
@@ -220,7 +220,7 @@ The Claude Orchestra now supports **extended autonomous operation** for 4-8 hour
 ### Project Template
 **File:** [`docs/PROJECT_CLAUDE_TEMPLATE.md`](PROJECT_CLAUDE_TEMPLATE.md)
 
-**Use:** Copy to your project root as `CLAUDE.md` to customize army behavior
+**Use:** Copy to your project root as `CLAUDE.md` to customize orchestra behavior
 
 **Contains:**
 - Agent preference checkboxes

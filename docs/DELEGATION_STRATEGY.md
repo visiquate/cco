@@ -217,7 +217,7 @@ node ~/git/cc-orchestra/src/knowledge-manager.js search "patterns"
 - ✅ Works with embeddings (384 dimensions)
 - ✅ Persistent storage across sessions
 - ✅ Per-repository context isolation
-- ✅ Integrated with army orchestrator
+- ✅ Integrated with orchestra orchestrator
 
 **Architecture:**
 

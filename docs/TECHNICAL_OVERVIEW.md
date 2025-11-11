@@ -232,15 +232,15 @@ The system enforces true Test-Driven Development:
 The orchestra works from **any directory**:
 
 ```bash
-# Army config lives in a fixed location
+# Orchestra config lives in a fixed location
 /Users/brent/git/cc-orchestra/
 
 # But operates in the current working directory
 cd ~/git/my-project
-# Army automatically uses my-project as context
+# Orchestra automatically uses my-project as context
 
 cd ~/git/another-project
-# Army now uses another-project as context
+# Orchestra now uses another-project as context
 ```
 
 **How it works:**
@@ -312,14 +312,14 @@ cd ~/git/another-project
 ```
 data/knowledge/
 ├── statushub/
-│   └── army_knowledge/     # LanceDB table
+│   └── orchestra_knowledge/     # LanceDB table
 │       ├── data/            # Parquet files
 │       ├── _versions/       # Version control
 │       └── _indices/        # Vector indices
 ├── cc-orchestra/
-│   └── army_knowledge/
+│   └── orchestra_knowledge/
 └── other-repo/
-    └── army_knowledge/
+    └── orchestra_knowledge/
 ```
 
 **Schema:**
@@ -665,7 +665,7 @@ Always available:
 
 ```
 User: "Use the Claude Orchestra to implement this feature"
-User: "Deploy the full army for this task"
+User: "Deploy the full orchestra for this task"
 User: "I want the 15-agent team working on this"
 ```
 
