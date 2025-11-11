@@ -1,5 +1,5 @@
 ╔════════════════════════════════════════════════════════════════════════════╗
-║                   COMPREHENSIVE ARMY CONFIG - COMPLETE                     ║
+║                   COMPREHENSIVE ORCHESTRA CONFIG - COMPLETE                ║
 ╚════════════════════════════════════════════════════════════════════════════╝
 
 📊 AGENT DISTRIBUTION
@@ -48,12 +48,12 @@
    Exception:           Claude Opus → Sonnet 4.5 (Chief Architect)
 
 📁 FILES CREATED/MODIFIED
-   ✓ /Users/brent/git/cc-army/config/army-config.json (EXPANDED)
-   ✓ /Users/brent/git/cc-army/scripts/extract-agents.js (NEW)
-   ✓ /Users/brent/git/cc-army/scripts/build-comprehensive-config.js (NEW)
-   ✓ /Users/brent/git/cc-army/docs/COMPREHENSIVE_ARMY_ROSTER.md (NEW)
-   ✓ /Users/brent/git/cc-army/docs/CONFIG_UPDATE_SUMMARY.md (NEW)
-   ✓ /Users/brent/git/cc-army/docs/QUICK_AGENT_REFERENCE.md (NEW)
+   ✓ /Users/brent/git/cc-orchestra/config/orchestra-config.json (EXPANDED)
+   ✓ /Users/brent/git/cc-orchestra/scripts/extract-agents.js (NEW)
+   ✓ /Users/brent/git/cc-orchestra/scripts/build-comprehensive-config.js (NEW)
+   ✓ /Users/brent/git/cc-orchestra/docs/COMPREHENSIVE_ORCHESTRA_ROSTER.md (NEW)
+   ✓ /Users/brent/git/cc-orchestra/docs/CONFIG_UPDATE_SUMMARY.md (NEW)
+   ✓ /Users/brent/git/cc-orchestra/docs/QUICK_AGENT_REFERENCE.md (NEW)
 
 ✅ VALIDATION CHECKS
    ✓ Valid JSON structure (21 top-level keys)

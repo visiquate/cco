@@ -73,7 +73,7 @@
    - Created new redirect document pointing to current TDD roster
    - Added quick summary of 15-agent pipeline
 
-6. ✅ **Completely rewrote ARMY_MODEL_ASSIGNMENTS.md**:
+6. ✅ **Completely rewrote ORCHESTRA_MODEL_ASSIGNMENTS.md**:
    - Updated to Version 3.0 (TDD Edition)
    - Documented all 3 deployed models with correct assignments
    - Added comprehensive mapping tables
