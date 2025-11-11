@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Service Identification -->
+    <key>Label</key>
+    <string>com.visiquate.ccproxy</string>
+
+    <!-- Program to Execute -->
+    <key>ProgramArguments</key>
+    <array>
+        <!-- Use full path to Python3 -->
+        <string>/opt/homebrew/bin/python3</string>
+        <string>-m</string>
+        <string>litellm</string>
+        <string>--config</string>
+        <string>/Users/coder/ccproxy/config.yaml</string>
+        <string>--port</string>
+        <string>8081</string>
+        <string>--host</string>
+        <string>127.0.0.1</string>
+    </array>
+
+    <!-- Working Directory -->
+    <key>WorkingDirectory</key>
+    <string>/Users/coder/ccproxy</string>
+
+    <!-- Auto-Start Configuration -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Keep Service Alive (Auto-Restart on Crash) -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>  <!-- Restart even on clean exit -->
+        <key>Crashed</key>
+        <true/>   <!-- Restart on crash -->
+    </dict>
+
+    <!-- Logging Configuration -->
+    <key>StandardOutPath</key>
+    <string>/Users/coder/ccproxy/logs/stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/coder/ccproxy/logs/stderr.log</string>
+
+    <!-- Environment Variables -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <!-- Python environment -->
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+
+        <!-- Python settings -->
+        <key>PYTHONUNBUFFERED</key>
+        <string>1</string>
+
+        <!-- LiteLLM settings (optional) -->
+        <key>LITELLM_LOG</key>
+        <string>INFO</string>
+
+        <!-- Home directory for Python -->
+        <key>HOME</key>
+        <string>/Users/coder</string>
+    </dict>
+
+    <!-- Resource Limits (Optional) -->
+    <key>SoftResourceLimits</key>
+    <dict>
+        <!-- Max open files -->
+        <key>NumberOfFiles</key>
+        <integer>1024</integer>
+    </dict>
+
+    <!-- Process Priority -->
+    <key>Nice</key>
+    <integer>0</integer>  <!-- Normal priority -->
+
+    <!-- Throttling (Prevent Rapid Restart Loops) -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>  <!-- Wait 10 seconds between restarts -->
+
+    <!-- Process Type -->
+    <key>ProcessType</key>
+    <string>Interactive</string>
+
+    <!-- Notes:
+         1. This is a LaunchAgent (runs as user, not system daemon)
+         2. Place in: ~/Library/LaunchAgents/com.visiquate.ccproxy.plist
+         3. Load with: launchctl load ~/Library/LaunchAgents/com.visiquate.ccproxy.plist
+         4. Unload with: launchctl unload ~/Library/LaunchAgents/com.visiquate.ccproxy.plist
+         5. View status: launchctl list | grep ccproxy
+         6. Logs: tail -f /Users/coder/ccproxy/logs/stdout.log
+    -->
+</dict>
+</plist>
