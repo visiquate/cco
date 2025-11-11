@@ -75,31 +75,6 @@ The Claude Orchestra is a comprehensive multi-agent development system with **11
 
 **When to use**: Need to quickly find the right agent for a specific task.
 
-### CONFIG_UPDATE_SUMMARY.md
-**Purpose**: Documentation of configuration updates
-**Contents**:
-- Configuration evolution and updates
-- Changes made by category
-- Agent configuration format
-- Agent distribution breakdown
-- Model configuration details
-- Files created/modified
-- Validation results
-
-**When to use**: Need to understand how the config was expanded or troubleshoot configuration issues.
-
-### DEPLOYMENT_COMPLETE.txt
-**Purpose**: Visual summary of completed deployment
-**Contents**:
-- Agent distribution table
-- Preserved and added agents breakdown
-- Model configuration summary
-- Files created/modified
-- Validation checks
-- Capabilities coverage checklist
-- Usage example
-
-**When to use**: Want a quick visual overview of the complete orchestra deployment.
 
 ## Agent Categories Quick Reference
 
@@ -130,9 +105,9 @@ The Claude Orchestra is a comprehensive multi-agent development system with **11
 3. Spawn: Using correct agent type from reference
 
 ### Troubleshooting Configuration
-1. Review: CONFIG_UPDATE_SUMMARY.md § "Validation"
-2. Check: ../config/orchestra-config.json structure
-3. Verify: Agent file references in ~/.claude/agents/
+1. Check: ../config/orchestra-config.json structure
+2. Verify: Agent file references match configured agent types
+3. Review: ARCHITECTURE_DIAGRAMS.md for system design
 
 ### Understanding Agent Capabilities
 1. Browse: COMPREHENSIVE_ORCHESTRA_ROSTER.md by category
