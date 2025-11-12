@@ -1,9 +1,9 @@
-# Quick Agent Reference - 125 Specialized Agents
+# Quick Agent Reference - 119 Specialized Agents
 
 ## Quick Stats
-- **Total Agents**: 125
+- **Total Agents**: 119 (1 Opus 4.1, 37 Sonnet 4.5, 81 Haiku 4.5)
 - **Categories**: 13
-- **Model**: All use `sonnet-4.5` (except Chief Architect: `opus`)
+- **API**: Direct Anthropic Claude API (no local models required)
 - **Config**: `/Users/brent/git/cc-orchestra/config/orchestra-config.json`
 
 ## Agent Categories at a Glance
@@ -110,17 +110,17 @@ Task("Monitoring Specialist", "Observability", "fullstack-developer")
 | `code-reviewer` | Code review | Code Reviewer, Architect Review |
 | `ui-ux-designer` | UX/UI design | User Experience Designer |
 
-## Model Routing (via ccproxy)
+## Model Assignment
 
-All agents use `model: "sonnet-4.5"` which routes to:
+All agents use direct Anthropic Claude API:
 
-| Phase | API Alias | Ollama Model | Context | Agents |
-|-------|-----------|--------------|---------|--------|
-| Phase 1 | `claude-3-5-sonnet` | qwen2.5-coder:32b | 32k | 1-10 (coding) |
-| Phase 1 | `claude-3-haiku` | qwen-fast:latest | 32k | 11 (credentials) |
-| Phase 2 | `gpt-4` | qwen-quality-128k | 128k | 13-15 (QA, security, docs) |
+| Agent Count | Model | Use Case |
+|-------------|-------|----------|
+| 1 agent | Claude Opus 4.1 | Chief Architect - Strategic decisions |
+| 37 agents | Claude Sonnet 4.5 | Intelligent managers, reviewers, complex coding |
+| 81 agents | Claude Haiku 4.5 | Basic coders, documentation, utilities |
 
-**Exception**: Chief Architect uses real Claude API (Opus → Sonnet 4.5 fallback)
+**No local models or proxy required** - all agents use direct Claude API for reliability and quality.
 
 ## Spawning Agents
 
@@ -197,4 +197,4 @@ TodoWrite({ todos: [
 
 ---
 
-**Quick Reference** | **125 Agents** | **13 Categories** | **Complete Coverage**
+**Quick Reference** | **119 Agents** | **13 Categories** | **Complete Coverage**

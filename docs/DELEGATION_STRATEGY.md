@@ -212,12 +212,12 @@ node ~/git/cc-orchestra/src/knowledge-manager.js search "patterns"
 **Status**: Fully implemented and tested. See [KNOWLEDGE_MANAGER_GUIDE.md](./KNOWLEDGE_MANAGER_GUIDE.md)
 
 **Why LanceDB?**
-- ✅ Vector database for semantic search
+- ✅ Vector database for semantic search across Claude API calls
 - ✅ Fast similarity search (~10-50ms)
 - ✅ Works with embeddings (384 dimensions)
-- ✅ Persistent storage across sessions
+- ✅ Persistent storage across sessions and compactions
 - ✅ Per-repository context isolation
-- ✅ Integrated with orchestra orchestrator
+- ✅ Integrated with orchestra orchestrator and direct Anthropic Claude API
 
 **Architecture:**
 

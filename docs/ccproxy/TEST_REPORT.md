@@ -1,14 +1,18 @@
 # CCProxy Routing Chain Test Report
 
+**STATUS: FUTURE-STATE ARCHITECTURE (NOT CURRENTLY DEPLOYED)**
+
 **Date**: 2025-11-04
 **Tester**: Claude Code Test Automation Agent
-**Architecture**: Client → Traefik (coder.visiquate.com) → LiteLLM (localhost:8081) → Ollama (localhost:11434)
+**Planned Architecture**: Client → Traefik (coder.visiquate.com) → LiteLLM (localhost:8081) → Ollama (localhost:11434)
+
+**IMPORTANT**: This report documents test results for the planned ccproxy infrastructure. The Claude Orchestra **currently uses direct Anthropic Claude API**, not ccproxy/LiteLLM/Ollama.
 
 ---
 
-## Executive Summary
+## Executive Summary (Planned Deployment)
 
-✅ **ROUTING CHAIN: WORKING**
+✅ **ROUTING CHAIN: PLANNED TO WORK**
 - Bearer token authentication: **FUNCTIONAL**
 - Traefik → LiteLLM → Ollama: **FUNCTIONAL**
 - Response times: **0.4-0.8s average**

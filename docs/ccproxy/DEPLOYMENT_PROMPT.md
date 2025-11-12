@@ -1,10 +1,14 @@
 # CCPROXY DEPLOYMENT PROMPT
 
-**Mission**: Deploy LiteLLM Proxy (ccproxy) natively on macOS to serve local Ollama models through a Traefik reverse proxy with bearer token authentication.
+**STATUS: FUTURE-STATE ARCHITECTURE (NOT CURRENTLY DEPLOYED)**
 
-**Target**: Mac mini (native installation, no Docker)
-**Timeline**: 15-20 minutes
+**Mission**: Deploy LiteLLM Proxy (ccproxy) natively on macOS to serve local Ollama models through a Traefik reverse proxy with bearer token authentication (pending hardware).
+
+**Target**: Mac mini (native installation, no Docker) - future deployment
+**Timeline**: 15-20 minutes (when deployment begins)
 **Environment**: macOS with Python 3.8+, Ollama running on port 11434, Traefik on port 8080
+
+**IMPORTANT**: This prompt describes the planned ccproxy deployment. The Claude Orchestra **currently uses direct Anthropic Claude API**.
 
 ---
 

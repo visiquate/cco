@@ -26,10 +26,10 @@ Claude Orchestra is a comprehensive multi-agent development system featuring **1
 
 **Post-Reconciliation (v2.1.0)**:
 - **119 agents** (deduplicated, consolidated)
+- **1 Opus agent** (0.8%) - Chief Architect for strategic decisions
 - **37 Sonnet agents** (31.1%) - Intelligent managers, reviewers, complex coding
 - **81 Haiku agents** (68.1%) - Cost-optimized basic coders and utilities
-- **Cost optimization**: 68% of agents use efficient Haiku model
-- **$300-450/month savings** through local LLM routing
+- **Cost optimization**: 68% of agents use efficient Haiku model via Claude API
 
 **Key Innovation**: A dedicated TDD Coding Agent ensures tests are written BEFORE implementation, maintaining true test-driven development practices while achieving 2.8-4.4x speed improvements through parallel execution.
 
@@ -38,7 +38,7 @@ Claude Orchestra is a comprehensive multi-agent development system featuring **1
 - Parallel agent execution with 119 specialized agents
 - Persistent knowledge base surviving conversation compactions
 - Cross-repository deployment (works from any directory)
-- Local LLM routing for cost efficiency (via ccproxy)
+- Direct Claude API integration (Opus 4.1, Sonnet 4.5, Haiku 4.5)
 - Intelligent type specialization for improved agent selection
 - Automatic trigger detection based on task complexity
 
@@ -60,14 +60,14 @@ graph TD
     end
 
     subgraph Phase1["Phase 1: Coding"]
-        Coders["10 Coders + TDD Agent<br/>(qwen 32B)"]
-        Creds["Credentials Manager<br/>(qwen 7B)"]
+        Coders["10 Coders + TDD Agent<br/>(Sonnet 4.5)"]
+        Creds["Credentials Manager<br/>(Haiku 4.5)"]
     end
 
     subgraph Phase2["Phase 2: Quality"]
-        QA["QA Engineer"]
-        Security["Security"]
-        Docs["Documentation<br/>(qwen 32B)"]
+        QA["QA Engineer<br/>(Sonnet 4.5)"]
+        Security["Security<br/>(Sonnet 4.5)"]
+        Docs["Documentation<br/>(Haiku 4.5)"]
     end
 
     KnowledgeMgr["Knowledge Manager (LanceDB)<br/>Per-Repository Vector Store"]
@@ -122,11 +122,11 @@ Core Specialists:
 - **Features**: Semantic search, compaction resilience
 - **Location**: `data/knowledge/{repo-name}/`
 
-#### 4. Model Router (ccproxy)
-- **Function**: Routes agent requests to local Ollama models
-- **Deployment**: Mac mini at 192.168.9.123
-- **Public URL**: https://coder.visiquate.com
-- **Technology**: LiteLLM proxy with Traefik
+#### 4. Claude API Integration
+- **Function**: Direct API calls to Anthropic Claude models
+- **Models**: Opus 4.1, Sonnet 4.5, Haiku 4.5
+- **Deployment**: Cloud-based via Anthropic API
+- **No proxy required**: All agents use Claude API directly
 
 ---
 
@@ -255,35 +255,35 @@ cd ~/git/another-project
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
 | Orchestration | Claude Code (Sonnet 4.5) | Task coordination |
-| Chief Architect | Claude Opus 4.1 | Strategic decisions (direct API) |
-| Phase 1 Core (36 Sonnet) | qwen2.5-coder:32b-instruct | TDD + Implementation |
-| Phase 1 Lightweight (80 Haiku) | qwen-fast:latest (7B) | Basic coding, utilities |
-| Phase 2 Reasoning (2 Sonnet) | qwen-quality-128k:latest (32B) | QA, Security analysis |
-| Phase 2 Docs (1 Haiku) | qwen-fast:latest | Documentation |
+| Chief Architect | Claude Opus 4.1 (fallback: Sonnet 4.5) | Strategic decisions (direct API) |
+| Phase 1 Core (36 Sonnet) | Claude Sonnet 4.5 | TDD + Implementation |
+| Phase 1 Lightweight (80 Haiku) | Claude Haiku 4.5 | Basic coding, utilities |
+| Phase 2 Reasoning (2 Sonnet) | Claude Sonnet 4.5 | QA, Security analysis |
+| Phase 2 Docs (1 Haiku) | Claude Haiku 4.5 | Documentation |
 | Knowledge Store | LanceDB | Vector database |
-| Model Routing | LiteLLM (ccproxy) | OpenAI-compatible proxy |
+| API Integration | Direct Anthropic API | Cloud-based model access |
 | Embeddings | Sentence transformers | 384-dimensional vectors |
-| Deployment | Mac mini + Traefik | Local LLM infrastructure |
+| Deployment | Cloud-based | Via Anthropic API endpoints |
 
-### Model Routing Architecture
+### Claude API Integration Architecture
 
 ```mermaid
 graph TB
     Orchestrator["Claude Code (Orchestrator)<br/>Spawns agents with model parameter"]
 
-    CCProxy["ccproxy (LiteLLM Proxy)<br/>https://coder.visiquate.com<br/><br/>API Alias Mapping:<br/>• claude-3-5-sonnet → qwen2.5-coder:32b-instruct<br/>• claude-3-haiku → qwen-fast:latest<br/>• gpt-4 → qwen-quality-128k:latest"]
+    AnthropicAPI["Anthropic Claude API<br/>https://api.anthropic.com<br/><br/>Model Selection:<br/>• claude-opus-4 (Opus 4.1)<br/>• claude-sonnet-4.5 (Sonnet 4.5)<br/>• claude-haiku-4.5 (Haiku 4.5)"]
 
-    Ollama["Ollama (localhost:11434)<br/>Mac mini at 192.168.9.123<br/><br/>Models:<br/>• qwen2.5-coder:32b-instruct (20GB)<br/>• qwen-fast:latest (5GB)<br/>• qwen-quality-128k:latest (35GB)"]
+    Models["Cloud-Based Models<br/><br/>Chief Architect: Opus 4.1<br/>37 Intelligent Agents: Sonnet 4.5<br/>81 Basic Agents: Haiku 4.5"]
 
-    Orchestrator -->|"Agent requests<br/>with API aliases"| CCProxy
-    CCProxy -->|"Forward to Ollama"| Ollama
+    Orchestrator -->|"Direct API calls<br/>with model selection"| AnthropicAPI
+    AnthropicAPI -->|"Cloud execution"| Models
 ```
 
 **Key Points:**
-- Agents never know they're using local models
-- All routing is transparent through ccproxy
-- Model swapping happens automatically based on memory
-- Health checks disabled to prevent model thrashing
+- All agents use direct Claude API calls
+- No proxy or routing infrastructure required
+- Cloud-based execution via Anthropic
+- Model selection via API model parameter
 
 ### LanceDB Structure
 
@@ -330,11 +330,11 @@ data/knowledge/
 - **Authority**: Can approve/reject all agent work
 - **Output**: Architecture decisions stored in Knowledge Manager
 
-### Phase 1: Coding Specialists (qwen2.5-coder:32b-instruct)
+### Phase 1: Coding Specialists (Claude Sonnet 4.5)
 
-**API Alias**: `claude-3-5-sonnet` via ccproxy
-**Memory**: ~20GB
-**Context**: 32k tokens
+**Model**: Claude Sonnet 4.5 via direct API
+**Context**: 200k tokens
+**Use Cases**: TDD, complex implementation, API integration
 
 #### 1. TDD Coding Agent
 - **Type**: `coder`
@@ -413,11 +413,11 @@ Each specialist implements code to pass TDD tests:
   - AWS/Azure/GCP
   - Monitoring and logging
 
-### Phase 1: Lightweight (qwen-fast:latest)
+### Phase 1: Lightweight (Claude Haiku 4.5)
 
-**API Alias**: `claude-3-haiku` via ccproxy
-**Memory**: ~5GB
-**Context**: 32k tokens
+**Model**: Claude Haiku 4.5 via direct API
+**Context**: 200k tokens
+**Use Cases**: Basic coding, simple utilities, lightweight tasks
 
 #### 11. Credential Manager
 - **Type**: `coder`
@@ -428,13 +428,12 @@ Each specialist implements code to pass TDD tests:
   - Expiration monitoring
   - Never stores secrets in git
 - **Runs in parallel with Phase 1 coding agents**
-- **Total Phase 1 memory**: ~25GB (qwen2.5-coder + qwen-fast)
 
-### Phase 2: Reasoning & Quality (qwen-quality-128k:latest)
+### Phase 2: Reasoning & Quality (Claude Sonnet 4.5)
 
-**API Alias**: `gpt-4` via ccproxy
-**Memory**: ~35GB
-**Context**: 128k tokens (extended for deep analysis)
+**Model**: Claude Sonnet 4.5 via direct API
+**Context**: 200k tokens
+**Use Cases**: QA review, security analysis, comprehensive reasoning
 
 #### 13. QA Engineer
 - **Type**: `test-automator`
@@ -729,19 +728,23 @@ Total: ~1.5-2 hours
 
 ### Resource Usage
 
-#### Memory Profile
+#### API Usage Profile
 
-**Phase 1**: 25GB total
-- qwen2.5-coder:32b-instruct (20GB) - 36 Sonnet agents
-- qwen-fast:latest (5GB) - 80 Haiku agents
-- Both loaded simultaneously ✅
+**Phase 1**: Parallel execution
+- Claude Sonnet 4.5: 36 agents (TDD, implementation, integration)
+- Claude Haiku 4.5: 80 agents (basic coding, utilities)
+- All agents run concurrently via Claude API
 
-**Model Swap**: ~40 seconds
-- qwen2.5-coder unloads
-- qwen-quality-128k loads
+**Phase 2**: Quality assurance
+- Claude Sonnet 4.5: 2 agents (QA, Security)
+- Claude Haiku 4.5: 1 agent (Documentation)
+- Sequential after Phase 1 completion
 
-**Phase 2**: 35GB total
-- qwen-quality-128k:latest (35GB) - 2 Sonnet (QA, Security) + 1 Haiku (Docs)
+**API Benefits**:
+- No local infrastructure required
+- Scalable cloud-based execution
+- No memory management needed
+- Instant model availability
 
 #### Token Efficiency
 
@@ -750,23 +753,23 @@ Total: ~1.5-2 hours
   - No repetitive information in prompts
   - Semantic search instead of full context
 
-- **Model Optimization**:
-  - Phase 1: 32k context (sufficient for most coding)
-  - Phase 2: 128k context (comprehensive analysis)
-  - No wasted tokens on unnecessary context
+- **Model Context**:
+  - All models: 200k token context window
+  - Sufficient for comprehensive coding and analysis
+  - No context limitations for complex tasks
 
 #### Timing Breakdown
 
 ```
 Total: ~70 minutes for complex full-stack app
 
-00:00 - Chief Architect (Opus/Sonnet)
-00:10 - Phase 1 starts (qwen2.5-coder + qwen-fast)
+00:00 - Chief Architect (Opus 4.1)
+00:10 - Phase 1 starts (Sonnet 4.5 + Haiku 4.5)
        ├─ TDD tests written
        ├─ All implementations in parallel
        └─ Credentials managed
-00:40 - Model swap (qwen2.5 → qwen-quality)
-00:41 - Phase 2 starts (qwen-quality-128k)
+00:40 - Phase 1 completes
+00:41 - Phase 2 starts (Sonnet 4.5 + Haiku 4.5)
        ├─ QA review and enhancement
        ├─ Security analysis
        └─ Documentation
@@ -873,100 +876,75 @@ const apiKey = await credentialManager.retrieve("salesforce_api_key");
 
 ```mermaid
 graph TB
-    Internet["Internet"]
+    Orchestrator["Claude Code Orchestrator<br/>(Local CLI)"]
 
-    CloudflareTunnel["Cloudflare Tunnel<br/>(coder.visiquate.com)"]
+    AnthropicAPI["Anthropic Claude API<br/>https://api.anthropic.com"]
 
-    subgraph MacMini["Mac mini (192.168.9.123)"]
-        Traefik["Traefik (Port 8080)<br/>- TLS termination<br/>- Bearer token authentication"]
-        CCProxy["ccproxy (Port 8081)<br/>- LiteLLM proxy<br/>- Model routing<br/>- Health checks DISABLED"]
-        Ollama["Ollama (Port 11434)<br/>- qwen2.5-coder:32b-instruct (20GB)<br/>- qwen-fast:latest (5GB)<br/>- qwen-quality-128k:latest (35GB)<br/>- On-demand model loading"]
+    subgraph CloudModels["Cloud-Based Models"]
+        Opus["Claude Opus 4.1<br/>Chief Architect"]
+        Sonnet["Claude Sonnet 4.5<br/>37 Intelligent Agents"]
+        Haiku["Claude Haiku 4.5<br/>81 Basic Agents"]
     end
 
-    Internet -->|HTTPS| CloudflareTunnel
-    CloudflareTunnel -->|"Internal Network<br/>(192.168.9.x)"| Traefik
-    Traefik --> CCProxy
-    CCProxy --> Ollama
+    Orchestrator -->|"HTTPS API Calls"| AnthropicAPI
+    AnthropicAPI --> Opus
+    AnthropicAPI --> Sonnet
+    AnthropicAPI --> Haiku
 ```
 
-### Model Routing Configuration
+### API Configuration
 
-**Location**: `/Users/brent/git/cc-orchestra/config/ccproxy/ccproxy-config-tdd-pipeline.yaml`
-
-```yaml
-model_list:
-  # Phase 1: 36 Sonnet agents (TDD, implementation, integration)
-  - model_name: claude-3-5-sonnet
-    litellm_params:
-      model: ollama/qwen2.5-coder:32b-instruct
-      api_base: http://localhost:11434
-
-  # Phase 1: 80 Haiku agents (basic coding, utilities, lightweight tasks)
-  - model_name: claude-3-haiku
-    litellm_params:
-      model: ollama/qwen-fast:latest
-      api_base: http://localhost:11434
-
-  # Phase 2: 2 Sonnet + 1 Haiku (reasoning, QA, Security, Docs)
-  - model_name: gpt-4
-    litellm_params:
-      model: ollama/qwen-quality-128k:latest
-      api_base: http://localhost:11434
-
-router_settings:
-  timeout: 300
-  num_retries: 0
-  routing_strategy: simple-shuffle
-  # Health checks DISABLED to prevent model thrashing
-  disable_cooldowns: true
-  allowed_fails: 1000
-  cooldown_time: 0
-```
+**Endpoint**: `https://api.anthropic.com`
+**Authentication**: API key via environment variable
+**Models Available**:
+- `claude-opus-4` - Chief Architect (strategic decisions)
+- `claude-sonnet-4.5` - 37 intelligent agents (complex coding, QA, security)
+- `claude-haiku-4.5` - 81 basic agents (simple coding, utilities, docs)
 
 ### Deployment Status
 
-**Public Endpoint**: https://coder.visiquate.com
-**Status**: ✅ Operational
-**Deployment Date**: 2025-11-04
-**Last Verified**: 2025-11-04
+**API Endpoint**: https://api.anthropic.com
+**Status**: ✅ Cloud-based via Anthropic
+**Infrastructure**: Fully managed by Anthropic
+**Deployment**: No local infrastructure required
 
-**Services:**
-- ✅ Ollama running (PID 70135)
-- ✅ ccproxy running (PID 33401)
-- ✅ Traefik routing verified
-- ✅ All 3 models accessible
-- ✅ Bearer token authentication working
+**Requirements:**
+- Valid Anthropic API key
+- Internet connectivity
+- Claude Code CLI installed
+- Node.js 16+ for Knowledge Manager
 
-**Verification:**
+**Configuration:**
 ```bash
-# Check models endpoint
-curl https://coder.visiquate.com/v1/models
+# Set API key (in environment)
+export ANTHROPIC_API_KEY="your-api-key-here"
 
-# Test completion (requires auth token)
-curl https://coder.visiquate.com/v1/chat/completions \
-  -H "Authorization: Bearer TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"model":"claude-3-5-sonnet","messages":[{"role":"user","content":"Hi"}]}'
+# Test API access
+curl https://api.anthropic.com/v1/messages \
+  -H "x-api-key: $ANTHROPIC_API_KEY" \
+  -H "anthropic-version: 2023-06-01" \
+  -H "content-type: application/json" \
+  -d '{"model":"claude-opus-4","messages":[{"role":"user","content":"Hello"}],"max_tokens":100}'
 ```
 
-### Automatic Deployment
+### Execution Flow
 
-**Watchtower Integration:**
-- Polls GitHub Container Registry every 30 seconds
-- Pulls new images automatically
-- Restarts containers with zero downtime
-- Health checks ensure smooth transitions
+**Local Development:**
+```
+1. Developer invokes Claude Code with task
+2. Orchestrator analyzes and selects agents
+3. Agents spawn in parallel via Claude API
+4. Each agent makes direct API calls to Anthropic
+5. Results coordinated via Knowledge Manager
+6. Orchestrator synthesizes final output
+```
 
-**Deployment Flow:**
-```
-1. Code pushed to GitHub
-2. GitHub Actions builds Docker image
-3. Image pushed to GHCR
-4. Watchtower detects new image (30s poll)
-5. Watchtower pulls and restarts container
-6. Health check confirms success
-7. Old container removed
-```
+**No Deployment Required:**
+- All execution happens via cloud API
+- No local model infrastructure
+- No container orchestration
+- No service management
+- Instant availability
 
 ---
 
@@ -976,7 +954,8 @@ curl https://coder.visiquate.com/v1/chat/completions \
 
 - Node.js 16+
 - Claude Code CLI
-- Access to ccproxy endpoint (for local LLM routing)
+- Valid Anthropic API key
+- Internet connectivity
 
 ### Quick Start
 
@@ -1070,13 +1049,13 @@ Claude Orchestra is a production-ready multi-agent development system that:
 ✅ **Enforces TDD**: Dedicated agent writes tests BEFORE implementation
 ✅ **Maintains Quality**: Built-in QA, security review, and documentation
 ✅ **Persists Knowledge**: Vector database survives conversation compactions
-✅ **Reduces Costs**: Local LLM routing via ccproxy
+✅ **Cloud-Based**: Direct Claude API integration (Opus 4.1, Sonnet 4.5, Haiku 4.5)
 ✅ **Works Anywhere**: Cross-repository deployment from any directory
-✅ **Scales Intelligently**: 6-15 agents based on project complexity
+✅ **Scales Intelligently**: 119 agents (1 Opus, 37 Sonnet, 81 Haiku) based on project complexity
 
 **Key Innovation**: Separating test creation (TDD Agent) from test review (QA Engineer) enables true test-first development while maintaining parallel execution efficiency.
 
-**Production Status**: Deployed and operational at https://coder.visiquate.com with 15 specialized agents ready for complex software development tasks.
+**Production Status**: Fully operational via Anthropic Claude API with 119 specialized agents ready for complex software development tasks.
 
 ---
 

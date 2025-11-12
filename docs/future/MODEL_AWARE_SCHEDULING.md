@@ -1,11 +1,15 @@
 # Model-Aware Task Scheduling for Claude Orchestra
 
+**STATUS: PLANNED - FUTURE OPTIMIZATION (NOT CURRENTLY IMPLEMENTED)**
+
 **Date**: 2025-11-04
 **Version**: 1.0
-**Status**: Design Proposal
+**Status**: Design Proposal for future optimization
 **Author**: System Architecture Designer
 
-**⚠️ POST-MIGRATION UPDATE (2025-11-09)**: MCP servers (claude-flow, ruv-swarm) have been **removed**. Option 1 (MCP-Coordinated Pipeline) is now **historical reference only**. The current system uses Knowledge Manager for agent coordination with manual phase control. See the [Migration Guide](MIGRATION_SETUP_GUIDE.md) for details.
+**NOTE**: This document proposes future optimizations for when multiple local LLM models will be deployed. The current system uses direct Claude API for all agents, so model-aware scheduling is not yet applicable.
+
+**⚠️ HISTORICAL NOTE**: MCP servers (claude-flow, ruv-swarm) were explored but are no longer used. The current system uses Knowledge Manager for agent coordination. This document is for future reference when local model routing is implemented.
 
 ---
 

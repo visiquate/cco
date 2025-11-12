@@ -1,8 +1,12 @@
 # Health Check Model Thrashing - Critical Issue & Fix
 
+**STATUS: FUTURE-STATE ARCHITECTURE (NOT CURRENTLY DEPLOYED)**
+
 **Date**: 2025-11-04
-**Status**: ✅ RESOLVED - Deployed and Verified
-**Solution**: 3-model config with health checks disabled
+**Status**: Planned solution for future ccproxy deployment
+**Solution**: 3-model config with health checks disabled (for future use)
+
+**IMPORTANT**: This document describes a planned solution for the future ccproxy infrastructure. The Claude Orchestra **currently uses direct Anthropic Claude API**, not Ollama models.
 
 ## The Problem
 

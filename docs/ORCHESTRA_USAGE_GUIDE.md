@@ -3,35 +3,41 @@
 ## Overview
 
 The Claude Orchestra is a sophisticated multi-agent development system featuring:
-- **1 Chief Architect** (Opus 4.1) - Strategic decision-making
-- **5 Coding Specialists** - Python, Swift, Go, Rust, Flutter experts
-- **5 Support Agents** - Documentation, QA, Security, Credentials, DevOps
+- **119 Total Agents** organized across 13 functional sections
+- **1 Chief Architect** (Opus 4.1) - Strategic decision-making and coordination
+- **37 Intelligent Specialists** (Sonnet 4.5) - Architects, reviewers, complex coding, DevOps
+- **81 Basic Agents** (Haiku 4.5) - Language specialists, documentation, utilities
 
 ## Architecture
 
 ```mermaid
 graph TD
-    Architect["Chief Architect (Opus)<br/>Strategic Decisions & Coordination"]
+    Architect["Chief Architect (Opus 4.1)<br/>Strategic Decisions & Coordination"]
 
-    subgraph CodingAgents["Coding Agents"]
-        Python["Python"]
-        Swift["Swift"]
-        Go["Go"]
-        Rust["Rust"]
-        Flutter["Flutter"]
+    subgraph IntelligentSpecialists["37 Intelligent Specialists (Sonnet 4.5)"]
+        CodingExperts["Coding Experts:<br/>Python, Swift, Go, Rust, Flutter<br/>API Specialists:<br/>Salesforce, Authentik, REST"]
+        Managers["Managers & Reviewers:<br/>TDD Agent, Architects,<br/>Code Reviewers, Debuggers"]
+        Security["Security:<br/>Auditors, Engineers,<br/>Penetration Testers"]
+        QA["Testing & QA:<br/>Engineers, Automators,<br/>Performance Optimizers"]
+        DevOps["DevOps:<br/>Engineers, Cloud Architects,<br/>Deployment Specialists"]
     end
 
-    subgraph SupportAgents["Support Agents"]
-        Documentation["Documentation"]
-        QA["QA/Testing"]
-        Security["Security"]
-        Credentials["Credentials"]
-        DevOps["DevOps"]
+    subgraph BasicAgents["81 Basic Agents (Haiku 4.5)"]
+        LanguageSpecialists["Language Specialists:<br/>Python/Go/Swift/Rust/Flutter Pros"]
+        Documentation["Documentation:<br/>Technical Writers, API Documenters"]
+        Utilities["Utilities:<br/>Git Managers, DX Optimizers,<br/>Dependency Managers"]
     end
 
-    Architect --> CodingAgents
-    Architect --> SupportAgents
+    Architect --> IntelligentSpecialists
+    Architect --> BasicAgents
 ```
+
+**Model Distribution:**
+- **Opus 4.1**: 1 agent (0.8%) - Chief Architect for strategic decisions
+- **Sonnet 4.5**: 37 agents (31.1%) - Complex reasoning, code review, management
+- **Haiku 4.5**: 81 agents (68.1%) - Basic coding, documentation, utilities
+
+All agents use **direct Anthropic Claude API** (no proxies or local models).
 
 ## Setup
 
@@ -56,38 +62,44 @@ node src/knowledge-manager.js stats
 
 **User:** "Build a REST API with user authentication in Python"
 
-**Claude Code Response:**
+**Claude Code Response (using direct Anthropic Claude API):**
 ```
 [Single Message - Parallel Agent Spawn]:
 
-Task("Chief Architect", "Analyze REST API with auth requirement...", "backend-architect", model="opus")
-Task("Python Specialist", "Implement FastAPI with JWT auth...", "python-pro", model="sonnet")
-Task("QA Engineer", "Create integration tests for auth API...", "test-automator", model="sonnet")
-Task("Security Auditor", "Review authentication security...", "security-auditor", model="sonnet")
-Task("Documentation Lead", "Document API endpoints and auth flow...", "fullstack-developer", model="haiku")
-Task("Credential Manager", "Setup secure secret management...", "fullstack-developer", model="haiku")
+// All agents use Anthropic Claude API directly
+Task("Chief Architect", "Analyze REST API with auth requirement...", "backend-architect", "opus")
+Task("Python Specialist", "Implement FastAPI with JWT auth...", "python-pro", "sonnet-4.5")
+Task("QA Engineer", "Create integration tests for auth API...", "test-automator", "sonnet-4.5")
+Task("Security Auditor", "Review authentication security...", "security-auditor", "sonnet-4.5")
+Task("Documentation Lead", "Document API endpoints and auth flow...", "technical-writer", "haiku-4.5")
+Task("Credential Manager", "Setup secure secret management...", "credential-manager", "haiku-4.5")
 ```
 
 ### Advanced Workflow: Multi-Language Project
 
 **User:** "Build a mobile app (Flutter) with a backend (Go) and ML service (Python)"
 
-**Claude Code Response:**
+**Claude Code Response (using direct Anthropic Claude API):**
 ```
 [Single Message - Full Orchestra Deployment]:
 
-// Spawn All Agents (Knowledge Manager handles coordination)
-Task("Chief Architect", "Design 3-tier architecture...", "backend-architect", model="opus")
-Task("Flutter Specialist", "Build mobile app UI...", "mobile-developer", model="sonnet")
-Task("Go Specialist", "Implement REST API backend...", "backend-architect", model="sonnet")
-Task("Python Specialist", "Create ML inference service...", "python-pro", model="sonnet")
-Task("QA Engineer", "E2E testing across all services...", "test-automator", model="sonnet")
-Task("Security Auditor", "Security review of all components...", "security-auditor", model="sonnet")
-Task("Documentation Lead", "System documentation...", "fullstack-developer", model="haiku")
-Task("Credential Manager", "Manage API keys, DB credentials...", "fullstack-developer", model="haiku")
+// Spawn Selected Agents (Knowledge Manager handles coordination)
+Task("Chief Architect", "Design 3-tier architecture...", "backend-architect", "opus")
+Task("Flutter Specialist", "Build mobile app UI...", "mobile-developer", "sonnet-4.5")
+Task("Go Specialist", "Implement REST API backend...", "backend-architect", "sonnet-4.5")
+Task("Python Specialist", "Create ML inference service...", "python-pro", "sonnet-4.5")
+Task("QA Engineer", "E2E testing across all services...", "test-automator", "sonnet-4.5")
+Task("Security Auditor", "Security review of all components...", "security-auditor", "sonnet-4.5")
+Task("Documentation Lead", "System documentation...", "technical-writer", "haiku-4.5")
+Task("Credential Manager", "Manage API keys, DB credentials...", "credential-manager", "haiku-4.5")
 
 TodoWrite({ todos: [10+ todos for all phases] })
 ```
+
+**Model Usage:**
+- Architect: Opus 4.1 (strategic decisions)
+- Coding & QA: Sonnet 4.5 (complex reasoning)
+- Docs & Utilities: Haiku 4.5 (basic tasks)
 
 ## Agent Coordination Protocol
 

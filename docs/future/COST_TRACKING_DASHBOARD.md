@@ -1,8 +1,10 @@
 # ccproxy Cost Tracking Dashboard
 
+**STATUS: PLANNED - FUTURE DASHBOARD FOR HYBRID ROUTING**
+
 ## Overview
 
-The **Cost Tracking Dashboard** provides real-time visibility into your hybrid routing savings. It tracks:
+The **Cost Tracking Dashboard** **will provide** real-time visibility into hybrid routing savings **when ccproxy is deployed**. It **would track**:
 - Requests to Anthropic API (paid)
 - Requests to local Ollama models (free)
 - Actual costs vs hypothetical all-Anthropic costs

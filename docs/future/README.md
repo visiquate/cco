@@ -1,10 +1,12 @@
 # Future Enhancements - Claude Orchestra Documentation
 
-This directory contains comprehensive documentation for future enhancement plans for the Claude Orchestra multi-agent development system.
+**STATUS: PLANNED ENHANCEMENTS - NOT YET IMPLEMENTED**
 
-## Current System Status
+This directory contains comprehensive documentation for future enhancement plans for the Claude Orchestra multi-agent development system. **The features described here are aspirational goals, not currently operational.**
 
-**Note**: The Claude Orchestra currently operates with direct Claude API integration using 117 specialized agents across 3 model tiers:
+## Current System Status (TODAY)
+
+The Claude Orchestra **currently operates with direct Claude API integration** using 119 specialized agents across 3 model tiers:
 
 - **1 agent** uses Claude Opus 4.1 (Chief Architect)
 - **77 agents** use Claude Sonnet 4.5 (intelligent managers, reviewers, complex coding)

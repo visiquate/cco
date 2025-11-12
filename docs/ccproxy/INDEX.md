@@ -1,17 +1,21 @@
 # CCProxy Documentation Index
 
-Complete documentation for the ccproxy routing chain deployment.
+**STATUS: FUTURE-STATE ARCHITECTURE (NOT CURRENTLY DEPLOYED)**
+
+Complete documentation for the planned ccproxy routing chain deployment.
+
+**IMPORTANT**: This ccproxy infrastructure is planned for future deployment pending hardware availability. The Claude Orchestra **currently uses direct Anthropic Claude API**, not ccproxy/LiteLLM/Ollama.
 
 ---
 
 ## Quick Start
 
-**New to ccproxy?** Start here:
+**New to ccproxy planning?** Start here:
 1. [SUMMARY.md](./SUMMARY.md) - Executive summary (1 page)
-2. [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) - Code examples
+2. [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) - Code examples (for future deployment)
 
-**Using with Claude Code Orchestra?**
-- [CLAUDE_CODE_INTEGRATION.md](./CLAUDE_CODE_INTEGRATION.md) - Integration guide
+**Planning integration with Claude Code Orchestra?**
+- [CLAUDE_CODE_INTEGRATION.md](./CLAUDE_CODE_INTEGRATION.md) - Integration guide (for future deployment)
 
 ---
 

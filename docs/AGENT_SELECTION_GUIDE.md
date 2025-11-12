@@ -769,4 +769,4 @@ Task("Frontend Developer", "Build UI", "fullstack-developer")
 
 ---
 
-**Smart Selection = Efficient Development** | **125 Agents** | **Right Tool for Every Job**
+**Smart Selection = Efficient Development** | **119 Agents** | **Right Tool for Every Job**

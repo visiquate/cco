@@ -1,6 +1,10 @@
 # ccproxy Deployment Mission for Claude Orchestra
 
-**Mission**: Deploy ccproxy (LiteLLM) on Mac mini (coder.visiquate.com) to route Claude Code requests intelligently between Ollama (coding) and Claude API (architecture) with automatic fallback.
+**STATUS: PLANNED - FUTURE DEPLOYMENT MISSION**
+
+**Mission** (Planned): Deploy ccproxy (LiteLLM) on Mac mini (coder.visiquate.com) to route Claude Code requests intelligently between Ollama (coding) and Claude API (architecture) with automatic fallback.
+
+**Current Status**: Mission documented and ready to execute. Infrastructure deployment pending hardware availability.
 
 **Server**: Mac mini running macOS (accessible via coder.visiquate.com)
 **Deployment Location**: `/Users/coder/ccproxy/` (or appropriate Mac user home directory)

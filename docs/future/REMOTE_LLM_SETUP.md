@@ -1,6 +1,10 @@
 # Remote LLM Integration - coder.visiquate.com
 
-**Complete guide to integrating Claude Orchestra with the remote Ollama LLM server**
+**STATUS: PLANNED - FUTURE REMOTE LLM INTEGRATION GUIDE**
+
+**Complete guide for integrating Claude Orchestra with the remote Ollama LLM server (when deployed)**
+
+**Currently**: All agents use Claude API directly. Remote LLM integration is not active.
 
 ## Table of Contents
 1. [Overview](#overview)

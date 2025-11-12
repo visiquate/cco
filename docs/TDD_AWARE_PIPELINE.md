@@ -11,12 +11,12 @@
 
 This document presents a redesigned Claude Orchestra pipeline that strictly adheres to Test-Driven Development (TDD) methodology. The core innovation is the introduction of a dedicated **TDD Coding Agent** that writes failing tests BEFORE any implementation code, ensuring true red-green-refactor cycles.
 
-**Key Changes:**
-- **Added TDD Coding Agent** (15th agent) - Writes failing tests first
-- **Proper TDD workflow** - Tests before code, always
-- **Two-phase execution** - Phase 1: TDD + Implementation (qwen2.5-coder 32B + qwen-fast 7B), Phase 2: Deep reasoning (qwen-quality-128k 32B)
-- **Chief Architect independence** - Uses Opus 4.1 with Sonnet 4.5 fallback, not local models
-- **ccproxy routing** - All agents (except Architect) route through LiteLLM proxy to Ollama qwen models
+**Key Features:**
+- **TDD Methodology** - Tests written before implementation (red-green-refactor cycle)
+- **119 Specialized Agents** - Optimized distribution across models
+- **Direct Claude API** - All agents use Anthropic Claude API directly
+- **Chief Architect Leadership** - Uses Claude Opus 4.1 with Sonnet 4.5 fallback
+- **Knowledge Manager Coordination** - Persistent memory across all agents
 
 ---
 
@@ -93,76 +93,34 @@ Timeline:
 
 ## 2. Agent Roster and Responsibilities
 
-### Total: 15 Agents (was 14, added TDD Specialist)
+### Total: 119 Agents
 
-#### Independent Agent (1)
-**Chief Architect**
-- Model: Opus 4.1 (primary) / Sonnet 4.5 (fallback)
-- Location: Claude API (not local)
+#### Leadership (1)
+**Chief Architect** (Claude Opus 4.1 with Sonnet 4.5 fallback)
 - Role: Strategic decisions, system design, coordination
-- Output: Architecture decisions stored in `architect/decisions`
+- Output: Architecture decisions stored in Knowledge Manager
 
-#### Phase 1 Agents - qwen2.5-coder:32b-instruct (10 agents)
-**Routes via**: `claude-3-5-sonnet` API alias through ccproxy
+#### Coding Specialists (37 agents - Claude Sonnet 4.5)
+- **TDD Coding Agent** - Writes failing tests first (red-green-refactor)
+- **Language Specialists**: Python, Swift, Go, Rust, Flutter
+- **Integration Specialists**: API Explorer, Salesforce API, Authentik API
+- **Additional Coders**: Plus 28 more specialized coding agents
 
-**TDD Coding Agent** ⭐ NEW (Agent 1)
-- Type: `coder`
-- Role: Test-first development specialist
-- Responsibilities:
-  - Write comprehensive failing unit tests
-  - Create test fixtures and mocks
-  - Define test coverage requirements (≥90%)
-  - Establish acceptance criteria
-  - Run tests to verify they fail (red phase)
-- Output: Tests stored in `tdd/failing-tests`
+#### Support Agents (37 agents - Claude Sonnet 4.5)
+- **QA Engineer** - Integration testing, edge cases, autonomous test fixing
+- **Security Auditor** - Vulnerability analysis, threat modeling, OWASP compliance
+- **DevOps Engineer** - Infrastructure, Docker, CI/CD, Kubernetes
+- **Code Reviewer** - Code quality and best practices
+- **Documentation Lead** - Technical documentation and API docs
+- **Plus 32 more support specialists**
 
-**Coding Specialists (Agents 2-6)**
-- Python Expert - Implements to pass TDD tests
-- Swift Expert - Implements to pass TDD tests
-- Go Expert - Implements to pass TDD tests
-- Rust Expert - Implements to pass TDD tests
-- Flutter Expert - Implements to pass TDD tests
-
-**Integration Specialists (Agents 7-9)**
-- API Explorer - Research and integration patterns
-- Salesforce API Expert - CRM integration code
-- Authentik API Expert - Authentication implementation
-
-**DevOps (Agent 10)**
-- DevOps Engineer - Infrastructure and deployment
-
-#### Phase 1 Agent - qwen-fast:latest (1 agent)
-**Routes via**: `claude-3-haiku` API alias through ccproxy
-
-**Credential Manager (Agent 11)**
-- Secure secrets management
-- Lightweight operations
-- Runs in parallel with qwen2.5-coder agents
-
-#### Phase 2 Agents - qwen-quality-128k:latest (3 agents)
-**Routes via**: `gpt-4` API alias through ccproxy
-
-**QA Engineer (Agent 13)**
-- Reviews TDD test completeness
-- Adds edge case testing
-- Integration and E2E tests
-- Performance testing
-- Test quality analysis
-- Autonomous test fixing
-
-**Security Auditor (Agent 14)**
-- Deep vulnerability analysis
-- Security reasoning and threat modeling
-- OWASP compliance check
-- Penetration test planning
-- Can block deployment for critical issues
-
-**Documentation Lead (Agent 15)**
-- Technical documentation with architectural context
-- API documentation with code examples
-- System design diagrams
-- Deployment guides
-- Inline code comments
+#### Basic Coders & Utilities (81 agents - Claude Haiku 4.5)
+- **Language Specialists**: Additional Python, TypeScript, JavaScript, Go, Rust, Swift implementers
+- **Documentation**: Technical writers, API documenters, markdown formatters
+- **Utilities**: DX optimizers, dependency managers, monitoring specialists
+- **Research**: Fact checkers, search specialists
+- **Business**: Analysts, content marketers
+- **Plus 65 more basic coders and utilities**
 
 ---
 

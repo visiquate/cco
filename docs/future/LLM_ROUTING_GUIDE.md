@@ -1,8 +1,12 @@
 # LLM Routing Guide
 
+**STATUS: PLANNED - FUTURE ROUTING CAPABILITY**
+
 ## Overview
 
-The Claude Orchestra now supports intelligent LLM routing to use different AI models for different types of tasks. This allows architecture and planning decisions to continue using Claude while routing coding implementation tasks to a custom LLM endpoint.
+The Claude Orchestra **will support** intelligent LLM routing to use different AI models for different types of tasks **when ccproxy is deployed**. This **would** allow architecture decisions to use Claude while routing coding tasks to a custom LLM endpoint.
+
+**Currently**: All tasks use Claude API directly. No routing is active.
 
 ## Architecture
 

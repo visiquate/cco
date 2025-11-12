@@ -1,7 +1,10 @@
 # Claude Code LLM Routing Research
 
+**STATUS: PLANNED - FUTURE ROUTING ARCHITECTURE RESEARCH**
+
 **Research Date:** 2025-11-04
-**Objective:** Determine how to route Claude Code Task tool calls through an LLM router/proxy
+**Objective:** Document how Claude Code Task tool calls **could be** routed through an LLM router/proxy in the future
+**Current Implementation**: Direct Claude API (no routing currently active)
 
 ---
 

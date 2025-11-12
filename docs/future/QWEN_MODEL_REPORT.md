@@ -1,8 +1,10 @@
 # Qwen 2.5 Coder Model Report
 
+**STATUS: PLANNED - FUTURE LOCAL LLM DEPLOYMENT**
+
 ## Executive Summary
 
-Based on documentation analysis, the Claude Orchestra system uses **two Qwen 2.5 Coder models** for heavy coding tasks. The 32B model is the high-quality option for complex work.
+Based on future deployment plans, the Claude Orchestra **will use two Qwen 2.5 Coder models** for heavy coding tasks when ccproxy is deployed. The 32B model will be the high-quality option for complex work. **This is NOT currently in use - the system uses Claude API exclusively today.**
 
 ---
 

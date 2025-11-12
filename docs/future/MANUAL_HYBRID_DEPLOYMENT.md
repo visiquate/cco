@@ -1,10 +1,10 @@
 # Manual Hybrid Deployment Guide
 
-## Status
+**STATUS: PLANNED - DEPLOYMENT PROCEDURES FOR FUTURE HYBRID ROUTING**
 
-**Mac mini (192.168.9.123) is currently offline or unreachable.**
+## Current Status
 
-Your hybrid configuration is ready to deploy when you have access to the Mac mini.
+The hybrid deployment procedures documented here **are NOT currently active**. This guide describes how to deploy hybrid routing when infrastructure becomes available and is ready for deployment.
 
 ## Quick Deployment (When Mac Mini Accessible)
 

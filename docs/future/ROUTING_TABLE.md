@@ -1,6 +1,10 @@
 # ccproxy Hybrid Routing Table
 
-## Current Configuration (Maximum Savings Mode)
+**STATUS: PLANNED - FUTURE HYBRID ROUTING CONFIGURATION**
+
+## Future Configuration (When ccproxy is deployed)
+
+This table shows the **intended routing configuration** when ccproxy hybrid routing is implemented. Currently, all requests use Claude API directly.
 
 Last updated: 2025-11-04
 

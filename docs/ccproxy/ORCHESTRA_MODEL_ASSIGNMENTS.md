@@ -1,17 +1,21 @@
 # Claude Orchestra Model Assignments - TDD Pipeline
 
+**STATUS: FUTURE-STATE ARCHITECTURE (NOT CURRENTLY DEPLOYED)**
+
 **Date**: 2025-11-04
-**Version**: 3.0 (TDD Edition)
-**Status**: ✅ Deployed and Operational
+**Version**: 3.0 (TDD Edition - Planned)
+**Planned Status**: Future deployment (pending hardware)
 **Configuration**: `/Users/brent/git/cc-orchestra/config/orchestra-config.json`
+
+**IMPORTANT**: This document describes the planned TDD pipeline using Ollama qwen models via ccproxy. The Claude Orchestra **currently uses direct Anthropic Claude API** (1 Opus 4.1, 37 Sonnet 4.5, 81 Haiku 4.5).
 
 ---
 
-## Executive Summary
+## Planned Architecture
 
-The Claude Orchestra uses **3 Ollama qwen models** routed through **ccproxy** (LiteLLM proxy) with specific agent-to-model mappings for the 15-agent TDD pipeline.
+The Claude Orchestra will use **3 Ollama qwen models** routed through **ccproxy** (LiteLLM proxy) with specific agent-to-model mappings for the TDD pipeline (once hardware is available).
 
-**Deployment**: https://coder.visiquate.com (Mac mini at 192.168.9.123)
+**Planned Deployment**: https://coder.visiquate.com (Mac mini at 192.168.9.123)
 
 ---
 

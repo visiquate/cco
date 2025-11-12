@@ -1,8 +1,12 @@
 # Hybrid Routing Setup Guide
 
+**STATUS: PLANNED - FUTURE SETUP PROCEDURES FOR HYBRID ROUTING**
+
 ## Overview
 
-This guide configures ccproxy to route **Chief Architect** to real Claude API while routing all **coding agents** to local Ollama models.
+This guide **will configure** ccproxy to route **Chief Architect** to real Claude API while routing all **coding agents** to local Ollama models **when the infrastructure is deployed**.
+
+**Currently**: All agents use Claude API directly.
 
 ## Architecture
 

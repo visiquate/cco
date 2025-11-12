@@ -1,8 +1,12 @@
 # LiteLLM Proxy (ccproxy) - Native macOS Deployment Architecture
 
+**STATUS: FUTURE-STATE ARCHITECTURE (NOT CURRENTLY DEPLOYED)**
+
 ## Executive Summary
 
-This document outlines the deployment architecture for running LiteLLM Proxy (ccproxy) **natively on macOS without Docker**. The deployment integrates with existing Traefik routing and Ollama installation.
+This document outlines the planned deployment architecture for running LiteLLM Proxy (ccproxy) **natively on macOS without Docker**. The deployment would integrate with existing Traefik routing and Ollama installation.
+
+**IMPORTANT**: This is a future-state design pending hardware availability. The Claude Orchestra **currently uses direct Anthropic Claude API** (1 Opus 4.1, 37 Sonnet 4.5, 81 Haiku 4.5).
 
 ## Architecture Overview
 

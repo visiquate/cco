@@ -1,6 +1,12 @@
 # LiteLLM Proxy (ccproxy) - Native macOS Deployment Steps
 
-## Prerequisites
+**STATUS: FUTURE-STATE ARCHITECTURE (NOT CURRENTLY DEPLOYED)**
+
+This guide describes the planned ccproxy deployment process. The Claude Orchestra **currently uses direct Anthropic Claude API**, not ccproxy.
+
+---
+
+## Prerequisites (For Future Deployment)
 
 - macOS system (Mac mini)
 - Python 3.8+ installed (Homebrew recommended)
@@ -8,7 +14,7 @@
 - Traefik already configured with bearer token authentication
 - Admin/sudo access for service installation
 
-## Quick Start (15-20 minutes)
+## Quick Start (15-20 minutes) - Future Deployment
 
 ### Step 1: Install LiteLLM (5 minutes)
 

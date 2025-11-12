@@ -1,7 +1,9 @@
 # Claude Orchestra - Complete Routing Summary v2.0
 
+**STATUS: PLANNED - FUTURE HYBRID ROUTING (NOT CURRENTLY IMPLEMENTED)**
+
 ## Overview
-The Claude Orchestra now includes **16 specialized agents** with intelligent LLM routing between Claude API and Ollama (coder.visiquate.com).
+The Claude Orchestra **would include 16 specialized agents** with intelligent LLM routing between Claude API and Ollama (coder.visiquate.com) **when ccproxy is deployed**. Currently, all agents use Claude API exclusively.
 
 ## ✨ New in v2.0
 

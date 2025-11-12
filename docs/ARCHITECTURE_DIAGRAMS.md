@@ -227,11 +227,11 @@ graph TB
 
 ## 4. Model Assignment Strategy
 
-This diagram shows how the 117 agents are distributed across three Claude models based on role complexity.
+This diagram shows how the 119 agents are distributed across three Claude models based on role complexity.
 
 ```mermaid
 graph TD
-    subgraph "Claude Orchestra - 117 Agents"
+    subgraph "Claude Orchestra - 119 Agents"
         CC[Claude Code<br/>Spawns all agents in parallel]
     end
 
@@ -239,11 +239,11 @@ graph TD
     CC --> SonnetAgents[Intelligent Managers<br/>37 Agents<br/>Sonnet 4.5]
     CC --> HaikuAgents[Basic Specialists<br/>81 Agents<br/>Haiku 4.5]
 
-    OpusAgent --> OpusAPI[Claude Opus 4.1 API<br/>Strategic Leadership<br/>Architecture Design]
+    OpusAgent --> OpusAPI[Claude Opus 4.1 API<br/>Direct Claude API<br/>Strategic Leadership<br/>Architecture Design]
 
-    SonnetAgents --> SonnetAPI[Claude Sonnet 4.5 API<br/>Complex Reasoning<br/>Code Review, Security, Testing]
+    SonnetAgents --> SonnetAPI[Claude Sonnet 4.5 API<br/>Direct Claude API<br/>Complex Reasoning<br/>Code Review, Security, Testing]
 
-    HaikuAgents --> HaikuAPI[Claude Haiku 4.5 API<br/>Simple Tasks<br/>Language Coding, Docs, Utils]
+    HaikuAgents --> HaikuAPI[Claude Haiku 4.5 API<br/>Direct Claude API<br/>Simple Tasks<br/>Language Coding, Docs, Utils]
 
     SonnetAgents --> ReviewGroup[Code Review & Quality<br/>Reviewers, Debuggers]
     SonnetAgents --> SecGroup[Security & Compliance<br/>Auditors, Pen Testers]
@@ -274,10 +274,8 @@ graph TD
 
 **Cost Optimization:**
 - **Current**: All agents use direct Claude API
-- **Haiku 4.5**: 69% of agents use most cost-effective model
-- **Future**: ccproxy integration for local LLM routing (pending hardware)
-  - Potential savings: $300-450/month
-  - Target: Mac mini with Ollama for Sonnet/Haiku workloads
+- **Haiku 4.5**: 68.1% of agents use most cost-effective model
+- **Cost Savings**: 44% reduction vs. all-Sonnet approach through intelligent model distribution
 
 ---
 

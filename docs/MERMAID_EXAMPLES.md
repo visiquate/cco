@@ -59,113 +59,88 @@ graph TD
 
 ---
 
-## Example 2: Model Routing
+## Example 2: Model Routing (Direct Claude API)
 
-### Before (ASCII)
+### Before (Outdated - Local Models)
 ```
 ┌─────────────────────────────────────────────────────┐
 │             Claude Code (Orchestrator)              │
 │          Spawns agents with model parameter         │
 └──────────────────────┬──────────────────────────────┘
                        │
-                       │ Agent requests with API aliases
+                  Agent Requests
                        │
 ┌──────────────────────▼──────────────────────────────┐
-│             ccproxy (LiteLLM Proxy)                 │
-│           https://coder.visiquate.com               │
-│             API Alias Mapping:                      │
-│   • claude-3-5-sonnet → qwen2.5-coder:32b-instruct  │
-│   • claude-3-haiku    → qwen-fast:latest            │
-│   • gpt-4             → qwen-quality-128k:latest    │
-└──────────────────────┬──────────────────────────────┘
-                       │
-                       │ Forward to Ollama
-                       │
-┌──────────────────────▼──────────────────────────────┐
-│             Ollama (localhost:11434)                │
-│            Mac mini at 192.168.9.123                │
-│                       Models:                       │
-│        • qwen2.5-coder:32b-instruct (20GB)          │
-│              • qwen-fast:latest (5GB)               │
-│         • qwen-quality-128k:latest (35GB)           │
+│        Anthropic Claude API (Direct)                │
+│             Models: Opus 4.1, Sonnet 4.5, Haiku     │
+│        No proxies, no local LLM routing            │
 └─────────────────────────────────────────────────────┘
 ```
 
-### After (Mermaid)
+### After (Current - Direct API)
 ```mermaid
 graph TB
     Orchestrator["Claude Code (Orchestrator)<br/>Spawns agents with model parameter"]
 
-    CCProxy["ccproxy (LiteLLM Proxy)<br/>https://coder.visiquate.com<br/><br/>API Alias Mapping:<br/>• claude-3-5-sonnet → qwen2.5-coder:32b-instruct<br/>• claude-3-haiku → qwen-fast:latest<br/>• gpt-4 → qwen-quality-128k:latest"]
+    APIRoute["Anthropic Claude API<br/>(Direct Integration)<br/><br/>Model Distribution:<br/>• Opus 4.1 (1 agent) - Strategic decisions<br/>• Sonnet 4.5 (37 agents) - Complex reasoning<br/>• Haiku 4.5 (81 agents) - Basic tasks"]
 
-    Ollama["Ollama (localhost:11434)<br/>Mac mini at 192.168.9.123<br/><br/>Models:<br/>• qwen2.5-coder:32b-instruct (20GB)<br/>• qwen-fast:latest (5GB)<br/>• qwen-quality-128k:latest (35GB)"]
-
-    Orchestrator -->|"Agent requests<br/>with API aliases"| CCProxy
-    CCProxy -->|"Forward to Ollama"| Ollama
+    Orchestrator -->|"Agent requests<br/>via Claude API"| APIRoute
 ```
 
-**Improvements**:
-- Edge labels clearly show data flow
-- Multi-line labels preserve all details
-- Better visual balance
-- Professional appearance
+**Current Architecture**:
+- Direct Anthropic Claude API integration
+- No proxies or local LLM routing
+- 119 agents across 3 model tiers
+- All agents use official Claude models
+- Simplified, maintainable infrastructure
 
 ---
 
-## Example 3: Security Layers
+## Example 3: Agent Security & Isolation
 
-### Before (ASCII)
+### Current Architecture (Direct API)
 ```
-┌─────────────────────────────────────────────────────────┐
-│ Layer 1: Network Isolation                              │
-│ • LiteLLM bound to localhost only (127.0.0.1:8081)      │
-│ • Ollama bound to localhost only (11434)                │
-│ • No direct external access                             │
-└────────────────────┬────────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────────┐
-│ Layer 2: Reverse Proxy (Traefik)                        │
-│ • Public-facing gateway (coder.visiquate.com:8080)      │
-│ • TLS termination (HTTPS encryption)                    │
-│ • Bearer token authentication                           │
-└────────────────────┬────────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────────┐
-│ Layer 3: Application Security (LiteLLM)                 │
-│ • Model whitelist (only configured models)              │
-│ • Parameter validation                                  │
-│ • Request logging                                       │
-└────────────────────┬────────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────────┐
-│ Layer 4: Inference Isolation (Ollama)                   │
-│ • Local execution only                                  │
-│ • No external model downloads at runtime                │
-│ • Resource limits via macOS                             │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│       Claude Code (Orchestrator)             │
+│  - Request validation                        │
+│  - Agent authorization                       │
+└────────────────┬─────────────────────────────┘
+                 │
+┌────────────────▼─────────────────────────────┐
+│    Anthropic Claude API (Authenticated)      │
+│  - API key validation                        │
+│  - Rate limiting                             │
+│  - Token tracking                            │
+└────────────────┬─────────────────────────────┘
+                 │
+┌────────────────▼─────────────────────────────┐
+│     Knowledge Manager (Per-Repository)       │
+│  - Isolated knowledge databases              │
+│  - Semantic search with embeddings           │
+│  - Pre/post-compaction hooks                 │
+└──────────────────────────────────────────────┘
 ```
 
-### After (Mermaid)
+### Mermaid Representation
 ```mermaid
 graph TB
-    Layer1["Layer 1: Network Isolation<br/>• LiteLLM bound to localhost only (127.0.0.1:8081)<br/>• Ollama bound to localhost only (11434)<br/>• No direct external access"]
+    Orchestrator["Claude Code (Orchestrator)<br/>Request validation & Authorization"]
 
-    Layer2["Layer 2: Reverse Proxy (Traefik)<br/>• Public-facing gateway (coder.visiquate.com:8080)<br/>• TLS termination (HTTPS encryption)<br/>• Bearer token authentication"]
+    API["Anthropic Claude API<br/>• API key validation<br/>• Rate limiting<br/>• Token accounting"]
 
-    Layer3["Layer 3: Application Security (LiteLLM)<br/>• Model whitelist (only configured models)<br/>• Parameter validation<br/>• Request logging"]
+    KnowledgeManager["Knowledge Manager<br/>• Per-repository isolation<br/>• Semantic search (384-dim)<br/>• Persistent storage"]
 
-    Layer4["Layer 4: Inference Isolation (Ollama)<br/>• Local execution only<br/>• No external model downloads at runtime<br/>• Resource limits via macOS"]
-
-    Layer1 --> Layer2
-    Layer2 --> Layer3
-    Layer3 --> Layer4
+    Orchestrator -->|"Agent tasks via<br/>official API"| API
+    API -->|"Context & decisions"| KnowledgeManager
+    KnowledgeManager -->|"Retrieved knowledge"| API
 ```
 
-**Improvements**:
-- Clear layer progression
-- All security controls preserved
-- Simplified connection logic
-- Better readability
+**Security Features**:
+- Direct Anthropic Claude API authentication
+- Per-repository knowledge isolation
+- Official Claude models only
+- No local inference, no external proxies
+- Token-based tracking and accountability
 
 ---
 

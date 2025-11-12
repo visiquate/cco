@@ -1,8 +1,12 @@
 # Qwen Coder Models - Quick Discovery Summary
 
+**STATUS: FUTURE-STATE ARCHITECTURE (NOT CURRENTLY DEPLOYED)**
+
 **Date**: 2025-11-04
-**Status**: Server offline - based on documentation analysis
-**Confidence**: 80%
+**Status**: Planning phase (for future ccproxy deployment)
+**Confidence**: Planning document
+
+**IMPORTANT**: This summary documents planned Qwen models for future ccproxy deployment. The Claude Orchestra **currently uses direct Anthropic Claude API**, not local Ollama models.
 
 ---
 

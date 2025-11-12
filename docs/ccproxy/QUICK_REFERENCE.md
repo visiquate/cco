@@ -1,6 +1,12 @@
 # CCProxy Quick Reference Guide
 
-## Connection Details
+**STATUS: FUTURE-STATE ARCHITECTURE (NOT CURRENTLY DEPLOYED)**
+
+This guide describes the planned ccproxy infrastructure. The Claude Orchestra **currently uses direct Anthropic Claude API**, not ccproxy.
+
+---
+
+## Planned Connection Details (For Future Deployment)
 
 **URL**: `https://coder.visiquate.com`
 **Bearer Token**: `da69328552c59c6d38cf788d8ae54318f6cfb2f3dd5ff82d0376e5f62260cd6c`

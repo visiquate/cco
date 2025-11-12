@@ -1,6 +1,10 @@
 # Qwen 2.5 Coder - Practical Usage Examples
 
-## Quick Reference Card
+**STATUS: PLANNED - EXAMPLES FOR FUTURE DEPLOYMENT**
+
+These examples show how Qwen models **will be used** when ccproxy is deployed. Currently, the system uses Claude API exclusively.
+
+## Quick Reference Card (Future Usage)
 
 | Model | Best For | Context | Speed | Example Task |
 |-------|----------|---------|-------|--------------|

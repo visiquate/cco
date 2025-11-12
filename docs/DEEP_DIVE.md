@@ -244,112 +244,51 @@ async postCompaction(currentTask, context = {}) {
 14. **Security Auditor** - `security-auditor` type, qwen-quality-128k:latest
 15. **Documentation Lead** - `coder` type, qwen-quality-128k:latest
 
-### 2.2 Model Routing via ccproxy
+### 2.2 Direct Claude API Integration
 
-**LiteLLM Proxy Configuration**: All agents (except Chief Architect) route through ccproxy at `https://coder.visiquate.com`
+**Current Configuration**: All agents use direct Anthropic Claude API
 
-From `/Users/brent/git/cc-orchestra/config/ccproxy/ccproxy-config-tdd-pipeline.yaml`:
-
-```yaml
-model_list:
-  # Phase 1 Coding - qwen2.5-coder:32b-instruct (32B, 32k context)
-  - model_name: claude-3-5-sonnet
-    litellm_params:
-      model: ollama/qwen2.5-coder:32b-instruct
-      api_base: http://localhost:11434
-      temperature: 0.7
-      max_tokens: 4096
-
-  # Phase 1 Lightweight - qwen-fast:latest (7B, 32k context)
-  - model_name: claude-3-haiku
-    litellm_params:
-      model: ollama/qwen-fast:latest
-      api_base: http://localhost:11434
-      temperature: 0.7
-      max_tokens: 2048
-
-  # Phase 2 Reasoning - qwen-quality-128k:latest (32B, 128k context)
-  - model_name: gpt-4
-    litellm_params:
-      model: ollama/qwen-quality-128k:latest
-      api_base: http://localhost:11434
-      temperature: 0.7
-      max_tokens: 8192
-
-router_settings:
-  timeout: 300
-  num_retries: 0
-  routing_strategy: simple-shuffle
-  disable_cooldowns: true
-  allowed_fails: 1000
-  cooldown_time: 0
-```
+**Model Distribution:**
+- **Chief Architect**: Claude Opus 4.1 (strategic leadership)
+- **Intelligent Managers**: Claude Sonnet 4.5 (37 agents for complex reasoning, code review, security)
+- **Basic Specialists**: Claude Haiku 4.5 (81 agents for implementation, documentation, utilities)
 
 **Key Design Decisions:**
-- **Health checks disabled** - Prevents model thrashing between 32B models
-- **On-demand loading** - Models load only when first request arrives
-- **No proactive health checks** - Avoids triggering simultaneous model loads
+- **Direct API calls** - No routing layer, direct to Anthropic
+- **Model-based routing** - Selection based on task complexity
+- **Cost optimization** - 68.1% Haiku agents provide 44% cost savings vs. all-Sonnet
 
-### 2.3 API Alias Mapping
+### 2.3 Model Selection Strategy
 
-| API Alias | Ollama Model | Agents | Context | Phase |
-|-----------|--------------|--------|---------|-------|
-| `claude-3-5-sonnet` | qwen2.5-coder:32b-instruct | 1-10 | 32k | Phase 1 |
-| `claude-3-haiku` | qwen-fast:latest | 11 | 32k | Phase 1 |
-| `gpt-4` | qwen-quality-128k:latest | 13-15 | 128k | Phase 2 |
-
-**Agent Invocation Pattern** (from `CLAUDE.md` lines 144-167):
+**Agent Invocation Pattern** (from `CLAUDE.md`):
 ```javascript
 // Single message spawns all agents
-Task("TDD Coding Agent", "Write failing tests...", "coder", "sonnet-4.5")  // → qwen2.5-coder
-Task("Python Expert", "Implement features...", "python-expert", "sonnet-4.5")  // → qwen2.5-coder
-Task("Credential Manager", "Manage secrets...", "coder", "haiku")  // → qwen-fast
-Task("QA Engineer", "Review tests...", "test-automator", "gpt-4")  // → qwen-quality-128k
+Task("TDD Coding Agent", "Write failing tests...", "coder", "sonnet-4.5")
+Task("Python Expert", "Implement features...", "python-expert", "sonnet-4.5")
+Task("Credential Manager", "Manage secrets...", "coder", "haiku")
+Task("QA Engineer", "Review tests...", "test-automator", "sonnet-4.5")
 ```
 
-### 2.4 Ollama Model Selection Reasoning
+**Claude Model Selection:**
 
-**qwen2.5-coder:32b-instruct** (Phase 1 - 10 agents):
-- Specialized coding model optimized for implementation
-- 32B parameters provide strong reasoning for complex code
-- 32k context window sufficient for most coding tasks
-- Excellent at TDD test generation
-- Fast inference on M2 Mac mini (14-30s per response)
+**Claude Opus 4.1** (1 agent):
+- Chief Architect only
+- Strategic decision-making and architecture design
+- Highest reasoning capability for complex problems
+- Automatic fallback to Sonnet 4.5 when token limit reached
 
-**qwen-fast:latest** (Phase 1 - 1 agent):
-- Lightweight 7B model for simple operations
-- Sufficient for credential management
-- Low resource usage (~5GB)
-- Can coexist with qwen2.5-coder in memory
-- Fast inference (5-10s per response)
+**Claude Sonnet 4.5** (37 agents):
+- Code review, security analysis, complex reasoning
+- Testing strategy and quality assurance
+- API integration and architecture decisions
+- Balanced performance and cost for intelligent work
 
-**qwen-quality-128k:latest** (Phase 2 - 3 agents):
-- Deep reasoning capabilities for security analysis
-- Extended 128k context for large codebases
-- Complex test scenario analysis
-- Architectural documentation with full context
-- Superior at edge case detection
-
-### 2.5 Memory Management Strategy
-
-**Phase 1 Memory** (~25GB total):
-- qwen2.5-coder:32b-instruct (~20GB)
-- qwen-fast:latest (~5GB)
-- Both models loaded simultaneously
-- Enables parallel execution of 11 agents
-
-**Phase 2 Memory** (~35GB total):
-- qwen-quality-128k:latest (~35GB)
-- qwen2.5-coder automatically unloads
-- No health check thrashing (disabled)
-- Single model serves 3 reasoning agents
-
-**Memory Coordination** (from `docs/DEPLOYMENT_STATUS.md` lines 35-37):
-```
-Phase 1: qwen2.5-coder (20GB) + qwen-fast (5GB) = 25GB ✅
-Phase 2: qwen-quality-128k (35GB) ✅ qwen2.5-coder auto-unloads
-Health checks: DISABLED to prevent thrashing
-```
+**Claude Haiku 4.5** (81 agents):
+- Language-specific implementation (Python, Swift, Go, Rust, Flutter)
+- Documentation and technical writing
+- Utilities and basic research
+- Most cost-effective for straightforward tasks
+- 68.1% of all agents use Haiku for 44% cost savings
 
 ---
 
@@ -760,157 +699,39 @@ try {
 
 ---
 
-## 5. ccproxy Deployment
+## 5. Direct Claude API Integration (v2.0.0)
 
-### 5.1 LiteLLM Proxy Architecture
+### 5.1 Production Architecture
 
-**Components:**
-- **Ollama**: Local LLM server on Mac mini (localhost:11434)
-- **ccproxy (LiteLLM)**: API compatibility layer (localhost:8081)
-- **Traefik**: TLS termination and bearer token auth
-- **Cloudflare Tunnel**: Public access (https://coder.visiquate.com)
+**Current System:**
+- All agents use direct Anthropic Claude API
+- No proxy layer or local LLM routing
+- Simple, reliable, production-ready architecture
+- Cost-optimized through intelligent model distribution
 
-```
-┌─────────────────────────────────────────────────┐
-│        Internet (Cloudflare Tunnel)             │
-│         https://coder.visiquate.com             │
-└─────────────────────┬───────────────────────────┘
-                                                  │
-                      ▼
-┌─────────────────────────────────────────────────┐
-│              Traefik (TLS + Auth)               │
-│              Port 8080 → 8081                   │
-│          Bearer Token Authentication            │
-└─────────────────────┬───────────────────────────┘
-                                                  │
-                      ▼
-┌─────────────────────────────────────────────────┐
-│          ccproxy (LiteLLM on 8081)              │
-│       Maps API aliases to Ollama models         │
-│    claude-3-5-sonnet → qwen2.5-coder:32b        │
-│    claude-3-haiku → qwen-fast:latest            │
-│    gpt-4 → qwen-quality-128k:latest             │
-└─────────────────────┬───────────────────────────┘
-                                                  │
-                      ▼
-┌─────────────────────────────────────────────────┐
-│           Ollama (localhost:11434)              │
-│        Serves qwen models on-demand             │
-│         M2 Mac mini (64GB RAM)                  │
-└─────────────────────────────────────────────────┘
+**Model Tiers:**
+- **Opus 4.1**: Chief Architect (1 agent)
+- **Sonnet 4.5**: Intelligent managers (37 agents)
+- **Haiku 4.5**: Basic specialists (81 agents)
+
+### 5.2 API Integration
+
+**All agents integrate directly with Anthropic API:**
+```javascript
+// Example agent invocation
+Task("Python Expert", "Implement REST API", "python-expert", "sonnet-4.5")
+// → Direct call to Claude Sonnet 4.5 API
 ```
 
-### 5.2 Model Routing Rules
+**No intermediate proxy or local LLM routing required.**
 
-From `/Users/brent/git/cc-orchestra/config/ccproxy/ccproxy-config-tdd-pipeline.yaml`:
+### 5.3 Cost Optimization Strategy
 
-**API Endpoint Format:**
-```
-POST https://coder.visiquate.com/v1/chat/completions
-Authorization: Bearer <TOKEN>
-Content-Type: application/json
-
-{
-  "model": "claude-3-5-sonnet",  // or "claude-3-haiku", "gpt-4"
-  "messages": [{"role": "user", "content": "..."}],
-  "temperature": 0.7,
-  "max_tokens": 4096
-}
-```
-
-**Routing Logic:**
-```
-claude-3-5-sonnet → ollama/qwen2.5-coder:32b-instruct
-claude-3-haiku    → ollama/qwen-fast:latest
-gpt-4             → ollama/qwen-quality-128k:latest
-```
-
-### 5.3 Health Check Strategy
-
-**DISABLED** to prevent model thrashing.
-
-From `docs/DEPLOYMENT_STATUS.md` lines 160-172:
-
-```yaml
-router_settings:
-  timeout: 300
-  num_retries: 0
-  routing_strategy: "simple-shuffle"
-  # Disable health checks to prevent model thrashing
-  disable_cooldowns: true
-  allowed_fails: 1000
-  cooldown_time: 0
-```
-
-**Why Disabled:**
-- Two 32B models cannot coexist in 64GB RAM
-- Health checks would trigger simultaneous model loads
-- Causes constant loading/unloading (thrashing)
-- Defeats two-phase execution design
-
-**Alternative Strategy:**
-- On-demand model loading
-- Models load only when first request arrives
-- No proactive health verification
-- Reliance on Ollama's stability
-
-### 5.4 Bearer Token Authentication
-
-**Traefik Configuration** (not included in repo, on Mac mini):
-```yaml
-http:
-  middlewares:
-    bearer-auth:
-      headers:
-        customRequestHeaders:
-          Authorization: "Bearer <TOKEN>"
-
-  routers:
-    ccproxy:
-      rule: "Host(`coder.visiquate.com`)"
-      service: ccproxy-service
-      middlewares:
-        - bearer-auth
-      tls:
-        certResolver: cloudflare
-
-  services:
-    ccproxy-service:
-      loadBalancer:
-        servers:
-          - url: "http://localhost:8081"
-```
-
-**Security:**
-- Bearer token required for all requests
-- TLS encryption via Cloudflare
-- No direct Ollama access (localhost only)
-- Token rotation via Traefik config update
-
-### 5.5 TLS Termination
-
-**Cloudflare Tunnel:**
-- Provides TLS encryption
-- Eliminates need for local certificate management
-- Zero-trust network access
-- DDoS protection included
-
-**Configuration** (not in repo):
-```bash
-# Mac mini runs cloudflared
-cloudflared tunnel --url http://localhost:8080
-# Maps to coder.visiquate.com in Cloudflare dashboard
-```
-
-### 5.6 Watchtower Auto-Deployment
-
-**NOT YET IMPLEMENTED** - ccproxy runs as a local process, not Docker container.
-
-**Future Enhancement:**
-- Dockerize ccproxy
-- Add Watchtower container
-- Poll GHCR for updates
-- Zero-downtime upgrades
+**Current savings (direct API):**
+- 68.1% of agents use Haiku 4.5 (most cost-effective)
+- 31.1% of agents use Sonnet 4.5 (for complex reasoning)
+- 0.8% uses Opus 4.1 (strategic leadership only)
+- **Result**: 44% cost savings vs. all-Sonnet approach
 
 ---
 
@@ -1288,7 +1109,7 @@ Task("TDD Coding Agent",
    - Integration test skeletons
    - Minimum 90% coverage requirement
    Store tests at 'tdd/failing-tests'`,
-  "coder", "sonnet-4.5")  // → qwen2.5-coder
+  "coder", "sonnet-4.5")
 ```
 
 **Phase 2: Implement Code** (Coding Specialists)
@@ -1299,7 +1120,7 @@ Task("Python Expert",
    - Follow architecture decisions
    - Refactor while keeping tests green
    Store implementation status`,
-  "python-expert", "sonnet-4.5")  // → qwen2.5-coder
+  "python-expert", "sonnet-4.5")
 ```
 
 **TDD Cycle:**
@@ -1311,7 +1132,7 @@ Fail → Pass → Improve
 
 ### 7.5 Testing
 
-**Phase 2: QA Engineer** (qwen-quality-128k via gpt-4)
+**Phase 2: QA Engineer** (Sonnet 4.5)
 ```javascript
 Task("QA Engineer",
   `Review and enhance testing:
@@ -1321,7 +1142,7 @@ Task("QA Engineer",
    - Performance benchmarks
    - Autonomous test fixing if failures
    Retrieve from 'tdd/failing-tests' and 'coder/implementation'`,
-  "test-automator", "gpt-4")  // → qwen-quality-128k
+  "test-automator", "sonnet-4.5")
 ```
 
 **Test Types:**
@@ -1333,7 +1154,7 @@ Task("QA Engineer",
 
 ### 7.6 Security Audit
 
-**Phase 2: Security Auditor** (qwen-quality-128k via gpt-4)
+**Phase 2: Security Auditor** (Sonnet 4.5)
 ```javascript
 Task("Security Auditor",
   `Perform security analysis:
@@ -1343,7 +1164,7 @@ Task("Security Auditor",
    - Security test cases
    - Deep reasoning about attack vectors
    - Can block deployment for critical issues`,
-  "security-auditor", "gpt-4")  // → qwen-quality-128k
+  "security-auditor", "sonnet-4.5")
 ```
 
 **OWASP Top 10 Coverage:**
@@ -1362,7 +1183,7 @@ Task("Security Auditor",
 
 ### 7.7 Documentation
 
-**Phase 2: Documentation Lead** (qwen-quality-128k via gpt-4)
+**Phase 2: Documentation Lead** (Haiku 4.5)
 ```javascript
 Task("Documentation Lead",
   `Create comprehensive documentation:
@@ -1372,7 +1193,7 @@ Task("Documentation Lead",
    - Test documentation
    - Inline code comments
    Include architectural decisions from memory`,
-  "coder", "gpt-4")  // → qwen-quality-128k
+  "technical-writer", "haiku")
 ```
 
 **Documentation Types:**
@@ -1385,7 +1206,7 @@ Task("Documentation Lead",
 
 ### 7.8 Deployment
 
-**DevOps Engineer** (qwen2.5-coder via claude-3-5-sonnet)
+**DevOps Engineer** (Sonnet 4.5)
 ```javascript
 Task("DevOps Engineer",
   `Prepare deployment:
@@ -1396,7 +1217,7 @@ Task("DevOps Engineer",
    - Monitoring and logging
    - Health check endpoints
    Store all configs in repository`,
-  "deployment-engineer", "sonnet-4.5")  // → qwen2.5-coder
+  "deployment-engineer", "sonnet-4.5")
 ```
 
 **Deployment Artifacts:**
@@ -2062,63 +1883,23 @@ node src/knowledge-manager.js test
 
 ---
 
-**Issue: "ccproxy connection refused"**
-
-**Cause**: ccproxy not running or wrong port
-
-**Solution**:
-```bash
-# Check if ccproxy is running
-ps aux | grep litellm
-
-# If not running, start it
-cd /Users/brent/ccproxy
-source venv/bin/activate
-nohup litellm --config config.yaml --port 8081 --host 127.0.0.1 > logs/litellm.log 2>&1 &
-
-# Verify it's running
-curl http://localhost:8081/v1/models
-```
-
----
-
-**Issue: "Model thrashing / constant loading"**
-
-**Cause**: Health checks enabled or two 32B models active
-
-**Solution**:
-Verify health checks disabled in `/Users/brent/ccproxy/config.yaml`:
-```yaml
-router_settings:
-  disable_cooldowns: true
-  allowed_fails: 1000
-  cooldown_time: 0
-```
-
-Restart ccproxy:
-```bash
-pkill -f litellm
-cd /Users/brent/ccproxy
-source venv/bin/activate
-nohup litellm --config config.yaml --port 8081 > logs/litellm.log 2>&1 &
-```
-
----
-
 **Issue: "Agent not responding"**
 
-**Cause**: Model not loaded or API routing failure
+**Cause**: Claude API connection issue or rate limiting
 
 **Solution**:
 ```bash
-# Check Ollama models
-ollama list
+# Verify API key is configured
+echo $ANTHROPIC_API_KEY
 
-# Manually load model
-ollama run qwen2.5-coder:32b-instruct "test"
+# Test API connection
+curl -s -X POST https://api.anthropic.com/v1/messages \
+  -H "x-api-key: $ANTHROPIC_API_KEY" \
+  -H "content-type: application/json" \
+  -d '{"model": "claude-opus-4-1", "messages": [{"role": "user", "content": "test"}], "max_tokens": 100}'
 
-# Check ccproxy logs
-tail -100 /Users/brent/ccproxy/logs/litellm.log
+# Check agent logs for errors
+tail -100 ~/git/cc-orchestra/logs/agents.log
 ```
 
 ---
@@ -2232,31 +2013,12 @@ rm /tmp/credentials.json
 node src/credential-manager.js list
 ```
 
-**Restart ccproxy:**
-```bash
-# Kill existing process
-pkill -f litellm
-
-# Verify stopped
-ps aux | grep litellm
-
-# Restart
-cd /Users/brent/ccproxy
-source venv/bin/activate
-nohup litellm --config config.yaml --port 8081 --host 127.0.0.1 > logs/litellm.log 2>&1 &
-
-# Verify running
-curl http://localhost:8081/v1/models
-```
-
 ---
 
 ## Appendix: Key File Locations
 
 **Configuration:**
-- `/Users/brent/git/cc-orchestra/config/orchestra-config.json` - Main config
-- `/Users/brent/git/cc-orchestra/config/ccproxy/ccproxy-config-tdd-pipeline.yaml` - ccproxy config
-- `/Users/brent/ccproxy/config.yaml` - Active ccproxy config (symlink to above)
+- `/Users/brent/git/cc-orchestra/config/orchestra-config.json` - Main config with 119 agent definitions
 - `~/.claude/CLAUDE.md` - Global orchestra instructions
 - `<project>/CLAUDE.md` - Project-specific overrides
 
@@ -2273,22 +2035,20 @@ curl http://localhost:8081/v1/models
 - `/Users/brent/git/cc-orchestra/docs/DEEP_DIVE.md` - This document
 - `/Users/brent/git/cc-orchestra/docs/TDD_AWARE_PIPELINE.md` - TDD methodology
 - `/Users/brent/git/cc-orchestra/docs/AUTONOMOUS_OPERATION_FRAMEWORK.md` - Autonomous features
-- `/Users/brent/git/cc-orchestra/docs/DEPLOYMENT_STATUS.md` - ccproxy deployment
+- `/Users/brent/git/cc-orchestra/docs/README.md` - Main documentation
 
-**Server:**
-- Mac mini: `192.168.9.123` (internal network)
-- Public: `https://coder.visiquate.com` (Cloudflare tunnel)
-- Ollama: `http://localhost:11434`
-- ccproxy: `http://localhost:8081`
+**API:**
+- Anthropic Claude API: `https://api.anthropic.com/v1/`
+- Models: Opus 4.1, Sonnet 4.5, Haiku 4.5
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2025-11-10
+**Document Version**: 2.1.0
+**Last Updated**: 2025-11-11
 **Contributors**: Technical Writing Team
-**Status**: Complete
+**Status**: Updated - Infrastructure references corrected to direct Claude API
 
 For questions or issues, refer to:
 - [docs/ORCHESTRA_USAGE_GUIDE.md](ORCHESTRA_USAGE_GUIDE.md) - User-facing guide
-- [docs/KNOWLEDGE_MANAGER_GUIDE.md](KNOWLEDGE_MANAGER_GUIDE.md) - Knowledge Manager details
-- [README.md](../README.md) - Project overview
+- [docs/README.md](README.md) - Main documentation index
+- [../README.md](../README.md) - Project overview

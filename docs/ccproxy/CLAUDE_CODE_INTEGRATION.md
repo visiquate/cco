@@ -1,10 +1,14 @@
 # CCProxy Integration with Claude Code Orchestra
 
-This document explains how to configure Claude Code's orchestra-config.json to use the ccproxy deployment.
+**STATUS: FUTURE-STATE ARCHITECTURE (NOT CURRENTLY DEPLOYED)**
+
+This document explains how to configure Claude Code's orchestra-config.json to use the planned ccproxy deployment.
+
+**IMPORTANT**: The Claude Orchestra **currently uses direct Anthropic Claude API** (1 Opus 4.1, 37 Sonnet 4.5, 81 Haiku 4.5). This documentation is for future ccproxy deployment pending hardware availability.
 
 ---
 
-## Connection Details
+## Planned Connection Details (For Future Deployment)
 
 **Base URL**: `https://coder.visiquate.com/v1`
 **API Key**: `da69328552c59c6d38cf788d8ae54318f6cfb2f3dd5ff82d0376e5f62260cd6c`

@@ -1,8 +1,14 @@
 # Architecture Decision Records (ADR) - ccproxy Native macOS Deployment
 
+**STATUS: FUTURE-STATE ARCHITECTURE (NOT CURRENTLY DEPLOYED)**
+
+These ADRs document planned architectural decisions for the future ccproxy deployment. The Claude Orchestra **currently uses direct Anthropic Claude API**, not ccproxy.
+
+---
+
 ## ADR-001: Native Python Deployment Instead of Docker
 
-**Status**: Accepted
+**Status**: Planned (for future deployment)
 
 **Context**:
 - Mac mini needs to run LiteLLM proxy (ccproxy) for Claude API compatibility

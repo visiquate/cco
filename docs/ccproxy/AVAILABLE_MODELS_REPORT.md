@@ -1,9 +1,13 @@
 # Available Qwen Coder Models - Discovery Report
 
+**STATUS: FUTURE-STATE ARCHITECTURE (NOT CURRENTLY DEPLOYED)**
+
 **Date**: 2025-11-04
 **Investigator**: Claude Code Test Automation Agent
-**Target**: Mac mini at coder.visiquate.com
-**Status**: Server offline during investigation
+**Target**: Mac mini at coder.visiquate.com (planned deployment)
+**Current Status**: Planning phase (Claude Orchestra uses direct Anthropic API)
+
+**IMPORTANT**: This report documents model discovery for the planned ccproxy infrastructure. The Claude Orchestra currently uses **direct Anthropic Claude API** (1 Opus 4.1, 37 Sonnet 4.5, 81 Haiku 4.5), not Ollama/Qwen models.
 
 ---
 

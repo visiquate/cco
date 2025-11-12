@@ -1,9 +1,13 @@
 # Claude Orchestra Roster - TDD Edition
 
-**Total Agents**: 15 (was 14, added TDD Coding Agent)
-**Configuration**: TDD-aware two-phase pipeline with ccproxy routing
-**Model Strategy**: Phase-based execution with memory-aware model loading
-**Deployment**: https://coder.visiquate.com (Mac mini at 192.168.9.123)
+**STATUS: PLANNED - FUTURE TDD CONFIGURATION WITH HYBRID ROUTING**
+
+**Total Agents**: 15 (proposed - would add TDD Coding Agent)
+**Configuration**: TDD-aware two-phase pipeline with ccproxy routing (planned)
+**Model Strategy**: Phase-based execution with memory-aware model loading (future)
+**Deployment Target**: https://coder.visiquate.com (Mac mini at 192.168.9.123) - NOT YET DEPLOYED
+
+**IMPORTANT**: This roster describes the **proposed future configuration**. The current system uses direct Claude API for all 119 agents.
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## What You Now Have
 
-Your Claude Orchestra now consists of **14 specialized agents**:
+Your Claude Orchestra now consists of **119 specialized agents**:
 
 ### 🏗️ Leadership (1 agent)
 - **Chief Architect** (Opus 4.1) - Strategic decisions and coordination
@@ -246,32 +246,30 @@ deploy to AWS with auto-scaling, monitoring, and blue-green deployments"
 ```
 
 Claude Code will:
-1. Initialize MCP coordination
-2. Spawn ALL agents in parallel (one message)
-3. Architect designs the system
-4. Coding agents implement
-5. DevOps creates infrastructure and deployment
-6. QA tests everything
-7. Security audits all code and infrastructure
-8. Docs creates documentation
-9. Credentials manages all secrets
+1. Spawn ALL agents in parallel (one message)
+2. Architect designs the system
+3. Coding agents implement
+4. DevOps creates infrastructure and deployment
+5. QA tests everything
+6. Security audits all code and infrastructure
+7. Docs creates documentation
+8. Credentials manages all secrets
+9. Knowledge Manager coordinates across all agents
 
 ## Next Steps
 
-1. **MCP Servers** (Optional)
-   ```bash
-   # MCP coordination is optional - the orchestra uses Knowledge Manager
-   # If you want advanced coordination features, you can enable MCP servers
-   # See CLAUDE.md for MCP setup instructions
-   ```
+1. **Understand the Architecture**
+   - Read the ORCHESTRATOR_RULES.md to understand how agents coordinate
+   - Review the config/orchestra-config.json for agent definitions
+   - Familiarize yourself with the Knowledge Manager for coordination
 
-2. **Run Setup**
-   ```bash
-   ./scripts/setup.sh
-   ```
-
-3. **Start Building!**
+2. **Start Building!**
    Just describe your project to Claude Code and watch the orchestra deploy!
+
+3. **Monitor Progress**
+   - Check Knowledge Manager for agent coordination: `node src/knowledge-manager.js list`
+   - Watch the TodoWrite list for progress tracking
+   - Review outputs as agents complete their work
 
 ## Documentation
 

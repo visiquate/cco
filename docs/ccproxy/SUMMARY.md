@@ -1,8 +1,12 @@
 # CCProxy Test Summary
 
-**Status**: ✅ **PRODUCTION READY**
+**STATUS: FUTURE-STATE ARCHITECTURE (NOT CURRENTLY DEPLOYED)**
+
+**Deployment Status**: Planned (pending hardware)
 **Test Date**: 2025-11-04
-**Architecture**: Traefik → LiteLLM → Ollama
+**Planned Architecture**: Traefik → LiteLLM → Ollama
+
+**IMPORTANT**: This documentation describes the planned ccproxy infrastructure. The Claude Orchestra **currently uses direct Anthropic Claude API** (1 Opus 4.1, 37 Sonnet 4.5, 81 Haiku 4.5).
 
 ---
 

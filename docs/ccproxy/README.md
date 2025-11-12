@@ -1,8 +1,10 @@
 # LiteLLM Proxy (ccproxy) - Native macOS Deployment
 
-## Overview
+**STATUS: FUTURE-STATE ARCHITECTURE (NOT CURRENTLY DEPLOYED)**
 
 This directory contains comprehensive documentation for deploying LiteLLM Proxy (ccproxy) **natively on macOS without Docker**. The deployment provides Claude API compatibility using local Ollama models.
+
+**IMPORTANT**: This ccproxy infrastructure is planned for future deployment pending hardware availability. The Claude Orchestra currently uses **direct Anthropic Claude API** (1 Opus 4.1, 37 Sonnet 4.5, 81 Haiku 4.5 agents), NOT the local Ollama models described in this documentation.
 
 ## Quick Links
 

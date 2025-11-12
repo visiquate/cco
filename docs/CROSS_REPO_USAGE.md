@@ -61,8 +61,9 @@ graph TD
    - Applies to ALL projects
 
 2. **Orchestra Config** (`/Users/brent/git/cc-orchestra/config/orchestra-config.json`)
-   - 14 agent definitions (types, models, capabilities)
-   - Coordination protocols
+   - 119 agent definitions (1 Opus, 37 Sonnet, 81 Haiku)
+   - Direct Anthropic Claude API integration
+   - Coordination protocols via Knowledge Manager
    - Single source of truth for orchestra
 
 3. **Project CLAUDE.md** (optional: `~/git/your-project/CLAUDE.md`)
@@ -246,35 +247,35 @@ vim ~/git/your-project/CLAUDE.md
 
 ## Agent Selection Logic
 
-### Automatic Selection
+### Intelligent Agent Selection
 
-Claude Code intelligently selects agents based on:
+The orchestra automatically selects the right agents from 119 available based on:
 
 1. **Technology Keywords**
-   - "Python" → Python Expert
-   - "Flutter" → Flutter Expert
-   - "Go" → Go Expert
-   - "Rust" → Rust Expert
-   - "Swift"/"iOS" → Swift Expert
+   - "Python" → Python Expert (Sonnet 4.5)
+   - "Flutter" → Flutter Expert (Sonnet 4.5)
+   - "Go" → Go Expert (Sonnet 4.5)
+   - "Rust" → Rust Expert (Sonnet 4.5)
+   - "Swift"/"iOS" → Swift Expert (Sonnet 4.5)
 
 2. **Integration Keywords**
-   - "Salesforce" → Salesforce API Expert
-   - "Authentik"/"OAuth2"/"SAML" → Authentik API Expert
-   - "API integration" → API Explorer
+   - "Salesforce" → Salesforce API Expert (Sonnet 4.5)
+   - "Authentik"/"OAuth2"/"SAML" → Authentik API Expert (Sonnet 4.5)
+   - "API integration" → API Explorer (Sonnet 4.5)
 
 3. **Infrastructure Keywords**
-   - "Docker"/"Kubernetes"/"AWS" → DevOps Engineer
-   - "Deploy"/"CI/CD" → DevOps Engineer
+   - "Docker"/"Kubernetes"/"AWS" → DevOps Engineer (Sonnet 4.5)
+   - "Deploy"/"CI/CD" → DevOps Engineer (Sonnet 4.5)
 
 4. **Quality Keywords**
-   - "tests"/"testing" → QA Engineer
-   - "security"/"audit" → Security Auditor
-   - "documentation"/"docs" → Documentation Lead
+   - "tests"/"testing" → QA Engineer (Sonnet 4.5)
+   - "security"/"audit" → Security Auditor (Sonnet 4.5)
+   - "documentation"/"docs" → Documentation Expert (Haiku 4.5)
 
 5. **Always Included**
-   - Chief Architect (coordinates everything)
-   - Security Auditor (security is always critical)
-   - QA Engineer (quality is always critical)
+   - Chief Architect (Opus 4.1) - coordinates everything
+   - Security Auditor (Sonnet 4.5) - security is critical
+   - QA Engineer (Sonnet 4.5) - quality is critical
 
 ### Manual Override
 
@@ -283,7 +284,7 @@ You can explicitly request specific agents:
 ```
 "Use Python Expert and DevOps Engineer to containerize this application"
 "Deploy Salesforce API Expert to integrate with our CRM"
-"I need the full orchestra with all 14 agents for this complex project"
+"I need the full orchestra for this complex project - activate all agents"
 ```
 
 ## Coordination Protocol

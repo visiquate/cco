@@ -1,9 +1,13 @@
 # CCProxy Architecture Documentation
 
+**STATUS: FUTURE-STATE ARCHITECTURE (NOT CURRENTLY DEPLOYED)**
+
 **Version**: 1.0
 **Last Updated**: 2025-11-04
-**Status**: Production Deployment
+**Status**: Planned Deployment (pending hardware)
 **Platform**: macOS (Mac mini - coder.visiquate.com)
+
+**IMPORTANT**: This document describes the planned ccproxy architecture. The Claude Orchestra **currently uses direct Anthropic Claude API** (1 Opus 4.1, 37 Sonnet 4.5, 81 Haiku 4.5).
 
 ---
 

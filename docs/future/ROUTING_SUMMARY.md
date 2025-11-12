@@ -1,7 +1,8 @@
 # Claude Orchestra - Complete Routing Summary
 
-## Overview
-This document shows exactly how each of the 14 agents in the Claude Orchestra routes to either Claude API or the custom Ollama endpoint at coder.visiquate.com.
+**STATUS: PLANNED - FUTURE HYBRID ROUTING (NOT CURRENTLY IMPLEMENTED)**
+
+This document describes how the 14 agents **would route** to either Claude API or the custom Ollama endpoint at coder.visiquate.com **when ccproxy is deployed**. Currently, all agents use Claude API directly.
 
 ## Routing by Agent Type
 

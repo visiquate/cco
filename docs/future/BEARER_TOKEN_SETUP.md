@@ -1,6 +1,8 @@
 # Bearer Token Authentication Setup
 
-**Complete guide to configuring bearer token authentication for coder.visiquate.com**
+**STATUS: PLANNED - NOT YET IMPLEMENTED**
+
+**Complete guide to configuring bearer token authentication for coder.visiquate.com (future deployment)**
 
 ## Overview
 
