@@ -50,14 +50,14 @@ Claude Orchestra is a comprehensive multi-agent development system featuring **1
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                      User Request                             │
-│            "Build a Python API with auth"                     │
+│                         User Request                         │
+│                "Build a Python API with auth"                │
 └───────────────────────────────┬──────────────────────────────┘
                                │
                                ▼
 ┌──────────────────────────────────────────────────────────────┐
-│               Claude Code Orchestrator                        │
-│         (Analyzes, delegates, coordinates)                    │
+│                  Claude Code Orchestrator                    │
+│              (Analyzes, delegates, coordinates)              │
 └───────────────────────────────┬──────────────────────────────┘
                                │
          ┌─────────────────┼─────────────────┐
