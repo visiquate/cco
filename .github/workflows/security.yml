@@ -31,15 +31,34 @@ jobs:
           fetch-depth: 0  # Full history for comprehensive secret scanning
 
       - name: Run TruffleHog secret scanner
-        uses: trufflesecurity/trufflehog@main
-        with:
-          path: ./
-          # For push events: scan commits in the push
-          # For pull requests: scan commits in the PR
-          # For scheduled/manual: scan entire history
-          base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || (github.event_name == 'push' && github.event.before) || '' }}
-          head: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || (github.event_name == 'push' && github.sha) || 'HEAD' }}
-          extra_args: --debug --only-verified
+        run: |
+          # Install TruffleHog
+          docker pull ghcr.io/trufflesecurity/trufflehog:latest
+
+          # Determine scan parameters based on event type
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "Scanning PR commits from ${{ github.event.pull_request.base.sha }} to ${{ github.event.pull_request.head.sha }}"
+            docker run --rm -v "$PWD:/scan" ghcr.io/trufflesecurity/trufflehog:latest \
+              git file:///scan \
+              --since-commit=${{ github.event.pull_request.base.sha }} \
+              --branch=${{ github.event.pull_request.head.sha }} \
+              --only-verified \
+              --fail
+          elif [ "${{ github.event_name }}" == "push" ]; then
+            echo "Scanning push commits from ${{ github.event.before }} to ${{ github.sha }}"
+            docker run --rm -v "$PWD:/scan" ghcr.io/trufflesecurity/trufflehog:latest \
+              git file:///scan \
+              --since-commit=${{ github.event.before }} \
+              --branch=${{ github.sha }} \
+              --only-verified \
+              --fail
+          else
+            echo "Scanning entire repository history"
+            docker run --rm -v "$PWD:/scan" ghcr.io/trufflesecurity/trufflehog:latest \
+              git file:///scan \
+              --only-verified \
+              --fail
+          fi
         continue-on-error: false
 
       - name: TruffleHog results summary
