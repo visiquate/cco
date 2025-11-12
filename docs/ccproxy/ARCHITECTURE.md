@@ -28,36 +28,36 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         Internet/External Clients                    │
-│              (Claude Code Orchestra, API Clients, etc.)                   │
+│                       Internet/External Clients                      │
+│            (Claude Code Orchestra, API Clients, etc.)                │
 └────────────────────────────┬────────────────────────────────────────┘
                              │ HTTPS (TLS)
                              │ https://coder.visiquate.com/v1/*
                              │
 ┌────────────────────────────▼────────────────────────────────────────┐
-│                    Traefik Reverse Proxy                             │
-│                      (Port 8080)                                     │
-│  ┌────────────────────────────────────────────────────────────┐    │
-│  │ • TLS Termination                                           │    │
-│  │ • Bearer Token Authentication                               │    │
-│  │ • Request Routing: /v1/* → localhost:8081                  │    │
-│  │ • Health Checks                                             │    │
-│  └────────────────────────────────────────────────────────────┘    │
+│                      Traefik Reverse Proxy                           │
+│                          (Port 8080)                                 │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │ • TLS Termination                                             │  │
+│  │ • Bearer Token Authentication                                 │  │
+│  │ • Request Routing: /v1/* → localhost:8081                    │  │
+│  │ • Health Checks                                               │  │
+│  └──────────────────────────────────────────────────────────────┘  │
 └────────────────────────────┬────────────────────────────────────────┘
                              │ HTTP (localhost only)
                              │ Authorization: Bearer da6932...
                              │
 ┌────────────────────────────▼────────────────────────────────────────┐
-│                    LiteLLM Proxy (ccproxy)                           │
-│                 Bound to 127.0.0.1:8081                              │
-│  ┌────────────────────────────────────────────────────────────┐    │
-│  │ • OpenAI-compatible API format                              │    │
-│  │ • Model routing and aliasing                                │    │
-│  │ • Native macOS deployment (pip3 install)                    │    │
-│  │ • launchd service (auto-start/restart)                      │    │
-│  │ • Config: /Users/coder/ccproxy/config.yaml                  │    │
-│  │ • Logs: /Users/coder/ccproxy/logs/                          │    │
-│  └────────────────────────────────────────────────────────────┘    │
+│                      LiteLLM Proxy (ccproxy)                         │
+│                   Bound to 127.0.0.1:8081                            │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │ • OpenAI-compatible API format                                │  │
+│  │ • Model routing and aliasing                                  │  │
+│  │ • Native macOS deployment (pip3 install)                      │  │
+│  │ • launchd service (auto-start/restart)                        │  │
+│  │ • Config: /Users/coder/ccproxy/config.yaml                    │  │
+│  │ • Logs: /Users/coder/ccproxy/logs/                            │  │
+│  └──────────────────────────────────────────────────────────────┘  │
 └────────────────────────────┬────────────────────────────────────────┘
                              │ HTTP
                              │ localhost:11434
@@ -65,20 +65,20 @@
 ┌────────────────────────────▼────────────────────────────────────────┐
 │                         Ollama Service                               │
 │                    Bound to localhost:11434                          │
-│  ┌────────────────────────────────────────────────────────────┐    │
-│  │ Models Loaded:                                              │    │
-│  │ • qwen2.5-coder:7b-instruct  (qwen-fast)                   │    │
-│  │   - 7B parameters                                           │    │
-│  │   - 32k context window                                      │    │
-│  │   - ~50 tok/s throughput                                    │    │
-│  │   - 0.4-0.8s response time                                  │    │
-│  │                                                             │    │
-│  │ • qwen2.5-coder:32b-instruct (qwen-quality)                │    │
-│  │   - 32B parameters                                          │    │
-│  │   - 128k context window                                     │    │
-│  │   - ~8-10 tok/s throughput                                  │    │
-│  │   - 6-10s response time                                     │    │
-│  └────────────────────────────────────────────────────────────┘    │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │ Models Loaded:                                                │  │
+│  │ • qwen2.5-coder:7b-instruct  (qwen-fast)                     │  │
+│  │   - 7B parameters                                             │  │
+│  │   - 32k context window                                        │  │
+│  │   - ~50 tok/s throughput                                      │  │
+│  │   - 0.4-0.8s response time                                    │  │
+│  │                                                               │  │
+│  │ • qwen2.5-coder:32b-instruct (qwen-quality)                  │  │
+│  │   - 32B parameters                                            │  │
+│  │   - 128k context window                                       │  │
+│  │   - ~8-10 tok/s throughput                                    │  │
+│  │   - 6-10s response time                                       │  │
+│  └──────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────┘
 
                         All components on same Mac mini
