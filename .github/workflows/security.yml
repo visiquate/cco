@@ -33,10 +33,12 @@ jobs:
       - name: Run TruffleHog secret scanner
         uses: trufflesecurity/trufflehog@main
         with:
-          # Scan the entire repository history
           path: ./
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
+          # For push events: scan commits in the push
+          # For pull requests: scan commits in the PR
+          # For scheduled/manual: scan entire history
+          base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || (github.event_name == 'push' && github.event.before) || '' }}
+          head: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || (github.event_name == 'push' && github.sha) || 'HEAD' }}
           extra_args: --debug --only-verified
         continue-on-error: false
 
