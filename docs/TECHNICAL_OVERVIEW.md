@@ -296,7 +296,7 @@ cd ~/git/another-project
 │            Mac mini at 192.168.9.123                │
 │                                                     │
 │                       Models:                       │
-│        • qwen2.5-coder:32b-instruct (20GB)         │
+│        • qwen2.5-coder:32b-instruct (20GB)          │
 │              • qwen-fast:latest (5GB)              │
 │         • qwen-quality-128k:latest (35GB)          │
 └─────────────────────────────────────────────────────┘
