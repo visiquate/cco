@@ -284,9 +284,9 @@ cd ~/git/another-project
 │           https://coder.visiquate.com               │
 │                                                     │
 │             API Alias Mapping:                      │
-│   • claude-3-5-sonnet → qwen2.5-coder:32b-instruct │
-│   • claude-3-haiku    → qwen-fast:latest           │
-│   • gpt-4             → qwen-quality-128k:latest   │
+│   • claude-3-5-sonnet → qwen2.5-coder:32b-instruct  │
+│   • claude-3-haiku    → qwen-fast:latest            │
+│   • gpt-4             → qwen-quality-128k:latest    │
 └──────────────────────┬──────────────────────────────┘
                        │
                        │ Forward to Ollama
@@ -297,8 +297,8 @@ cd ~/git/another-project
 │                                                     │
 │                       Models:                       │
 │        • qwen2.5-coder:32b-instruct (20GB)          │
-│              • qwen-fast:latest (5GB)              │
-│         • qwen-quality-128k:latest (35GB)          │
+│              • qwen-fast:latest (5GB)               │
+│         • qwen-quality-128k:latest (35GB)           │
 └─────────────────────────────────────────────────────┘
 ```
 
