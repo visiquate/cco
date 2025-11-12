@@ -32,11 +32,11 @@ The Claude Orchestra uses a hierarchical coordination model with the Chief Archi
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│    Chief Architect (Opus 4.1 → Sonnet 4.5 fallback)│
-│          Strategic Decisions & Coordination          │
-│                  (Claude API direct)                 │
+│    Chief Architect (Opus 4.1 → Sonnet 4.5 fallback) │
+│          Strategic Decisions & Coordination         │
+│                  (Claude API direct)                │
 └────────────────────┬────────────────────────────────┘
-                     │
+                                                      │
         ┌────────────┴────────────┐
         │                         │
 ┌───────▼──────────┐    ┌────────▼────────────┐
@@ -46,7 +46,7 @@ The Claude Orchestra uses a hierarchical coordination model with the Chief Archi
 ├──────────────────┤    ├─────────────────────┤
 │ 1. TDD Agent     │    │ 11. Credentials     │
 │ 2. Python        │    └─────────────────────┘
-│ 3. Swift         │
+│ 3. Swift                                    │
 │ 4. Go            │    ┌─────────────────────┐
 │ 5. Rust          │    │   PHASE 2 (3)       │
 │ 6. Flutter       │    │   qwen-quality-128k │
@@ -775,23 +775,23 @@ try {
 │        Internet (Cloudflare Tunnel)             │
 │         https://coder.visiquate.com             │
 └─────────────────────┬───────────────────────────┘
-                      │
+                                                  │
                       ▼
 ┌─────────────────────────────────────────────────┐
 │              Traefik (TLS + Auth)               │
 │              Port 8080 → 8081                   │
 │          Bearer Token Authentication            │
 └─────────────────────┬───────────────────────────┘
-                      │
+                                                  │
                       ▼
 ┌─────────────────────────────────────────────────┐
 │          ccproxy (LiteLLM on 8081)              │
 │       Maps API aliases to Ollama models         │
-│    claude-3-5-sonnet → qwen2.5-coder:32b       │
-│    claude-3-haiku → qwen-fast:latest           │
-│    gpt-4 → qwen-quality-128k:latest            │
+│    claude-3-5-sonnet → qwen2.5-coder:32b        │
+│    claude-3-haiku → qwen-fast:latest            │
+│    gpt-4 → qwen-quality-128k:latest             │
 └─────────────────────┬───────────────────────────┘
-                      │
+                                                  │
                       ▼
 ┌─────────────────────────────────────────────────┐
 │           Ollama (localhost:11434)              │

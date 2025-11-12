@@ -104,22 +104,22 @@ Savings % = 100 × (1 - Actual Cost / Hypothetical Cost)
 │     https://coder.visiquate.com/dashboard/          │
 │                 (Public Access)                     │
 └─────────────────────┬───────────────────────────────┘
-                      │
+                                                      │
                  Cloudflare Tunnel
-                      │
+                                                      │
 ┌─────────────────────▼───────────────────────────────┐
-│                  Traefik                             │
-│    - Routes /dashboard → dashboard service           │
-│    - StripPrefix middleware                          │
-│    - No auth required (read-only)                    │
+│                  Traefik                            │
+│    - Routes /dashboard → dashboard service          │
+│    - StripPrefix middleware                         │
+│    - No auth required (read-only)                   │
 └─────────────────────┬───────────────────────────────┘
-                      │
+                                                      │
 ┌─────────────────────▼───────────────────────────────┐
-│         Dashboard (Flask + waitress)                 │
-│         Port: 127.0.0.1:8082                         │
-│                                                      │
+│         Dashboard (Flask + waitress)                │
+│         Port: 127.0.0.1:8082                        │
+│                                                     │
 │    - Parses /Users/brent/ccproxy/logs/litellm.log   │
-│    - Calculates costs and savings                    │
+│    - Calculates costs and savings                   │
 │    - Serves HTML dashboard + JSON API               │
 └──────────────────────────────────────────────────────┘
 ```

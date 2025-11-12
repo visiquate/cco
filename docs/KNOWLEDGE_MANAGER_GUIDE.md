@@ -17,10 +17,10 @@ The Knowledge Manager provides persistent knowledge storage and retrieval across
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│              Claude Orchestra Orchestrator                    │
-│         (Before/After Compaction Hooks)                  │
+│              Claude Orchestra Orchestrator              │
+│         (Before/After Compaction Hooks)                 │
 └───────────────────────┬─────────────────────────────────┘
-                        │
+                                                          │
         ┌───────────────┴────────────────┐
         │                                │
         ▼                                ▼
@@ -29,17 +29,17 @@ The Knowledge Manager provides persistent knowledge storage and retrieval across
 │   Knowledge    │              │    Knowledge      │
 │    Capture     │              │   Retrieval       │
 └───────┬────────┘              └────────┬──────────┘
-        │                                │
+        │                                           │
         ▼                                ▼
 ┌─────────────────────────────────────────────────────────┐
-│           LanceDB Vector Database                        │
-│   ┌──────────────────────────────────────────────────┐  │
-│   │  Per-Repository Databases:                       │  │
-│   │  - data/knowledge/statushub/                     │  │
-│   │  - data/knowledge/cc-orchestra/                   │  │
-│   │  - data/knowledge/slack-broker/                  │  │
-│   │  Each with semantic vector embeddings            │  │
-│   └──────────────────────────────────────────────────┘  │
+│           LanceDB Vector Database                       │
+│   ┌──────────────────────────────────────────────────┐ │
+│   │  Per-Repository Databases:                       │ │
+│   │  - data/knowledge/statushub/                     │ │
+│   │  - data/knowledge/cc-orchestra/                  │ │
+│   │  - data/knowledge/slack-broker/                  │ │
+│   │  Each with semantic vector embeddings            │ │
+│   └──────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────┘
 ```
 

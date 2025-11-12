@@ -47,18 +47,18 @@ The orchestra is configured in your **global CLAUDE.md** (`~/.claude/CLAUDE.md`)
 │  - Trigger patterns                                 │
 │  - References cc-orchestra config                   │
 └─────────────────┬───────────────────────────────────┘
-                  │
+                                                      │
                   ├─> Detects complex task
-                  │
+                                                      │
 ┌─────────────────▼───────────────────────────────────┐
-│  Orchestra Config (/Users/brent/git/cc-orchestra/)      │
+│  Orchestra Config (/Users/brent/git/cc-orchestra/)  │
 │  - 14 agent definitions                             │
 │  - Agent capabilities                               │
 │  - Coordination protocols                           │
 └─────────────────┬───────────────────────────────────┘
-                  │
+                                                      │
                   ├─> Spawns agents via Claude Code Task tool
-                  │
+                                                      │
 ┌─────────────────▼───────────────────────────────────┐
 │  Your Project Directory (~/git/your-project/)       │
 │  - Agents operate HERE                              │

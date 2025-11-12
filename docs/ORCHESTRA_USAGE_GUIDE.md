@@ -11,14 +11,14 @@ The Claude Orchestra is a sophisticated multi-agent development system featuring
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                  Chief Architect (Opus)                  │
-│              Strategic Decisions & Coordination           │
+│                  Chief Architect (Opus)                 │
+│              Strategic Decisions & Coordination         │
 └───────────────────┬─────────────────────────────────────┘
-                    │
+                                                          │
         ┌───────────┴────────────┐
         │                        │
 ┌───────▼───────┐      ┌────────▼────────┐
-│ Coding Agents │      │  Support Agents  │
+│ Coding Agents │      │  Support Agents │
 ├───────────────┤      ├─────────────────┤
 │ • Python      │      │ • Documentation │
 │ • Swift       │      │ • QA/Testing    │

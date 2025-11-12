@@ -91,39 +91,39 @@ cp /Users/brent/git/cc-orchestra/docs/PROJECT_CLAUDE_TEMPLATE.md ~/git/your-proj
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  Tier 1: Global CLAUDE.md (~/.claude/CLAUDE.md)             │
-│  ----------------------------------------------------------- │
+│  -----------------------------------------------------------│
 │  - Auto-detection rules for ALL projects                    │
 │  - Trigger patterns (activate/bypass)                       │
-│  - References to orchestra config location                       │
+│  - References to orchestra config location                  │
 │  - Agent roster and capabilities                            │
 │  - Default coordination protocol                            │
-│  ----------------------------------------------------------- │
+│  -----------------------------------------------------------│
 │  Applied to: EVERY Claude Code session                      │
 └────────────────────────┬────────────────────────────────────┘
-                         │
+                                                              │
                          │ References
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Tier 2: Orchestra Config (/Users/brent/git/cc-orchestra/)       │
-│  ----------------------------------------------------------- │
-│  - config/orchestra-config.json (14 agent definitions)           │
+│  Tier 2: Orchestra Config (/Users/brent/git/cc-orchestra/)  │
+│  -----------------------------------------------------------│
+│  - config/orchestra-config.json (14 agent definitions)      │
 │  - Agent types, models, capabilities                        │
 │  - Coordination topology (hierarchical)                     │
 │  - MCP server requirements                                  │
-│  ----------------------------------------------------------- │
-│  Single source of truth for orchestra structure                  │
+│  -----------------------------------------------------------│
+│  Single source of truth for orchestra structure             │
 └────────────────────────┬────────────────────────────────────┘
-                         │
+                                                              │
                          │ Agents spawn in
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  Tier 3: Project Directory (~/git/your-project/)            │
-│  ----------------------------------------------------------- │
+│  -----------------------------------------------------------│
 │  - Optional: CLAUDE.md (project-specific overrides)         │
 │  - Agent preferences for this project                       │
 │  - Custom trigger patterns                                  │
 │  - Technology stack documentation                           │
-│  ----------------------------------------------------------- │
+│  -----------------------------------------------------------│
 │  Agents operate HERE - files created in current directory   │
 └─────────────────────────────────────────────────────────────┘
 ```

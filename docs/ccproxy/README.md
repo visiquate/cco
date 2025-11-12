@@ -137,11 +137,11 @@ macOS launchd service configuration:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ Security Layer 1: Traefik Bearer Token Authentication  │
+│ Security Layer 1: Traefik Bearer Token Authentication   │
 ├─────────────────────────────────────────────────────────┤
-│ Security Layer 2: Localhost-Only Binding (127.0.0.1)   │
+│ Security Layer 2: Localhost-Only Binding (127.0.0.1)    │
 ├─────────────────────────────────────────────────────────┤
-│ Security Layer 3: File Permissions (config.yaml)       │
+│ Security Layer 3: File Permissions (config.yaml)        │
 └─────────────────────────────────────────────────────────┘
 ```
 

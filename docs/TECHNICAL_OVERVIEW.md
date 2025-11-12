@@ -53,13 +53,13 @@ Claude Orchestra is a comprehensive multi-agent development system featuring **1
 │                         User Request                         │
 │               "Build a Python API with auth"                 │
 └───────────────────────────────┬──────────────────────────────┘
-                                │
+                                                               │
                                 ▼
 ┌──────────────────────────────────────────────────────────────┐
 │                   Claude Code Orchestrator                   │
 │             (Analyzes, delegates, coordinates)               │
 └───────────────────────────────┬──────────────────────────────┘
-                                │
+                                                               │
          ┌──────────────────────┼──────────────────────┐
          │                      │                      │
          ▼                      ▼                      ▼
@@ -74,10 +74,10 @@ Claude Orchestra is a comprehensive multi-agent development system featuring **1
 │                  │ │  1 Creds Mgr     │ │                  │
 │                  │ │   (qwen 7B)      │ │                  │
 └────────┬─────────┘ └────────┬─────────┘ └────────┬─────────┘
-         │                    │                    │
-         │                    │                    │
+         │                    │                              │
+         │                    │                              │
          └────────────────────┼────────────────────┘
-                              │
+                                                             │
                               ▼
          ┌──────────────────────────────────────────┐
          │       Knowledge Manager (LanceDB)        │
@@ -276,9 +276,9 @@ cd ~/git/another-project
 │             Claude Code (Orchestrator)              │
 │          Spawns agents with model parameter         │
 └──────────────────────┬──────────────────────────────┘
-                       │
+                                                      │
                        │ Agent requests with API aliases
-                       │
+                                                      │
 ┌──────────────────────▼──────────────────────────────┐
 │             ccproxy (LiteLLM Proxy)                 │
 │           https://coder.visiquate.com               │
@@ -288,9 +288,9 @@ cd ~/git/another-project
 │   • claude-3-haiku    → qwen-fast:latest            │
 │   • gpt-4             → qwen-quality-128k:latest    │
 └──────────────────────┬──────────────────────────────┘
-                       │
+                                                      │
                        │ Forward to Ollama
-                       │
+                                                      │
 ┌──────────────────────▼──────────────────────────────┐
 │             Ollama (localhost:11434)                │
 │            Mac mini at 192.168.9.123                │
@@ -898,40 +898,40 @@ const apiKey = await credentialManager.retrieve("salesforce_api_key");
 ┌─────────────────────────────────────────────────────┐
 │                      Internet                       │
 └──────────────────────┬──────────────────────────────┘
-                       │
+                                                      │
                        │ HTTPS
                        ▼
 ┌─────────────────────────────────────────────────────┐
 │       Cloudflare Tunnel (coder.visiquate.com)       │
 └──────────────────────┬──────────────────────────────┘
-                       │
+                                                      │
                        │ Internal Network (192.168.9.x)
                        ▼
 ┌─────────────────────────────────────────────────────┐
 │              Mac mini (192.168.9.123)               │
 │                                                     │
-│  ┌───────────────────────────────────────────┐     │
-│  │          Traefik (Port 8080)              │     │
-│  │         - TLS termination                 │     │
-│  │         - Bearer token authentication     │     │
-│  └────────────────┬──────────────────────────┘     │
-│                   │                                 │
-│                   ▼                                 │
-│  ┌───────────────────────────────────────────┐     │
-│  │           ccproxy (Port 8081)             │     │
-│  │             - LiteLLM proxy               │     │
-│  │             - Model routing               │     │
-│  │         - Health checks DISABLED          │     │
-│  └────────────────┬──────────────────────────┘     │
-│                   │                                 │
-│                   ▼                                 │
-│  ┌───────────────────────────────────────────┐     │
-│  │           Ollama (Port 11434)             │     │
-│  │     - qwen2.5-coder:32b-instruct (20GB)   │     │
-│  │         - qwen-fast:latest (5GB)          │     │
-│  │    - qwen-quality-128k:latest (35GB)      │     │
-│  │         - On-demand model loading         │     │
-│  └───────────────────────────────────────────┘     │
+│  ┌───────────────────────────────────────────┐    │
+│  │          Traefik (Port 8080)              │    │
+│  │         - TLS termination                 │    │
+│  │         - Bearer token authentication     │    │
+│  └────────────────┬──────────────────────────┘    │
+│                   │                                │
+│                   ▼                                │
+│  ┌───────────────────────────────────────────┐    │
+│  │           ccproxy (Port 8081)             │    │
+│  │             - LiteLLM proxy               │    │
+│  │             - Model routing               │    │
+│  │         - Health checks DISABLED          │    │
+│  └────────────────┬──────────────────────────┘    │
+│                   │                                │
+│                   ▼                                │
+│  ┌───────────────────────────────────────────┐    │
+│  │           Ollama (Port 11434)             │    │
+│  │     - qwen2.5-coder:32b-instruct (20GB)   │    │
+│  │         - qwen-fast:latest (5GB)          │    │
+│  │    - qwen-quality-128k:latest (35GB)      │    │
+│  │         - On-demand model loading         │    │
+│  └───────────────────────────────────────────┘    │
 │                                                     │
 └─────────────────────────────────────────────────────┘
 ```

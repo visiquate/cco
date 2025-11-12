@@ -223,10 +223,10 @@ node ~/git/cc-orchestra/src/knowledge-manager.js search "patterns"
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│           Claude Orchestra Orchestrator                  │
+│           Claude Orchestra Orchestrator             │
 │   (Coordinates agents, minimal direct work)         │
 └───────────────┬─────────────────────────────────────┘
-                │
+                                                      │
     ┌───────────┴───────────────┐
     │                           │
     ▼                           ▼
@@ -234,20 +234,20 @@ node ~/git/cc-orchestra/src/knowledge-manager.js search "patterns"
 │ Before Work:    │    │ After Work:      │
 │ Retrieve Context│    │ Store Knowledge  │
 └────────┬────────┘    └────────┬─────────┘
-         │                      │
+         │                                │
          ▼                      ▼
 ┌─────────────────────────────────────────┐
-│           LanceDB                        │
-│  ┌────────────────────────────────────┐ │
-│  │ Embeddings: Decisions, Patterns,   │ │
-│  │ Configurations, Architectures      │ │
-│  └────────────────────────────────────┘ │
+│           LanceDB                       │
+│  ┌────────────────────────────────────┐│
+│  │ Embeddings: Decisions, Patterns,   ││
+│  │ Configurations, Architectures      ││
+│  └────────────────────────────────────┘│
 └─────────────────────────────────────────┘
          │
          ▼
 ┌─────────────────────────────────────────┐
 │     Semantic Search & Retrieval         │
-│  "How did we implement auth?"          │
+│  "How did we implement auth?"           │
 │  → Retrieves relevant decisions         │
 └─────────────────────────────────────────┘
 ```

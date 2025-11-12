@@ -23,12 +23,12 @@ Claude Code supports custom API endpoints via the `ANTHROPIC_BASE_URL` environme
 ### Architecture Diagram
 ```
 ┌─────────────────────────────────────────────────────────┐
-│              Claude Code (User)                          │
-│         Task("Python Expert", "Implement X")             │
+│              Claude Code (User)                         │
+│         Task("Python Expert", "Implement X")            │
 └────────────────────┬────────────────────────────────────┘
-                     │
+                                                          │
          ANTHROPIC_BASE_URL=http://127.0.0.1:8080
-                     │
+                                                          │
                      ▼
          ┌───────────────────────┐
          │  Local LLM Router     │
@@ -39,7 +39,7 @@ Claude Code supports custom API endpoints via the `ANTHROPIC_BASE_URL` environme
          │  - Makes routing      │
          │    decision           │
          └───────────┬───────────┘
-                     │
+                                 │
         ┌────────────┴────────────┐
         │                         │
         ▼                         ▼

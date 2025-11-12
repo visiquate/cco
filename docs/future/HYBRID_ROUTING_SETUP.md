@@ -12,7 +12,7 @@ This guide configures ccproxy to route **Chief Architect** to real Claude API wh
 │         ANTHROPIC_BASE_URL=ccproxy                      │
 │         ANTHROPIC_API_KEY=ccproxy-bearer-token          │
 └────────────────────┬────────────────────────────────────┘
-                     │
+                                                          │
                      ▼
         ┌────────────────────────────┐
         │  ccproxy (Smart Router)    │
@@ -23,7 +23,7 @@ This guide configures ccproxy to route **Chief Architect** to real Claude API wh
      │  Anthropic API   │     │  Local Ollama      │
      │  (claude.api.com)│     │  (Mac mini)        │
      └──────────────────┘     └────────────────────┘
-             │                          │
+             │                                     │
     ┌────────▼─────────┐      ┌────────▼────────────┐
     │ Chief Architect  │      │ All Coding Agents   │
     │ - opus-4         │      │ - qwen2.5-coder     │

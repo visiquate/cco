@@ -65,9 +65,9 @@ The ccproxy deployment requires a dedicated Mac mini or similar machine with:
 ```
 ┌─────────────────────────────────────────────────────────┐
 │         Claude Orchestra - Agent Execution              │
-│                (117 agents total)                        │
+│                (117 agents total)                       │
 └──────────────────────┬──────────────────────────────────┘
-                       │
+                                                          │
          ┌─────────────┼─────────────┐
          │             │             │
     Current →    Future (Phase 1) →  Future (Phase 2)

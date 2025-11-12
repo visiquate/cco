@@ -301,23 +301,23 @@ Content-Type: application/json
 
 ```
 ┌─────────────────┐
-│  Claude Orchestra    │
+│  Claude Orchestra│
 │  (Orchestrator) │
 └────────┬────────┘
-         │
+                  │
          v
 ┌─────────────────┐
 │  LLM Router     │
 │  (Decision)     │
 └────┬───────┬────┘
-     │       │
+     │            │
      │       └─────────────────────┐
      v                             v
 ┌─────────────┐          ┌─────────────────┐
 │ Claude API  │          │ coder.visiquate │
 │ (Strategy)  │          │ (Implementation)│
 └─────────────┘          └─────────────────┘
-     │                             │
+     │                                     │
      └─────────────┬───────────────┘
                    v
            ┌───────────────┐

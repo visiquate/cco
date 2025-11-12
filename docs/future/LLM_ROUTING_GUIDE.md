@@ -8,15 +8,15 @@ The Claude Orchestra now supports intelligent LLM routing to use different AI mo
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                  User Requirement                        │
+│                  User Requirement                       │
 └────────────────────┬────────────────────────────────────┘
-                     │
+                                                          │
                      ▼
          ┌───────────────────────┐
-         │  Orchestra Conductor   │
-         │  with LLM Router       │
+         │  Orchestra Conductor  │
+         │  with LLM Router      │
          └───────────┬───────────┘
-                     │
+                                 │
         ┌────────────┴────────────┐
         │                         │
         ▼                         ▼

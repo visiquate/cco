@@ -8,29 +8,29 @@ This document outlines the deployment architecture for running LiteLLM Proxy (cc
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        Mac mini (macOS)                      │
+│                        Mac mini (macOS)                     │
 ├─────────────────────────────────────────────────────────────┤
-│                                                              │
+│                                                             │
 │  ┌──────────────────────────────────────────────────────┐  │
-│  │ Traefik Reverse Proxy (Port 8080)                    │  │
-│  │ - Bearer token authentication                        │  │
-│  │ - Routes /v1/messages → localhost:8081               │  │
+│  │ Traefik Reverse Proxy (Port 8080)                    ││
+│  │ - Bearer token authentication                        ││
+│  │ - Routes /v1/messages → localhost:8081               ││
 │  └──────────────┬───────────────────────────────────────┘  │
 │                 │                                            │
 │                 ▼                                            │
 │  ┌──────────────────────────────────────────────────────┐  │
-│  │ LiteLLM Proxy (ccproxy) - Port 8081                  │  │
-│  │ - Native Python application (pip install)            │  │
-│  │ - Managed by launchd service                         │  │
-│  │ - Config: /Users/coder/ccproxy/config.yaml          │  │
-│  │ - Logs: /Users/coder/ccproxy/logs/                  │  │
+│  │ LiteLLM Proxy (ccproxy) - Port 8081                  ││
+│  │ - Native Python application (pip install)            ││
+│  │ - Managed by launchd service                         ││
+│  │ - Config: /Users/coder/ccproxy/config.yaml          ││
+│  │ - Logs: /Users/coder/ccproxy/logs/                  ││
 │  └──────────────┬───────────────────────────────────────┘  │
 │                 │                                            │
 │                 ▼                                            │
 │  ┌──────────────────────────────────────────────────────┐  │
-│  │ Ollama (Port 11434)                                   │  │
-│  │ - Native macOS installation                          │  │
-│  │ - Local LLM models                                   │  │
+│  │ Ollama (Port 11434)                                   ││
+│  │ - Native macOS installation                          ││
+│  │ - Local LLM models                                   ││
 │  └──────────────────────────────────────────────────────┘  │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
