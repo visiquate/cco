@@ -221,35 +221,24 @@ node ~/git/cc-orchestra/src/knowledge-manager.js search "patterns"
 
 **Architecture:**
 
-```
-┌─────────────────────────────────────────────────────┐
-│           Claude Orchestra Orchestrator             │
-│   (Coordinates agents, minimal direct work)         │
-└───────────────┬─────────────────────────────────────┘
-                                                      │
-    ┌───────────┴───────────────┐
-    │                           │
-    ▼                           ▼
-┌─────────────────┐    ┌──────────────────┐
-│ Before Work:    │    │ After Work:      │
-│ Retrieve Context│    │ Store Knowledge  │
-└────────┬────────┘    └────────┬─────────┘
-         │                                │
-         ▼                      ▼
-┌─────────────────────────────────────────┐
-│           LanceDB                       │
-│  ┌────────────────────────────────────┐│
-│  │ Embeddings: Decisions, Patterns,   ││
-│  │ Configurations, Architectures      ││
-│  └────────────────────────────────────┘│
-└─────────────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────────┐
-│     Semantic Search & Retrieval         │
-│  "How did we implement auth?"           │
-│  → Retrieves relevant decisions         │
-└─────────────────────────────────────────┘
+```mermaid
+graph TD
+    Orchestrator["Claude Orchestra Orchestrator<br/>(Coordinates agents, minimal direct work)"]
+
+    BeforeWork["Before Work:<br/>Retrieve Context"]
+    AfterWork["After Work:<br/>Store Knowledge"]
+
+    LanceDB["LanceDB<br/>Embeddings: Decisions, Patterns,<br/>Configurations, Architectures"]
+
+    SemanticSearch["Semantic Search & Retrieval<br/>'How did we implement auth?'<br/>→ Retrieves relevant decisions"]
+
+    Orchestrator --> BeforeWork
+    Orchestrator --> AfterWork
+
+    BeforeWork --> LanceDB
+    AfterWork --> LanceDB
+
+    LanceDB --> SemanticSearch
 ```
 
 **Implementation Plan:**

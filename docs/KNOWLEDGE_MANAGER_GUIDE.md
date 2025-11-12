@@ -15,32 +15,22 @@ The Knowledge Manager provides persistent knowledge storage and retrieval across
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│              Claude Orchestra Orchestrator              │
-│         (Before/After Compaction Hooks)                 │
-└───────────────────────┬─────────────────────────────────┘
-                                                          │
-        ┌───────────────┴────────────────┐
-        │                                │
-        ▼                                ▼
-┌────────────────┐              ┌───────────────────┐
-│ Pre-Compaction │              │ Post-Compaction   │
-│   Knowledge    │              │    Knowledge      │
-│    Capture     │              │   Retrieval       │
-└───────┬────────┘              └────────┬──────────┘
-        │                                           │
-        ▼                                ▼
-┌─────────────────────────────────────────────────────────┐
-│           LanceDB Vector Database                       │
-│   ┌──────────────────────────────────────────────────┐ │
-│   │  Per-Repository Databases:                       │ │
-│   │  - data/knowledge/statushub/                     │ │
-│   │  - data/knowledge/cc-orchestra/                  │ │
-│   │  - data/knowledge/slack-broker/                  │ │
-│   │  Each with semantic vector embeddings            │ │
-│   └──────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    Orchestrator["Claude Orchestra Orchestrator<br/>(Before/After Compaction Hooks)"]
+
+    PreCompaction["Pre-Compaction<br/>Knowledge Capture"]
+    PostCompaction["Post-Compaction<br/>Knowledge Retrieval"]
+
+    subgraph LanceDB["LanceDB Vector Database"]
+        Repos["Per-Repository Databases:<br/>- data/knowledge/statushub/<br/>- data/knowledge/cc-orchestra/<br/>- data/knowledge/slack-broker/<br/>Each with semantic vector embeddings"]
+    end
+
+    Orchestrator --> PreCompaction
+    Orchestrator --> PostCompaction
+
+    PreCompaction --> LanceDB
+    PostCompaction --> LanceDB
 ```
 
 ## Database Structure

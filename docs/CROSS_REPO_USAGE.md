@@ -40,31 +40,16 @@ The orchestra is configured in your **global CLAUDE.md** (`~/.claude/CLAUDE.md`)
 
 ### Architecture
 
-```
-┌─────────────────────────────────────────────────────┐
-│  Global CLAUDE.md (~/.claude/CLAUDE.md)             │
-│  - Orchestra auto-detection rules                   │
-│  - Trigger patterns                                 │
-│  - References cc-orchestra config                   │
-└─────────────────┬───────────────────────────────────┘
-                                                      │
-                  ├─> Detects complex task
-                                                      │
-┌─────────────────▼───────────────────────────────────┐
-│  Orchestra Config (/Users/brent/git/cc-orchestra/)  │
-│  - 14 agent definitions                             │
-│  - Agent capabilities                               │
-│  - Coordination protocols                           │
-└─────────────────┬───────────────────────────────────┘
-                                                      │
-                  ├─> Spawns agents via Claude Code Task tool
-                                                      │
-┌─────────────────▼───────────────────────────────────┐
-│  Your Project Directory (~/git/your-project/)       │
-│  - Agents operate HERE                              │
-│  - Files created HERE                               │
-│  - Coordination via MCP memory                      │
-└─────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    GlobalClaude["Global CLAUDE.md (~/.claude/CLAUDE.md)<br/>- Orchestra auto-detection rules<br/>- Trigger patterns<br/>- References cc-orchestra config"]
+
+    OrchestraConfig["Orchestra Config (/Users/brent/git/cc-orchestra/)<br/>- 14 agent definitions<br/>- Agent capabilities<br/>- Coordination protocols"]
+
+    ProjectDir["Your Project Directory (~/git/your-project/)<br/>- Agents operate HERE<br/>- Files created HERE<br/>- Coordination via MCP memory"]
+
+    GlobalClaude -->|"Detects complex task"| OrchestraConfig
+    OrchestraConfig -->|"Spawns agents via<br/>Claude Code Task tool"| ProjectDir
 ```
 
 ### Three-Tier Configuration

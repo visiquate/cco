@@ -48,41 +48,37 @@ Claude Orchestra is a comprehensive multi-agent development system featuring **1
 
 ### High-Level Architecture
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                         User Request                         │
-│               "Build a Python API with auth"                 │
-└───────────────────────────────┬──────────────────────────────┘
-                                                               │
-                                ▼
-┌──────────────────────────────────────────────────────────────┐
-│                   Claude Code Orchestrator                   │
-│             (Analyzes, delegates, coordinates)               │
-└───────────────────────────────┬──────────────────────────────┘
-                                                               │
-         ┌──────────────────────┼──────────────────────┐
-         │                      │                      │
-         ▼                      ▼                      ▼
-┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
-│     Phase 0      │ │     Phase 1      │ │     Phase 2      │
-│   Independent    │ │      Coding      │ │     Quality      │
-├──────────────────┤ ├──────────────────┤ ├──────────────────┤
-│ Chief Architect  │ │   10 Coders      │ │   QA Engineer    │
-│  (Opus 4.1 →     │ │   + TDD Agent    │ │    Security      │
-│   Sonnet 4.5)    │ │   (qwen 32B)     │ │      Docs        │
-│                  │ │                  │ │   (qwen 32B)     │
-│                  │ │  1 Creds Mgr     │ │                  │
-│                  │ │   (qwen 7B)      │ │                  │
-└────────┬─────────┘ └────────┬─────────┘ └────────┬─────────┘
-         │                    │                              │
-         │                    │                              │
-         └────────────────────┼────────────────────┘
-                                                             │
-                              ▼
-         ┌──────────────────────────────────────────┐
-         │       Knowledge Manager (LanceDB)        │
-         │       Per-Repository Vector Store        │
-         └──────────────────────────────────────────┘
+```mermaid
+graph TD
+    User["User Request<br/>'Build a Python API with auth'"]
+    Orchestrator["Claude Code Orchestrator<br/>(Analyzes, delegates, coordinates)"]
+
+    User --> Orchestrator
+
+    subgraph Phase0["Phase 0: Independent"]
+        Architect["Chief Architect<br/>(Opus 4.1 → Sonnet 4.5)"]
+    end
+
+    subgraph Phase1["Phase 1: Coding"]
+        Coders["10 Coders + TDD Agent<br/>(qwen 32B)"]
+        Creds["Credentials Manager<br/>(qwen 7B)"]
+    end
+
+    subgraph Phase2["Phase 2: Quality"]
+        QA["QA Engineer"]
+        Security["Security"]
+        Docs["Documentation<br/>(qwen 32B)"]
+    end
+
+    KnowledgeMgr["Knowledge Manager (LanceDB)<br/>Per-Repository Vector Store"]
+
+    Orchestrator --> Phase0
+    Orchestrator --> Phase1
+    Orchestrator --> Phase2
+
+    Phase0 --> KnowledgeMgr
+    Phase1 --> KnowledgeMgr
+    Phase2 --> KnowledgeMgr
 ```
 
 ### Component Breakdown
@@ -271,35 +267,16 @@ cd ~/git/another-project
 
 ### Model Routing Architecture
 
-```
-┌─────────────────────────────────────────────────────┐
-│             Claude Code (Orchestrator)              │
-│          Spawns agents with model parameter         │
-└──────────────────────┬──────────────────────────────┘
-                                                      │
-                       │ Agent requests with API aliases
-                                                      │
-┌──────────────────────▼──────────────────────────────┐
-│             ccproxy (LiteLLM Proxy)                 │
-│           https://coder.visiquate.com               │
-│                                                     │
-│             API Alias Mapping:                      │
-│   • claude-3-5-sonnet → qwen2.5-coder:32b-instruct  │
-│   • claude-3-haiku    → qwen-fast:latest            │
-│   • gpt-4             → qwen-quality-128k:latest    │
-└──────────────────────┬──────────────────────────────┘
-                                                      │
-                       │ Forward to Ollama
-                                                      │
-┌──────────────────────▼──────────────────────────────┐
-│             Ollama (localhost:11434)                │
-│            Mac mini at 192.168.9.123                │
-│                                                     │
-│                       Models:                       │
-│        • qwen2.5-coder:32b-instruct (20GB)          │
-│              • qwen-fast:latest (5GB)               │
-│         • qwen-quality-128k:latest (35GB)           │
-└─────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    Orchestrator["Claude Code (Orchestrator)<br/>Spawns agents with model parameter"]
+
+    CCProxy["ccproxy (LiteLLM Proxy)<br/>https://coder.visiquate.com<br/><br/>API Alias Mapping:<br/>• claude-3-5-sonnet → qwen2.5-coder:32b-instruct<br/>• claude-3-haiku → qwen-fast:latest<br/>• gpt-4 → qwen-quality-128k:latest"]
+
+    Ollama["Ollama (localhost:11434)<br/>Mac mini at 192.168.9.123<br/><br/>Models:<br/>• qwen2.5-coder:32b-instruct (20GB)<br/>• qwen-fast:latest (5GB)<br/>• qwen-quality-128k:latest (35GB)"]
+
+    Orchestrator -->|"Agent requests<br/>with API aliases"| CCProxy
+    CCProxy -->|"Forward to Ollama"| Ollama
 ```
 
 **Key Points:**
@@ -894,46 +871,22 @@ const apiKey = await credentialManager.retrieve("salesforce_api_key");
 
 ### Infrastructure Overview
 
-```
-┌─────────────────────────────────────────────────────┐
-│                      Internet                       │
-└──────────────────────┬──────────────────────────────┘
-                                                      │
-                       │ HTTPS
-                       ▼
-┌─────────────────────────────────────────────────────┐
-│       Cloudflare Tunnel (coder.visiquate.com)       │
-└──────────────────────┬──────────────────────────────┘
-                                                      │
-                       │ Internal Network (192.168.9.x)
-                       ▼
-┌─────────────────────────────────────────────────────┐
-│              Mac mini (192.168.9.123)               │
-│                                                     │
-│  ┌───────────────────────────────────────────┐    │
-│  │          Traefik (Port 8080)              │    │
-│  │         - TLS termination                 │    │
-│  │         - Bearer token authentication     │    │
-│  └────────────────┬──────────────────────────┘    │
-│                   │                                │
-│                   ▼                                │
-│  ┌───────────────────────────────────────────┐    │
-│  │           ccproxy (Port 8081)             │    │
-│  │             - LiteLLM proxy               │    │
-│  │             - Model routing               │    │
-│  │         - Health checks DISABLED          │    │
-│  └────────────────┬──────────────────────────┘    │
-│                   │                                │
-│                   ▼                                │
-│  ┌───────────────────────────────────────────┐    │
-│  │           Ollama (Port 11434)             │    │
-│  │     - qwen2.5-coder:32b-instruct (20GB)   │    │
-│  │         - qwen-fast:latest (5GB)          │    │
-│  │    - qwen-quality-128k:latest (35GB)      │    │
-│  │         - On-demand model loading         │    │
-│  └───────────────────────────────────────────┘    │
-│                                                     │
-└─────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    Internet["Internet"]
+
+    CloudflareTunnel["Cloudflare Tunnel<br/>(coder.visiquate.com)"]
+
+    subgraph MacMini["Mac mini (192.168.9.123)"]
+        Traefik["Traefik (Port 8080)<br/>- TLS termination<br/>- Bearer token authentication"]
+        CCProxy["ccproxy (Port 8081)<br/>- LiteLLM proxy<br/>- Model routing<br/>- Health checks DISABLED"]
+        Ollama["Ollama (Port 11434)<br/>- qwen2.5-coder:32b-instruct (20GB)<br/>- qwen-fast:latest (5GB)<br/>- qwen-quality-128k:latest (35GB)<br/>- On-demand model loading"]
+    end
+
+    Internet -->|HTTPS| CloudflareTunnel
+    CloudflareTunnel -->|"Internal Network<br/>(192.168.9.x)"| Traefik
+    Traefik --> CCProxy
+    CCProxy --> Ollama
 ```
 
 ### Model Routing Configuration

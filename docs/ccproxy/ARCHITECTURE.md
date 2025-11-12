@@ -26,63 +26,28 @@
 
 ### System Diagram
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                       Internet/External Clients                     │
-│            (Claude Code Orchestra, API Clients, etc.)               │
-└────────────────────────────┬────────────────────────────────────────┘
-                             │ HTTPS (TLS)
-                             │ https://coder.visiquate.com/v1/*
-                                                                      │
-┌────────────────────────────▼────────────────────────────────────────┐
-│                      Traefik Reverse Proxy                          │
-│                          (Port 8080)                                │
-│  ┌──────────────────────────────────────────────────────────────┐ │
-│  │ • TLS Termination                                             │ │
-│  │ • Bearer Token Authentication                                 │ │
-│  │ • Request Routing: /v1/* → localhost:8081                    │ │
-│  │ • Health Checks                                               │ │
-│  └──────────────────────────────────────────────────────────────┘ │
-└────────────────────────────┬────────────────────────────────────────┘
-                             │ HTTP (localhost only)
-                             │ Authorization: Bearer da6932...
-                             │
-┌────────────────────────────▼────────────────────────────────────────┐
-│                      LiteLLM Proxy (ccproxy)                        │
-│                   Bound to 127.0.0.1:8081                           │
-│  ┌──────────────────────────────────────────────────────────────┐ │
-│  │ • OpenAI-compatible API format                                │ │
-│  │ • Model routing and aliasing                                  │ │
-│  │ • Native macOS deployment (pip3 install)                      │ │
-│  │ • launchd service (auto-start/restart)                        │ │
-│  │ • Config: /Users/coder/ccproxy/config.yaml                    │ │
-│  │ • Logs: /Users/coder/ccproxy/logs/                            │ │
-│  └──────────────────────────────────────────────────────────────┘ │
-└────────────────────────────┬────────────────────────────────────────┘
-                             │ HTTP
-                             │ localhost:11434
-                             │
-┌────────────────────────────▼────────────────────────────────────────┐
-│                         Ollama Service                              │
-│                    Bound to localhost:11434                         │
-│  ┌──────────────────────────────────────────────────────────────┐ │
-│  │ Models Loaded:                                                │ │
-│  │ • qwen2.5-coder:7b-instruct  (qwen-fast)                     │ │
-│  │   - 7B parameters                                             │ │
-│  │   - 32k context window                                        │ │
-│  │   - ~50 tok/s throughput                                      │ │
-│  │   - 0.4-0.8s response time                                    │ │
-│  │                                                               │ │
-│  │ • qwen2.5-coder:32b-instruct (qwen-quality)                  │ │
-│  │   - 32B parameters                                            │ │
-│  │   - 128k context window                                       │ │
-│  │   - ~8-10 tok/s throughput                                    │ │
-│  │   - 6-10s response time                                       │ │
-│  └──────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    Internet["Internet/External Clients<br/>(Claude Code Orchestra, API Clients, etc.)"]
 
-                        All components on same Mac mini
-                        No Docker - Native macOS deployment
+    subgraph TraefikProxy["Traefik Reverse Proxy (Port 8080)"]
+        TraefikFeatures["• TLS Termination<br/>• Bearer Token Authentication<br/>• Request Routing: /v1/* → localhost:8081<br/>• Health Checks"]
+    end
+
+    subgraph LiteLLM["LiteLLM Proxy (ccproxy)<br/>Bound to 127.0.0.1:8081"]
+        LiteLLMFeatures["• OpenAI-compatible API format<br/>• Model routing and aliasing<br/>• Native macOS deployment (pip3 install)<br/>• launchd service (auto-start/restart)<br/>• Config: /Users/coder/ccproxy/config.yaml<br/>• Logs: /Users/coder/ccproxy/logs/"]
+    end
+
+    subgraph OllamaService["Ollama Service<br/>Bound to localhost:11434"]
+        QwenFast["qwen2.5-coder:7b-instruct (qwen-fast)<br/>- 7B parameters<br/>- 32k context window<br/>- ~50 tok/s throughput<br/>- 0.4-0.8s response time"]
+        QwenQuality["qwen2.5-coder:32b-instruct (qwen-quality)<br/>- 32B parameters<br/>- 128k context window<br/>- ~8-10 tok/s throughput<br/>- 6-10s response time"]
+    end
+
+    Note["All components on same Mac mini<br/>No Docker - Native macOS deployment"]
+
+    Internet -->|"HTTPS (TLS)<br/>https://coder.visiquate.com/v1/*"| TraefikProxy
+    TraefikProxy -->|"HTTP (localhost only)<br/>Authorization: Bearer da6932..."| LiteLLM
+    LiteLLM -->|"HTTP<br/>localhost:11434"| OllamaService
 ```
 
 ### Key Characteristics
@@ -375,34 +340,19 @@ Client → Traefik → 401 (if no token)
 
 ### Defense in Depth Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│ Layer 1: Network Isolation                              │
-│ • LiteLLM bound to localhost only (127.0.0.1:8081)      │
-│ • Ollama bound to localhost only (11434)                │
-│ • No direct external access                             │
-└────────────────────┬────────────────────────────────────┘
-                                                          │
-┌────────────────────▼────────────────────────────────────┐
-│ Layer 2: Reverse Proxy (Traefik)                        │
-│ • Public-facing gateway (coder.visiquate.com:8080)      │
-│ • TLS termination (HTTPS encryption)                    │
-│ • Bearer token authentication                           │
-└────────────────────┬────────────────────────────────────┘
-                                                          │
-┌────────────────────▼────────────────────────────────────┐
-│ Layer 3: Application Security (LiteLLM)                 │
-│ • Model whitelist (only configured models)              │
-│ • Parameter validation                                  │
-│ • Request logging                                       │
-└────────────────────┬────────────────────────────────────┘
-                                                          │
-┌────────────────────▼────────────────────────────────────┐
-│ Layer 4: Inference Isolation (Ollama)                   │
-│ • Local execution only                                  │
-│ • No external model downloads at runtime                │
-│ • Resource limits via macOS                             │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    Layer1["Layer 1: Network Isolation<br/>• LiteLLM bound to localhost only (127.0.0.1:8081)<br/>• Ollama bound to localhost only (11434)<br/>• No direct external access"]
+
+    Layer2["Layer 2: Reverse Proxy (Traefik)<br/>• Public-facing gateway (coder.visiquate.com:8080)<br/>• TLS termination (HTTPS encryption)<br/>• Bearer token authentication"]
+
+    Layer3["Layer 3: Application Security (LiteLLM)<br/>• Model whitelist (only configured models)<br/>• Parameter validation<br/>• Request logging"]
+
+    Layer4["Layer 4: Inference Isolation (Ollama)<br/>• Local execution only<br/>• No external model downloads at runtime<br/>• Resource limits via macOS"]
+
+    Layer1 --> Layer2
+    Layer2 --> Layer3
+    Layer3 --> Layer4
 ```
 
 ### Authentication Flow

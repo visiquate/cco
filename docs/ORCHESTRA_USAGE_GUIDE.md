@@ -9,23 +9,28 @@ The Claude Orchestra is a sophisticated multi-agent development system featuring
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                  Chief Architect (Opus)                 │
-│              Strategic Decisions & Coordination         │
-└───────────────────┬─────────────────────────────────────┘
-                                                          │
-        ┌───────────┴────────────┐
-        │                        │
-┌───────▼───────┐      ┌────────▼────────┐
-│ Coding Agents │      │  Support Agents │
-├───────────────┤      ├─────────────────┤
-│ • Python      │      │ • Documentation │
-│ • Swift       │      │ • QA/Testing    │
-│ • Go          │      │ • Security      │
-│ • Rust        │      │ • Credentials   │
-│ • Flutter     │      │ • DevOps        │
-└───────────────┘      └─────────────────┘
+```mermaid
+graph TD
+    Architect["Chief Architect (Opus)<br/>Strategic Decisions & Coordination"]
+
+    subgraph CodingAgents["Coding Agents"]
+        Python["Python"]
+        Swift["Swift"]
+        Go["Go"]
+        Rust["Rust"]
+        Flutter["Flutter"]
+    end
+
+    subgraph SupportAgents["Support Agents"]
+        Documentation["Documentation"]
+        QA["QA/Testing"]
+        Security["Security"]
+        Credentials["Credentials"]
+        DevOps["DevOps"]
+    end
+
+    Architect --> CodingAgents
+    Architect --> SupportAgents
 ```
 
 ## Setup
