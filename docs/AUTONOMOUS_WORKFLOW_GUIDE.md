@@ -439,20 +439,19 @@ if (vulnerabilities.critical.length > 0) {
 **Trigger:** Claude Code is about to compact conversation
 
 **What Happens:**
-```bash
-# Pre-compaction hook triggers automatically
-./scripts/pre-compaction.sh
+```javascript
+// Pre-compaction hook triggers automatically
+await orchestra.preCompactionHook(conversation, context);
 
-# Exports ALL critical state to MCP memory:
-# - Architect specification and decisions
-# - Current phase and progress
-# - All agent states
-# - Credentials and access methods
-# - Integration configs
-# - Test results
-# - File structure
-# - Completed milestones
-# - Blocked tasks
+// Knowledge Manager extracts and stores critical knowledge:
+// - Architecture decisions and patterns
+// - Implementation details and code changes
+// - Configuration and setup information
+// - Issues, bugs, and resolutions
+// - Agent activities and decisions
+// - Credentials and integration configs
+// - Test results and coverage
+// - Stored in LanceDB with vector embeddings for semantic search
 ```
 
 **Memory Snapshot Created:**
@@ -482,14 +481,15 @@ compaction/session-abc123/
 **Trigger:** Immediately after compaction completes
 
 **What Happens:**
-```bash
-# Post-compaction hook triggers automatically
-./scripts/post-compaction.sh session-abc123
+```javascript
+// Post-compaction hook triggers automatically
+await orchestra.postCompactionHook(currentTask, context);
 
-# Restores ALL state from MCP memory:
-# - Recreates /tmp/ files
-# - Sets environment variables
-# - Broadcasts to all agents
+// Knowledge Manager retrieves relevant context:
+// - Semantic search for knowledge related to current task
+// - Retrieves recent project knowledge
+// - Returns targeted subset of relevant information
+// - Generates context summary for agents
 ```
 
 **Agents Receive Notification:**

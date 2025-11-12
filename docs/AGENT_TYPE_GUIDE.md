@@ -1,7 +1,7 @@
 # Agent Type Guide - Claude Orchestra
 
 **Version**: 2.1.0
-**Date**: 2025-11-10
+**Date**: 2025-11-11
 **Status**: Comprehensive guide to all 15 agent types in the reconciled orchestra
 
 ---
@@ -556,7 +556,7 @@ The Claude Orchestra uses **15 specialized agent types** instead of generic role
 
 ## Type Distribution Analysis
 
-### Agent Count by Type (116 Total)
+### Agent Count by Type (119 Total)
 
 | Type | Count | % of Fleet | Primary Model |
 |------|-------|-----------|---------------|
@@ -580,16 +580,16 @@ The Claude Orchestra uses **15 specialized agent types** instead of generic role
 
 | Model | Agent Count | % | Use Case |
 |-------|------------|---|----------|
-| Sonnet 4.5 | 88 | 75.9% | Complex reasoning, coding, security, architecture |
-| Haiku | 28 | 24.1% | Documentation, utilities, structured tasks |
-| Opus 4.1 | 1 | 0.9% | Chief Architect leadership |
+| Sonnet 4.5 | 37 | 31.1% | Complex reasoning, coding, security, architecture |
+| Haiku | 81 | 68.1% | Documentation, utilities, structured tasks |
+| Opus 4.1 | 1 | 0.8% | Chief Architect leadership |
 
 ### Cost Savings
 
-- **Haiku agents**: 28 × $0.08/1k tokens = Cost-effective
-- **Sonnet agents**: 88 × $0.60/1k tokens = Complex work
-- **Monthly savings**: $300-450 (35-40% reduction)
-- **Annual savings**: $3,600-5,400
+- **Haiku agents**: 81 × $0.08/1k tokens = Cost-effective
+- **Sonnet agents**: 37 × $0.60/1k tokens = Complex work
+- **Monthly savings**: $600-900 (65-75% reduction)
+- **Annual savings**: $7,200-10,800
 
 ---
 
@@ -599,7 +599,7 @@ The Claude Orchestra uses **15 specialized agent types** instead of generic role
 
 1. **Always use specific types** unless task is genuinely multi-domain
 2. **Combine types for complex work** (e.g., backend-dev + security-auditor)
-3. **Leverage haiku optimization** for documentation and utilities (24% cost savings)
+3. **Leverage haiku optimization** for documentation and utilities (68% cost savings)
 4. **Reserve Opus for architecture** (Chief Architect leadership only)
 5. **Use test-automator for TDD** (write tests before implementation)
 
@@ -616,7 +616,7 @@ The Claude Orchestra uses **15 specialized agent types** instead of generic role
 
 ### What Changed
 - **Before**: 129 config entries, 68 "coder" agents, 15 duplicates
-- **After**: 116 agents, 4 "coder" agents, 0 duplicates
+- **After**: 119 agents, 4 "coder" agents, 0 duplicates
 - **Impact**: 94% reduction in generic roles, improved orchestration accuracy
 
 ### Agents Added (6 total)
@@ -628,8 +628,8 @@ The Claude Orchestra uses **15 specialized agent types** instead of generic role
 - Web Vitals Optimizer (backend-dev type)
 
 ### Type Changes Applied
-- 70 agents reassigned to correct types
-- 28 agents optimized to Haiku model
+- 72 agents reassigned to correct types
+- 39 agents optimized to Haiku model
 - All security agents → security-auditor type
 - All documentation agents → technical-writer type
 
@@ -653,7 +653,7 @@ The Claude Orchestra uses **15 specialized agent types** instead of generic role
 
 ### Scaling Strategy
 
-- Current: 116 agents across 15 types
+- Current: 119 agents across 13 sections (90 unique agent types)
 - Target: 150-200 agents across 18-20 types
 - Growth: Add specialized types as needs evolve
 - Optimization: Continue haiku adoption for cost-effective agents

@@ -4,7 +4,7 @@ This document provides comprehensive visual representations of the Claude Orches
 
 ## Table of Contents
 
-1. [High-Level System Architecture](#1-high-level-system-architecture) - 117 agents organized by model tier
+1. [High-Level System Architecture](#1-high-level-system-architecture) - 119 agents organized by model tier
 2. [Agent Coordination Flow](#2-agent-coordination-flow) - Cross-agent communication via Knowledge Manager
 3. [Knowledge Manager Architecture](#3-knowledge-manager-architecture) - Persistent memory system
 4. [Model Assignment Strategy](#4-model-assignment-strategy) - Opus/Sonnet/Haiku distribution
@@ -18,15 +18,15 @@ This document provides comprehensive visual representations of the Claude Orches
 
 ## 1. High-Level System Architecture
 
-This diagram shows the overall architecture of the Claude Orchestra system with **117 specialized agents** organized by model tier and the Knowledge Manager coordination system.
+This diagram shows the overall architecture of the Claude Orchestra system with **119 specialized agents** organized by model tier and the Knowledge Manager coordination system.
 
 ```mermaid
 graph TD
     User[User Request] --> CC[Claude Code]
     CC --> Arch[Chief Architect<br/>Opus 4.1<br/>Strategic Leadership]
 
-    Arch --> Intelligent[Intelligent Managers<br/>77 Agents - Sonnet 4.5]
-    Arch --> Basic[Basic Specialists<br/>39 Agents - Haiku 4.5]
+    Arch --> Intelligent[Intelligent Managers<br/>37 Agents - Sonnet 4.5]
+    Arch --> Basic[Basic Specialists<br/>81 Agents - Haiku 4.5]
 
     Intelligent --> Reviewers[Code Review & Quality<br/>Reviewers, Debuggers]
     Intelligent --> Security[Security & Compliance<br/>Auditors, Pen Testers]
@@ -51,8 +51,8 @@ graph TD
 
 **Key Components:**
 - **Chief Architect** (1 agent): Strategic leadership using Opus 4.1 - architecture design, coordination
-- **Intelligent Managers** (77 agents): Complex reasoning using Sonnet 4.5 - code review, security, testing, architecture, API integration
-- **Basic Specialists** (39 agents): Simple tasks using Haiku 4.5 - language coding, documentation, utilities, basic research
+- **Intelligent Managers** (37 agents): Complex reasoning using Sonnet 4.5 - code review, security, testing, architecture, API integration
+- **Basic Specialists** (81 agents): Simple tasks using Haiku 4.5 - language coding, documentation, utilities, basic research
 - **Knowledge Manager**: Persistent memory with LanceDB vector search for cross-agent coordination
 - **All agents**: Direct Claude API (ccproxy integration is future enhancement pending hardware)
 
@@ -236,8 +236,8 @@ graph TD
     end
 
     CC --> OpusAgent[Chief Architect<br/>1 Agent<br/>Opus 4.1]
-    CC --> SonnetAgents[Intelligent Managers<br/>77 Agents<br/>Sonnet 4.5]
-    CC --> HaikuAgents[Basic Specialists<br/>39 Agents<br/>Haiku 4.5]
+    CC --> SonnetAgents[Intelligent Managers<br/>37 Agents<br/>Sonnet 4.5]
+    CC --> HaikuAgents[Basic Specialists<br/>81 Agents<br/>Haiku 4.5]
 
     OpusAgent --> OpusAPI[Claude Opus 4.1 API<br/>Strategic Leadership<br/>Architecture Design]
 
@@ -269,12 +269,12 @@ graph TD
 | Model | Count | Selection Criteria | Examples |
 |-------|-------|-------------------|----------|
 | **Opus 4.1** | 1 | Strategic leadership, architecture design, coordination | Chief Architect |
-| **Sonnet 4.5** | 77 | Complex reasoning, code review, security analysis, testing strategy, architecture decisions | Code Reviewer, Security Auditor, TDD Agent, Backend Architect, DevOps Engineer |
-| **Haiku 4.5** | 39 | Simple coding, documentation, utilities, basic research | Python Specialist, Technical Writer, Git Flow Manager, Search Specialist |
+| **Sonnet 4.5** | 37 | Complex reasoning, code review, security analysis, testing strategy, architecture decisions | Code Reviewer, Security Auditor, TDD Agent, Backend Architect, DevOps Engineer |
+| **Haiku 4.5** | 81 | Simple coding, documentation, utilities, basic research | Python Specialist, Technical Writer, Git Flow Manager, Search Specialist |
 
 **Cost Optimization:**
 - **Current**: All agents use direct Claude API
-- **Haiku 4.5**: 33% of agents use most cost-effective model
+- **Haiku 4.5**: 69% of agents use most cost-effective model
 - **Future**: ccproxy integration for local LLM routing (pending hardware)
   - Potential savings: $300-450/month
   - Target: Mac mini with Ollama for Sonnet/Haiku workloads

@@ -46,31 +46,31 @@ This framework enables the Claude Orchestra to operate autonomously for extended
 **Purpose:** Preserve ALL critical state across conversation compactions.
 
 **Pre-Compaction Protocol:**
-```bash
-# Run automatically before compaction
-./scripts/pre-compaction.sh
+```javascript
+// Run automatically before compaction
+await orchestra.preCompactionHook(conversation, context);
 
-# Exports to MCP memory:
-# - Architect specification and decisions
-# - Definition of Done
-# - Credentials inventory and access methods
-# - Integration configurations (Salesforce, Authentik, APIs)
-# - Agent states (completed, in_progress, pending, blocked)
-# - File structure and critical files
-# - Test results and coverage
-# - Completed milestones
-# - Blocked tasks
+// Knowledge Manager extracts and stores:
+// - Architecture decisions and patterns
+// - Implementation details and code changes
+// - Configuration and setup information
+// - Credentials and integration configs
+// - Issues, bugs, and resolutions
+// - Agent activities and decisions
+// - Test results and coverage
+// Stored in LanceDB with vector embeddings for semantic search
 ```
 
 **Post-Compaction Protocol:**
-```bash
-# Run immediately after compaction
-./scripts/post-compaction.sh <SESSION_ID>
+```javascript
+// Run immediately after compaction
+await orchestra.postCompactionHook(currentTask, context);
 
-# Restores from MCP memory:
-# - All state to /tmp/ files
-# - Environment variables
-# - Broadcasts restoration to all agents
+// Knowledge Manager retrieves:
+// - Semantic search for knowledge related to current task
+// - Recent project knowledge (last 5 items)
+// - Context summary for agents
+// Returns targeted subset of relevant information
 ```
 
 **Memory Keys Structure:**
@@ -550,11 +550,11 @@ node src/orchestra-conductor.js "Build [your project]"
 
 ### After Compaction
 
-```bash
-# Automatic restoration
-./scripts/post-compaction.sh <SESSION_ID>
+```javascript
+// Automatic restoration
+await orchestra.postCompactionHook(currentTask, context);
 
-# Orchestra resumes from last checkpoint with full context
+// Orchestra resumes with relevant context retrieved via semantic search
 ```
 
 ---

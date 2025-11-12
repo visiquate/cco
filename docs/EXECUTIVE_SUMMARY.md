@@ -2,16 +2,16 @@
 
 ## What is Claude Orchestra?
 
-Claude Orchestra is an intelligent development system that transforms how software gets built. Instead of a single developer or AI working sequentially on tasks, the Orchestra coordinates a specialized team of **116 expert agents** across **15 specialized types** working in parallel—like a conductor leading a symphony.
+Claude Orchestra is an intelligent development system that transforms how software gets built. Instead of a single developer or AI working sequentially on tasks, the Orchestra coordinates a specialized team of **118 expert agents** across **15 specialized types** working in parallel—like a conductor leading a symphony.
 
 Think of it as having a complete software development team on demand: architects who design systems, backend developers with different specialties, security auditors who protect your applications, quality assurance engineers who ensure reliability, research specialists who explore solutions, documentation writers who keep everything clear, and infrastructure engineers who handle deployment. Each agent focuses on what they do best, and they all work simultaneously.
 
 **Post-Reconciliation Update (v2.1.0)**:
 The orchestra has been completely optimized through reconciliation:
-- Reduced from 129 config entries with 15 duplicates to 116 deduplicated agents
+- Reduced from 129 config entries with 15 duplicates to 119 agents (including 2 new support agents)
 - Eliminated 94% of generic "coder" assignments (68 → 4 agents)
-- Implemented 28 cost-optimized agents using Haiku model
-- Achieved $300-450/month in savings through intelligent model routing
+- Implemented 81 cost-optimized agents using Haiku model (68.1% of fleet)
+- Achieved significant savings through intelligent model routing
 - Improved orchestration accuracy with specialized agent type assignments
 
 The system operates across any project directory on your machine. You don't need to be in a specific repository—the Orchestra works wherever you are, bringing the full team to your current task. It automatically detects when complex work requires the full team versus simple tasks you can handle alone.
@@ -167,15 +167,15 @@ The system works from any directory. Configuration lives in one place (`/Users/b
 
 **Resource Efficiency:**
 - **32% token reduction** through shared memory and coordination
-- **$300-450/month cost savings** (35-40% reduction) from haiku optimization
+- **Significant cost savings** from 68.1% Haiku model optimization
 - **94% reduction in generic agents** (52.7% → 3.4%) for better orchestration
 - **Minimal coordination overhead** with built-in communication
 
 **Agent Specialization (Post-Reconciliation):**
 - **116 deduplicated agents** (eliminated 15 duplicates)
 - **15 specialized types** (vs. 68 generic "coder" before)
-- **88 Sonnet agents** for complex reasoning and coding
-- **28 Haiku agents** for documentation and utilities (24% of fleet)
+- **37 Sonnet agents** (31.1% of fleet) for complex reasoning and coding
+- **81 Haiku agents** (68.1% of fleet) for documentation and utilities
 - **96.6% type specialization** enabling smart agent selection
 
 **Quality Indicators:**
@@ -190,7 +190,7 @@ The system works from any directory. Configuration lives in one place (`/Users/b
 - Reduced security incidents with automatic audits
 - Lower maintenance costs from clear documentation
 - Faster time-to-market for new features
-- **Annual savings**: $3,600-5,400 through model optimization
+- **Significant annual savings** through intelligent model distribution (68.1% Haiku)
 
 ---
 

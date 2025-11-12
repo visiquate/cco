@@ -2,7 +2,7 @@
 
 Complete documentation for the Claude Orchestra multi-agent development system with 117 specialized agents using direct Claude API integration.
 
-**Current System**: Opus 4.1 (1 agent) + Sonnet 4.5 (77 agents) + Haiku 4.5 (39 agents)
+**Current System**: Opus 4.1 (1 agent) + Sonnet 4.5 (78 agents) + Haiku 4.5 (38 agents)
 **Future Enhancement**: ccproxy integration with local Ollama models (pending hardware)
 
 ---
@@ -70,9 +70,9 @@ The Claude Orchestra now supports **extended autonomous operation** for 4-8 hour
 2. [Autonomous Operation Framework](AUTONOMOUS_OPERATION_FRAMEWORK.md) - Framework components and implementation
 3. [Autonomous Workflow Guide](AUTONOMOUS_WORKFLOW_GUIDE.md) - Complete 8-hour workflow example
 
-**New Scripts:**
-- `scripts/pre-compaction.sh` - Export state before compaction
-- `scripts/post-compaction.sh` - Restore state after compaction
+**Compaction Handling:**
+- Built-in Knowledge Manager hooks handle state preservation automatically
+- See `src/knowledge-manager.js` for implementation details
 
 ---
 
@@ -233,32 +233,40 @@ The Claude Orchestra now supports **extended autonomous operation** for 4-8 hour
 
 ---
 
-## Scripts
+## Knowledge Manager Integration
 
-### Compaction Management
+### Compaction Handling
 
-**Pre-Compaction:**
-```bash
-./scripts/pre-compaction.sh
+**Pre-Compaction Hook:**
+```javascript
+// In src/orchestra-conductor.js
+await orchestra.preCompactionHook(conversation, context);
+
+// Calls: src/knowledge-manager.js preCompaction()
+// - Extracts critical knowledge using pattern matching
+// - Stores in LanceDB with vector embeddings
+// - Automatic categorization by type
 ```
-- Exports ALL critical state to MCP memory
-- Preserves architecture, credentials, agent states
-- Runs automatically before compaction
 
-**Post-Compaction:**
-```bash
-./scripts/post-compaction.sh <SESSION_ID>
+**Post-Compaction Hook:**
+```javascript
+// In src/orchestra-conductor.js
+await orchestra.postCompactionHook(currentTask, context);
+
+// Calls: src/knowledge-manager.js postCompaction()
+// - Semantic search for relevant knowledge
+// - Retrieves recent project context
+// - Returns targeted knowledge subset
 ```
-- Restores ALL state from MCP memory
-- Broadcasts restoration to all agents
-- Runs automatically after compaction
+
+See [`src/knowledge-manager.js`](../src/knowledge-manager.js) for implementation details.
 
 ---
 
-## Skills
+## Requirements Discovery
 
-### Project Discovery
-**File:** [`skills/project-discovery.md`](../skills/project-discovery.md)
+### Chief Architect Capability
+**Capability:** "Requirements discovery" (defined in `config/orchestra-config.json`)
 
 **Purpose:** Comprehensive requirements discovery before implementation
 
@@ -284,7 +292,7 @@ The Claude Orchestra now supports **extended autonomous operation** for 4-8 hour
 ## Version History
 
 ### v3.0.0 (Current) - Documentation Organization & Future Roadmap
-- ✅ 117 specialized agents (1 Opus + 77 Sonnet + 39 Haiku)
+- ✅ 117 specialized agents (1 Opus + 78 Sonnet + 38 Haiku)
 - ✅ Complete documentation reorganization with INDEX.md
 - ✅ Future enhancements section with ccproxy roadmap
 - ✅ Hardware requirements documented (32GB+ RAM Mac mini)

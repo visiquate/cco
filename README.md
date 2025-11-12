@@ -1,20 +1,20 @@
 # Claude Orchestra
 
-A sophisticated multi-agent development system powered by Claude Code, featuring **117 specialized agents** organized across **15 agent types** in a TDD-aware pipeline.
+A sophisticated multi-agent development system powered by Claude Code, featuring **119 specialized agents** organized across **13 functional sections** in a TDD-aware pipeline.
 
 ## Overview
 
 The Claude Orchestra is a complete development team on demand:
 
 - **1 Chief Architect** (Claude Opus 4.1) - Strategic decisions and coordination
-- **77 Intelligent Managers** (Sonnet 4.5) - Complex reasoning, code review, security, testing, architecture
-- **39 Basic Specialists** (Haiku 4.5) - Language coders, documentation, utilities, lightweight tasks (33% cost savings)
-- **15 Agent Types** - Developers, architects, security auditors, testers, researchers, writers, and more
+- **37 Intelligent Managers** (Sonnet 4.5) - Complex reasoning, code review, security, testing, architecture
+- **81 Basic Specialists** (Haiku 4.5) - Language coders, documentation, utilities, lightweight tasks (68% cost savings)
+- **13 Functional Sections** - Developers, architects, security auditors, testers, researchers, writers, and more
 
 **Key Statistics:**
-- **Total Agents**: 117 (1 Chief Architect + 116 specialized agents)
+- **Total Agents**: 119 (1 Chief Architect + 118 specialized agents)
 - **Model Distribution**: Optimized by role complexity (Opus for leadership, Sonnet for intelligence, Haiku for basic tasks)
-- **Cost Efficiency**: 33% of agents use cost-effective Haiku 4.5
+- **Cost Efficiency**: 68% of agents use cost-effective Haiku 4.5
 - **Type Specialization**: Agents assigned to specific types based on role requirements
 - **ccproxy**: Future enhancement (hardware pending) - currently using direct Claude API
 

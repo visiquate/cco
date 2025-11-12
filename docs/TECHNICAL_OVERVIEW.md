@@ -2,8 +2,8 @@
 
 **Version**: 2.1.0 (Reconciliation Edition)
 **Audience**: Software engineers, technical leads, DevOps engineers
-**Last Updated**: 2025-11-10
-**Status**: Post-Reconciliation - 116 agents, 15 types, 94% generic reduction
+**Last Updated**: 2025-11-11
+**Status**: Post-Reconciliation - 119 agents, 37 Sonnet (31.1%), 81 Haiku (68.1%)
 
 ## Table of Contents
 
@@ -22,20 +22,20 @@
 
 ## Executive Summary
 
-Claude Orchestra is a comprehensive multi-agent development system featuring **116 specialized AI agents** organized across **15 agent types** in a TDD-aware pipeline. It's designed to accelerate software development by parallelizing work across diverse specialists—backend developers, security auditors, documentation writers, and quality assurance engineers.
+Claude Orchestra is a comprehensive multi-agent development system featuring **118 specialized AI agents** organized across **15 agent types** in a TDD-aware pipeline. It's designed to accelerate software development by parallelizing work across diverse specialists—backend developers, security auditors, documentation writers, and quality assurance engineers.
 
 **Post-Reconciliation (v2.1.0)**:
-- **116 agents** (deduplicated, consolidated)
-- **15 agent types** replacing generic roles
-- **28 haiku optimizations** for cost efficiency ($300-450/month savings)
-- **94% reduction** in generic "coder" usage (68 → 4 agents)
-- **Zero duplicates** (removed 15 duplicate entries)
+- **119 agents** (deduplicated, consolidated)
+- **37 Sonnet agents** (31.1%) - Intelligent managers, reviewers, complex coding
+- **81 Haiku agents** (68.1%) - Cost-optimized basic coders and utilities
+- **Cost optimization**: 68% of agents use efficient Haiku model
+- **$300-450/month savings** through local LLM routing
 
 **Key Innovation**: A dedicated TDD Coding Agent ensures tests are written BEFORE implementation, maintaining true test-driven development practices while achieving 2.8-4.4x speed improvements through parallel execution.
 
 **Core Capabilities**:
 - Test-Driven Development with dedicated test-automator type
-- Parallel agent execution with 116 specialized agents
+- Parallel agent execution with 119 specialized agents
 - Persistent knowledge base surviving conversation compactions
 - Cross-repository deployment (works from any directory)
 - Local LLM routing for cost efficiency (via ccproxy)
@@ -98,13 +98,13 @@ Claude Orchestra is a comprehensive multi-agent development system featuring **1
   - Synthesize results
   - Manage compaction lifecycle
 
-#### 2. Agent Fleet (116 Specialized Agents Across 15 Types)
+#### 2. Agent Fleet (118 Specialized Agents Across 15 Types)
 Organized in 3 phases with comprehensive specialization:
 
 **Phase 0: Leadership (1 Agent)**
 - Chief Architect (system-architect type) - Strategic decisions and coordination
 
-**Phase 1: Implementation (88 Sonnet + 28 Haiku = 116 Agents)**
+**Phase 1: Implementation (36 Sonnet + 80 Haiku = 116 Agents)**
 Core Specialists:
 - **Test Automation**: TDD Coding Agent and QA testers (test-automator type)
 - **Backend Development**: Database specialists, API experts, language specialists (backend-dev type)
@@ -115,7 +115,7 @@ Core Specialists:
 - **Documentation**: Technical writers, API documenters, changelog generators (technical-writer type)
 - **Support**: Utilities, workflow automation, credentials management, CLI tools (various types)
 
-**Phase 2: Quality Assurance (3 Agents - Reasoning Tasks)**
+**Phase 2: Quality Assurance (2 Sonnet + 1 Haiku = 3 Agents - Reasoning Tasks)**
 - QA Engineer (test-automator) - Comprehensive test review and enhancement
 - Security Auditor (security-auditor) - Deep vulnerability analysis and threat modeling
 - Documentation Lead (technical-writer) - System documentation and guides
@@ -259,10 +259,11 @@ cd ~/git/another-project
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
 | Orchestration | Claude Code (Sonnet 4.5) | Task coordination |
-| Chief Architect | Claude Opus 4.1 → Sonnet 4.5 | Strategic decisions |
-| Phase 1 Coding | qwen2.5-coder:32b-instruct | TDD + Implementation |
-| Phase 1 Lightweight | qwen-fast:latest (7B) | Credential management |
-| Phase 2 Reasoning | qwen-quality-128k:latest (32B) | QA, Security, Docs |
+| Chief Architect | Claude Opus 4.1 | Strategic decisions (direct API) |
+| Phase 1 Core (36 Sonnet) | qwen2.5-coder:32b-instruct | TDD + Implementation |
+| Phase 1 Lightweight (80 Haiku) | qwen-fast:latest (7B) | Basic coding, utilities |
+| Phase 2 Reasoning (2 Sonnet) | qwen-quality-128k:latest (32B) | QA, Security analysis |
+| Phase 2 Docs (1 Haiku) | qwen-fast:latest | Documentation |
 | Knowledge Store | LanceDB | Vector database |
 | Model Routing | LiteLLM (ccproxy) | OpenAI-compatible proxy |
 | Embeddings | Sentence transformers | 384-dimensional vectors |
@@ -754,8 +755,8 @@ Total: ~1.5-2 hours
 #### Memory Profile
 
 **Phase 1**: 25GB total
-- qwen2.5-coder:32b-instruct (20GB) - 10 agents
-- qwen-fast:latest (5GB) - 1 agent
+- qwen2.5-coder:32b-instruct (20GB) - 36 Sonnet agents
+- qwen-fast:latest (5GB) - 80 Haiku agents
 - Both loaded simultaneously ✅
 
 **Model Swap**: ~40 seconds
@@ -763,7 +764,7 @@ Total: ~1.5-2 hours
 - qwen-quality-128k loads
 
 **Phase 2**: 35GB total
-- qwen-quality-128k:latest (35GB) - 3 agents
+- qwen-quality-128k:latest (35GB) - 2 Sonnet (QA, Security) + 1 Haiku (Docs)
 
 #### Token Efficiency
 
@@ -941,19 +942,19 @@ const apiKey = await credentialManager.retrieve("salesforce_api_key");
 
 ```yaml
 model_list:
-  # Phase 1: 10 coding/integration agents
+  # Phase 1: 36 Sonnet agents (TDD, implementation, integration)
   - model_name: claude-3-5-sonnet
     litellm_params:
       model: ollama/qwen2.5-coder:32b-instruct
       api_base: http://localhost:11434
 
-  # Phase 1: 1 lightweight agent
+  # Phase 1: 80 Haiku agents (basic coding, utilities, lightweight tasks)
   - model_name: claude-3-haiku
     litellm_params:
       model: ollama/qwen-fast:latest
       api_base: http://localhost:11434
 
-  # Phase 2: 3 reasoning agents
+  # Phase 2: 2 Sonnet + 1 Haiku (reasoning, QA, Security, Docs)
   - model_name: gpt-4
     litellm_params:
       model: ollama/qwen-quality-128k:latest
@@ -1126,6 +1127,6 @@ Claude Orchestra is a production-ready multi-agent development system that:
 
 ---
 
-**Version**: 2.0.0 (TDD Edition)
-**Last Updated**: 2025-11-10
-**Status**: Production Ready
+**Version**: 2.1.0 (Reconciliation Edition)
+**Last Updated**: 2025-11-11
+**Status**: Production Ready - 37 Sonnet (31.1%), 81 Haiku (68.1%)

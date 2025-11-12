@@ -974,38 +974,44 @@ const context = await knowledgeManager.search("architect decisions", { limit: 20
 ### 6.3 Compaction Resilience (Zero Data Loss)
 
 **Pre-Compaction Export** (automatic):
-```bash
-#!/bin/bash
-# scripts/pre-compaction.sh
+```javascript
+// In src/orchestra-conductor.js
+async preCompactionHook(conversation, context) {
+  await this.knowledgeManager.preCompaction(conversation, context);
+}
 
-# Export all critical state to Knowledge Manager
-node src/knowledge-manager.js store \
-  "Compaction checkpoint: $(date +%s)" \
-  --type system --agent compaction
+// In src/knowledge-manager.js
+async preCompaction(conversation, context) {
+  // Extract critical knowledge using pattern matching
+  const knowledge = this.extractCriticalKnowledge(conversation, context);
 
-# Store architect specification
-# Store definition of done
-# Store credentials inventory
-# Store integration configs
-# Store agent states
-# Store file structure
-# Store test results
-# Store completed milestones
+  // Store in LanceDB with vector embeddings
+  const ids = await this.storeBatch(knowledge);
+
+  // Patterns matched: architecture, decisions, implementation,
+  // configuration, credentials, issues
+  return { success: true, count: ids.length, ids };
+}
 ```
 
 **Post-Compaction Restore** (automatic):
-```bash
-#!/bin/bash
-# scripts/post-compaction.sh
+```javascript
+// In src/orchestra-conductor.js
+async postCompactionHook(currentTask, context) {
+  return await this.knowledgeManager.postCompaction(currentTask, context);
+}
 
-SESSION_ID=$1
+// In src/knowledge-manager.js
+async postCompaction(currentTask, context) {
+  // Semantic search for relevant knowledge
+  const results = await this.search(currentTask, { limit: 10 });
 
-# Retrieve all stored context
-node src/knowledge-manager.js search "compaction checkpoint" --limit 1
+  // Get recent project knowledge
+  const recentKnowledge = await this.getProjectKnowledge(project_id, { limit: 5 });
 
-# Restore to /tmp/ files
-# Set environment variables
-# Notify all agents of restoration
+  // Generate context summary
+  return { searchResults: results, recentKnowledge, summary };
+}
 ```
 
 **Zero Data Loss Guarantee:**
@@ -1504,9 +1510,6 @@ cc-orchestra/
 │   ├── knowledge-manager.js           # LanceDB integration (637 lines)
 │   ├── credential-manager.js          # Secure credentials (305 lines)
 │   └── llm-router.js                  # Model routing logic
-├── scripts/
-│   ├── pre-compaction.sh              # Export state before compaction
-│   └── post-compaction.sh             # Restore state after compaction
 ├── docs/
 │   ├── DEEP_DIVE.md                   # This document
 │   ├── TDD_AWARE_PIPELINE.md          # TDD methodology (956 lines)

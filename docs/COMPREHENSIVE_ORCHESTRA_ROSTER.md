@@ -1,13 +1,13 @@
-# Comprehensive Orchestra Roster - 117 Specialized Agents
+# Comprehensive Orchestra Roster - 119 Specialized Agents
 
 ## Overview
 
-The Claude Orchestra consists of **117 specialized agents** (1 Chief Architect + 116 specialists) organized into 12 categories, providing comprehensive coverage for all aspects of software development, operations, research, and business analysis.
+The Claude Orchestra consists of **119 specialized agents** (1 Chief Architect + 118 specialists) organized into 12 categories, providing comprehensive coverage for all aspects of software development, operations, research, and business analysis.
 
 **Model Distribution**:
 - **1 agent** - Opus 4.1 (Chief Architect - strategic leadership)
-- **77 agents** - Sonnet 4.5 (intelligent managers, reviewers, architects)
-- **39 agents** - Haiku 4.5 (basic coders, documentation, utilities)
+- **37 agents** - Sonnet 4.5 (31.1% - intelligent managers, reviewers, architects)
+- **81 agents** - Haiku 4.5 (68.1% - basic coders, documentation, utilities)
 
 ## Agent Categories
 
@@ -31,7 +31,7 @@ API exploration and third-party integrations:
 2. **Salesforce API Specialist** - Salesforce REST/SOAP/Bulk API integration
 3. **Authentik API Specialist** - OAuth2/OIDC, SAML integration
 
-### 4. Development Agents (25 Agents)
+### 4. Development Agents (29 Agents)
 Specialized development expertise across frameworks and technologies:
 1. Frontend Developer
 2. Backend Architect
@@ -59,7 +59,7 @@ Specialized development expertise across frameworks and technologies:
 24. Dependency Manager
 25. Error Detective
 
-### 5. Data Agents (9 Agents)
+### 5. Data Agents (11 Agents)
 Database design, optimization, and data engineering:
 1. Database Architect
 2. Database Admin

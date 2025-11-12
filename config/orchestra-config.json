@@ -1,0 +1,2395 @@
+{
+  "name": "claude-orchestra",
+  "version": "2.0.0",
+  "description": "Multi-agent development army with autonomous operation capabilities",
+  "architect": {
+    "name": "Chief Architect",
+    "model": "opus",
+    "fallback": {
+      "model": "sonnet-4.5",
+      "comment": "Falls back to Sonnet 4.5 (NOT 3.5) when Opus exhausted",
+      "triggers": [
+        "token_limit",
+        "rate_limit",
+        "availability"
+      ],
+      "tokenThreshold": 0.8,
+      "automatic": true
+    },
+    "type": "chief-architect",
+    "role": "Strategic decision-making and project guidance",
+    "capabilities": [
+      "System design",
+      "Architecture decisions",
+      "Agent coordination",
+      "User requirement analysis",
+      "Technology stack selection",
+      "Compaction management",
+      "Requirements discovery",
+      "Memory persistence"
+    ],
+    "autonomousAuthority": {
+      "lowRisk": true,
+      "mediumRisk": true,
+      "highRisk": false,
+      "requiresDocumentation": true
+    },
+    "priority": "critical"
+  },
+  "codingAgents": [
+    {
+      "name": "TDD Coding Agent",
+      "type": "test-automator",
+      "model": "sonnet-4.5",
+      "role": "Test-driven development specialist",
+      "specialties": [
+        "Red-Green-Refactor cycle",
+        "Test-first development",
+        "Unit testing",
+        "Integration testing",
+        "Test coverage analysis",
+        "TDD best practices"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Python Specialist",
+      "type": "python-pro",
+      "model": "haiku",
+      "languages": [
+        "python"
+      ],
+      "specialties": [
+        "FastAPI/Flask",
+        "Django",
+        "Data processing",
+        "ML/AI integration",
+        "Async/await patterns"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Swift Specialist",
+      "type": "ios-developer",
+      "model": "haiku",
+      "languages": [
+        "swift"
+      ],
+      "specialties": [
+        "SwiftUI",
+        "UIKit",
+        "Core Data",
+        "Combine",
+        "iOS app architecture"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Go Specialist",
+      "type": "golang-pro",
+      "model": "haiku",
+      "languages": [
+        "go"
+      ],
+      "specialties": [
+        "Microservices",
+        "Concurrency",
+        "gRPC",
+        "Performance optimization",
+        "Cloud-native applications"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Rust Specialist",
+      "type": "rust-pro",
+      "model": "haiku",
+      "languages": [
+        "rust"
+      ],
+      "specialties": [
+        "Systems programming",
+        "Memory safety",
+        "Performance-critical code",
+        "WebAssembly",
+        "Async Rust"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Flutter Specialist",
+      "type": "mobile-developer",
+      "model": "haiku",
+      "languages": [
+        "dart",
+        "flutter"
+      ],
+      "specialties": [
+        "Cross-platform mobile",
+        "State management",
+        "Native integrations",
+        "UI/UX implementation",
+        "Performance optimization"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "requiresArchitectApproval": true
+      }
+    }
+  ],
+  "integrationAgents": [
+    {
+      "name": "API Explorer",
+      "type": "technical-researcher",
+      "model": "sonnet-4.5",
+      "role": "API exploration and integration analysis",
+      "responsibilities": [
+        "Explore and document third-party APIs",
+        "Test API endpoints and authentication flows",
+        "Create integration POCs",
+        "Analyze API rate limits and quotas",
+        "Document API capabilities and limitations",
+        "Generate API client code",
+        "Create integration test suites",
+        "Monitor API changes and deprecations"
+      ],
+      "specialties": [
+        "REST API exploration",
+        "GraphQL API analysis",
+        "OpenAPI/Swagger documentation",
+        "API authentication methods",
+        "Rate limiting strategies",
+        "API versioning",
+        "Webhook integration",
+        "API performance testing"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "requiresDocumentation": true
+      }
+    },
+    {
+      "name": "Salesforce API Specialist",
+      "type": "technical-researcher",
+      "model": "sonnet-4.5",
+      "role": "Salesforce API integration expert",
+      "responsibilities": [
+        "Salesforce REST API integration",
+        "SOQL query optimization",
+        "Salesforce object mapping",
+        "OAuth 2.0 authentication with Salesforce",
+        "Bulk API operations",
+        "Salesforce streaming API",
+        "Custom Salesforce object integration",
+        "Salesforce workflow automation",
+        "Data synchronization with Salesforce",
+        "Error handling and retry logic"
+      ],
+      "specialties": [
+        "Salesforce REST API",
+        "Salesforce SOAP API",
+        "SOQL and SOSL queries",
+        "Salesforce Bulk API",
+        "Salesforce Streaming API",
+        "Platform Events",
+        "Change Data Capture",
+        "Salesforce Connect",
+        "Apex integration",
+        "Lightning Platform API"
+      ],
+      "apis": [
+        "REST API v59.0+",
+        "SOAP API",
+        "Bulk API 2.0",
+        "Streaming API",
+        "Metadata API",
+        "Tooling API",
+        "Analytics API"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "requiresDocumentation": true
+      }
+    },
+    {
+      "name": "Authentik API Specialist",
+      "type": "technical-researcher",
+      "model": "sonnet-4.5",
+      "role": "Authentik authentication and API integration expert",
+      "responsibilities": [
+        "Authentik OAuth2/OIDC integration",
+        "User provisioning via Authentik API",
+        "Group and role management",
+        "Application provider configuration",
+        "SAML integration with Authentik",
+        "LDAP integration",
+        "Authentik flow customization",
+        "Multi-factor authentication setup",
+        "User attribute synchronization",
+        "Authentik webhook integration"
+      ],
+      "specialties": [
+        "Authentik REST API",
+        "OAuth2/OIDC flows",
+        "SAML 2.0 integration",
+        "LDAP provider configuration",
+        "Authentik Outpost setup",
+        "User and group management API",
+        "Application proxy configuration",
+        "Policy engine integration",
+        "Flow execution API",
+        "Event and audit logging"
+      ],
+      "apis": [
+        "Core API (/api/v3/)",
+        "OAuth2 Provider API",
+        "SAML Provider API",
+        "LDAP Provider API",
+        "Flows API",
+        "Stages API",
+        "Events API"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "requiresDocumentation": true
+      }
+    }
+  ],
+  "developmentAgents": [
+    {
+      "name": "Frontend Developer",
+      "type": "frontend-developer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/frontend-developer.md",
+      "role": "Frontend development specialist for React applications and responsive design",
+      "specialties": [
+        "Frontend",
+        "React",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Backend Architect",
+      "type": "backend-architect",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/backend-architect.md",
+      "role": "Backend system architecture and API design specialist",
+      "specialties": [
+        "Backend",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Fullstack Developer",
+      "type": "fullstack-developer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/fullstack-developer.md",
+      "role": "Full-stack development specialist covering frontend, backend, and database technologies",
+      "specialties": [
+        "Full",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Code Reviewer",
+      "type": "code-reviewer",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/code-reviewer.md",
+      "role": "Expert code review specialist for quality, security, and maintainability",
+      "specialties": [
+        "Expert",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Debugger",
+      "type": "debugger",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/debugger.md",
+      "role": "Debugging specialist for errors, test failures, and unexpected behavior",
+      "specialties": [
+        "Debugging",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Python Pro",
+      "type": "python-pro",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/python-pro.md",
+      "role": "Write idiomatic Python code with advanced features like decorators, generators, and async/await",
+      "specialties": [
+        "Write",
+        "Python",
+        "Optimizes",
+        "Use",
+        "Python",
+        "Python"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Typescript Pro",
+      "type": "typescript-pro",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/typescript-pro.md",
+      "role": "Write idiomatic TypeScript with advanced type system features, strict typing, and modern patterns",
+      "specialties": [
+        "Write",
+        "Type",
+        "Masters",
+        "Use",
+        "Type",
+        "Java"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Javascript Pro",
+      "type": "javascript-pro",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/javascript-pro.md",
+      "role": "Master modern JavaScript with ES6+, async patterns, and Node",
+      "specialties": [
+        "Master",
+        "Java",
+        "Node",
+        "Handles",
+        "Node",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Golang Pro",
+      "type": "golang-pro",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/golang-pro.md",
+      "role": "Write idiomatic Go code with goroutines, channels, and interfaces",
+      "specialties": [
+        "Write",
+        "Go",
+        "Optimizes",
+        "Go",
+        "Use",
+        "Go"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Rust Pro",
+      "type": "rust-pro",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/rust-pro.md",
+      "role": "Write idiomatic Rust with ownership patterns, lifetimes, and trait implementations",
+      "specialties": [
+        "Write",
+        "Rust",
+        "Masters",
+        "Use",
+        "Rust"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Mobile Developer",
+      "type": "mobile-developer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/mobile-developer.md",
+      "role": "Cross-platform mobile development specialist for React Native and Flutter",
+      "specialties": [
+        "Cross",
+        "React Native",
+        "Flutter",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Ios Developer",
+      "type": "ios-developer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/ios-developer.md",
+      "role": "Native iOS development specialist with Swift and SwiftUI",
+      "specialties": [
+        "Native",
+        "Swift",
+        "Swift",
+        "Use",
+        "Swift",
+        "Core Data"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Nextjs Architecture Expert",
+      "type": "nextjs-architecture-expert",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/nextjs-architecture-expert.md",
+      "role": "Master of Next",
+      "specialties": [
+        "Master",
+        "Next",
+        "App Router",
+        "Server Components",
+        "Use",
+        "Next"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "React Performance Optimization",
+      "type": "react-performance-optimization",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/react-performance-optimization.md",
+      "role": "React performance optimization specialist",
+      "specialties": [
+        "React",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "React Performance Optimizer",
+      "type": "react-performance-optimizer",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/react-performance-optimizer.md",
+      "role": "Specialist in React performance patterns, bundle optimization, and Core Web Vitals",
+      "specialties": [
+        "Specialist",
+        "React",
+        "Core Web Vitals",
+        "Use",
+        "React"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Graphql Architect",
+      "type": "backend-architect",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/graphql-architect.md",
+      "role": "GraphQL schema design and API architecture specialist",
+      "specialties": [
+        "Graph",
+        "Use",
+        "Graph"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Graphql Performance Optimizer",
+      "type": "graphql-performance-optimizer",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/graphql-performance-optimizer.md",
+      "role": "GraphQL performance analysis and optimization specialist",
+      "specialties": [
+        "Graph",
+        "Use",
+        "Graph"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Graphql Security Specialist",
+      "type": "security-auditor",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/graphql-security-specialist.md",
+      "role": "GraphQL API security and authorization specialist",
+      "specialties": [
+        "Graph",
+        "Use",
+        "Graph",
+        "Graph"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Shell Scripting Pro",
+      "type": "shell-scripting-pro",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/shell-scripting-pro.md",
+      "role": "Write robust shell scripts with proper error handling, POSIX compliance, and automation patterns",
+      "specialties": [
+        "Write",
+        "Masters",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Legacy Modernizer",
+      "type": "legacy-modernizer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/legacy-modernizer.md",
+      "role": "Refactor legacy codebases, migrate outdated frameworks, and implement gradual modernization",
+      "specialties": [
+        "Refactor",
+        "Handles",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Architecture Modernizer",
+      "type": "architecture-modernizer",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/architecture-modernizer.md",
+      "role": "Software architecture modernization specialist",
+      "specialties": [
+        "Software",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Dx Optimizer",
+      "type": "dx-optimizer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/dx-optimizer.md",
+      "role": "Developer Experience specialist for tooling, setup, and workflow optimization",
+      "specialties": [
+        "Developer Experience",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Git Flow Manager",
+      "type": "git-flow-manager",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/git-flow-manager.md",
+      "role": "Git Flow workflow manager",
+      "specialties": [
+        "Git Flow",
+        "Use",
+        "Git Flow",
+        "Handles"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Dependency Manager",
+      "type": "dependency-manager",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/dependency-manager.md",
+      "role": "Use this agent to manage project dependencies",
+      "specialties": [
+        "Use",
+        "Specializes",
+        "Examples",
+        "Context",
+        "Please",
+        "The"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Error Detective",
+      "type": "error-detective",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/error-detective.md",
+      "role": "Log analysis and error pattern detection specialist",
+      "specialties": [
+        "Log",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Architect Review",
+      "type": "architect-review",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/architect-review.md",
+      "role": "Code architecture review specialist for SOLID principles and pattern adherence",
+      "specialties": [
+        "Pattern Adherence",
+        "SOLID Compliance",
+        "Dependency Analysis",
+        "Abstraction Levels",
+        "Future-Proofing"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Flutter Go Reviewer",
+      "type": "code-reviewer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/flutter-go-reviewer.md",
+      "role": "Comprehensive code reviewer for Golang backend and Flutter frontend",
+      "specialties": [
+        "Code Quality",
+        "Testing",
+        "Feature Protection",
+        "Operational Safety",
+        "Security & Performance",
+        "Backend (Golang + Protobuf + PostgreSQL)",
+        "Frontend (Flutter + Riverpod + GetX)"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Web Vitals Optimizer",
+      "type": "web-vitals-optimizer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/web-vitals-optimizer.md",
+      "role": "Core Web Vitals optimization specialist for LCP, FID, CLS metrics",
+      "specialties": [
+        "Largest Contentful Paint (LCP)",
+        "First Input Delay (FID)",
+        "Cumulative Layout Shift (CLS)",
+        "Time to First Byte (TTFB)",
+        "Performance Monitoring"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "GraphQL Architect",
+      "type": "graphql-architect",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/graphql-architect.md",
+      "role": "GraphQL schema design and API architecture specialist",
+      "specialties": [
+        "GraphQL Schema Design",
+        "Resolver Optimization",
+        "Federation",
+        "Performance Issues",
+        "Subscription Implementation",
+        "Type System Design",
+        "Query Complexity"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    }
+  ],
+  "dataAgents": [
+    {
+      "name": "Database Architect",
+      "type": "backend-architect",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/database-architect.md",
+      "role": "Database architecture and design specialist",
+      "specialties": [
+        "Database",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Database Admin",
+      "type": "database-admin",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/database-admin.md",
+      "role": "Database administration specialist for operations, backups, replication, and monitoring",
+      "specialties": [
+        "Database",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Database Optimization",
+      "type": "database-optimization",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/database-optimization.md",
+      "role": "Database performance optimization and query tuning specialist",
+      "specialties": [
+        "Database",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Database Optimizer",
+      "type": "database-optimizer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/database-optimizer.md",
+      "role": "SQL query optimization and database schema design specialist",
+      "specialties": [
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Data Engineer",
+      "type": "data-engineer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/data-engineer.md",
+      "role": "Data pipeline and analytics infrastructure specialist",
+      "specialties": [
+        "Data",
+        "Use",
+        "Spark"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Data Scientist",
+      "type": "data-scientist",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/data-scientist.md",
+      "role": "Data analysis and statistical modeling specialist",
+      "specialties": [
+        "Data",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Data Analyst",
+      "type": "data-analyst",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/data-analyst.md",
+      "role": "Use this agent when you need quantitative analysis, statistical insights, or data-driven research",
+      "specialties": [
+        "Use",
+        "This",
+        "The",
+        "Context",
+        "The",
+        "What"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Nosql Specialist",
+      "type": "nosql-specialist",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/nosql-specialist.md",
+      "role": "NoSQL database specialist for MongoDB, Redis, Cassandra, and document/key-value stores",
+      "specialties": [
+        "No",
+        "Mongo",
+        "Redis",
+        "Cassandra",
+        "Use",
+        "No"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Sql Pro",
+      "type": "sql-pro",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/sql-pro.md",
+      "role": "Write complex SQL queries, optimize execution plans, and design normalized schemas",
+      "specialties": [
+        "Write",
+        "Masters",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Supabase Schema Architect",
+      "type": "backend-architect",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/supabase-schema-architect.md",
+      "role": "Supabase database schema design and RLS policy specialist",
+      "specialties": [
+        "Schema Design",
+        "Migration Management",
+        "RLS Policy Architecture",
+        "PostgreSQL Advanced Features",
+        "Supabase Integration"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Supabase Realtime Optimizer",
+      "type": "supabase-realtime-optimizer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/supabase-realtime-optimizer.md",
+      "role": "Supabase realtime performance and WebSocket optimization specialist",
+      "specialties": [
+        "Realtime Performance Optimization",
+        "Connection Management",
+        "Subscription Architecture",
+        "WebSocket Optimization",
+        "Performance Monitoring"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    }
+  ],
+  "infrastructureAgents": [
+    {
+      "name": "Devops Engineer",
+      "type": "deployment-engineer",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/devops-engineer.md",
+      "role": "DevOps and infrastructure specialist for CI/CD, deployment automation, and cloud operations",
+      "specialties": [
+        "Dev",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Deployment Engineer",
+      "type": "deployment-engineer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/deployment-engineer.md",
+      "role": "CI/CD and deployment automation specialist",
+      "specialties": [
+        "Use",
+        "Docker",
+        "Kubernetes",
+        "Git",
+        "Actions"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Cloud Architect",
+      "type": "cloud-architect",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/cloud-architect.md",
+      "role": "Cloud infrastructure design and optimization specialist for AWS/Azure/GCP",
+      "specialties": [
+        "Cloud",
+        "Azure",
+        "Use",
+        "Terraform Ia"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Cloud Migration Specialist",
+      "type": "cloud-migration-specialist",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/cloud-migration-specialist.md",
+      "role": "Cloud migration and infrastructure modernization specialist",
+      "specialties": [
+        "Cloud",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Terraform Specialist",
+      "type": "terraform-specialist",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/terraform-specialist.md",
+      "role": "Terraform and Infrastructure as Code specialist",
+      "specialties": [
+        "Terraform",
+        "Infrastructure",
+        "Code",
+        "Use",
+        "Terraform",
+        "Ia"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Network Engineer",
+      "type": "deployment-engineer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/network-engineer.md",
+      "role": "Network connectivity and infrastructure specialist",
+      "specialties": [
+        "Network",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Monitoring Specialist",
+      "type": "monitoring-specialist",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/monitoring-specialist.md",
+      "role": "Monitoring and observability infrastructure specialist",
+      "specialties": [
+        "Monitoring",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Devops Troubleshooter",
+      "type": "devops-troubleshooter",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/devops-troubleshooter.md",
+      "role": "Production troubleshooting and incident response specialist",
+      "specialties": [
+        "Production",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Incident Responder",
+      "type": "incident-responder",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/incident-responder.md",
+      "role": "Handles production incidents with urgency and precision",
+      "specialties": [
+        "Handles",
+        "Use",
+        "Coordinates"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Load Testing Specialist",
+      "type": "load-testing-specialist",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/load-testing-specialist.md",
+      "role": "Load testing and stress testing specialist",
+      "specialties": [
+        "Load",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "DevOps Engineer",
+      "type": "devops-engineer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/devops-engineer.md",
+      "role": "DevOps and infrastructure specialist for CI/CD, deployment automation, and cloud operations",
+      "specialties": [
+        "CI/CD Pipelines",
+        "Infrastructure as Code",
+        "Container Orchestration",
+        "Cloud Platforms",
+        "Monitoring and Logging",
+        "Security Automation",
+        "Deployment Strategies"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    }
+  ],
+  "securityAgents": [
+    {
+      "name": "Security Auditor",
+      "type": "security-auditor",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/security-auditor.md",
+      "role": "Review code for vulnerabilities, implement secure authentication, and ensure OWASP compliance",
+      "specialties": [
+        "Review",
+        "Handles",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Security Engineer",
+      "type": "security-engineer",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/security-engineer.md",
+      "role": "Security infrastructure and compliance specialist",
+      "specialties": [
+        "Security",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Api Security Audit",
+      "type": "security-auditor",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/api-security-audit.md",
+      "role": "API security audit specialist",
+      "specialties": [
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Penetration Tester",
+      "type": "penetration-tester",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/penetration-tester.md",
+      "role": "Penetration testing and ethical hacking specialist",
+      "specialties": [
+        "Penetration",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Compliance Specialist",
+      "type": "compliance-specialist",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/compliance-specialist.md",
+      "role": "Security compliance and regulatory framework specialist",
+      "specialties": [
+        "Security",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Mcp Security Auditor",
+      "type": "security-auditor",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/mcp-security-auditor.md",
+      "role": "MCP server security specialist",
+      "specialties": [
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Web Accessibility Checker",
+      "type": "web-accessibility-checker",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/web-accessibility-checker.md",
+      "role": "Web accessibility compliance specialist",
+      "specialties": [
+        "Web",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Risk Manager",
+      "type": "risk-manager",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/risk-manager.md",
+      "role": "Risk management and portfolio analysis specialist",
+      "specialties": [
+        "Risk",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    }
+  ],
+  "aiMlAgents": [
+    {
+      "name": "Ai Engineer",
+      "type": "ai-engineer",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/ai-engineer.md",
+      "role": "LLM application and RAG system specialist",
+      "specialties": [
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Ml Engineer",
+      "type": "ml-engineer",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/ml-engineer.md",
+      "role": "ML production systems and model deployment specialist",
+      "specialties": [
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Mlops Engineer",
+      "type": "deployment-engineer",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/mlops-engineer.md",
+      "role": "ML infrastructure and operations specialist",
+      "specialties": [
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Model Evaluator",
+      "type": "model-evaluator",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/model-evaluator.md",
+      "role": "AI model evaluation and benchmarking specialist",
+      "specialties": [
+        "Use",
+        "Expert"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Prompt Engineer",
+      "type": "prompt-engineer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/prompt-engineer.md",
+      "role": "Expert prompt optimization for LLMs and AI systems",
+      "specialties": [
+        "Expert",
+        "Use",
+        "Masters"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    }
+  ],
+  "mcpAgents": [
+    {
+      "name": "Mcp Expert",
+      "type": "mcp-expert",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/mcp-expert.md",
+      "role": "Model Context Protocol (MCP) integration specialist for the cli-tool components system",
+      "specialties": [
+        "Model Context Protocol",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Mcp Server Architect",
+      "type": "backend-architect",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/mcp-server-architect.md",
+      "role": "MCP server architecture and implementation specialist",
+      "specialties": [
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Mcp Integration Engineer",
+      "type": "mcp-integration-engineer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/mcp-integration-engineer.md",
+      "role": "MCP server integration and orchestration specialist",
+      "specialties": [
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Mcp Deployment Orchestrator",
+      "type": "deployment-engineer",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/mcp-deployment-orchestrator.md",
+      "role": "MCP server deployment and operations specialist",
+      "specialties": [
+        "Use",
+        "Kubernetes"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Mcp Protocol Specialist",
+      "type": "mcp-protocol-specialist",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/mcp-protocol-specialist.md",
+      "role": "MCP protocol specification and standards specialist",
+      "specialties": [
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Mcp Testing Engineer",
+      "type": "mcp-testing-engineer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/mcp-testing-engineer.md",
+      "role": "MCP server testing and quality assurance specialist",
+      "specialties": [
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    }
+  ],
+  "documentationAgents": [
+    {
+      "name": "Documentation Expert",
+      "type": "documentation-expert",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/documentation-expert.md",
+      "role": "Use this agent to create, improve, and maintain project documentation",
+      "specialties": [
+        "Use",
+        "Specializes",
+        "Examples",
+        "Context",
+        "Please",
+        "The"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Technical Writer",
+      "type": "technical-writer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/technical-writer.md",
+      "role": "Technical writing and content creation specialist",
+      "specialties": [
+        "Technical",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Api Documenter",
+      "type": "api-documenter",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/api-documenter.md",
+      "role": "Create OpenAPI/Swagger specs, generate SDKs, and write developer documentation",
+      "specialties": [
+        "Create Open",
+        "Swagger",
+        "Handles",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Changelog Generator",
+      "type": "changelog-generator",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/changelog-generator.md",
+      "role": "Changelog and release notes specialist",
+      "specialties": [
+        "Changelog",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Markdown Syntax Formatter",
+      "type": "markdown-syntax-formatter",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/markdown-syntax-formatter.md",
+      "role": "Markdown formatting specialist",
+      "specialties": [
+        "Markdown",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Llms Maintainer",
+      "type": "llms-maintainer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/llms-maintainer.md",
+      "role": "LLMs",
+      "specialties": [
+        "Use",
+        "Engine Optimization",
+        "Scans"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Report Generator",
+      "type": "report-generator",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/report-generator.md",
+      "role": "Use this agent when you need to transform synthesized research findings into a comprehensive, well-structured final report",
+      "specialties": [
+        "Use",
+        "This",
+        "It",
+        "Examples",
+        "Context",
+        "The"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    }
+  ],
+  "researchAgents": [
+    {
+      "name": "Technical Researcher",
+      "type": "technical-researcher",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/technical-researcher.md",
+      "role": "Use this agent when you need to analyze code repositories, technical documentation, implementation details, or evaluate technical solutions",
+      "specialties": [
+        "Use",
+        "This",
+        "Git",
+        "Context",
+        "The",
+        "What"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Academic Researcher",
+      "type": "technical-researcher",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/academic-researcher.md",
+      "role": "Academic research specialist for scholarly sources, peer-reviewed papers, and academic literature",
+      "specialties": [
+        "Academic",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Research Orchestrator",
+      "type": "research-orchestrator",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/research-orchestrator.md",
+      "role": "Use this agent when you need to coordinate a comprehensive research project that requires multiple specialized agents working in sequence",
+      "specialties": [
+        "Use",
+        "This",
+        "Context",
+        "User",
+        "Since",
+        "Context"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Research Coordinator",
+      "type": "research-coordinator",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/research-coordinator.md",
+      "role": "Use this agent when you need to strategically plan and coordinate complex research tasks across multiple specialist researchers",
+      "specialties": [
+        "Use",
+        "This",
+        "Context",
+        "The",
+        "Since",
+        "Context"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Research Synthesizer",
+      "type": "research-synthesizer",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/research-synthesizer.md",
+      "role": "Use this agent when you need to consolidate and synthesize findings from multiple research sources or specialist researchers into a unified, comprehensive analysis",
+      "specialties": [
+        "Use",
+        "This",
+        "Context",
+        "The",
+        "Can",
+        "Since"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Research Brief Generator",
+      "type": "research-brief-generator",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/research-brief-generator.md",
+      "role": "Use this agent when you need to transform a user's research query into a structured, actionable research brief that will guide subsequent research activities",
+      "specialties": [
+        "Use",
+        "This",
+        "Context",
+        "The",
+        "Since",
+        "Context"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Comprehensive Researcher",
+      "type": "technical-researcher",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/comprehensive-researcher.md",
+      "role": "Comprehensive research specialist",
+      "specialties": [
+        "Comprehensive",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Fact Checker",
+      "type": "fact-checker",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/fact-checker.md",
+      "role": "Fact verification and source validation specialist",
+      "specialties": [
+        "Fact",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Query Clarifier",
+      "type": "query-clarifier",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/query-clarifier.md",
+      "role": "Use this agent when you need to analyze research queries for clarity and determine if user clarification is needed before proceeding with research",
+      "specialties": [
+        "Use",
+        "This",
+        "Examples",
+        "Context",
+        "The",
+        "Tell"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Search Specialist",
+      "type": "search-specialist",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/search-specialist.md",
+      "role": "Expert web researcher using advanced search techniques and synthesis",
+      "specialties": [
+        "Expert",
+        "Masters",
+        "Handles",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    }
+  ],
+  "supportAgents": [
+    {
+      "name": "Test Engineer",
+      "type": "test-automator",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/test-engineer.md",
+      "role": "Test automation and quality assurance specialist",
+      "specialties": [
+        "Test",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Test Automator",
+      "type": "test-automator",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/test-automator.md",
+      "role": "Create comprehensive test suites with unit, integration, and e2e tests",
+      "specialties": [
+        "Create",
+        "Sets",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Ui Ux Designer",
+      "type": "ui-ux-designer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/ui-ux-designer.md",
+      "role": "UI/UX design specialist for user-centered design and interface systems",
+      "specialties": [
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Cli Ui Designer",
+      "type": "ui-ux-designer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/cli-ui-designer.md",
+      "role": "CLI interface design specialist",
+      "specialties": [
+        "Use",
+        "Expert"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Performance Engineer",
+      "type": "performance-engineer",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/performance-engineer.md",
+      "role": "Profile applications, optimize bottlenecks, and implement caching strategies",
+      "specialties": [
+        "Profile",
+        "Handles",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Performance Profiler",
+      "type": "performance-profiler",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/performance-profiler.md",
+      "role": "Performance analysis and optimization specialist",
+      "specialties": [
+        "Performance",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Context Manager",
+      "type": "context-manager",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/context-manager.md",
+      "role": "Context management specialist for multi-agent workflows and long-running tasks",
+      "specialties": [
+        "Context",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Task Decomposition Expert",
+      "type": "task-decomposition-expert",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/task-decomposition-expert.md",
+      "role": "Complex goal breakdown specialist",
+      "specialties": [
+        "Complex",
+        "Use",
+        "Masters",
+        "Chroma"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Command Expert",
+      "type": "command-expert",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/command-expert.md",
+      "role": "CLI command development specialist for the claude-code-templates system",
+      "specialties": [
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Connection Agent",
+      "type": "connection-agent",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/connection-agent.md",
+      "role": "Obsidian vault connection specialist",
+      "specialties": [
+        "Obsidian",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Metadata Agent",
+      "type": "metadata-agent",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/metadata-agent.md",
+      "role": "Obsidian metadata management specialist",
+      "specialties": [
+        "Obsidian",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Tag Agent",
+      "type": "tag-agent",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/tag-agent.md",
+      "role": "Obsidian tag taxonomy specialist",
+      "specialties": [
+        "Obsidian",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Document Structure Analyzer",
+      "type": "document-structure-analyzer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/document-structure-analyzer.md",
+      "role": "Document structure analysis specialist",
+      "specialties": [
+        "Document",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Url Link Extractor",
+      "type": "url-link-extractor",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/url-link-extractor.md",
+      "role": "URL and link extraction specialist",
+      "specialties": [
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Project Supervisor Orchestrator",
+      "type": "project-supervisor-orchestrator",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/project-supervisor-orchestrator.md",
+      "role": "Project workflow orchestrator",
+      "specialties": [
+        "Project",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Unused Code Cleaner",
+      "type": "unused-code-cleaner",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/unused-code-cleaner.md",
+      "role": "Dead code detection and safe removal specialist",
+      "specialties": [
+        "Unused Imports",
+        "Unused Functions/Classes",
+        "Dynamic Usage Safety",
+        "Framework Preservation",
+        "Safe Removal"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Agent Overview",
+      "type": "agent-overview",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/agent-overview.md",
+      "role": "Overview of the Open Deep Research Team agent architecture and workflow",
+      "specialties": [
+        "Agent Overview"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Review Agent",
+      "type": "review-agent",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/review-agent.md",
+      "role": "Obsidian vault quality assurance specialist",
+      "specialties": [
+        "Review Agent"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": false,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    }
+  ],
+  "businessAgents": [
+    {
+      "name": "Product Strategist",
+      "type": "product-strategist",
+      "model": "sonnet-4.5",
+      "agentFile": "~/.claude/agents/product-strategist.md",
+      "role": "Product strategy and roadmap planning specialist",
+      "specialties": [
+        "Product",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Business Analyst",
+      "type": "business-analyst",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/business-analyst.md",
+      "role": "Business metrics analysis and reporting specialist",
+      "specialties": [
+        "Business",
+        "Use",
+        "Expert"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Content Marketer",
+      "type": "content-marketer",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/content-marketer.md",
+      "role": "Content marketing and SEO optimization specialist",
+      "specialties": [
+        "Content",
+        "Use",
+        "Expert"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    },
+    {
+      "name": "Quant Analyst",
+      "type": "quant-analyst",
+      "model": "haiku",
+      "agentFile": "~/.claude/agents/quant-analyst.md",
+      "role": "Quantitative finance and algorithmic trading specialist",
+      "specialties": [
+        "Quantitative",
+        "Use"
+      ],
+      "autonomousAuthority": {
+        "lowRisk": true,
+        "mediumRisk": true,
+        "highRisk": false,
+        "requiresArchitectApproval": true
+      }
+    }
+  ],
+  "coordination": {
+    "topology": "hierarchical",
+    "leader": "architect",
+    "mcpServers": [
+      "claude-flow@alpha",
+      "ruv-swarm"
+    ],
+    "memorySharing": true,
+    "consensusRequired": [
+      "architecture decisions",
+      "technology selection",
+      "security policies",
+      "API integration strategies"
+    ],
+    "autonomousOperation": {
+      "enabled": true,
+      "maxDurationHours": 8,
+      "checkpointIntervalMinutes": 30,
+      "heartbeatIntervalMinutes": 10,
+      "errorRecoveryAttempts": 3,
+      "escalationThreshold": 3
+    }
+  },
+  "knowledgeManager": {
+    "enabled": true,
+    "perRepositoryContext": true,
+    "baseDir": "data/knowledge",
+    "embeddingDim": 384,
+    "autoCapture": {
+      "enabled": true,
+      "preCompaction": true,
+      "postCompaction": true,
+      "triggers": {
+        "contextThreshold": 0.8,
+        "decisionMade": true,
+        "implementationComplete": true,
+        "issueResolved": true
+      }
+    },
+    "knowledgeTypes": [
+      "architecture",
+      "decision",
+      "implementation",
+      "configuration",
+      "credential",
+      "issue",
+      "pattern",
+      "general"
+    ],
+    "retention": {
+      "maxAgeDays": 90,
+      "autoCleanup": false
+    },
+    "integration": {
+      "mcpMemory": true,
+      "hooks": true,
+      "agents": [
+        "all"
+      ]
+    }
+  },
+  "workflow": {
+    "phases": [
+      "requirements_discovery",
+      "specification_generation",
+      "architecture_design",
+      "implementation",
+      "testing",
+      "security_audit",
+      "documentation",
+      "deployment"
+    ],
+    "parallel_execution": true,
+    "hooks_enabled": true,
+    "compaction_management": {
+      "enabled": true,
+      "preCompactionExport": true,
+      "postCompactionRestore": true,
+      "architectOwnsLifecycle": true
+    }
+  },
+  "decisionAuthority": {
+    "lowRisk": {
+      "examples": [
+        "code formatting",
+        "minor version updates",
+        "test strategies",
+        "file organization"
+      ],
+      "requiresApproval": false,
+      "requiresDocumentation": false
+    },
+    "mediumRisk": {
+      "examples": [
+        "technology choices within stack",
+        "API design",
+        "database schema",
+        "security approaches"
+      ],
+      "requiresApproval": false,
+      "requiresArchitectApproval": true,
+      "requiresDocumentation": true
+    },
+    "highRisk": {
+      "examples": [
+        "new external services",
+        "major architecture changes",
+        "breaking API changes",
+        "production deployments"
+      ],
+      "requiresApproval": true,
+      "requiresUserCheckpoint": true,
+      "requiresDocumentation": true
+    }
+  }
+}

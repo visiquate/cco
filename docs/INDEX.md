@@ -2,24 +2,24 @@
 
 ## Overview
 
-The Claude Orchestra is a comprehensive multi-agent development system with **117 specialized agents** organized across 3 model tiers, providing complete coverage for software development, operations, research, and business analysis.
+The Claude Orchestra is a comprehensive multi-agent development system with **119 specialized agents** organized across 3 model tiers, providing complete coverage for software development, operations, research, and business analysis.
 
 **Current System**: All agents use direct Claude API integration with intelligent model selection:
 - **1 agent** uses Claude Opus 4.1 (Chief Architect)
-- **77 agents** use Claude Sonnet 4.5 (intelligent managers, reviewers, complex coding)
-- **39 agents** use Claude Haiku 4.5 (basic coders, documentation, utilities)
+- **37 agents** use Claude Sonnet 4.5 (intelligent managers, reviewers, complex coding)
+- **81 agents** use Claude Haiku 4.5 (basic coders, documentation, utilities)
 
 **Future Enhancement**: ccproxy integration with local Ollama models is planned pending hardware availability.
 
 ## Quick Access
 
 ### 📊 Agent Information
-- **[COMPREHENSIVE_ORCHESTRA_ROSTER.md](COMPREHENSIVE_ORCHESTRA_ROSTER.md)** - Complete list of all 117 agents with roles and specialties
+- **[COMPREHENSIVE_ORCHESTRA_ROSTER.md](COMPREHENSIVE_ORCHESTRA_ROSTER.md)** - Complete list of all 119 agents with roles and specialties
 - **[QUICK_AGENT_REFERENCE.md](QUICK_AGENT_REFERENCE.md)** - Quick reference guide for finding and using agents
 - **[TDD_AWARE_PIPELINE.md](TDD_AWARE_PIPELINE.md)** - TDD methodology and pipeline coordination
 
 ### 🔧 Configuration & Architecture
-- **[../config/orchestra-config.json](../config/orchestra-config.json)** - Main configuration file with all 117 agents
+- **[../config/orchestra-config.json](../config/orchestra-config.json)** - Main configuration file with all 119 agents
 - **[ARCHITECTURE_DIAGRAMS.md](ARCHITECTURE_DIAGRAMS.md)** - System architecture and design diagrams
 - **[TECHNICAL_OVERVIEW.md](TECHNICAL_OVERVIEW.md)** - Comprehensive technical overview
 
@@ -53,7 +53,7 @@ The Claude Orchestra is a comprehensive multi-agent development system with **11
 ## Document Summaries
 
 ### COMPREHENSIVE_ORCHESTRA_ROSTER.md
-**Purpose**: Complete reference of all 117 agents
+**Purpose**: Complete reference of all 119 agents
 **Contents**:
 - Full agent listing by category
 - Role descriptions and specialties
@@ -85,12 +85,12 @@ The Claude Orchestra is a comprehensive multi-agent development system with **11
 | Intelligent Specialists | 62 | Sonnet 4.5 | Backend architects, performance, ML engineers, cloud specialists |
 | Basic Coders | 25 | Haiku 4.5 | Language specialists, API documentation, basic research |
 | Utilities & Support | 14 | Haiku 4.5 | DX optimization, git flow, monitoring, business analysis |
-| **TOTAL** | **117** | **Mixed** | [COMPREHENSIVE_ORCHESTRA_ROSTER.md](COMPREHENSIVE_ORCHESTRA_ROSTER.md) |
+| **TOTAL** | **119** | **Mixed** | [COMPREHENSIVE_ORCHESTRA_ROSTER.md](COMPREHENSIVE_ORCHESTRA_ROSTER.md) |
 
 **Distribution**:
-- Opus 4.1: 1 agent (0.9%)
-- Sonnet 4.5: 77 agents (65.8%)
-- Haiku 4.5: 39 agents (33.3%)
+- Opus 4.1: 1 agent (0.8%)
+- Sonnet 4.5: 37 agents (31.1%)
+- Haiku 4.5: 81 agents (68.1%)
 
 ## Common Use Cases
 
@@ -117,7 +117,7 @@ The Claude Orchestra is a comprehensive multi-agent development system with **11
 ## Version History
 
 ### v3.0.0 (2025-11-11) - Documentation Organization with Future Enhancements
-- Updated agent count to accurate 117 agents (1 Opus + 77 Sonnet + 39 Haiku)
+- Updated agent count to accurate 119 agents (1 Opus + 79 Sonnet + 39 Haiku)
 - Created `/docs/future/` directory with future enhancement documentation
 - Documented ccproxy integration planning with hardware requirements
 - Added "Future Enhancements" section to INDEX.md
@@ -126,7 +126,7 @@ The Claude Orchestra is a comprehensive multi-agent development system with **11
 - Improved documentation organization and navigation
 
 ### v2.0.0 (2025-11-10) - Comprehensive Roster
-- Current configuration: 117 agents (1 Opus + 77 Sonnet + 39 Haiku)
+- Current configuration: 119 agents (1 Opus + 79 Sonnet + 39 Haiku)
 - Added agent categories and distribution analysis
 - Integrated all agents from ~/.claude/agents/
 - Created comprehensive documentation suite
@@ -149,7 +149,7 @@ The Claude Orchestra is a comprehensive multi-agent development system with **11
 /Users/brent/git/cc-orchestra/docs/
 ├── INDEX.md (this file - documentation index)
 ├── README.md (getting started)
-├── COMPREHENSIVE_ORCHESTRA_ROSTER.md (117 agent details)
+├── COMPREHENSIVE_ORCHESTRA_ROSTER.md (119 agent details)
 ├── QUICK_AGENT_REFERENCE.md (quick lookup)
 ├── ORCHESTRA_USAGE_GUIDE.md (usage instructions)
 ├── QUICK_START.md (3-step guide)
@@ -176,7 +176,7 @@ The Claude Orchestra is a comprehensive multi-agent development system with **11
 ### Agent Definitions
 ```
 ~/.claude/agents/
-├── [117 agent definition files]
+├── [119 agent definition files]
 └── *.md
 ```
 
@@ -258,6 +258,6 @@ For questions or issues:
 
 **Documentation Version**: 3.0.0
 **Last Updated**: 2025-11-11
-**Total Agents**: 117 (1 Opus + 77 Sonnet + 39 Haiku)
+**Total Agents**: 119 (1 Opus + 37 Sonnet + 81 Haiku)
 **Current Status**: Direct Claude API (ccproxy planned, hardware pending)
 **Total Documentation Files**: 50+ files with organized hierarchy
