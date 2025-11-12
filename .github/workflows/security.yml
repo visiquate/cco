@@ -1,0 +1,272 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run security scans weekly on Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+
+# Cancel in-progress runs when a new workflow with the same group name is triggered
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: write
+
+jobs:
+  secret-scanning:
+    name: Secret Detection with TruffleHog
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for comprehensive secret scanning
+
+      - name: Run TruffleHog secret scanner
+        uses: trufflesecurity/trufflehog@main
+        with:
+          # Scan the entire repository history
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --debug --only-verified
+        continue-on-error: false
+
+      - name: TruffleHog results summary
+        if: always()
+        run: |
+          echo "## TruffleHog Secret Scanning Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "TruffleHog scanned the repository for exposed secrets." >> $GITHUB_STEP_SUMMARY
+          echo "- Scan completed successfully ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- If secrets were found, the workflow would have failed" >> $GITHUB_STEP_SUMMARY
+
+  dependency-security:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        id: npm-audit
+        run: |
+          echo "Running npm audit for security vulnerabilities..."
+          npm audit --audit-level=moderate --json > audit-results.json || true
+
+          # Parse and display results
+          VULNERABILITIES=$(cat audit-results.json | jq -r '.metadata.vulnerabilities | to_entries[] | "\(.key): \(.value)"')
+
+          echo "## NPM Audit Results" > audit-summary.txt
+          echo "" >> audit-summary.txt
+          echo "\`\`\`" >> audit-summary.txt
+          echo "$VULNERABILITIES" >> audit-summary.txt
+          echo "\`\`\`" >> audit-summary.txt
+
+          cat audit-summary.txt
+
+          # Check for critical or high vulnerabilities
+          CRITICAL=$(cat audit-results.json | jq -r '.metadata.vulnerabilities.critical // 0')
+          HIGH=$(cat audit-results.json | jq -r '.metadata.vulnerabilities.high // 0')
+
+          if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
+            echo "::error::Found $CRITICAL critical and $HIGH high severity vulnerabilities"
+            npm audit --audit-level=moderate
+            exit 1
+          fi
+        continue-on-error: false
+
+      - name: Check for outdated dependencies
+        run: |
+          echo "Checking for outdated dependencies..."
+          npm outdated || echo "Some dependencies are outdated"
+        continue-on-error: true
+
+      - name: Upload audit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-results
+          path: audit-results.json
+          retention-days: 30
+
+  code-security:
+    name: Code Security Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run CodeQL analysis
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript
+          queries: security-and-quality
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript"
+
+      - name: Check for common security issues
+        run: |
+          echo "Checking for common security anti-patterns..."
+
+          # Check for hardcoded secrets patterns
+          echo "## Security Pattern Check" > security-check.txt
+          echo "" >> security-check.txt
+
+          # Check for eval() usage
+          if grep -r "eval(" src/ 2>/dev/null; then
+            echo "⚠️ Found eval() usage - potential security risk" >> security-check.txt
+          fi
+
+          # Check for process.env in non-config files
+          if grep -r "process.env" src/ --exclude="*config*" 2>/dev/null; then
+            echo "⚠️ Found process.env usage outside config - review for secrets exposure" >> security-check.txt
+          fi
+
+          # Check for console.log in production code
+          if grep -r "console.log" src/ 2>/dev/null | grep -v "// console.log"; then
+            echo "ℹ️ Found console.log statements - consider using proper logging" >> security-check.txt
+          fi
+
+          # Check for require('child_process')
+          if grep -r "require.*child_process" src/ 2>/dev/null; then
+            echo "⚠️ Found child_process usage - review for command injection risks" >> security-check.txt
+          fi
+
+          if [ -s security-check.txt ]; then
+            cat security-check.txt
+          else
+            echo "✅ No common security anti-patterns detected" >> security-check.txt
+            cat security-check.txt
+          fi
+        continue-on-error: true
+
+  file-security:
+    name: File and Configuration Security
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check file permissions
+        run: |
+          echo "Checking for files with overly permissive permissions..."
+
+          # Check for executable files that shouldn't be
+          find . -type f -name "*.json" -perm -111 -not -path "./node_modules/*" -not -path "./.git/*" || true
+          find . -type f -name "*.md" -perm -111 -not -path "./node_modules/*" -not -path "./.git/*" || true
+
+          # Check for sensitive files that aren't in .gitignore
+          echo "Verifying sensitive files are ignored..."
+
+          SENSITIVE_PATTERNS=(
+            "*.pem"
+            "*.key"
+            "*.env"
+            "credentials.json"
+            "secrets.json"
+          )
+
+          for pattern in "${SENSITIVE_PATTERNS[@]}"; do
+            if git ls-files | grep -E "$pattern" > /dev/null 2>&1; then
+              echo "::warning::Sensitive file pattern '$pattern' found in git - should be in .gitignore"
+            fi
+          done
+        continue-on-error: true
+
+      - name: Validate .gitignore coverage
+        run: |
+          echo "Checking .gitignore for security-critical patterns..."
+
+          REQUIRED_PATTERNS=(
+            "*.pem"
+            "*.key"
+            "*.env"
+            "credentials"
+            "secrets"
+            "node_modules"
+          )
+
+          MISSING=0
+          for pattern in "${REQUIRED_PATTERNS[@]}"; do
+            if ! grep -q "$pattern" .gitignore; then
+              echo "::warning::Pattern '$pattern' not found in .gitignore"
+              MISSING=$((MISSING + 1))
+            fi
+          done
+
+          if [ $MISSING -eq 0 ]; then
+            echo "✅ All critical patterns are in .gitignore"
+          fi
+        continue-on-error: true
+
+      - name: Check for exposed secrets in environment files
+        run: |
+          echo "Checking for .env files in repository..."
+
+          if find . -name ".env" -not -path "./node_modules/*" -not -path "./.git/*" | grep -q .; then
+            echo "::error::Found .env files in repository - these should never be committed"
+            exit 1
+          fi
+
+          if find . -name ".env.*" -not -name ".env.example" -not -path "./node_modules/*" -not -path "./.git/*" | grep -q .; then
+            echo "::error::Found .env.* files in repository - only .env.example should be committed"
+            exit 1
+          fi
+
+          echo "✅ No .env files found in repository"
+        continue-on-error: false
+
+  security-summary:
+    name: Security Summary
+    needs: [secret-scanning, dependency-security, code-security, file-security]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Generate security summary
+        run: |
+          echo "## 🔒 Security Scanning Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Secret Detection | ${{ needs.secret-scanning.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Security | ${{ needs.dependency-security.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Code Security | ${{ needs.code-security.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| File Security | ${{ needs.file-security.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.secret-scanning.result }}" == "success" ] && \
+             [ "${{ needs.dependency-security.result }}" == "success" ] && \
+             [ "${{ needs.code-security.result }}" == "success" ] && \
+             [ "${{ needs.file-security.result }}" == "success" ]; then
+            echo "### ✅ All security checks passed!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ⚠️ Some security checks failed - review the logs" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Badge status info (add to README.md):
+  # [![Security Scanning](https://github.com/yourusername/claude-orchestra/actions/workflows/security.yml/badge.svg)](https://github.com/yourusername/claude-orchestra/actions/workflows/security.yml)

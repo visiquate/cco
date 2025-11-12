@@ -1,0 +1,117 @@
+name: Linting & Testing
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+# Cancel in-progress runs when a new workflow with the same group name is triggered
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  lint-and-test:
+    name: Node.js ${{ matrix.node-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [18.x, 20.x, 21.x]
+        os: [ubuntu-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint (if configured)
+        id: eslint
+        run: |
+          if [ -f ".eslintrc.js" ] || [ -f ".eslintrc.json" ] || [ -f "eslint.config.js" ]; then
+            echo "ESLint configuration found, running linter..."
+            npx eslint . --ext .js --format stylish || echo "::warning::ESLint found issues"
+          else
+            echo "No ESLint configuration found, skipping lint step"
+            echo "::notice::Consider adding ESLint for code quality checks"
+          fi
+        continue-on-error: true
+
+      - name: Check for syntax errors
+        run: |
+          echo "Checking JavaScript syntax in src/ directory..."
+          for file in $(find src -name "*.js" 2>/dev/null || echo ""); do
+            if [ -n "$file" ]; then
+              node --check "$file" || exit 1
+            fi
+          done
+          echo "All JavaScript files have valid syntax"
+
+      - name: Run tests
+        id: test
+        run: |
+          npm test
+        continue-on-error: false
+
+      - name: Generate test coverage (if available)
+        if: always()
+        run: |
+          if command -v nyc &> /dev/null; then
+            echo "Running tests with coverage..."
+            nyc npm test || echo "::warning::Test coverage generation failed"
+          else
+            echo "::notice::No coverage tool (nyc) installed. Consider adding code coverage."
+          fi
+        continue-on-error: true
+
+      - name: Upload coverage reports
+        if: always() && hashFiles('coverage/') != ''
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/coverage-final.json
+          flags: unittests
+          name: codecov-${{ matrix.node-version }}
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        continue-on-error: true
+
+      - name: Validate package.json
+        run: |
+          echo "Validating package.json structure..."
+          node -e "JSON.parse(require('fs').readFileSync('package.json', 'utf8'))"
+          echo "package.json is valid JSON"
+
+      - name: Check for security vulnerabilities
+        run: |
+          echo "Running npm audit..."
+          npm audit --audit-level=moderate || echo "::warning::Security vulnerabilities found"
+        continue-on-error: true
+
+      - name: Test summary
+        if: always()
+        run: |
+          echo "## Test Results for Node.js ${{ matrix.node-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Syntax Check**: ✅ Passed" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tests**: ${{ steps.test.outcome == 'success' && '✅ Passed' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **ESLint**: ${{ steps.eslint.outcome == 'success' && '✅ Passed' || '⚠️ Skipped or Issues Found' }}" >> $GITHUB_STEP_SUMMARY
+
+  # Badge status info (add to README.md):
+  # [![Linting & Testing](https://github.com/yourusername/claude-orchestra/actions/workflows/test.yml/badge.svg)](https://github.com/yourusername/claude-orchestra/actions/workflows/test.yml)

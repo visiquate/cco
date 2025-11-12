@@ -1,0 +1,88 @@
+# Dependabot configuration for automated dependency updates
+# This replaces the dependency-updates.yml workflow with native GitHub functionality
+
+version: 2
+
+updates:
+  # Enable version updates for npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+
+    # Grouping strategy for related updates
+    groups:
+      # Group all development dependencies together
+      development-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+
+      # Group production dependencies
+      production-dependencies:
+        dependency-type: "production"
+        update-types:
+          - "patch"
+
+    # Pull request settings
+    open-pull-requests-limit: 10
+    pull-request-branch-name:
+      separator: "-"
+
+    # Commit message prefix (follows conventional commits)
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+      include: "scope"
+
+    # Labels for PR organization
+    labels:
+      - "dependencies"
+      - "automated"
+
+    # Reviewers (uncomment and customize as needed)
+    # reviewers:
+    #   - "your-github-username"
+
+    # Allow version updates for all dependencies
+    allow:
+      - dependency-type: "all"
+
+    # Ignore specific dependencies (example - customize as needed)
+    # ignore:
+    #   - dependency-name: "some-package"
+    #     versions: ["1.x", "2.x"]
+
+    # Increase version requirements for dependencies
+    versioning-strategy: increase
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+
+    commit-message:
+      prefix: "chore(actions)"
+      include: "scope"
+
+    labels:
+      - "github-actions"
+      - "automated"
+
+    open-pull-requests-limit: 5
+
+# Security updates are automatically enabled for all ecosystems
+# Dependabot will open PRs immediately when security vulnerabilities are detected
+
+# Additional configuration options:
+# - rebase-strategy: "auto" (default)
+# - target-branch: "main" (default: repository default branch)
+# - milestone: 1 (assign PRs to milestone)
