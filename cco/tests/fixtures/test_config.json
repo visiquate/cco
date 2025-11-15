@@ -1,0 +1,147 @@
+{
+  "router_config": {
+    "routes": [
+      {
+        "pattern": "^claude-",
+        "provider": "anthropic",
+        "endpoint": "https://api.anthropic.com/v1",
+        "api_key_env": "ANTHROPIC_API_KEY",
+        "timeout_ms": 30000,
+        "max_retries": 3
+      },
+      {
+        "pattern": "^gpt-",
+        "provider": "openai",
+        "endpoint": "https://api.openai.com/v1",
+        "api_key_env": "OPENAI_API_KEY",
+        "timeout_ms": 30000,
+        "max_retries": 3
+      },
+      {
+        "pattern": "^ollama/",
+        "provider": "ollama",
+        "endpoint": "http://localhost:11434",
+        "api_key_env": null,
+        "timeout_ms": 60000,
+        "max_retries": 1
+      }
+    ],
+    "fallback_chain": {
+      "claude-opus-4": ["claude-sonnet-3.5", "gpt-4"],
+      "gpt-4": ["gpt-3.5-turbo"],
+      "ollama/llama3-70b": ["ollama/mistral"]
+    }
+  },
+  "pricing_config": {
+    "claude-opus-4": {
+      "input_cost_per_1m": 15.0,
+      "output_cost_per_1m": 75.0,
+      "cache_read_cost_per_1m": 1.5
+    },
+    "claude-sonnet-3.5": {
+      "input_cost_per_1m": 3.0,
+      "output_cost_per_1m": 15.0,
+      "cache_read_cost_per_1m": 0.3
+    },
+    "gpt-4": {
+      "input_cost_per_1m": 30.0,
+      "output_cost_per_1m": 60.0,
+      "cache_read_cost_per_1m": 0.0
+    },
+    "gpt-3.5-turbo": {
+      "input_cost_per_1m": 0.5,
+      "output_cost_per_1m": 1.5,
+      "cache_read_cost_per_1m": 0.0
+    },
+    "ollama/llama3-70b": {
+      "input_cost_per_1m": 0.0,
+      "output_cost_per_1m": 0.0,
+      "cache_read_cost_per_1m": 0.0
+    },
+    "ollama/mistral": {
+      "input_cost_per_1m": 0.0,
+      "output_cost_per_1m": 0.0,
+      "cache_read_cost_per_1m": 0.0
+    }
+  },
+  "cache_config": {
+    "max_capacity_bytes": 1073741824,
+    "ttl_seconds": 3600,
+    "eviction_policy": "lru"
+  },
+  "test_scenarios": {
+    "cache_hit_rate_high": {
+      "description": "Scenario with 80% cache hit rate",
+      "cache_hit_percentage": 80,
+      "num_requests": 100
+    },
+    "cache_hit_rate_low": {
+      "description": "Scenario with 20% cache hit rate",
+      "cache_hit_percentage": 20,
+      "num_requests": 100
+    },
+    "cache_hit_rate_medium": {
+      "description": "Scenario with 50% cache hit rate",
+      "cache_hit_percentage": 50,
+      "num_requests": 100
+    },
+    "mixed_models": {
+      "description": "Scenario with multiple models being used",
+      "models": [
+        "claude-opus-4",
+        "claude-sonnet-3.5",
+        "gpt-4",
+        "ollama/llama3-70b"
+      ],
+      "requests_per_model": 25
+    },
+    "high_volume": {
+      "description": "Scenario with high request volume",
+      "total_requests": 10000,
+      "concurrent_requests": 100
+    }
+  },
+  "test_data": {
+    "prompts": [
+      "What is the capital of France?",
+      "Explain machine learning in simple terms",
+      "How do I optimize my Python code?",
+      "What are the benefits of caching?",
+      "Tell me about distributed systems",
+      "How does the internet work?",
+      "What is artificial intelligence?",
+      "Explain quantum computing",
+      "How do I write a REST API?",
+      "What are microservices?"
+    ],
+    "token_profiles": [
+      {
+        "name": "small",
+        "input_tokens": 100,
+        "output_tokens": 50
+      },
+      {
+        "name": "medium",
+        "input_tokens": 1000,
+        "output_tokens": 500
+      },
+      {
+        "name": "large",
+        "input_tokens": 10000,
+        "output_tokens": 5000
+      },
+      {
+        "name": "xlarge",
+        "input_tokens": 100000,
+        "output_tokens": 50000
+      }
+    ]
+  },
+  "performance_targets": {
+    "cache_lookup_latency_ms": 1,
+    "cache_hit_response_time_ms": 5,
+    "cache_miss_response_time_ms": 5000,
+    "error_recovery_time_ms": 1000,
+    "throughput_requests_per_second": 100
+  }
+}

@@ -1,0 +1,157 @@
+{
+  "latest": {
+    "stable": "0.3.0",
+    "beta": "0.4.0-beta.2",
+    "nightly": "0.4.0-nightly.20240115"
+  },
+  "minimum_supported_version": "0.2.0",
+  "versions": {
+    "0.3.0": {
+      "date": "2024-01-15T10:00:00Z",
+      "platforms": {
+        "darwin-arm64": {
+          "url": "https://github.com/brentley/cco-releases/releases/download/v0.3.0/cco-v0.3.0-darwin-arm64.tar.gz",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 2912345,
+          "compressed_size": 1024768
+        },
+        "darwin-x86_64": {
+          "url": "https://github.com/brentley/cco-releases/releases/download/v0.3.0/cco-v0.3.0-darwin-x86_64.tar.gz",
+          "sha256": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+          "size": 2932456,
+          "compressed_size": 1034567
+        },
+        "linux-x86_64": {
+          "url": "https://github.com/brentley/cco-releases/releases/download/v0.3.0/cco-v0.3.0-linux-x86_64.tar.gz",
+          "sha256": "4e07408562bedb8b60ce05c1decfe3ad16b72d3cd1b3a6292f2e5e8e3e3f3b8a",
+          "size": 3012345,
+          "compressed_size": 1056789
+        },
+        "linux-aarch64": {
+          "url": "https://github.com/brentley/cco-releases/releases/download/v0.3.0/cco-v0.3.0-linux-aarch64.tar.gz",
+          "sha256": "3b0c4429d8fc1c149afbf4c8996fb924b6e41e4649b934ca495991b785ff7855",
+          "size": 2987654,
+          "compressed_size": 1045678
+        },
+        "windows-x86_64": {
+          "url": "https://github.com/brentley/cco-releases/releases/download/v0.3.0/cco-v0.3.0-windows-x86_64.zip",
+          "sha256": "7d865e959b2466918c9863afca942d0fb89d7156b3e38c7e3e3f3b8a3e3f3b8a",
+          "size": 3234567,
+          "compressed_size": 1134567
+        }
+      },
+      "release_notes": "https://github.com/brentley/cco-releases/releases/tag/v0.3.0",
+      "changelog": "### Features\n- Auto-update mechanism\n- Background update checks\n- Improved performance\n\n### Bug Fixes\n- Fixed memory leak in cache module\n- Resolved platform detection issues",
+      "minimum_rust": "1.75.0",
+      "breaking_changes": false,
+      "security_advisory": null,
+      "features": {
+        "auto_update": true,
+        "telemetry": false,
+        "multi_model": true
+      }
+    },
+    "0.2.0": {
+      "date": "2024-01-01T09:00:00Z",
+      "platforms": {
+        "darwin-arm64": {
+          "url": "https://github.com/brentley/cco-releases/releases/download/v0.2.0/cco-v0.2.0-darwin-arm64.tar.gz",
+          "sha256": "a3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 2812345,
+          "compressed_size": 984567
+        },
+        "darwin-x86_64": {
+          "url": "https://github.com/brentley/cco-releases/releases/download/v0.2.0/cco-v0.2.0-darwin-x86_64.tar.gz",
+          "sha256": "b4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+          "size": 2832456,
+          "compressed_size": 994567
+        },
+        "linux-x86_64": {
+          "url": "https://github.com/brentley/cco-releases/releases/download/v0.2.0/cco-v0.2.0-linux-x86_64.tar.gz",
+          "sha256": "5e07408562bedb8b60ce05c1decfe3ad16b72d3cd1b3a6292f2e5e8e3e3f3b8a",
+          "size": 2912345,
+          "compressed_size": 1016789
+        }
+      },
+      "release_notes": "https://github.com/brentley/cco-releases/releases/tag/v0.2.0",
+      "changelog": "### Features\n- Initial public release\n- Basic proxy functionality\n- Caching support",
+      "minimum_rust": "1.75.0",
+      "breaking_changes": false,
+      "security_advisory": null,
+      "features": {
+        "auto_update": false,
+        "telemetry": false,
+        "multi_model": true
+      }
+    },
+    "0.4.0-beta.2": {
+      "date": "2024-01-16T14:00:00Z",
+      "platforms": {
+        "darwin-arm64": {
+          "url": "https://github.com/brentley/cco-releases/releases/download/v0.4.0-beta.2/cco-v0.4.0-beta.2-darwin-arm64.tar.gz",
+          "sha256": "f3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 3112345,
+          "compressed_size": 1124567
+        }
+      },
+      "release_notes": "https://github.com/brentley/cco-releases/releases/tag/v0.4.0-beta.2",
+      "changelog": "### Beta Features\n- Experimental delta updates\n- New configuration system\n- Enhanced telemetry (opt-in)",
+      "minimum_rust": "1.76.0",
+      "breaking_changes": true,
+      "breaking_changes_description": "Configuration format changed. Automatic migration available.",
+      "security_advisory": null,
+      "features": {
+        "auto_update": true,
+        "telemetry": true,
+        "multi_model": true,
+        "delta_updates": true
+      }
+    }
+  },
+  "deprecation_notices": {
+    "0.1.0": {
+      "message": "Version 0.1.0 is deprecated. Please upgrade to 0.2.0 or later.",
+      "deprecated_date": "2024-01-10T00:00:00Z",
+      "sunset_date": "2024-02-01T00:00:00Z"
+    }
+  },
+  "update_channels": {
+    "stable": {
+      "description": "Production-ready releases",
+      "update_frequency": "monthly",
+      "auto_update_default": true
+    },
+    "beta": {
+      "description": "Preview releases with new features",
+      "update_frequency": "weekly",
+      "auto_update_default": false
+    },
+    "nightly": {
+      "description": "Daily builds from main branch",
+      "update_frequency": "daily",
+      "auto_update_default": false
+    }
+  },
+  "signature_keys": {
+    "current": {
+      "key_id": "0x12345678",
+      "fingerprint": "ABCD EF01 2345 6789 ABCD EF01 2345 6789 ABCD EF01",
+      "public_key_url": "https://github.com/brentley/cco-releases/blob/main/keys/signing-key.asc"
+    },
+    "trusted": [
+      {
+        "key_id": "0x12345678",
+        "fingerprint": "ABCD EF01 2345 6789 ABCD EF01 2345 6789 ABCD EF01",
+        "valid_from": "2024-01-01T00:00:00Z",
+        "valid_until": "2025-01-01T00:00:00Z"
+      }
+    ]
+  },
+  "metadata": {
+    "manifest_version": "1.0.0",
+    "last_updated": "2024-01-16T14:30:00Z",
+    "update_check_url": "https://api.github.com/repos/brentley/cco-releases/releases/latest",
+    "support_url": "https://github.com/brentley/cco-releases/issues",
+    "documentation_url": "https://github.com/brentley/cco-releases/wiki"
+  }
+}

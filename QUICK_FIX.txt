@@ -1,0 +1,155 @@
+================================================================================
+                      QUICK FIX - Model Override Issue
+================================================================================
+
+PROBLEM:
+  Agents configured for "haiku" are being invoked with "sonnet"
+  Result: 73% higher costs + unnecessary complexity
+
+ROOT CAUSE:
+  Task tool calls hardcode model="sonnet" instead of using configured "haiku"
+
+SOLUTION:
+  1. Find your Task calls
+  2. Change "sonnet" to "haiku"
+  3. Done!
+
+================================================================================
+                            The 5 Affected Agents
+================================================================================
+
+rust-specialist         ← Configured: haiku   Currently: sonnet ❌
+devops-engineer         ← Configured: haiku   Currently: sonnet ❌
+frontend-developer      ← Configured: haiku   Currently: sonnet ❌
+test-engineer           ← Configured: haiku   Currently: sonnet ❌
+documentation-expert    ← Configured: haiku   Currently: sonnet ❌
+
+================================================================================
+                              Quick Commands
+================================================================================
+
+# Verify configuration is correct
+bash test-agent-models.sh
+
+# See what needs to be fixed
+grep -r '"sonnet"' . --include="*.js"
+
+# Quick reference templates
+cat AGENT_SPAWN_TEMPLATES.md
+
+# Detailed instructions
+cat ACTION_PLAN.md
+
+================================================================================
+                           Copy-Paste Templates
+================================================================================
+
+❌ WRONG:
+Task("description", "prompt", "rust-specialist", "sonnet")
+
+✅ CORRECT:
+Task("description", "prompt", "rust-specialist", "haiku")
+
+================================================================================
+                            Cost Impact
+================================================================================
+
+BEFORE (Current):
+  rust-specialist:        33.0k tokens (Sonnet) ≈ $0.099
+  devops-engineer:        38.0k tokens (Sonnet) ≈ $0.114
+  frontend-developer:     44.1k tokens (Sonnet) ≈ $0.132
+  test-engineer:          52.7k tokens (Sonnet) ≈ $0.158
+  documentation-expert:   71.9k tokens (Sonnet) ≈ $0.216
+  ─────────────────────────────────────────────────────
+  TOTAL PER RUN:          ~$0.719
+  Monthly (50 runs):      ~$35.95
+
+AFTER (Fixed):
+  rust-specialist:        33.0k tokens (Haiku)  ≈ $0.026
+  devops-engineer:        38.0k tokens (Haiku)  ≈ $0.030
+  frontend-developer:     44.1k tokens (Haiku)  ≈ $0.035
+  test-engineer:          52.7k tokens (Haiku)  ≈ $0.042
+  documentation-expert:   71.9k tokens (Haiku)  ≈ $0.058
+  ─────────────────────────────────────────────────────
+  TOTAL PER RUN:          ~$0.191
+  Monthly (50 runs):      ~$9.55
+
+💰 MONTHLY SAVINGS:       ~$26.40 (73% reduction)
+
+================================================================================
+                          Steps to Fix (In Order)
+================================================================================
+
+1. Verify configuration:
+   $ bash test-agent-models.sh
+
+2. Find your Task calls:
+   $ grep -r "Task(" . --include="*.js" --include="*.sh"
+   $ history | grep Task
+
+3. Update the models:
+   Change: Task(..., "rust-specialist", "sonnet")
+   To:     Task(..., "rust-specialist", "haiku")
+
+4. Verify changes:
+   $ bash test-agent-models.sh
+
+5. Test one agent:
+   Task("description", "prompt", "rust-specialist", "haiku")
+
+6. Monitor the results:
+   Check token count (should be 60-70% lower)
+
+================================================================================
+                            Reference Files
+================================================================================
+
+ACTION_PLAN.md              ← Detailed step-by-step instructions
+AGENT_SPAWN_TEMPLATES.md    ← Copy-paste ready examples
+MODEL_OVERRIDE_FIX.md       ← Technical deep-dive
+QUICK_FIX.txt              ← This file
+test-agent-models.sh       ← Validation script
+src/agent-spawner.js       ← Model lookup helper
+
+================================================================================
+                          Important Notes
+================================================================================
+
+✅ Configuration is CORRECT - No changes needed to config files
+✅ Model assignments are CORRECT - Agents are set to haiku
+❌ Task invocations WRONG - They override config with "sonnet"
+
+This is a USAGE issue, not a configuration issue.
+The fix is simple: Change Task calls to use configured models.
+
+================================================================================
+                        Verification Checklist
+================================================================================
+
+[ ] Run: bash test-agent-models.sh (should show 5/5 PASS)
+[ ] Find: All Task calls with these agent types
+[ ] Update: Change "sonnet" to "haiku" in each Task call
+[ ] Verify: Run test-agent-models.sh again
+[ ] Test: Invoke one agent and check token usage
+[ ] Monitor: Track tokens on subsequent runs
+[ ] Enjoy: 73% cost reduction per agent! 🎉
+
+================================================================================
+                            Support Commands
+================================================================================
+
+Get model for an agent:
+  node src/agent-spawner.js get-model rust-specialist
+
+Show all configured models:
+  node src/agent-spawner.js map
+
+Validate a Task call:
+  node src/agent-spawner.js validate rust-specialist haiku
+
+Show usage examples:
+  node src/agent-spawner.js examples
+
+================================================================================
+Questions? Check ACTION_PLAN.md for detailed instructions.
+================================================================================
