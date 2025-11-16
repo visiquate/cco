@@ -7,7 +7,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 /// A single API call record
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ApiCallRecord {
     pub model: String,
     pub input_tokens: u32,
@@ -27,6 +27,8 @@ pub struct ActivityEvent {
     pub model: Option<String>,
     pub tokens: Option<u64>,
     pub latency_ms: Option<u64>,
+    pub status: Option<String>, // "success", "error", "pending"
+    pub cost: Option<f64>,      // calculated cost for this event
 }
 
 /// Model override record for tracking transparent rewrites
@@ -116,6 +118,8 @@ impl AnalyticsEngine {
             model: Some(original_model.to_string()),
             tokens: None,
             latency_ms: None,
+            status: Some("success".to_string()),
+            cost: None,
         }).await;
     }
 
@@ -219,6 +223,38 @@ impl AnalyticsEngine {
     pub async fn clear(&self) {
         let mut records = self.records.lock().await;
         records.clear();
+    }
+
+    /// Load metrics from disk (~/.claude/metrics.json)
+    pub async fn load_from_disk() -> anyhow::Result<Vec<ApiCallRecord>> {
+        let path = dirs::home_dir()
+            .ok_or_else(|| anyhow::anyhow!("Failed to get home directory"))?
+            .join(".claude")
+            .join("metrics.json");
+
+        if !path.exists() {
+            return Ok(Vec::new()); // Return empty if file doesn't exist
+        }
+
+        let content = tokio::fs::read_to_string(&path).await?;
+        let records: Vec<ApiCallRecord> = serde_json::from_str(&content)?;
+        Ok(records)
+    }
+
+    /// Save metrics to disk (~/.claude/metrics.json)
+    pub async fn save_to_disk(&self) -> anyhow::Result<()> {
+        let path = dirs::home_dir()
+            .ok_or_else(|| anyhow::anyhow!("Failed to get home directory"))?
+            .join(".claude")
+            .join("metrics.json");
+
+        // Create directory if it doesn't exist
+        tokio::fs::create_dir_all(path.parent().unwrap()).await?;
+
+        let records = self.records.lock().await;
+        let json = serde_json::to_string_pretty(&*records)?;
+        tokio::fs::write(&path, json).await?;
+        Ok(())
     }
 }
 

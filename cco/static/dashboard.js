@@ -28,9 +28,11 @@ const state = {
     currentTab: 'project',
     projectStats: null,
     machineStats: null,
+    claudeMetrics: null,
     activity: [],
     eventSource: null,
     terminal: null,
+    fitAddon: null,
     ws: null,
     isConnected: false,
 };
@@ -118,10 +120,18 @@ function handleAnalyticsUpdate(data) {
         updateLastUpdateTime(data.project.lastUpdated || new Date().toISOString());
     }
 
-    // Update machine stats
-    if (data.machine) {
+    // Update machine stats (use claude_metrics for cost/token data)
+    if (data.machine || data.claude_metrics) {
         state.machineStats = data.machine;
-        updateMachineStats(data.machine);
+        // Pass claude_metrics so machine-wide analytics can show conversation costs
+        updateMachineStats(data.machine, data.claude_metrics);
+    }
+
+    // Handle Claude metrics (actual conversation history)
+    if (data.claude_metrics) {
+        state.claudeMetrics = data.claude_metrics;
+        // Always update Claude metrics - they represent real conversation history
+        updateClaudeMetrics(data.claude_metrics);
     }
 
     // Handle activity - can be array or single object
@@ -134,6 +144,12 @@ function handleAnalyticsUpdate(data) {
             addActivity(data.activity);
         }
         updateActivityTable();
+    }
+
+    // Handle chart data
+    if (data.chart_data) {
+        state.chartData = data.chart_data;
+        updateCharts(data.chart_data);
     }
 }
 
@@ -192,26 +208,128 @@ function updateProjectStats(stats) {
     }
 }
 
+function updateClaudeMetrics(metrics) {
+    // Update the Current Project tab with Claude conversation history
+    const totalTokens = metrics.total_input_tokens + metrics.total_output_tokens;
+    const costDisplay = (metrics.total_cost).toLocaleString('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+
+    // Update DOM elements using actual element IDs
+    const costEl = document.getElementById('projectCost');
+    if (costEl) costEl.textContent = costDisplay;
+
+    const tokenEl = document.getElementById('projectTokens');
+    if (tokenEl) tokenEl.textContent = totalTokens.toLocaleString();
+
+    const callsEl = document.getElementById('projectCalls');
+    if (callsEl) callsEl.textContent = metrics.messages_count.toLocaleString();
+
+    // Update model breakdown (create if doesn't exist)
+    updateModelBreakdown(metrics.model_breakdown);
+}
+
+function updateModelBreakdown(breakdown) {
+    // Display model usage percentages
+    // Find or create the model breakdown section in the project tab panel (not the button)
+    let modelsDiv = document.querySelector('[data-section="model-breakdown"]');
+
+    if (!modelsDiv) {
+        // Create the section if it doesn't exist
+        // Append to the tab-panel content area, not the button
+        const projectPanel = document.querySelector('[data-panel="project"]');
+        if (!projectPanel) return;
+
+        const sectionCard = document.createElement('div');
+        sectionCard.className = 'section-card';
+        sectionCard.style.marginTop = '2rem';
+        sectionCard.innerHTML = `
+            <div class="section-header">
+                <h3>Model Breakdown</h3>
+            </div>
+            <div data-section="model-breakdown"></div>
+        `;
+        projectPanel.appendChild(sectionCard);
+        modelsDiv = sectionCard.querySelector('[data-section="model-breakdown"]');
+    }
+
+    const totalCost = Object.values(breakdown).reduce((sum, model) => sum + (model.total_cost || 0), 0);
+
+    let html = '<div class="model-breakdown">';
+    for (const [model, data] of Object.entries(breakdown)) {
+        const modelTotalCost = data.total_cost || 0;
+        if (modelTotalCost === 0 && data.input_tokens === 0 && data.output_tokens === 0) continue; // Skip zero models
+
+        const percentage = totalCost > 0 ? (modelTotalCost / totalCost * 100).toFixed(1) : 0;
+        const totalModelTokens = data.input_tokens + data.output_tokens;
+        const modelName = model.replace('claude-', '').replace(/-\d+$/, '');
+
+        const cost = modelTotalCost;
+        const messageCount = data.message_count !== undefined && data.message_count !== null ? data.message_count : 0;
+
+        html += `
+            <div class="model-row" style="padding: 12px 0; border-bottom: 1px solid rgba(59,130,246,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span class="model-name" style="font-weight: 600; text-transform: capitalize;">${escapeHtml(modelName)}</span>
+                    <span class="model-percentage" style="color: #f59e0b; font-weight: bold;">${percentage}%</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.875rem; color: #94a3b8;">
+                    <span class="model-cost" style="font-weight: 500;">$${cost.toFixed(2)}</span>
+                    <span class="model-tokens">${totalModelTokens.toLocaleString()} tokens (${messageCount} msgs)</span>
+                </div>
+            </div>
+        `;
+    }
+    html += '</div>';
+    modelsDiv.innerHTML = html;
+}
+
 // ========================================
 // Machine Stats Update
 // ========================================
 
-function updateMachineStats(stats) {
-    // Update summary cards
-    if (stats.totalCost !== undefined) {
-        document.getElementById('totalCost').textContent = `$${stats.totalCost.toFixed(2)}`;
+function updateMachineStats(stats, claudeMetrics) {
+    // Use claudeMetrics for real cost/token data from conversations
+    // Fall back to stats object if claudeMetrics not available
+
+    const metrics = claudeMetrics || {};
+
+    // Update total cost
+    const totalCost = metrics.total_cost !== undefined ? metrics.total_cost : 0;
+    const totalCostEl = document.getElementById('totalCost');
+    if (totalCostEl) {
+        totalCostEl.textContent = `$${totalCost.toFixed(2)}`;
     }
 
-    if (stats.activeProjects !== undefined) {
-        document.getElementById('activeProjects').textContent = stats.activeProjects;
+    // Update active projects (use conversations count)
+    const conversationsCount = metrics.conversations_count !== undefined ? metrics.conversations_count : 0;
+    const activeProjectsEl = document.getElementById('activeProjects');
+    if (activeProjectsEl) {
+        activeProjectsEl.textContent = conversationsCount;
     }
 
-    if (stats.totalCalls !== undefined) {
-        document.getElementById('totalCalls').textContent = formatNumber(stats.totalCalls);
+    // Update total API calls (sum of all model message counts)
+    let totalCalls = 0;
+    if (metrics.model_breakdown) {
+        Object.values(metrics.model_breakdown).forEach(model => {
+            totalCalls += model.message_count || 0;
+        });
+    }
+    const totalCallsEl = document.getElementById('totalCalls');
+    if (totalCallsEl) {
+        totalCallsEl.textContent = formatNumber(totalCalls);
     }
 
-    if (stats.totalTokens !== undefined) {
-        document.getElementById('totalTokens').textContent = formatNumber(stats.totalTokens);
+    // Update total tokens
+    const totalInputTokens = metrics.total_input_tokens !== undefined ? metrics.total_input_tokens : 0;
+    const totalOutputTokens = metrics.total_output_tokens !== undefined ? metrics.total_output_tokens : 0;
+    const totalTokens = totalInputTokens + totalOutputTokens;
+    const totalTokensEl = document.getElementById('totalTokens');
+    if (totalTokensEl) {
+        totalTokensEl.textContent = formatNumber(totalTokens);
     }
 
     // Update projects table
@@ -219,9 +337,9 @@ function updateMachineStats(stats) {
         updateProjectsTable(stats.projects);
     }
 
-    // Update models table
-    if (stats.models) {
-        updateModelsTable(stats.models);
+    // Update models table from claude_metrics model breakdown
+    if (metrics.model_breakdown) {
+        updateModelsTableFromBreakdown(metrics.model_breakdown);
     }
 
     // Update discrepancies
@@ -248,15 +366,24 @@ function updateProjectsTable(projects) {
         return;
     }
 
-    tbody.innerHTML = projects.map(project => `
+    tbody.innerHTML = projects.map(project => {
+        const cost = project.cost !== undefined && project.cost !== null ? project.cost : 0;
+        // Handle both snake_case (from server) and camelCase (legacy)
+        const apiCalls = project.api_calls !== undefined ? project.api_calls : project.calls || 0;
+        const inputTokens = project.input_tokens !== undefined ? project.input_tokens : project.inputTokens || 0;
+        const outputTokens = project.output_tokens !== undefined ? project.output_tokens : project.outputTokens || 0;
+        const lastActivity = project.last_activity !== undefined ? project.last_activity : project.lastActivity || new Date().toISOString();
+
+        return `
         <tr>
             <td><strong>${escapeHtml(project.name)}</strong></td>
-            <td>${formatNumber(project.calls)}</td>
-            <td>${formatNumber(project.inputTokens)} / ${formatNumber(project.outputTokens)}</td>
-            <td><strong>$${project.cost.toFixed(2)}</strong></td>
-            <td>${formatTime(project.lastActivity)}</td>
+            <td>${formatNumber(apiCalls)}</td>
+            <td>${formatNumber(inputTokens)} / ${formatNumber(outputTokens)}</td>
+            <td><strong>$${cost.toFixed(2)}</strong></td>
+            <td>${formatTime(lastActivity)}</td>
         </tr>
-    `).join('');
+    `;
+    }).join('');
 }
 
 function updateModelsTable(models) {
@@ -268,16 +395,50 @@ function updateModelsTable(models) {
         return;
     }
 
-    tbody.innerHTML = models.map(model => `
+    tbody.innerHTML = models.map(model => {
+        const cost = model.cost !== undefined && model.cost !== null ? model.cost : 0;
+        const calls = model.calls !== undefined && model.calls !== null ? model.calls : 0;
+        const avgCost = calls > 0 ? (cost / calls).toFixed(6) : '0.000000';
+        return `
         <tr>
             <td><strong>${escapeHtml(model.name)}</strong></td>
             <td>${formatNumber(model.calls)}</td>
             <td>${formatNumber(model.inputTokens)}</td>
             <td>${formatNumber(model.outputTokens)}</td>
-            <td>$${model.cost.toFixed(2)}</td>
-            <td>$${(model.cost / model.calls).toFixed(6)}</td>
+            <td>$${cost.toFixed(2)}</td>
+            <td>$${avgCost}</td>
         </tr>
-    `).join('');
+    `;
+    }).join('');
+}
+
+function updateModelsTableFromBreakdown(breakdown) {
+    const tbody = document.getElementById('modelsTableBody');
+    if (!tbody) return;
+
+    if (!breakdown || Object.keys(breakdown).length === 0) {
+        tbody.innerHTML = '<tr class="loading-row"><td colspan="6" class="text-center">No model data</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = Object.entries(breakdown).map(([modelName, data]) => {
+        const cost = data.total_cost !== undefined ? data.total_cost : 0;
+        const calls = data.message_count !== undefined ? data.message_count : 0;
+        const inputTokens = data.input_tokens !== undefined ? data.input_tokens : 0;
+        const outputTokens = data.output_tokens !== undefined ? data.output_tokens : 0;
+        const avgCost = calls > 0 ? (cost / calls).toFixed(6) : '0.000000';
+
+        return `
+        <tr>
+            <td><strong>${escapeHtml(modelName)}</strong></td>
+            <td>${formatNumber(calls)}</td>
+            <td>${formatNumber(inputTokens)}</td>
+            <td>${formatNumber(outputTokens)}</td>
+            <td>$${cost.toFixed(2)}</td>
+            <td>$${avgCost}</td>
+        </tr>
+        `;
+    }).join('');
 }
 
 function addActivity(activity) {
@@ -316,7 +477,7 @@ function updateActivityTable() {
         const eventName = item.event || item.agent_name || 'system';
         const statusClass = `status-${item.status || 'pending'}`;
         const duration = item.duration || item.tokens || 0;
-        const cost = item.cost || 0;
+        const cost = (item.cost !== undefined && item.cost !== null) ? item.cost : 0;
 
         return `
             <tr class="${statusClass}">
@@ -530,54 +691,96 @@ function initTerminal() {
     const terminalElement = document.getElementById('terminal');
     if (!terminalElement) return;
 
-    state.terminal = new Terminal({
-        rows: 25,
-        cols: 120,
-        theme: {
-            background: '#1e293b',
-            foreground: '#f1f5f9',
-            cursor: '#3b82f6',
-        },
-        fontSize: 14,
-        fontFamily: 'Monaco, Menlo, Ubuntu Mono, monospace',
-    });
+    try {
+        state.terminal = new Terminal({
+            rows: 25,
+            cols: 120,
+            theme: {
+                background: '#1e293b',
+                foreground: '#f1f5f9',
+                cursor: '#3b82f6',
+            },
+            fontSize: 14,
+            fontFamily: 'Monaco, Menlo, Ubuntu Mono, monospace',
+        });
 
-    state.terminal.open(terminalElement);
+        state.terminal.open(terminalElement);
 
-    // Load and apply FitAddon if available
-    let fitAddon = null;
-    if (typeof FitAddon !== 'undefined') {
-        fitAddon = new FitAddon();
-        state.terminal.loadAddon(fitAddon);
-        fitAddon.fit();
+        // Load and apply FitAddon if available
+        state.fitAddon = null;
+
+        // Wait a moment for FitAddon script to fully load and expose itself
+        setTimeout(() => {
+            try {
+                let FitAddonClass = null;
+
+                // Try different ways the module might be exposed
+                if (typeof window.FitAddon === 'function') {
+                    // Direct constructor
+                    FitAddonClass = window.FitAddon;
+                } else if (typeof window.FitAddon === 'object' && window.FitAddon !== null) {
+                    // Module export - could be window.FitAddon.FitAddon or window.FitAddon.default
+                    FitAddonClass = window.FitAddon.FitAddon || window.FitAddon.default;
+                }
+
+                if (typeof FitAddonClass === 'function') {
+                    state.fitAddon = new FitAddonClass();
+                    state.terminal.loadAddon(state.fitAddon);
+                    state.fitAddon.fit();
+                    console.log('FitAddon loaded successfully');
+                } else {
+                    console.warn('FitAddon not available - terminal will not resize dynamically');
+                }
+            } catch (error) {
+                console.warn('Failed to initialize FitAddon:', error);
+                state.fitAddon = null;
+            }
+        }, 100);
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (state.terminal && state.currentTab === 'terminal' && state.fitAddon) {
+                try {
+                    state.fitAddon.fit();
+                } catch (error) {
+                    console.warn('Error fitting terminal:', error);
+                }
+            }
+        });
+
+        // Initialize WebSocket
+        initTerminalWebSocket();
+
+        // Handle terminal input
+        state.terminal.onData(data => {
+            if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+                state.ws.send(new TextEncoder().encode(data));
+            }
+        });
+
+        // Setup terminal control buttons
+        document.getElementById('terminalClearBtn')?.addEventListener('click', () => {
+            if (state.terminal) {
+                state.terminal.clear();
+            }
+        });
+
+        document.getElementById('terminalCopyBtn')?.addEventListener('click', () => {
+            if (state.terminal) {
+                const buffer = state.terminal.getSelectionText() || state.terminal.toString();
+                navigator.clipboard.writeText(buffer).catch(error => {
+                    console.error('Failed to copy terminal output:', error);
+                });
+            }
+        });
+
+    } catch (error) {
+        console.error('Failed to initialize terminal:', error);
+        const terminalDiv = document.getElementById('terminal');
+        if (terminalDiv) {
+            terminalDiv.innerHTML = '<div style="padding: 20px; color: #ef4444;">Failed to initialize terminal: ' + error.message + '</div>';
+        }
     }
-
-    // Handle window resize
-    window.addEventListener('resize', () => {
-        if (state.terminal && state.currentTab === 'terminal' && fitAddon) {
-            fitAddon.fit();
-        }
-    });
-
-    // Initialize WebSocket
-    initTerminalWebSocket();
-
-    // Handle terminal input
-    state.terminal.onData(data => {
-        if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-            state.ws.send(new TextEncoder().encode(data));
-        }
-    });
-
-    // Setup terminal control buttons
-    document.getElementById('terminalClearBtn')?.addEventListener('click', () => {
-        state.terminal.clear();
-    });
-
-    document.getElementById('terminalCopyBtn')?.addEventListener('click', () => {
-        const buffer = state.terminal.getSelectionText() || state.terminal.toString();
-        navigator.clipboard.writeText(buffer);
-    });
 }
 
 function initTerminalWebSocket() {
@@ -756,12 +959,13 @@ function exportProjectsToCSV() {
 
     const rows = [headers];
     projects.forEach(project => {
+        const cost = project.cost !== undefined && project.cost !== null ? project.cost : 0;
         rows.push([
             project.name,
             project.calls,
             project.inputTokens,
             project.outputTokens,
-            project.cost.toFixed(2),
+            cost.toFixed(2),
             new Date(project.lastActivity).toISOString()
         ]);
     });
@@ -949,6 +1153,172 @@ async function loadMachineStats() {
     } catch (error) {
         console.error('Error loading machine stats:', error);
     }
+}
+
+// Chart rendering functions
+function updateCharts(chartData) {
+    if (!chartData) return;
+
+    if (chartData.cost_over_time && chartData.cost_over_time.length > 0) {
+        renderCostOverTimeChart(chartData.cost_over_time);
+    }
+
+    if (chartData.cost_by_project && chartData.cost_by_project.length > 0) {
+        renderCostByProjectChart(chartData.cost_by_project);
+    }
+
+    if (chartData.model_distribution && chartData.model_distribution.length > 0) {
+        renderModelDistributionChart(chartData.model_distribution);
+    }
+}
+
+function renderCostOverTimeChart(data) {
+    const container = document.getElementById('costChart');
+    if (!container) return;
+
+    container.innerHTML = ''; // Clear
+
+    if (!data || data.length === 0) {
+        container.innerHTML = '<p style="color: #94a3b8; text-align: center; padding: 20px;">No data</p>';
+        return;
+    }
+
+    const margin = {top: 20, right: 30, bottom: 30, left: 60};
+    const width = container.clientWidth - margin.left - margin.right;
+    const height = 300 - margin.top - margin.bottom;
+
+    const svg = d3.select(container)
+        .append('svg')
+        .attr('width', width + margin.left + margin.right)
+        .attr('height', height + margin.top + margin.bottom)
+        .append('g')
+        .attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const x = d3.scaleTime()
+        .domain(d3.extent(data, d => new Date(d.date)))
+        .range([0, width]);
+
+    const y = d3.scaleLinear()
+        .domain([0, d3.max(data, d => d.cost)])
+        .range([height, 0]);
+
+    const line = d3.line()
+        .x(d => x(new Date(d.date)))
+        .y(d => y(d.cost));
+
+    svg.append('path')
+        .datum(data)
+        .attr('fill', 'none')
+        .attr('stroke', '#116df8')
+        .attr('stroke-width', 2)
+        .attr('d', line);
+
+    svg.append('g')
+        .attr('transform', `translate(0,${height})`)
+        .call(d3.axisBottom(x).tickFormat(d3.timeFormat('%m/%d')))
+        .style('color', '#94a3b8');
+
+    svg.append('g')
+        .call(d3.axisLeft(y))
+        .style('color', '#94a3b8');
+}
+
+function renderCostByProjectChart(data) {
+    const container = document.getElementById('projectCostChart');
+    if (!container) return;
+
+    container.innerHTML = ''; // Clear
+
+    if (!data || data.length === 0) {
+        container.innerHTML = '<p style="color: #94a3b8; text-align: center; padding: 20px;">No data</p>';
+        return;
+    }
+
+    const width = container.clientWidth;
+    const height = 300;
+    const radius = Math.min(width, height) / 2 - 20;
+
+    const svg = d3.select(container)
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height)
+        .append('g')
+        .attr('transform', `translate(${width / 2},${height / 2})`);
+
+    const color = d3.scaleOrdinal()
+        .domain(data.map(d => d.project))
+        .range(['#116df8', '#ff5100', '#10b981', '#f59e0b']);
+
+    const pie = d3.pie()
+        .value(d => d.cost);
+
+    const arc = d3.arc()
+        .innerRadius(0)
+        .outerRadius(radius);
+
+    svg.selectAll('path')
+        .data(pie(data))
+        .enter()
+        .append('path')
+        .attr('d', arc)
+        .attr('fill', d => color(d.data.project))
+        .attr('stroke', '#1e293b')
+        .attr('stroke-width', 2);
+}
+
+function renderModelDistributionChart(data) {
+    const container = document.getElementById('modelChart');
+    if (!container) return;
+
+    container.innerHTML = ''; // Clear
+
+    if (!data || data.length === 0) {
+        container.innerHTML = '<p style="color: #94a3b8; text-align: center; padding: 20px;">No data</p>';
+        return;
+    }
+
+    const margin = {top: 20, right: 30, bottom: 30, left: 60};
+    const width = container.clientWidth - margin.left - margin.right;
+    const height = 300 - margin.top - margin.bottom;
+
+    const svg = d3.select(container)
+        .append('svg')
+        .attr('width', width + margin.left + margin.right)
+        .attr('height', height + margin.top + margin.bottom)
+        .append('g')
+        .attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const x = d3.scaleBand()
+        .domain(data.map(d => d.model))
+        .range([0, width])
+        .padding(0.1);
+
+    const y = d3.scaleLinear()
+        .domain([0, d3.max(data, d => d.percentage)])
+        .range([height, 0]);
+
+    svg.selectAll('rect')
+        .data(data)
+        .enter()
+        .append('rect')
+        .attr('x', d => x(d.model))
+        .attr('y', d => y(d.percentage))
+        .attr('width', x.bandwidth())
+        .attr('height', d => height - y(d.percentage))
+        .attr('fill', '#116df8');
+
+    svg.append('g')
+        .attr('transform', `translate(0,${height})`)
+        .call(d3.axisBottom(x))
+        .selectAll('text')
+        .attr('transform', 'rotate(-45)')
+        .style('text-anchor', 'end')
+        .style('color', '#94a3b8')
+        .style('font-size', '12px');
+
+    svg.append('g')
+        .call(d3.axisLeft(y))
+        .style('color', '#94a3b8');
 }
 
 // Export for testing

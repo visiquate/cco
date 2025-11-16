@@ -123,6 +123,60 @@ fn get_logs_dir() -> anyhow::Result<PathBuf> {
     Ok(logs_dir)
 }
 
+/// Get the current project path for Claude history
+fn get_current_project_path() -> anyhow::Result<String> {
+    // 1. Try environment variable CCO_PROJECT_PATH first
+    if let Ok(path) = std::env::var("CCO_PROJECT_PATH") {
+        info!("✅ Using CCO_PROJECT_PATH: {}", path);
+
+        // Verify path exists
+        if std::path::Path::new(&path).exists() {
+            info!("✓ Project path exists and is accessible");
+        } else {
+            tracing::warn!("⚠️  Project path does not exist: {}", path);
+        }
+
+        return Ok(path);
+    }
+
+    info!("⚠️  CCO_PROJECT_PATH not set, falling back to current directory");
+
+    // 2. Fall back to current working directory
+    let cwd = std::env::current_dir()?
+        .to_string_lossy()
+        .to_string();
+
+    info!("📁 Current working directory: {}", cwd);
+
+    // 3. Encode the path: /Users/brent/git/cc-orchestra -> -Users-brent-git-cc-orchestra
+    let encoded = format!("-{}", cwd
+        .trim_start_matches('/')
+        .replace('/', "-"));
+
+    info!("🔤 Encoded path: {}", encoded);
+
+    // 4. Return full project path
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
+    let project_path = format!(
+        "{}/.claude/projects/{}/",
+        home,
+        encoded
+    );
+
+    info!("🎯 Derived project path: {}", project_path);
+
+    // Verify path exists
+    if std::path::Path::new(&project_path).exists() {
+        info!("✓ Derived project path exists");
+    } else {
+        tracing::warn!("⚠️  Derived project path does not exist: {}", project_path);
+        tracing::warn!("   Expected at: {}", project_path);
+        tracing::warn!("   To fix: export CCO_PROJECT_PATH='<correct-path>'");
+    }
+
+    Ok(project_path)
+}
+
 /// Setup logging to file
 fn setup_file_logging(port: u16) -> anyhow::Result<()> {
     let logs_dir = get_logs_dir()?;
@@ -240,6 +294,22 @@ async fn health(State(state): State<Arc<ServerState>>) -> Json<HealthResponse> {
         },
         uptime,
     })
+}
+
+/// Shutdown endpoint - gracefully shuts down the server
+async fn shutdown_handler() -> Json<serde_json::Value> {
+    info!("🛑 Shutdown request received");
+
+    // Spawn a task to exit after sending the response
+    tokio::spawn(async {
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+        std::process::exit(0);
+    });
+
+    Json(serde_json::json!({
+        "status": "shutdown_initiated",
+        "message": "Server shutting down..."
+    }))
 }
 
 /// Get all available agents
@@ -411,6 +481,8 @@ async fn chat_completion(
                     model: Some(request.model.clone()),
                     tokens: Some((cached.input_tokens + cached.output_tokens) as u64),
                     latency_ms: Some(latency_ms),
+                    status: Some("success".to_string()),
+                    cost: Some(0.0), // Cache hit = no additional cost
                 })
                 .await;
         }
@@ -464,6 +536,8 @@ async fn chat_completion(
                 model: Some(request.model.clone()),
                 tokens: Some((response.input_tokens + response.output_tokens) as u64),
                 latency_ms: Some(latency_ms),
+                status: Some("success".to_string()),
+                cost: Some(cost),
             })
             .await;
     }
@@ -600,8 +674,18 @@ pub struct ProjectMetric {
 }
 
 #[derive(serde::Serialize)]
+pub struct ProjectDataRow {
+    pub name: String,
+    pub api_calls: u64,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub cost: f64,
+    pub last_activity: String,
+}
+
+#[derive(serde::Serialize)]
 pub struct ProjectMetricsResponse {
-    pub projects: HashMap<String, ProjectMetric>,
+    pub projects: Vec<ProjectDataRow>,
 }
 
 /// Per-project metrics endpoint
@@ -611,20 +695,54 @@ async fn metrics_projects(
     // Calculate totals
     let total_actual_cost = state.analytics.get_total_actual_cost().await;
     let total_requests = state.analytics.get_total_requests().await;
-    let total_would_be_cost = state.analytics.get_total_would_be_cost().await;
+    let metrics_by_model = state.analytics.get_metrics_by_model().await;
 
-    let mut projects = HashMap::new();
-    projects.insert(
-        "Claude Orchestra".to_string(),
-        ProjectMetric {
+    // Calculate total input/output tokens from model breakdown
+    let mut total_input_tokens = 0u64;
+    let mut total_output_tokens = 0u64;
+    for metric in metrics_by_model.values() {
+        total_input_tokens += metric.total_requests; // This will need adjustment based on actual token data
+        total_output_tokens += metric.total_requests; // This will need adjustment based on actual token data
+    }
+
+    let projects = vec![
+        ProjectDataRow {
+            name: "Claude Orchestra".to_string(),
+            api_calls: total_requests,
+            input_tokens: total_input_tokens,
+            output_tokens: total_output_tokens,
             cost: total_actual_cost,
-            tokens: total_would_be_cost as u64,
-            calls: total_requests,
-            last_updated: Utc::now().to_rfc3339(),
+            last_activity: Utc::now().to_rfc3339(),
         },
-    );
+    ];
 
     Ok(Json(ProjectMetricsResponse { projects }))
+}
+
+/// Chart data structures
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct ChartDataPoint {
+    pub date: String,
+    pub cost: f64,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct ProjectChartData {
+    pub project: String,
+    pub cost: f64,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct ModelDistribution {
+    pub model: String,
+    pub percentage: f64,
+}
+
+#[derive(serde::Serialize, Clone, Debug)]
+pub struct ChartData {
+    pub cost_over_time: Vec<ChartDataPoint>,
+    pub cost_by_project: Vec<ProjectChartData>,
+    pub model_distribution: Vec<ModelDistribution>,
 }
 
 /// SSE stream response format with project, machine, and activity
@@ -632,7 +750,11 @@ async fn metrics_projects(
 pub struct SseStreamResponse {
     pub project: ProjectInfo,
     pub machine: MachineInfo,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub claude_metrics: Option<crate::claude_history::ClaudeMetrics>,
     pub activity: Vec<ActivityEvent>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chart_data: Option<ChartData>,
 }
 
 #[derive(serde::Serialize)]
@@ -677,6 +799,64 @@ async fn stream(
             let overrides = state.analytics.get_override_statistics().await;
             let process_count = (overrides.len() / 10).max(1) as u64;
 
+            // Load Claude project metrics
+            let claude_metrics = get_current_project_path()
+                .ok()
+                .and_then(|path| {
+                    // Try to load metrics, but don't fail the SSE stream if it errors
+                    tokio::task::block_in_place(|| {
+                        tokio::runtime::Handle::current().block_on(
+                            crate::claude_history::load_claude_project_metrics(&path)
+                        )
+                    }).ok()
+                });
+
+            // Generate chart data
+            let metrics_by_model = state.analytics.get_metrics_by_model().await;
+            let _savings_by_model = state.analytics.get_savings_by_model().await;
+
+            // Cost over time: For now, just show current cost over past 30 days (mock data)
+            let today = chrono::Local::now();
+            let mut cost_over_time = Vec::new();
+            for i in 0..30 {
+                let date = today - chrono::Duration::days(i);
+                let daily_cost = total_actual_cost / 30.0; // Simple average
+                cost_over_time.push(ChartDataPoint {
+                    date: date.format("%Y-%m-%d").to_string(),
+                    cost: daily_cost,
+                });
+            }
+            cost_over_time.reverse(); // Oldest first
+
+            // Cost by project: For now, just the single project
+            let cost_by_project = vec![ProjectChartData {
+                project: "Claude Orchestra".to_string(),
+                cost: total_actual_cost,
+            }];
+
+            // Model distribution: Calculate percentage by model
+            let total_model_cost: f64 = metrics_by_model.values().map(|m| m.actual_cost).sum();
+            let model_distribution: Vec<ModelDistribution> = if total_model_cost > 0.0 {
+                metrics_by_model
+                    .iter()
+                    .map(|(model_name, metrics)| {
+                        let percentage = (metrics.actual_cost / total_model_cost) * 100.0;
+                        ModelDistribution {
+                            model: model_name.clone(),
+                            percentage,
+                        }
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            };
+
+            let chart_data = Some(ChartData {
+                cost_over_time,
+                cost_by_project,
+                model_distribution,
+            });
+
             let response = SseStreamResponse {
                 project: ProjectInfo {
                     name: "Claude Orchestra".to_string(),
@@ -691,7 +871,9 @@ async fn stream(
                     uptime,
                     process_count,
                 },
+                claude_metrics,
                 activity,
+                chart_data,
             };
 
             // Serialize to JSON
@@ -838,6 +1020,19 @@ fn load_model_overrides() -> HashMap<String, String> {
     overrides
 }
 
+/// Claude history metrics REST endpoint
+async fn claude_history_metrics(
+) -> Result<Json<crate::claude_history::ClaudeMetrics>, ServerError> {
+    let project_path = get_current_project_path()
+        .map_err(|e| ServerError::Internal(format!("Failed to determine project path: {}", e)))?;
+
+    let metrics = crate::claude_history::load_claude_project_metrics(&project_path)
+        .await
+        .map_err(|e| ServerError::Internal(format!("Failed to load Claude metrics: {}", e)))?;
+
+    Ok(Json(metrics))
+}
+
 /// Load agent model configurations from orchestration config file
 ///
 /// Reads from config/orchestra-config.json and extracts agent type -> model mappings
@@ -950,6 +1145,29 @@ pub async fn run_server(
     let agent_models = Arc::new(load_agent_models());
     let agents = Arc::new(load_agents_from_embedded());
 
+    // Load persisted metrics on startup
+    if let Ok(persisted_records) = AnalyticsEngine::load_from_disk().await {
+        let record_count = persisted_records.len();
+        for record in persisted_records {
+            analytics.record_api_call(record).await;
+        }
+        if record_count > 0 {
+            info!("✅ Loaded {} metrics from disk", record_count);
+        }
+    }
+
+    // Spawn background task to save metrics every 60 seconds
+    let analytics_clone = analytics.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(60));
+        loop {
+            interval.tick().await;
+            if let Err(e) = analytics_clone.save_to_disk().await {
+                tracing::warn!("Failed to save metrics: {}", e);
+            }
+        }
+    });
+
     let state = Arc::new(ServerState {
         cache,
         router,
@@ -975,7 +1193,9 @@ pub async fn run_server(
         .route("/api/project/stats", get(project_stats))
         .route("/api/machine/stats", get(machine_stats))
         .route("/api/metrics/projects", get(metrics_projects))
+        .route("/api/metrics/claude-history", get(claude_history_metrics))
         .route("/api/overrides/stats", get(override_stats))
+        .route("/api/shutdown", post(shutdown_handler))
         .route("/api/stream", get(stream))
         .route("/terminal", get(terminal_handler))
         .route("/v1/chat/completions", post(chat_completion))
