@@ -687,58 +687,110 @@ function drawModelChart(data) {
 // Terminal Emulation
 // ========================================
 
+// Define terminal themes
+const darkTheme = {
+    background: '#0f172a',
+    foreground: '#e2e8f0',
+    cursor: '#60a5fa',
+    cursorAccent: '#1e293b',
+    selection: 'rgba(96, 165, 250, 0.3)',
+    black: '#1e293b',
+    red: '#ef4444',
+    green: '#10b981',
+    yellow: '#f59e0b',
+    blue: '#3b82f6',
+    magenta: '#a855f7',
+    cyan: '#06b6d4',
+    white: '#e2e8f0',
+    brightBlack: '#475569',
+    brightRed: '#f87171',
+    brightGreen: '#34d399',
+    brightYellow: '#fbbf24',
+    brightBlue: '#60a5fa',
+    brightMagenta: '#c084fc',
+    brightCyan: '#22d3ee',
+    brightWhite: '#f1f5f9'
+};
+
+const lightTheme = {
+    background: '#ffffff',
+    foreground: '#1e293b',
+    cursor: '#2563eb',
+    cursorAccent: '#f1f5f9',
+    selection: 'rgba(37, 99, 235, 0.3)',
+    black: '#1e293b',
+    red: '#dc2626',
+    green: '#059669',
+    yellow: '#d97706',
+    blue: '#2563eb',
+    magenta: '#9333ea',
+    cyan: '#0891b2',
+    white: '#f1f5f9',
+    brightBlack: '#475569',
+    brightRed: '#ef4444',
+    brightGreen: '#10b981',
+    brightYellow: '#f59e0b',
+    brightBlue: '#3b82f6',
+    brightMagenta: '#a855f7',
+    brightCyan: '#06b6d4',
+    brightWhite: '#ffffff'
+};
+
 function initTerminal() {
     const terminalElement = document.getElementById('terminal');
     if (!terminalElement) return;
 
     try {
+        // Determine current theme
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
+        // Create terminal instance with proper configuration
         state.terminal = new Terminal({
-            rows: 25,
-            cols: 120,
-            theme: {
-                background: '#1e293b',
-                foreground: '#f1f5f9',
-                cursor: '#3b82f6',
-            },
             fontSize: 14,
-            fontFamily: 'Monaco, Menlo, Ubuntu Mono, monospace',
+            fontFamily: 'Monaco, Menlo, Ubuntu Mono, Consolas, "Courier New", monospace',
+            cursorBlink: true,
+            cursorStyle: 'block',
+            theme: isDark ? darkTheme : lightTheme,
+            scrollback: 1000,
+            cols: 120,
+            rows: 30,
+            allowProposedApi: true
         });
 
+        // Load FitAddon
+        state.fitAddon = null;
+        try {
+            let FitAddonClass = null;
+            if (typeof window.FitAddon === 'function') {
+                FitAddonClass = window.FitAddon;
+            } else if (typeof window.FitAddon === 'object' && window.FitAddon !== null) {
+                FitAddonClass = window.FitAddon.FitAddon || window.FitAddon.default;
+            }
+
+            if (typeof FitAddonClass === 'function') {
+                state.fitAddon = new FitAddonClass();
+                state.terminal.loadAddon(state.fitAddon);
+            }
+        } catch (error) {
+            console.warn('FitAddon not available:', error);
+        }
+
+        // Open terminal in DOM
         state.terminal.open(terminalElement);
 
-        // Load and apply FitAddon if available
-        state.fitAddon = null;
-
-        // Wait a moment for FitAddon script to fully load and expose itself
-        setTimeout(() => {
-            try {
-                let FitAddonClass = null;
-
-                // Try different ways the module might be exposed
-                if (typeof window.FitAddon === 'function') {
-                    // Direct constructor
-                    FitAddonClass = window.FitAddon;
-                } else if (typeof window.FitAddon === 'object' && window.FitAddon !== null) {
-                    // Module export - could be window.FitAddon.FitAddon or window.FitAddon.default
-                    FitAddonClass = window.FitAddon.FitAddon || window.FitAddon.default;
-                }
-
-                if (typeof FitAddonClass === 'function') {
-                    state.fitAddon = new FitAddonClass();
-                    state.terminal.loadAddon(state.fitAddon);
+        // Fit terminal to container
+        if (state.fitAddon) {
+            setTimeout(() => {
+                try {
                     state.fitAddon.fit();
-                    console.log('FitAddon loaded successfully');
-                } else {
-                    console.warn('FitAddon not available - terminal will not resize dynamically');
+                } catch (error) {
+                    console.warn('Error fitting terminal:', error);
                 }
-            } catch (error) {
-                console.warn('Failed to initialize FitAddon:', error);
-                state.fitAddon = null;
-            }
-        }, 100);
+            }, 100);
+        }
 
         // Handle window resize
-        window.addEventListener('resize', () => {
+        const resizeHandler = () => {
             if (state.terminal && state.currentTab === 'terminal' && state.fitAddon) {
                 try {
                     state.fitAddon.fit();
@@ -746,15 +798,27 @@ function initTerminal() {
                     console.warn('Error fitting terminal:', error);
                 }
             }
-        });
+        };
+        window.addEventListener('resize', resizeHandler);
 
-        // Initialize WebSocket
+        // Initialize WebSocket connection
         initTerminalWebSocket();
 
-        // Handle terminal input
+        // Handle terminal input (keyboard)
         state.terminal.onData(data => {
             if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-                state.ws.send(new TextEncoder().encode(data));
+                const encoder = new TextEncoder();
+                state.ws.send(encoder.encode(data));
+            }
+        });
+
+        // Handle terminal resize events
+        state.terminal.onResize((size) => {
+            if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+                // Send resize message to PTY backend
+                const msg = `RESIZE${size.cols}x${size.rows}`;
+                const encoder = new TextEncoder();
+                state.ws.send(encoder.encode(msg));
             }
         });
 
@@ -767,12 +831,41 @@ function initTerminal() {
 
         document.getElementById('terminalCopyBtn')?.addEventListener('click', () => {
             if (state.terminal) {
-                const buffer = state.terminal.getSelectionText() || state.terminal.toString();
-                navigator.clipboard.writeText(buffer).catch(error => {
-                    console.error('Failed to copy terminal output:', error);
-                });
+                const content = state.terminal.getSelection() || '';
+                if (content) {
+                    navigator.clipboard.writeText(content).then(() => {
+                        console.log('Terminal content copied to clipboard');
+                    }).catch(error => {
+                        console.error('Failed to copy terminal content:', error);
+                    });
+                }
             }
         });
+
+        // Theme switching support
+        const themeObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
+                    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                    if (state.terminal) {
+                        state.terminal.options.theme = isDark ? darkTheme : lightTheme;
+                    }
+                }
+            });
+        });
+        themeObserver.observe(document.documentElement, { attributes: true });
+
+        // Store cleanup function
+        window.terminalCleanup = () => {
+            themeObserver.disconnect();
+            window.removeEventListener('resize', resizeHandler);
+            if (state.ws) {
+                state.ws.close();
+            }
+            if (state.terminal) {
+                state.terminal.dispose();
+            }
+        };
 
     } catch (error) {
         console.error('Failed to initialize terminal:', error);
@@ -784,6 +877,7 @@ function initTerminal() {
 }
 
 function initTerminalWebSocket() {
+    // Use the correct WebSocket endpoint: /terminal
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/terminal`;
 
@@ -792,29 +886,80 @@ function initTerminalWebSocket() {
         state.ws.binaryType = 'arraybuffer';
 
         state.ws.onopen = () => {
-            console.log('Terminal WebSocket connected');
+            console.log('Terminal WebSocket connected to /terminal');
+            updateTerminalConnectionStatus(true);
+
+            // Send initial terminal size if available
+            if (state.terminal && state.fitAddon) {
+                const size = { cols: state.terminal.cols, rows: state.terminal.rows };
+                const msg = `RESIZE${size.cols}x${size.rows}`;
+                const encoder = new TextEncoder();
+                state.ws.send(encoder.encode(msg));
+            }
         };
 
-        state.ws.onmessage = event => {
+        state.ws.onmessage = (event) => {
             if (state.terminal && event.data instanceof ArrayBuffer) {
-                const text = new TextDecoder().decode(new Uint8Array(event.data));
+                const decoder = new TextDecoder();
+                const text = decoder.decode(new Uint8Array(event.data));
                 state.terminal.write(text);
             }
         };
 
-        state.ws.onerror = error => {
+        state.ws.onerror = (error) => {
             console.error('Terminal WebSocket error:', error);
+            updateTerminalConnectionStatus(false);
+            if (state.terminal) {
+                state.terminal.write('\r\n\x1b[31m✗ WebSocket error\x1b[0m\r\n');
+            }
         };
 
         state.ws.onclose = () => {
             console.log('Terminal WebSocket closed');
-            // Attempt to reconnect
-            setTimeout(initTerminalWebSocket, 3000);
+            updateTerminalConnectionStatus(false);
+            if (state.terminal) {
+                state.terminal.write('\r\n\x1b[33m✗ Connection closed. Reconnecting...\x1b[0m\r\n');
+            }
+
+            // Auto-reconnect after 3 seconds
+            setTimeout(() => {
+                if (state.currentTab === 'terminal') {
+                    initTerminalWebSocket();
+                }
+            }, 3000);
         };
     } catch (error) {
         console.error('Error creating WebSocket:', error);
+        updateTerminalConnectionStatus(false);
     }
 }
+
+function updateTerminalConnectionStatus(isConnected) {
+    // Update connection status indicator if it exists
+    const statusEl = document.getElementById('connectionStatus');
+    if (!statusEl) return;
+
+    const indicator = statusEl.querySelector('.status-indicator');
+    const text = statusEl.querySelector('.status-text');
+
+    if (isConnected) {
+        statusEl.className = 'connection-status connected';
+        if (text) text.textContent = 'Connected';
+    } else {
+        statusEl.className = 'connection-status disconnected';
+        if (text) text.textContent = 'Disconnected';
+    }
+}
+
+// Handle visibility change - reconnect terminal if tab becomes visible
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' &&
+        state.currentTab === 'terminal' &&
+        state.ws &&
+        state.ws.readyState !== WebSocket.OPEN) {
+        initTerminalWebSocket();
+    }
+});
 
 // ========================================
 // Helper Functions
@@ -1071,6 +1216,10 @@ async function handleShutdown() {
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Initializing CCO Dashboard...');
+
+    // Initialize theme - ensure dark theme is set
+    document.documentElement.setAttribute('data-theme', 'dark');
+    console.log('Theme initialized to dark mode');
 
     // Initialize components
     initTabNavigation();
