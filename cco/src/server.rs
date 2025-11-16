@@ -1,19 +1,15 @@
 //! HTTP server for CCO proxy
 
+use crate::agents_config::{load_agents_from_embedded, Agent, AgentsConfig};
 use crate::analytics::{AnalyticsEngine, ApiCallRecord};
 use crate::cache::MokaCache;
 use crate::proxy::{ChatRequest, ChatResponse, ProxyServer};
 use crate::router::ModelRouter;
 use crate::version::DateVersion;
-use chrono::Utc;
-use dirs::data_local_dir;
-use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::PathBuf;
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
-        Json, State,
+        Json, State, Path as AxumPath,
     },
     http::{header, StatusCode},
     response::{
@@ -23,13 +19,27 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use chrono::Utc;
+use dirs::data_local_dir;
 use futures::stream::Stream;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::convert::Infallible;
+use std::fs;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;
 use tracing::info;
+
+/// Agent configuration from orchestration config
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentConfig {
+    pub name: String,
+    pub r#type: String,
+    pub model: String,
+}
 
 /// Server state shared across handlers
 #[derive(Clone)]
@@ -39,6 +49,9 @@ pub struct ServerState {
     pub analytics: Arc<AnalyticsEngine>,
     pub proxy: Arc<ProxyServer>,
     pub start_time: Instant,
+    pub model_overrides: Arc<HashMap<String, String>>,
+    pub agent_models: Arc<HashMap<String, String>>, // agent type -> configured model
+    pub agents: Arc<AgentsConfig>,                   // agent definitions from ~/.claude/agents/
 }
 
 /// PID file metadata structure
@@ -52,8 +65,8 @@ struct PidInfo {
 
 /// Get the PID directory path
 fn get_pid_dir() -> anyhow::Result<PathBuf> {
-    let data_dir = data_local_dir()
-        .ok_or_else(|| anyhow::anyhow!("Failed to get local data directory"))?;
+    let data_dir =
+        data_local_dir().ok_or_else(|| anyhow::anyhow!("Failed to get local data directory"))?;
 
     let pid_dir = data_dir.join("cco").join("pids");
 
@@ -99,8 +112,8 @@ fn remove_pid_file(port: u16) -> anyhow::Result<()> {
 
 /// Get the logs directory path
 fn get_logs_dir() -> anyhow::Result<PathBuf> {
-    let data_dir = data_local_dir()
-        .ok_or_else(|| anyhow::anyhow!("Failed to get local data directory"))?;
+    let data_dir =
+        data_local_dir().ok_or_else(|| anyhow::anyhow!("Failed to get local data directory"))?;
 
     let logs_dir = data_dir.join("cco").join("logs");
 
@@ -182,6 +195,18 @@ pub struct ErrorResponse {
     error: String,
 }
 
+/// All agents response
+#[derive(serde::Serialize)]
+pub struct AgentsListResponse {
+    agents: Vec<Agent>,
+}
+
+/// Agent not found error response
+#[derive(serde::Serialize)]
+pub struct AgentNotFoundResponse {
+    error: String,
+}
+
 /// Custom error type for server errors
 pub enum ServerError {
     Internal(String),
@@ -217,12 +242,125 @@ async fn health(State(state): State<Arc<ServerState>>) -> Json<HealthResponse> {
     })
 }
 
+/// Get all available agents
+async fn list_agents(State(state): State<Arc<ServerState>>) -> Json<AgentsListResponse> {
+    let agents = state.agents.all();
+    info!("Returning {} agents", agents.len());
+    Json(AgentsListResponse { agents })
+}
+
+/// Get a specific agent by name
+async fn get_agent(
+    State(state): State<Arc<ServerState>>,
+    AxumPath(agent_name): AxumPath<String>,
+) -> Result<Json<Agent>, (StatusCode, Json<AgentNotFoundResponse>)> {
+    match state.agents.get(&agent_name) {
+        Some(agent) => {
+            info!("Agent found: {}", agent_name);
+            Ok(Json(agent.clone()))
+        }
+        None => {
+            info!("Agent not found: {}", agent_name);
+            Err((
+                StatusCode::NOT_FOUND,
+                Json(AgentNotFoundResponse {
+                    error: format!("Agent not found: {}", agent_name),
+                }),
+            ))
+        }
+    }
+}
+
+/// Detect agent type from conversation content
+///
+/// Analyzes the system message and conversation to identify which agent is making the request.
+/// Returns the agent type if detected, or None if unrecognized.
+fn detect_agent_from_conversation(messages: &[crate::proxy::Message]) -> Option<String> {
+    // Find the system message (first message with role "system")
+    let system_message = messages
+        .iter()
+        .find(|m| m.role.to_lowercase() == "system")
+        .map(|m| m.content.clone());
+
+    if let Some(system_msg) = system_message {
+        let lower = system_msg.to_lowercase();
+
+        // Pattern matching for known agents
+        // These patterns match the agent descriptions from orchestra-config.json
+        let patterns = vec![
+            ("chief-architect", vec!["chief architect", "strategic decision"]),
+            ("tdd-coding-agent", vec!["tdd", "test-driven", "test-first"]),
+            ("python-specialist", vec!["python specialist", "fastapi", "django"]),
+            ("swift-specialist", vec!["swift specialist", "swiftui", "ios"]),
+            ("rust-specialist", vec!["rust specialist", "systems programming"]),
+            ("go-specialist", vec!["go specialist", "golang", "microservice"]),
+            ("flutter-specialist", vec!["flutter specialist", "cross-platform mobile"]),
+            ("frontend-developer", vec!["frontend developer", "react", "javascript"]),
+            ("fullstack-developer", vec!["full-stack", "fullstack"]),
+            ("devops-engineer", vec!["devops", "docker", "kubernetes", "deployment"]),
+            ("test-engineer", vec!["test engineer", "qa", "testing", "test automation"]),
+            ("test-automator", vec!["test automator", "test automation"]),
+            ("documentation-expert", vec!["documentation", "technical writer", "api documenting"]),
+            ("security-auditor", vec!["security", "vulnerability", "penetration"]),
+            ("database-architect", vec!["database architect", "schema design"]),
+            ("backend-architect", vec!["backend architect", "api design"]),
+            ("code-reviewer", vec!["code review", "code quality"]),
+            ("architecture-modernizer", vec!["architecture", "modernization", "refactor"]),
+            ("debugger", vec!["debugging", "error analysis"]),
+            ("performance-engineer", vec!["performance", "optimization", "profiling"]),
+        ];
+
+        for (agent_type, keywords) in patterns {
+            for keyword in keywords {
+                if lower.contains(keyword) {
+                    return Some(agent_type.to_string());
+                }
+            }
+        }
+    }
+
+    None
+}
+
 /// Chat completion endpoint
 async fn chat_completion(
     State(state): State<Arc<ServerState>>,
-    Json(request): Json<ChatRequest>,
+    Json(mut request): Json<ChatRequest>,
 ) -> Result<Json<ChatResponse>, ServerError> {
-    info!("Received chat request for model: {}", request.model);
+    let original_model = request.model.clone();
+
+    // Detect agent from conversation content
+    if let Some(agent_type) = detect_agent_from_conversation(&request.messages) {
+        if let Some(configured_model) = state.agent_models.get(&agent_type) {
+            info!(
+                "🤖 Agent detected from conversation: '{}' | Model override: {} → {}",
+                agent_type, original_model, configured_model
+            );
+            request.model = configured_model.clone();
+
+            // Track the override in analytics
+            state
+                .analytics
+                .record_model_override(&original_model, configured_model)
+                .await;
+        }
+    }
+    // If no agent detected, try blanket model override rules
+    else if let Some(override_model) = state.model_overrides.get(&request.model) {
+        info!(
+            "🔄 Model override (blanket rule): {} → {}",
+            original_model, override_model
+        );
+        request.model = override_model.clone();
+
+        // Track the override in analytics
+        state
+            .analytics
+            .record_model_override(&original_model, override_model)
+            .await;
+    }
+
+    info!("📝 Processing chat request for model: {}", request.model);
 
     // Generate cache key
     let prompt = request
@@ -282,10 +420,11 @@ async fn chat_completion(
     let response = state.proxy.handle_request(request.clone()).await;
 
     // Calculate cost
-    if let Some(cost) = state
-        .router
-        .calculate_cost(&request.model, response.input_tokens, response.output_tokens)
-    {
+    if let Some(cost) = state.router.calculate_cost(
+        &request.model,
+        response.input_tokens,
+        response.output_tokens,
+    ) {
         state
             .analytics
             .record_api_call(ApiCallRecord {
@@ -326,19 +465,13 @@ async fn dashboard_html() -> impl IntoResponse {
 /// Dashboard CSS
 async fn dashboard_css() -> impl IntoResponse {
     let css = include_str!("../static/dashboard.css");
-    (
-        [(header::CONTENT_TYPE, "text/css")],
-        css,
-    )
+    ([(header::CONTENT_TYPE, "text/css")], css)
 }
 
 /// Dashboard JavaScript
 async fn dashboard_js() -> impl IntoResponse {
     let js = include_str!("../static/dashboard.js");
-    (
-        [(header::CONTENT_TYPE, "application/javascript")],
-        js,
-    )
+    ([(header::CONTENT_TYPE, "application/javascript")], js)
 }
 
 /// Analytics stats endpoint
@@ -388,17 +521,44 @@ async fn stats(State(state): State<Arc<ServerState>>) -> Result<Json<StatsRespon
 }
 
 /// Project stats endpoint (currently same as general stats)
-async fn project_stats(State(state): State<Arc<ServerState>>) -> Result<Json<StatsResponse>, ServerError> {
+async fn project_stats(
+    State(state): State<Arc<ServerState>>,
+) -> Result<Json<StatsResponse>, ServerError> {
     // For now, return the same data as general stats
     // In the future, this could be project-specific
     stats(State(state)).await
 }
 
 /// Machine stats endpoint (currently same as general stats)
-async fn machine_stats(State(state): State<Arc<ServerState>>) -> Result<Json<StatsResponse>, ServerError> {
+async fn machine_stats(
+    State(state): State<Arc<ServerState>>,
+) -> Result<Json<StatsResponse>, ServerError> {
     // For now, return the same data as general stats
     // In the future, this could aggregate across multiple projects
     stats(State(state)).await
+}
+
+/// Model override statistics endpoint
+async fn override_stats(
+    State(state): State<Arc<ServerState>>,
+) -> Result<Json<serde_json::Value>, ServerError> {
+    let overrides = state.analytics.get_override_statistics().await;
+
+    // Group overrides by model to show which models are being rewritten
+    let mut by_model: HashMap<String, (String, usize)> = HashMap::new();
+
+    for record in &overrides {
+        by_model
+            .entry(record.original_model.clone())
+            .and_modify(|(_, count)| *count += 1)
+            .or_insert_with(|| (record.override_to.clone(), 1));
+    }
+
+    Ok(Json(serde_json::json!({
+        "total_overrides": overrides.len(),
+        "overrides_by_model": by_model,
+        "recent_overrides": overrides.iter().rev().take(10).collect::<Vec<_>>(),
+    })))
 }
 
 /// SSE stream endpoint for real-time analytics updates
@@ -465,10 +625,7 @@ async fn stream(
 }
 
 /// WebSocket terminal endpoint handler
-async fn terminal_handler(
-    ws: WebSocketUpgrade,
-    State(state): State<Arc<ServerState>>,
-) -> Response {
+async fn terminal_handler(ws: WebSocketUpgrade, State(state): State<Arc<ServerState>>) -> Response {
     ws.on_upgrade(move |socket| handle_terminal_socket(socket, state))
 }
 
@@ -484,7 +641,11 @@ async fn handle_terminal_socket(socket: WebSocket, _state: Arc<ServerState>) {
         "data": "CCO Terminal v2025.11.2\nType 'help' for available commands.\n\n$ "
     }"#;
 
-    if sender.send(Message::Text(welcome_msg.to_string())).await.is_err() {
+    if sender
+        .send(Message::Text(welcome_msg.to_string()))
+        .await
+        .is_err()
+    {
         return;
     }
 
@@ -536,35 +697,136 @@ async fn execute_command(command: &str) -> String {
 
     match cmd {
         "" => String::new(),
-        "help" => {
-            r#"Available commands:
+        "help" => r#"Available commands:
   help           - Show this help message
   version        - Show CCO version
   status         - Show system status
   cache stats    - Show cache statistics
   clear          - Clear screen
   exit           - Close terminal
-"#.to_string()
-        }
+"#
+        .to_string(),
         "version" => {
             format!("CCO Proxy v{}\n", DateVersion::current())
         }
-        "status" => {
-            "Status: Running\nUptime: Active\nCache: Operational\n".to_string()
-        }
+        "status" => "Status: Running\nUptime: Active\nCache: Operational\n".to_string(),
         "cache stats" => {
             "Cache Statistics:\n  Hit Rate: N/A\n  Entries: N/A\n  Size: N/A\n".to_string()
         }
         "clear" => {
             "\x1b[2J\x1b[H".to_string() // ANSI clear screen
         }
-        "exit" => {
-            "Goodbye!\n".to_string()
-        }
+        "exit" => "Goodbye!\n".to_string(),
         _ => {
-            format!("Unknown command: {}\nType 'help' for available commands.\n", cmd)
+            format!(
+                "Unknown command: {}\nType 'help' for available commands.\n",
+                cmd
+            )
         }
     }
+}
+
+/// Load model override rules from configuration
+///
+/// Returns a HashMap mapping original model names to override model names.
+/// For MVP, we hardcode the default rules. Future enhancement: load from TOML.
+fn load_model_overrides() -> HashMap<String, String> {
+    let mut overrides = HashMap::new();
+
+    // Default model override rules (Sonnet → Haiku for 75% cost savings)
+    overrides.insert(
+        "claude-sonnet-4.5-20250929".to_string(),
+        "claude-haiku-4-5-20251001".to_string(),
+    );
+    overrides.insert(
+        "claude-sonnet-4".to_string(),
+        "claude-haiku-4-5-20251001".to_string(),
+    );
+    overrides.insert(
+        "claude-sonnet-3.5".to_string(),
+        "claude-haiku-4-5-20251001".to_string(),
+    );
+
+    // Uncomment to enable Opus → Sonnet rewrites (additional cost savings)
+    // overrides.insert(
+    //     "claude-opus-4-1-20250805".to_string(),
+    //     "claude-sonnet-4.5-20250929".to_string(),
+    // );
+
+    info!("📋 Loaded {} model override rules", overrides.len());
+
+    overrides
+}
+
+/// Load agent model configurations from orchestration config file
+///
+/// Reads from config/orchestra-config.json and extracts agent type -> model mappings
+/// This ensures the proxy respects the orchestration layer's model assignments
+fn load_agent_models() -> HashMap<String, String> {
+    let mut agent_models = HashMap::new();
+
+    // Try to load from orchestra-config.json
+    let config_path = "../config/orchestra-config.json";
+
+    match fs::read_to_string(config_path) {
+        Ok(contents) => match serde_json::from_str::<serde_json::Value>(&contents) {
+            Ok(config) => {
+                // Extract architect model
+                if let Some(architect) = config.get("architect") {
+                    if let Some(model) = architect.get("model").and_then(|m| m.as_str()) {
+                        agent_models.insert("chief-architect".to_string(), model.to_string());
+                        info!("✓ Loaded architect model: {}", model);
+                    }
+                }
+
+                // Extract coding agents models
+                if let Some(agents) = config.get("codingAgents").and_then(|a| a.as_array()) {
+                    for agent in agents {
+                        if let (Some(agent_type), Some(model)) = (
+                            agent.get("type").and_then(|t| t.as_str()),
+                            agent.get("model").and_then(|m| m.as_str()),
+                        ) {
+                            agent_models.insert(agent_type.to_string(), model.to_string());
+                            info!("✓ Loaded agent model: {} → {}", agent_type, model);
+                        }
+                    }
+                }
+
+                // Extract support agents models
+                if let Some(agents) = config.get("supportTeam").and_then(|a| a.as_array()) {
+                    for agent in agents {
+                        if let (Some(agent_type), Some(model)) = (
+                            agent.get("type").and_then(|t| t.as_str()),
+                            agent.get("model").and_then(|m| m.as_str()),
+                        ) {
+                            agent_models.insert(agent_type.to_string(), model.to_string());
+                            info!("✓ Loaded agent model: {} → {}", agent_type, model);
+                        }
+                    }
+                }
+
+                info!(
+                    "📊 Loaded {} agent model configurations from {}",
+                    agent_models.len(),
+                    config_path
+                );
+            }
+            Err(e) => {
+                info!(
+                    "⚠️  Failed to parse orchestra-config.json: {}. Using defaults.",
+                    e
+                );
+            }
+        },
+        Err(e) => {
+            info!(
+                "⚠️  Could not read orchestra-config.json ({}). Agent-aware overrides will not work.",
+                e
+            );
+        }
+    }
+
+    agent_models
 }
 
 /// Run the HTTP server
@@ -574,11 +836,22 @@ pub async fn run_server(
     cache_size: u64,
     cache_ttl: u64,
 ) -> anyhow::Result<()> {
-    info!("🚀 Starting CCO Proxy Server v{}", env!("CARGO_PKG_VERSION"));
+    info!(
+        "🚀 Starting CCO Proxy Server v{}",
+        env!("CARGO_PKG_VERSION")
+    );
     info!("→ Host: {}", host);
     info!("→ Port: {}", port);
-    info!("→ Cache size: {} bytes ({} MB)", cache_size, cache_size / 1_000_000);
-    info!("→ Cache TTL: {} seconds ({} hours)", cache_ttl, cache_ttl / 3600);
+    info!(
+        "→ Cache size: {} bytes ({} MB)",
+        cache_size,
+        cache_size / 1_000_000
+    );
+    info!(
+        "→ Cache TTL: {} seconds ({} hours)",
+        cache_ttl,
+        cache_ttl / 3600
+    );
 
     // Setup file logging
     setup_file_logging(port)?;
@@ -593,6 +866,9 @@ pub async fn run_server(
     let analytics = Arc::new(AnalyticsEngine::new());
     let proxy = Arc::new(ProxyServer::new());
     let start_time = Instant::now();
+    let model_overrides = Arc::new(load_model_overrides());
+    let agent_models = Arc::new(load_agent_models());
+    let agents = Arc::new(load_agents_from_embedded());
 
     let state = Arc::new(ServerState {
         cache,
@@ -600,6 +876,9 @@ pub async fn run_server(
         analytics,
         proxy,
         start_time,
+        model_overrides,
+        agent_models,
+        agents,
     });
 
     // Build router
@@ -610,9 +889,12 @@ pub async fn run_server(
         .route("/dashboard.js", get(dashboard_js))
         // API routes
         .route("/health", get(health))
+        .route("/api/agents", get(list_agents))
+        .route("/api/agents/:agent_name", get(get_agent))
         .route("/api/stats", get(stats))
         .route("/api/project/stats", get(project_stats))
         .route("/api/machine/stats", get(machine_stats))
+        .route("/api/overrides/stats", get(override_stats))
         .route("/api/stream", get(stream))
         .route("/terminal", get(terminal_handler))
         .route("/v1/chat/completions", post(chat_completion))
@@ -626,6 +908,8 @@ pub async fn run_server(
     info!("✅ Server listening on http://{}", addr);
     info!("→ Dashboard: http://{}/", addr);
     info!("→ Health check: http://{}/health", addr);
+    info!("→ Agent API: http://{}/api/agents", addr);
+    info!("→ Agent Details: http://{}/api/agents/:name", addr);
     info!("→ Analytics API: http://{}/api/stats", addr);
     info!("→ SSE Stream: http://{}/api/stream", addr);
     info!("→ WebSocket Terminal: ws://{}/terminal", addr);
