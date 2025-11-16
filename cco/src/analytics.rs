@@ -1,5 +1,7 @@
 //! Analytics module for tracking API calls and cache performance
 
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -14,6 +16,25 @@ pub struct ApiCallRecord {
     pub actual_cost: f64,
     pub would_be_cost: f64,
     pub savings: f64,
+}
+
+/// Activity event for tracking user actions and API activity
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ActivityEvent {
+    pub timestamp: String,  // ISO 8601
+    pub event_type: String, // "api_call", "error", "cache_hit", "cache_miss", "model_override"
+    pub agent_name: Option<String>,
+    pub model: Option<String>,
+    pub tokens: Option<u64>,
+    pub latency_ms: Option<u64>,
+}
+
+/// Model override record for tracking transparent rewrites
+#[derive(Clone, Debug, Serialize)]
+pub struct OverrideRecord {
+    pub original_model: String,
+    pub override_to: String,
+    pub timestamp: DateTime<Utc>,
 }
 
 /// Per-model metrics
@@ -31,6 +52,8 @@ pub struct ModelMetrics {
 /// Analytics engine for tracking cache performance
 pub struct AnalyticsEngine {
     records: Arc<Mutex<Vec<ApiCallRecord>>>,
+    model_overrides: Arc<Mutex<Vec<OverrideRecord>>>,
+    activity_events: Arc<Mutex<std::collections::VecDeque<ActivityEvent>>>,
 }
 
 impl AnalyticsEngine {
@@ -38,6 +61,8 @@ impl AnalyticsEngine {
     pub fn new() -> Self {
         Self {
             records: Arc::new(Mutex::new(Vec::new())),
+            model_overrides: Arc::new(Mutex::new(Vec::new())),
+            activity_events: Arc::new(Mutex::new(std::collections::VecDeque::with_capacity(100))),
         }
     }
 
@@ -45,6 +70,59 @@ impl AnalyticsEngine {
     pub async fn record_api_call(&self, record: ApiCallRecord) {
         let mut records = self.records.lock().await;
         records.push(record);
+    }
+
+    /// Record an activity event
+    pub async fn record_event(&self, event: ActivityEvent) {
+        let mut events = self.activity_events.lock().await;
+
+        // Keep only the last 100 events using a ring buffer approach
+        if events.len() >= 100 {
+            events.pop_front();
+        }
+
+        events.push_back(event);
+    }
+
+    /// Get recent activity events (last N)
+    pub async fn get_recent_activity(&self, limit: usize) -> Vec<ActivityEvent> {
+        let events = self.activity_events.lock().await;
+        let start = if events.len() > limit {
+            events.len() - limit
+        } else {
+            0
+        };
+        events.iter().skip(start).cloned().collect()
+    }
+
+    /// Record a model override event
+    pub async fn record_model_override(&self, original_model: &str, override_model: &str) {
+        let record = OverrideRecord {
+            original_model: original_model.to_string(),
+            override_to: override_model.to_string(),
+            timestamp: Utc::now(),
+        };
+
+        let mut overrides = self.model_overrides.lock().await;
+        overrides.push(record);
+
+        tracing::debug!("Recorded override: {} → {}", original_model, override_model);
+
+        // Also record as activity event
+        self.record_event(ActivityEvent {
+            timestamp: Utc::now().to_rfc3339(),
+            event_type: "model_override".to_string(),
+            agent_name: None,
+            model: Some(original_model.to_string()),
+            tokens: None,
+            latency_ms: None,
+        }).await;
+    }
+
+    /// Get override statistics
+    pub async fn get_override_statistics(&self) -> Vec<OverrideRecord> {
+        let overrides = self.model_overrides.lock().await;
+        overrides.clone()
     }
 
     /// Get total number of requests
@@ -321,5 +399,73 @@ mod tests {
 
         assert_eq!(analytics.get_total_requests().await, 0);
         assert_eq!(analytics.get_total_savings().await, 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_record_event_adds_correctly() {
+        let analytics = AnalyticsEngine::new();
+        let event = ActivityEvent {
+            timestamp: Utc::now().to_rfc3339(),
+            event_type: "api_call".to_string(),
+            agent_name: Some("test-agent".to_string()),
+            model: Some("claude-opus-4".to_string()),
+            tokens: Some(1000),
+            latency_ms: Some(150),
+        };
+
+        analytics.record_event(event).await;
+
+        let recent = analytics.get_recent_activity(10).await;
+        assert_eq!(recent.len(), 1);
+        assert_eq!(recent[0].event_type, "api_call");
+        assert_eq!(recent[0].agent_name, Some("test-agent".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_activity_buffer_maintains_max_100_events() {
+        let analytics = AnalyticsEngine::new();
+
+        // Add 150 events
+        for i in 0..150 {
+            let event = ActivityEvent {
+                timestamp: Utc::now().to_rfc3339(),
+                event_type: format!("event_{}", i),
+                agent_name: None,
+                model: None,
+                tokens: None,
+                latency_ms: None,
+            };
+            analytics.record_event(event).await;
+        }
+
+        // Should only have 100 events (oldest 50 discarded)
+        let all_events = analytics.get_recent_activity(200).await;
+        assert_eq!(all_events.len(), 100);
+
+        // The first event should be event_50 (50-149 kept, 0-49 discarded)
+        assert_eq!(all_events[0].event_type, "event_50");
+        assert_eq!(all_events[99].event_type, "event_149");
+    }
+
+    #[tokio::test]
+    async fn test_get_recent_activity_respects_limit() {
+        let analytics = AnalyticsEngine::new();
+
+        for i in 0..20 {
+            let event = ActivityEvent {
+                timestamp: Utc::now().to_rfc3339(),
+                event_type: format!("event_{}", i),
+                agent_name: None,
+                model: None,
+                tokens: None,
+                latency_ms: None,
+            };
+            analytics.record_event(event).await;
+        }
+
+        let recent = analytics.get_recent_activity(5).await;
+        assert_eq!(recent.len(), 5);
+        assert_eq!(recent[0].event_type, "event_15");
+        assert_eq!(recent[4].event_type, "event_19");
     }
 }

@@ -1,7 +1,7 @@
 //! HTTP server for CCO proxy
 
 use crate::agents_config::{load_agents_from_embedded, Agent, AgentsConfig};
-use crate::analytics::{AnalyticsEngine, ApiCallRecord};
+use crate::analytics::{AnalyticsEngine, ApiCallRecord, ActivityEvent};
 use crate::cache::MokaCache;
 use crate::proxy::{ChatRequest, ChatResponse, ProxyServer};
 use crate::router::ModelRouter;
@@ -328,6 +328,7 @@ async fn chat_completion(
     Json(mut request): Json<ChatRequest>,
 ) -> Result<Json<ChatResponse>, ServerError> {
     let original_model = request.model.clone();
+    let request_start = std::time::Instant::now();
 
     // Detect agent from conversation content
     if let Some(agent_type) = detect_agent_from_conversation(&request.messages) {
@@ -379,6 +380,7 @@ async fn chat_completion(
     // Check cache
     if let Some(cached) = state.cache.get(&cache_key).await {
         info!("Cache hit for model: {}", request.model);
+        let latency_ms = request_start.elapsed().as_millis() as u64;
 
         // Calculate savings
         if let Some((actual_cost, would_be_cost, savings)) = state.router.calculate_cache_savings(
@@ -396,6 +398,19 @@ async fn chat_completion(
                     actual_cost,
                     would_be_cost,
                     savings,
+                })
+                .await;
+
+            // Record activity event for cache hit
+            state
+                .analytics
+                .record_event(ActivityEvent {
+                    timestamp: Utc::now().to_rfc3339(),
+                    event_type: "cache_hit".to_string(),
+                    agent_name: None,
+                    model: Some(request.model.clone()),
+                    tokens: Some((cached.input_tokens + cached.output_tokens) as u64),
+                    latency_ms: Some(latency_ms),
                 })
                 .await;
         }
@@ -418,6 +433,7 @@ async fn chat_completion(
 
     // Handle request via proxy (this simulates an API call)
     let response = state.proxy.handle_request(request.clone()).await;
+    let latency_ms = request_start.elapsed().as_millis() as u64;
 
     // Calculate cost
     if let Some(cost) = state.router.calculate_cost(
@@ -435,6 +451,19 @@ async fn chat_completion(
                 actual_cost: cost,
                 would_be_cost: cost,
                 savings: 0.0,
+            })
+            .await;
+
+        // Record activity event for API call
+        state
+            .analytics
+            .record_event(ActivityEvent {
+                timestamp: Utc::now().to_rfc3339(),
+                event_type: "api_call".to_string(),
+                agent_name: None,
+                model: Some(request.model.clone()),
+                tokens: Some((response.input_tokens + response.output_tokens) as u64),
+                latency_ms: Some(latency_ms),
             })
             .await;
     }
@@ -561,6 +590,68 @@ async fn override_stats(
     })))
 }
 
+/// Project metrics response
+#[derive(serde::Serialize)]
+pub struct ProjectMetric {
+    pub cost: f64,
+    pub tokens: u64,
+    pub calls: u64,
+    pub last_updated: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct ProjectMetricsResponse {
+    pub projects: HashMap<String, ProjectMetric>,
+}
+
+/// Per-project metrics endpoint
+async fn metrics_projects(
+    State(state): State<Arc<ServerState>>,
+) -> Result<Json<ProjectMetricsResponse>, ServerError> {
+    // Calculate totals
+    let total_actual_cost = state.analytics.get_total_actual_cost().await;
+    let total_requests = state.analytics.get_total_requests().await;
+    let total_would_be_cost = state.analytics.get_total_would_be_cost().await;
+
+    let mut projects = HashMap::new();
+    projects.insert(
+        "Claude Orchestra".to_string(),
+        ProjectMetric {
+            cost: total_actual_cost,
+            tokens: total_would_be_cost as u64,
+            calls: total_requests,
+            last_updated: Utc::now().to_rfc3339(),
+        },
+    );
+
+    Ok(Json(ProjectMetricsResponse { projects }))
+}
+
+/// SSE stream response format with project, machine, and activity
+#[derive(serde::Serialize)]
+pub struct SseStreamResponse {
+    pub project: ProjectInfo,
+    pub machine: MachineInfo,
+    pub activity: Vec<ActivityEvent>,
+}
+
+#[derive(serde::Serialize)]
+pub struct ProjectInfo {
+    pub name: String,
+    pub cost: f64,
+    pub tokens: u64,
+    pub calls: u64,
+    pub last_updated: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct MachineInfo {
+    pub cpu: String,
+    pub memory: String,
+    pub uptime: u64,
+    pub process_count: u64,
+}
+
 /// SSE stream endpoint for real-time analytics updates
 async fn stream(
     State(state): State<Arc<ServerState>>,
@@ -571,51 +662,40 @@ async fn stream(
         loop {
             interval.tick().await;
 
-            // Get cache metrics
-            let cache_metrics = state.cache.get_metrics().await;
-
-            // Get analytics by model
-            let metrics_by_model = state.analytics.get_metrics_by_model().await;
-
             // Calculate totals
             let total_requests = state.analytics.get_total_requests().await;
             let total_actual_cost = state.analytics.get_total_actual_cost().await;
             let total_would_be_cost = state.analytics.get_total_would_be_cost().await;
-            let total_savings = state.analytics.get_total_savings().await;
 
-            // Convert model metrics to response format
-            let model_stats: Vec<ModelStats> = metrics_by_model
-                .into_iter()
-                .map(|(_, metrics)| ModelStats {
-                    model: metrics.model,
-                    requests: metrics.total_requests,
-                    cache_hits: metrics.cache_hits,
-                    cache_misses: metrics.cache_misses,
-                    actual_cost: metrics.actual_cost,
-                    would_be_cost: metrics.would_be_cost,
-                    savings: metrics.total_savings,
-                })
-                .collect();
+            // Get recent activity (last 20 events)
+            let activity = state.analytics.get_recent_activity(20).await;
 
-            let stats = StatsResponse {
-                cache: CacheStats {
-                    hit_rate: cache_metrics.hit_rate,
-                    hits: cache_metrics.hits,
-                    misses: cache_metrics.misses,
-                    entries: cache_metrics.hits + cache_metrics.misses,
-                    total_savings: cache_metrics.total_savings,
+            // Calculate uptime
+            let uptime = state.start_time.elapsed().as_secs();
+
+            // Get process count (approximate - number of overrides as proxy for active agents)
+            let overrides = state.analytics.get_override_statistics().await;
+            let process_count = (overrides.len() / 10).max(1) as u64;
+
+            let response = SseStreamResponse {
+                project: ProjectInfo {
+                    name: "Claude Orchestra".to_string(),
+                    cost: total_actual_cost,
+                    tokens: total_would_be_cost as u64,
+                    calls: total_requests,
+                    last_updated: Utc::now().to_rfc3339(),
                 },
-                models: model_stats,
-                totals: TotalStats {
-                    requests: total_requests,
-                    actual_cost: total_actual_cost,
-                    would_be_cost: total_would_be_cost,
-                    total_savings,
+                machine: MachineInfo {
+                    cpu: "N/A".to_string(),
+                    memory: "N/A".to_string(),
+                    uptime,
+                    process_count,
                 },
+                activity,
             };
 
             // Serialize to JSON
-            if let Ok(json) = serde_json::to_string(&stats) {
+            if let Ok(json) = serde_json::to_string(&response) {
                 yield Ok(Event::default().event("analytics").data(json));
             }
         }
@@ -894,6 +974,7 @@ pub async fn run_server(
         .route("/api/stats", get(stats))
         .route("/api/project/stats", get(project_stats))
         .route("/api/machine/stats", get(machine_stats))
+        .route("/api/metrics/projects", get(metrics_projects))
         .route("/api/overrides/stats", get(override_stats))
         .route("/api/stream", get(stream))
         .route("/terminal", get(terminal_handler))
@@ -911,6 +992,7 @@ pub async fn run_server(
     info!("→ Agent API: http://{}/api/agents", addr);
     info!("→ Agent Details: http://{}/api/agents/:name", addr);
     info!("→ Analytics API: http://{}/api/stats", addr);
+    info!("→ Project Metrics: http://{}/api/metrics/projects", addr);
     info!("→ SSE Stream: http://{}/api/stream", addr);
     info!("→ WebSocket Terminal: ws://{}/terminal", addr);
     info!("→ Chat endpoint: http://{}/v1/chat/completions", addr);
