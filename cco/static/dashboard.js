@@ -67,8 +67,15 @@ function initTabNavigation() {
             state.currentTab = tabName;
 
             // Initialize terminal if switching to terminal tab
-            if (tabName === 'terminal' && !state.terminal) {
-                initTerminal();
+            if (tabName === 'terminal') {
+                if (!state.terminal) {
+                    initTerminal();
+                } else if (state.terminal && state.terminal.focus) {
+                    // Re-focus terminal when switching to terminal tab
+                    setTimeout(() => {
+                        state.terminal.focus();
+                    }, 100);
+                }
             }
 
             // Trigger chart redraw on resize
@@ -786,11 +793,23 @@ function initTerminal() {
         // Open terminal in DOM
         state.terminal.open(terminalElement);
 
+        // Focus terminal to capture keyboard input
+        state.terminal.focus();
+
+        // Ensure focus when clicking on terminal element
+        terminalElement.addEventListener('click', () => {
+            if (state.terminal && state.terminal.focus) {
+                state.terminal.focus();
+            }
+        });
+
         // Fit terminal to container
         if (state.fitAddon) {
             setTimeout(() => {
                 try {
                     state.fitAddon.fit();
+                    // Re-focus after fitting
+                    state.terminal.focus();
                 } catch (error) {
                     console.warn('Error fitting terminal:', error);
                 }
@@ -911,6 +930,8 @@ function initTerminalWebSocket() {
                 }
                 state.ws.send(resizeData);
             }
+            // Note: Keyboard input handler is registered in initTerminal() at line 835-840
+            // to avoid duplicate event listener registration
         };
 
         state.ws.onmessage = (event) => {
