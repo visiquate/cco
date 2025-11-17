@@ -5,7 +5,7 @@ edition = "2021"
 
 [package.metadata]
 # Actual CCO version using date-based format: YYYY.MM.N
-display_version = "2025.11.2"
+display_version = "2025.11.3"
 
 [[bin]]
 name = "cco"

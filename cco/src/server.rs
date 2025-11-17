@@ -1816,6 +1816,10 @@ pub async fn run_server(
         }
     }
 
+    // Set non-blocking mode BEFORE converting to tokio TcpListener
+    // This is required because tokio's from_std() requires the socket to be non-blocking
+    std_listener.set_nonblocking(true)?;
+
     let listener = TcpListener::from_std(std_listener)?;
 
     info!("✅ Server listening on http://{}", addr);
