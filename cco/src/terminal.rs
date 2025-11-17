@@ -337,6 +337,42 @@ impl TerminalSession {
         trace!("Closing PTY slave (not needed after spawn)");
         drop(pair.slave);
 
+        // Configure PTY for raw mode to enable proper terminal prompt display
+        // This disables canonical (line-buffering) mode and echo, allowing raw I/O
+        trace!("Configuring PTY master for raw mode");
+        #[cfg(unix)]
+        {
+            #[allow(unused_imports)]
+            use std::os::unix::io::AsRawFd;
+
+            // Get the raw file descriptor from the PTY master before it's duplicated
+            if let Some(master_fd_raw) = pair.master.as_raw_fd() {
+                let mut termios_struct: libc::termios = unsafe { std::mem::zeroed() };
+
+                // Get current terminal attributes
+                if unsafe { libc::tcgetattr(master_fd_raw, &mut termios_struct) } == 0 {
+                    trace!("Retrieved current PTY terminal attributes");
+
+                    // Disable canonical mode (ICANON) - allows unbuffered input
+                    // Disable echo (ECHO) - prevents echoing input back
+                    termios_struct.c_lflag &= !(libc::ICANON | libc::ECHO);
+
+                    // Set minimum characters to read (0) and timeout (0 = non-blocking)
+                    termios_struct.c_cc[libc::VMIN] = 0;
+                    termios_struct.c_cc[libc::VTIME] = 0;
+
+                    // Apply the new settings immediately (TCSANOW)
+                    if unsafe { libc::tcsetattr(master_fd_raw, libc::TCSANOW, &termios_struct) } == 0 {
+                        trace!("PTY master configured for raw mode successfully");
+                    } else {
+                        warn!("Failed to configure PTY master for raw mode (tcsetattr failed)");
+                    }
+                } else {
+                    warn!("Failed to get PTY master terminal attributes (tcgetattr failed)");
+                }
+            }
+        }
+
         // Extract the file descriptor from the PTY master
         #[cfg(unix)]
         {

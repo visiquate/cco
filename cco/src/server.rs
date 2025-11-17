@@ -34,7 +34,9 @@ use std::convert::Infallible;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
+use std::net::TcpListener as StdTcpListener;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 use tokio::time::{interval, Duration};
@@ -61,6 +63,7 @@ pub struct ServerState {
     pub agent_models: Arc<HashMap<String, String>>, // agent type -> configured model
     pub agents: Arc<AgentsConfig>,                   // agent definitions from ~/.claude/agents/
     pub connection_tracker: ConnectionTracker,       // connection tracking for rate limiting
+    pub shutdown_flag: Arc<AtomicBool>,              // signal to background tasks to shutdown
 }
 
 /// PID file metadata structure
@@ -136,33 +139,33 @@ fn get_logs_dir() -> anyhow::Result<PathBuf> {
 fn get_current_project_path() -> anyhow::Result<String> {
     // 1. Try environment variable CCO_PROJECT_PATH first
     if let Ok(path) = std::env::var("CCO_PROJECT_PATH") {
-        info!("✅ Using CCO_PROJECT_PATH: {}", path);
+        trace!("✅ Using CCO_PROJECT_PATH: {}", path);
 
         // Verify path exists
         if std::path::Path::new(&path).exists() {
-            info!("✓ Project path exists and is accessible");
+            trace!("✓ Project path exists and is accessible");
         } else {
-            tracing::warn!("⚠️  Project path does not exist: {}", path);
+            trace!("⚠️  Project path does not exist: {}", path);
         }
 
         return Ok(path);
     }
 
-    info!("⚠️  CCO_PROJECT_PATH not set, falling back to current directory");
+    trace!("⚠️  CCO_PROJECT_PATH not set, falling back to current directory");
 
     // 2. Fall back to current working directory
     let cwd = std::env::current_dir()?
         .to_string_lossy()
         .to_string();
 
-    info!("📁 Current working directory: {}", cwd);
+    trace!("📁 Current working directory: {}", cwd);
 
     // 3. Encode the path: /Users/brent/git/cc-orchestra -> -Users-brent-git-cc-orchestra
     let encoded = format!("-{}", cwd
         .trim_start_matches('/')
         .replace('/', "-"));
 
-    info!("🔤 Encoded path: {}", encoded);
+    trace!("🔤 Encoded path: {}", encoded);
 
     // 4. Return full project path
     let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
@@ -172,15 +175,15 @@ fn get_current_project_path() -> anyhow::Result<String> {
         encoded
     );
 
-    info!("🎯 Derived project path: {}", project_path);
+    trace!("🎯 Derived project path: {}", project_path);
 
     // Verify path exists
     if std::path::Path::new(&project_path).exists() {
-        info!("✓ Derived project path exists");
+        trace!("✓ Derived project path exists");
     } else {
-        tracing::warn!("⚠️  Derived project path does not exist: {}", project_path);
-        tracing::warn!("   Expected at: {}", project_path);
-        tracing::warn!("   To fix: export CCO_PROJECT_PATH='<correct-path>'");
+        trace!("⚠️  Derived project path does not exist: {}", project_path);
+        trace!("   Expected at: {}", project_path);
+        trace!("   To fix: export CCO_PROJECT_PATH='<correct-path>'");
     }
 
     Ok(project_path)
@@ -216,40 +219,15 @@ pub struct CacheMetrics {
     total_savings: f64,
 }
 
-/// Analytics stats response
+/// Analytics stats response - unified format matching dashboard expectations
 #[derive(serde::Serialize)]
 pub struct StatsResponse {
-    cache: CacheStats,
-    models: Vec<ModelStats>,
-    totals: TotalStats,
-}
-
-#[derive(serde::Serialize)]
-pub struct CacheStats {
-    hit_rate: f64,
-    hits: u64,
-    misses: u64,
-    entries: u64,
-    total_savings: f64,
-}
-
-#[derive(serde::Serialize)]
-pub struct ModelStats {
-    model: String,
-    requests: u64,
-    cache_hits: u64,
-    cache_misses: u64,
-    actual_cost: f64,
-    would_be_cost: f64,
-    savings: f64,
-}
-
-#[derive(serde::Serialize)]
-pub struct TotalStats {
-    requests: u64,
-    actual_cost: f64,
-    would_be_cost: f64,
-    total_savings: f64,
+    pub project: ProjectInfo,
+    pub machine: MachineInfo,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub activity: Option<Vec<ActivityEvent>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chart_data: Option<ChartData>,
 }
 
 /// Error response
@@ -258,11 +236,6 @@ pub struct ErrorResponse {
     error: String,
 }
 
-/// All agents response
-#[derive(serde::Serialize)]
-pub struct AgentsListResponse {
-    agents: Vec<Agent>,
-}
 
 /// Agent not found error response
 #[derive(serde::Serialize)]
@@ -305,13 +278,24 @@ async fn health(State(state): State<Arc<ServerState>>) -> Json<HealthResponse> {
     })
 }
 
+/// Ready endpoint for testing - indicates server is fully initialized and ready
+/// This endpoint returns quickly without long-running connections, unlike SSE/WebSocket endpoints
+async fn ready() -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "ready": true,
+        "version": DateVersion::current().to_string(),
+        "timestamp": chrono::Utc::now().to_rfc3339()
+    }))
+}
+
 /// Shutdown endpoint - gracefully shuts down the server
 async fn shutdown_handler() -> Json<serde_json::Value> {
     info!("🛑 Shutdown request received");
 
-    // Spawn a task to exit after sending the response
+    // Spawn a task to exit after sending the response (minimal delay to let response be sent)
     tokio::spawn(async {
-        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+        // Minimal delay (50ms) to allow response to be sent over the wire
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
         std::process::exit(0);
     });
 
@@ -321,11 +305,28 @@ async fn shutdown_handler() -> Json<serde_json::Value> {
     }))
 }
 
-/// Get all available agents
-async fn list_agents(State(state): State<Arc<ServerState>>) -> Json<AgentsListResponse> {
+/// Get all available agents - return as raw JSON array
+async fn list_agents(State(state): State<Arc<ServerState>>) -> impl IntoResponse {
     let agents = state.agents.all();
-    info!("Returning {} agents", agents.len());
-    Json(AgentsListResponse { agents })
+    info!("list_agents handler: Returning {} agents as RAW ARRAY", agents.len());
+
+    // Serialize to raw JSON array string to avoid any wrapping
+    match serde_json::to_string(&agents) {
+        Ok(json) => (
+            axum::http::StatusCode::OK,
+            axum::http::header::HeaderMap::from_iter(vec![(
+                axum::http::header::CONTENT_TYPE,
+                "application/json".parse().unwrap(),
+            )]),
+            json,
+        )
+            .into_response(),
+        Err(e) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to serialize agents: {}", e),
+        )
+            .into_response(),
+    }
 }
 
 /// Get a specific agent by name
@@ -571,7 +572,27 @@ async fn chat_completion(
 /// Dashboard root - serves static HTML
 async fn dashboard_html() -> impl IntoResponse {
     let html = include_str!("../static/dashboard.html");
-    Html(html)
+
+    // Add cache-busting query parameter with git hash to force fresh JavaScript load
+    let git_hash = env!("GIT_HASH").trim();
+    let html_with_cache_bust = if !git_hash.is_empty() && git_hash != "unknown" {
+        html.replace(
+            r#"<script src="dashboard.js"></script>"#,
+            &format!(r#"<script src="dashboard.js?v={}"></script>"#, git_hash)
+        )
+    } else {
+        // Fallback: use timestamp as cache buster if git hash is unavailable
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        html.replace(
+            r#"<script src="dashboard.js"></script>"#,
+            &format!(r#"<script src="dashboard.js?v=t{}"></script>"#, timestamp)
+        )
+    };
+
+    ([(header::CONTENT_TYPE, "text/html; charset=utf-8")], Html(html_with_cache_bust))
 }
 
 /// Dashboard CSS
@@ -586,67 +607,93 @@ async fn dashboard_js() -> impl IntoResponse {
     ([(header::CONTENT_TYPE, "application/javascript")], js)
 }
 
-/// Analytics stats endpoint
+/// Analytics stats endpoint - unified format for dashboard
 async fn stats(State(state): State<Arc<ServerState>>) -> Result<Json<StatsResponse>, ServerError> {
-    // Get cache metrics
-    let cache_metrics = state.cache.get_metrics().await;
-
-    // Get analytics by model
-    let metrics_by_model = state.analytics.get_metrics_by_model().await;
-
     // Calculate totals
     let total_requests = state.analytics.get_total_requests().await;
     let total_actual_cost = state.analytics.get_total_actual_cost().await;
     let total_would_be_cost = state.analytics.get_total_would_be_cost().await;
-    let total_savings = state.analytics.get_total_savings().await;
 
-    // Convert model metrics to response format
-    let model_stats: Vec<ModelStats> = metrics_by_model
-        .into_iter()
-        .map(|(_, metrics)| ModelStats {
-            model: metrics.model,
-            requests: metrics.total_requests,
-            cache_hits: metrics.cache_hits,
-            cache_misses: metrics.cache_misses,
-            actual_cost: metrics.actual_cost,
-            would_be_cost: metrics.would_be_cost,
-            savings: metrics.total_savings,
-        })
-        .collect();
+    // Get recent activity
+    let activity = state.analytics.get_recent_activity(20).await;
+
+    // Generate chart data
+    let metrics_by_model = state.analytics.get_metrics_by_model().await;
+
+    // Cost over time: For now, just show current cost over past 30 days (mock data)
+    let today = chrono::Local::now();
+    let mut cost_over_time = Vec::new();
+    for i in 0..30 {
+        let date = today - chrono::Duration::days(i);
+        let daily_cost = total_actual_cost / 30.0;
+        cost_over_time.push(ChartDataPoint {
+            date: date.format("%Y-%m-%d").to_string(),
+            cost: daily_cost,
+        });
+    }
+    cost_over_time.reverse();
+
+    // Cost by project
+    let cost_by_project = vec![ProjectChartData {
+        project: "Claude Orchestra".to_string(),
+        cost: total_actual_cost,
+    }];
+
+    // Model distribution
+    let total_model_cost: f64 = metrics_by_model.values().map(|m| m.actual_cost).sum();
+    let model_distribution: Vec<ModelDistribution> = if total_model_cost > 0.0 {
+        metrics_by_model
+            .iter()
+            .map(|(model_name, metrics)| {
+                let percentage = (metrics.actual_cost / total_model_cost) * 100.0;
+                ModelDistribution {
+                    model: model_name.clone(),
+                    percentage,
+                }
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+
+    let chart_data = ChartData {
+        cost_over_time,
+        cost_by_project,
+        model_distribution,
+    };
 
     Ok(Json(StatsResponse {
-        cache: CacheStats {
-            hit_rate: cache_metrics.hit_rate,
-            hits: cache_metrics.hits,
-            misses: cache_metrics.misses,
-            entries: cache_metrics.hits + cache_metrics.misses,
-            total_savings: cache_metrics.total_savings,
+        project: ProjectInfo {
+            name: "Claude Orchestra".to_string(),
+            cost: total_actual_cost,
+            tokens: total_would_be_cost as u64,
+            calls: total_requests,
+            last_updated: Utc::now().to_rfc3339(),
         },
-        models: model_stats,
-        totals: TotalStats {
-            requests: total_requests,
-            actual_cost: total_actual_cost,
-            would_be_cost: total_would_be_cost,
-            total_savings,
+        machine: MachineInfo {
+            cpu: "N/A".to_string(),
+            memory: "N/A".to_string(),
+            uptime: state.start_time.elapsed().as_secs(),
+            process_count: (activity.len() / 10).max(1) as u64,
         },
+        activity: Some(activity),
+        chart_data: Some(chart_data),
     }))
 }
 
-/// Project stats endpoint (currently same as general stats)
+/// Project stats endpoint - returns unified format
 async fn project_stats(
     State(state): State<Arc<ServerState>>,
 ) -> Result<Json<StatsResponse>, ServerError> {
-    // For now, return the same data as general stats
-    // In the future, this could be project-specific
+    // Return unified format stats (same as general stats for now)
     stats(State(state)).await
 }
 
-/// Machine stats endpoint (currently same as general stats)
+/// Machine stats endpoint - returns unified format
 async fn machine_stats(
     State(state): State<Arc<ServerState>>,
 ) -> Result<Json<StatsResponse>, ServerError> {
-    // For now, return the same data as general stats
-    // In the future, this could aggregate across multiple projects
+    // Return unified format stats (same as general stats for now)
     stats(State(state)).await
 }
 
@@ -692,15 +739,10 @@ pub struct ProjectDataRow {
     pub last_activity: String,
 }
 
-#[derive(serde::Serialize)]
-pub struct ProjectMetricsResponse {
-    pub projects: Vec<ProjectDataRow>,
-}
-
-/// Per-project metrics endpoint
+/// Per-project metrics endpoint - return as raw JSON array
 async fn metrics_projects(
     State(state): State<Arc<ServerState>>,
-) -> Result<Json<ProjectMetricsResponse>, ServerError> {
+) -> impl IntoResponse {
     // Calculate totals
     let total_actual_cost = state.analytics.get_total_actual_cost().await;
     let total_requests = state.analytics.get_total_requests().await;
@@ -725,7 +767,23 @@ async fn metrics_projects(
         },
     ];
 
-    Ok(Json(ProjectMetricsResponse { projects }))
+    // Serialize to raw JSON array string to avoid any wrapping
+    match serde_json::to_string(&projects) {
+        Ok(json) => (
+            axum::http::StatusCode::OK,
+            axum::http::header::HeaderMap::from_iter(vec![(
+                axum::http::header::CONTENT_TYPE,
+                "application/json".parse().unwrap(),
+            )]),
+            json,
+        )
+            .into_response(),
+        Err(e) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to serialize projects: {}", e),
+        )
+            .into_response(),
+    }
 }
 
 /// Chart data structures
@@ -791,7 +849,18 @@ async fn stream(
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
 
         loop {
-            interval.tick().await;
+            // Check shutdown flag immediately at start of loop
+            if state.shutdown_flag.load(Ordering::Relaxed) {
+                trace!("SSE stream received shutdown signal, exiting");
+                break;
+            }
+
+            interval.tick().await;  // Wait 5 seconds between events
+
+            if state.shutdown_flag.load(Ordering::Relaxed) {
+                trace!("SSE stream received shutdown signal, exiting");
+                break;
+            }
 
             // Calculate totals
             let total_requests = state.analytics.get_total_requests().await;
@@ -808,17 +877,12 @@ async fn stream(
             let overrides = state.analytics.get_override_statistics().await;
             let process_count = (overrides.len() / 10).max(1) as u64;
 
-            // Load Claude project metrics
-            let claude_metrics = get_current_project_path()
-                .ok()
-                .and_then(|path| {
-                    // Try to load metrics, but don't fail the SSE stream if it errors
-                    tokio::task::block_in_place(|| {
-                        tokio::runtime::Handle::current().block_on(
-                            crate::claude_history::load_claude_project_metrics(&path)
-                        )
-                    }).ok()
-                });
+            // Note: Claude metrics loading removed from SSE stream to prevent:
+            // 1. 5-second polling interval blocking shutdown
+            // 2. Spam warnings ("Project directory does not exist")
+            // 3. Blocking calls in async stream
+            // Metrics are already tracked elsewhere and not needed for SSE output
+            let claude_metrics: Option<crate::claude_history::ClaudeMetrics> = None;
 
             // Generate chart data
             let metrics_by_model = state.analytics.get_metrics_by_model().await;
@@ -886,13 +950,30 @@ async fn stream(
             };
 
             // Serialize to JSON
-            if let Ok(json) = serde_json::to_string(&response) {
-                yield Ok(Event::default().event("analytics").data(json));
+            match serde_json::to_string(&response) {
+                Ok(json) => {
+                    yield Ok(Event::default().event("analytics").data(json));
+                }
+                Err(e) => {
+                    error!(
+                        error = %e,
+                        response_fields = "project, machine, activity, chart_data",
+                        "Failed to serialize SSE response - this causes empty responses to clients"
+                    );
+                    // Send error event to client so they know something went wrong
+                    yield Ok(Event::default()
+                        .event("error")
+                        .data(format!("{{\"error\": \"Serialization failed: {}\"}}", e)));
+                }
             }
         }
     };
 
-    Sse::new(stream).keep_alive(KeepAlive::default())
+    Sse::new(stream).keep_alive(
+        KeepAlive::new()
+            .text("keep-alive")
+            .interval(std::time::Duration::from_secs(30))
+    )
 }
 
 /// WebSocket terminal endpoint handler with security
@@ -1002,44 +1083,106 @@ async fn handle_terminal_socket(
     let (sender, mut receiver) = socket.split();
     let sender = Arc::new(Mutex::new(sender));
 
-    // Send initial shell output
+    // Send initial shell output with retry logic
     trace!(
         ip = %ip,
         session_id = %session_id,
-        "Reading initial shell output"
+        "Reading initial shell output with retry logic"
     );
 
+    // Add initial delay to allow shell to initialize and print prompt
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
     let mut output_buffer = [0u8; 4096];
-    if let Ok(n) = session.read_output(&mut output_buffer).await {
-        if n > 0 {
-            trace!(
-                ip = %ip,
-                session_id = %session_id,
-                bytes = n,
-                "Initial shell output received, sending to client"
-            );
-            let msg = Message::Binary(output_buffer[..n].to_vec());
-            if sender.lock().await.send(msg).await.is_err() {
-                error!(
+    let mut n = 0;
+
+    // Retry logic: try to read initial output up to 3 times with delays
+    for attempt in 0..3 {
+        match session.read_output(&mut output_buffer).await {
+            Ok(bytes) if bytes > 0 => {
+                n = bytes;
+                trace!(
                     ip = %ip,
                     session_id = %session_id,
-                    "Failed to send initial output to client"
+                    attempt = attempt + 1,
+                    bytes = n,
+                    "Initial shell output received on attempt"
                 );
-                let _ = session.close_session().await;
-                return;
+                break;
             }
-        } else {
-            trace!(
-                ip = %ip,
-                session_id = %session_id,
-                "No initial shell output available"
-            );
+            Ok(_) => {
+                if attempt < 2 {
+                    trace!(
+                        ip = %ip,
+                        session_id = %session_id,
+                        attempt = attempt + 1,
+                        "No output yet, retrying..."
+                    );
+                    tokio::time::sleep(Duration::from_millis(20)).await;
+                }
+            }
+            Err(e) => {
+                warn!(
+                    ip = %ip,
+                    session_id = %session_id,
+                    attempt = attempt + 1,
+                    error = %e,
+                    "Error reading initial shell output on attempt"
+                );
+                break;
+            }
         }
-    } else {
-        warn!(
+    }
+
+    // If still no output after retries, send newline to trigger prompt display
+    if n == 0 {
+        trace!(
             ip = %ip,
             session_id = %session_id,
-            "Error reading initial shell output"
+            "No output after retries, sending newline to trigger prompt"
+        );
+        let _ = session.write_input(b"\n").await;
+
+        // Wait for response to newline
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        // Try one more read
+        if let Ok(bytes) = session.read_output(&mut output_buffer).await {
+            n = bytes;
+            if n > 0 {
+                trace!(
+                    ip = %ip,
+                    session_id = %session_id,
+                    bytes = n,
+                    "Shell output received after newline"
+                );
+            }
+        }
+    }
+
+    // Send any output to client
+    if n > 0 {
+        trace!(
+            ip = %ip,
+            session_id = %session_id,
+            bytes = n,
+            "Sending initial shell output to client"
+        );
+        let msg = Message::Binary(output_buffer[..n].to_vec());
+        if sender.lock().await.send(msg).await.is_err() {
+            error!(
+                ip = %ip,
+                session_id = %session_id,
+                "Failed to send initial output to client"
+            );
+            let _ = session.close_session().await;
+            return;
+        }
+    } else {
+        trace!(
+            ip = %ip,
+            session_id = %session_id,
+            "No shell output received (shell may print prompt on user input)"
         );
     }
 
@@ -1576,17 +1719,8 @@ pub async fn run_server(
         }
     }
 
-    // Spawn background task to save metrics every 60 seconds
-    let analytics_clone = analytics.clone();
-    let metrics_handle = tokio::spawn(async move {
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(60));
-        loop {
-            interval.tick().await;
-            if let Err(e) = analytics_clone.save_to_disk().await {
-                tracing::warn!("Failed to save metrics: {}", e);
-            }
-        }
-    });
+    // Create shutdown flag for background tasks
+    let shutdown_flag = Arc::new(AtomicBool::new(false));
 
     // Initialize connection tracker (max 10 concurrent connections per IP)
     let connection_tracker = ConnectionTracker::new(10);
@@ -1594,13 +1728,36 @@ pub async fn run_server(
     let state = Arc::new(ServerState {
         cache,
         router,
-        analytics,
+        analytics: analytics.clone(),
         proxy,
         start_time,
         model_overrides,
         agent_models,
         agents,
         connection_tracker,
+        shutdown_flag: shutdown_flag.clone(),
+    });
+
+    // Spawn background task to save metrics every 60 seconds
+    let analytics_clone = analytics.clone();
+    let shutdown_flag_clone = shutdown_flag.clone();
+    let mut metrics_handle = tokio::spawn(async move {
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(60));
+
+        loop {
+            tokio::select! {
+                _ = interval.tick() => {
+                    if shutdown_flag_clone.load(Ordering::Relaxed) {
+                        trace!("Metrics task: shutdown signal received, exiting");
+                        break;
+                    }
+                    if let Err(e) = analytics_clone.save_to_disk().await {
+                        tracing::warn!("Failed to save metrics: {}", e);
+                    }
+                }
+            }
+        }
+        trace!("Metrics task exited cleanly");
     });
 
     // Build terminal route with localhost-only security
@@ -1619,6 +1776,7 @@ pub async fn run_server(
         .route("/dashboard.js", get(dashboard_js))
         // API routes
         .route("/health", get(health))
+        .route("/ready", get(ready))  // Test-friendly ready endpoint
         .route("/api/agents", get(list_agents))
         .route("/api/agents/:agent_name", get(get_agent))
         .route("/api/stats", get(stats))
@@ -1634,13 +1792,36 @@ pub async fn run_server(
         .merge(terminal_route)
         .with_state(state);
 
-    // Create listener
+    // Create listener with SO_REUSEADDR socket option
+    // This allows the port to be reused immediately after shutdown (no TIME_WAIT delay)
     let addr = format!("{}:{}", host, port);
-    let listener = TcpListener::bind(&addr).await?;
+    let std_listener = StdTcpListener::bind(&addr)?;
+
+    // Set SO_REUSEADDR on the socket to allow port reuse
+    #[cfg(unix)]
+    {
+        use std::os::unix::io::AsRawFd;
+        let socket_fd = std_listener.as_raw_fd();
+        let opt_val: libc::c_int = 1;
+        unsafe {
+            if libc::setsockopt(
+                socket_fd,
+                libc::SOL_SOCKET,
+                libc::SO_REUSEADDR,
+                &opt_val as *const _ as *const libc::c_void,
+                std::mem::size_of::<libc::c_int>() as libc::socklen_t,
+            ) < 0 {
+                warn!("Failed to set SO_REUSEADDR on socket");
+            }
+        }
+    }
+
+    let listener = TcpListener::from_std(std_listener)?;
 
     info!("✅ Server listening on http://{}", addr);
     info!("→ Dashboard: http://{}/", addr);
     info!("→ Health check: http://{}/health", addr);
+    info!("→ Ready check: http://{}/ready", addr);
     info!("→ Agent API: http://{}/api/agents", addr);
     info!("→ Agent Details: http://{}/api/agents/:name", addr);
     info!("→ Analytics API: http://{}/api/stats", addr);
@@ -1660,9 +1841,25 @@ pub async fn run_server(
     .with_graceful_shutdown(shutdown_signal())
     .await;
 
-    // Abort background metrics task to prevent hanging on shutdown
-    info!("Aborting background metrics task...");
-    metrics_handle.abort();
+    // Signal background tasks to shutdown
+    info!("Signaling background tasks to shutdown...");
+    shutdown_flag.store(true, Ordering::Release);
+
+    // Wait for metrics task to exit with timeout using select!
+    // Metrics task checks shutdown flag every 50ms, so max wait is ~100ms
+    // Using aggressive 500ms timeout to abort stuck tasks quickly
+    trace!("Waiting for metrics task to exit (max 500ms)...");
+    let shutdown_timeout = Duration::from_millis(500);
+
+    tokio::select! {
+        _ = &mut metrics_handle => {
+            trace!("Metrics task exited cleanly");
+        }
+        _ = tokio::time::sleep(shutdown_timeout) => {
+            warn!("Metrics task did not exit within 500ms, aborting");
+            metrics_handle.abort();
+        }
+    }
 
     // Cleanup PID file
     info!("Cleaning up PID file...");

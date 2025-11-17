@@ -81,6 +81,10 @@ impl AnalyticsEngine {
         // Keep only the last 100 events using a ring buffer approach
         if events.len() >= 100 {
             events.pop_front();
+            tracing::warn!(
+                "Activity event queue at capacity, dropping oldest event. \
+                 This may indicate high system activity or a consumer slow to drain events."
+            );
         }
 
         events.push_back(event);
