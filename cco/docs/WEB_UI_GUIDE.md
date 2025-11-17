@@ -18,7 +18,7 @@ Complete guide to accessing, using, and understanding the CCO analytics dashboar
 
 When the dashboard opens:
 - Dashboard header with connection status indicator
-- Three tabs: Project, Machine, Terminal
+- Two tabs: Current Project, Machine-Wide Analytics
 - Real-time metrics and charts
 - Auto-refreshing data (every 5 seconds)
 
@@ -141,47 +141,6 @@ export CCO_PORT=9000
 
 **Updates**: Refreshes every 5 seconds automatically
 
-### Tab 3: Terminal
-
-**Purpose**: Command-line interface for CCO management
-
-**Features**:
-- Interactive command prompt
-- Live command execution
-- Real-time output display
-- Command history (up/down arrows)
-- Scrollable terminal buffer
-
-**Common Commands**:
-```bash
-# View cache statistics
-cache stats
-
-# Clear cache
-cache clear
-
-# View logs
-logs recent
-
-# Export analytics
-export json
-export csv
-
-# System info
-system info
-system health
-
-# Manage credentials
-credentials list
-credentials rotate
-```
-
-**Terminal Behavior**:
-- Persists when switching tabs
-- Scrolls with new output
-- Maintains command history
-- Supports basic editing (arrow keys, backspace)
-
 ## Auto-Refresh Behavior
 
 ### How It Works
@@ -208,7 +167,6 @@ The dashboard automatically refreshes every 5 seconds:
 
 - Saved filters or views
 - User preferences or theme
-- Terminal command history
 - Manual input fields
 - Sorted columns (sorts reset on refresh)
 
@@ -270,9 +228,9 @@ The dashboard automatically refreshes every 5 seconds:
 ### Minimum Requirements
 
 - JavaScript enabled
-- WebSocket support (for terminal)
 - Modern CSS Grid support
 - LocalStorage for preferences
+- Fetch API support
 
 ## Troubleshooting
 
@@ -312,17 +270,6 @@ The dashboard automatically refreshes every 5 seconds:
 3. Try refreshing page (F5 or Cmd+R)
 4. Check if data is available (at least one metric)
 5. Clear browser cache
-
-### Terminal Not Working
-
-**Problem**: Terminal tab is unresponsive
-
-**Solutions**:
-1. Check browser console for WebSocket errors
-2. Verify WebSocket support in browser
-3. Check if port is blocked by firewall
-4. Try different browser
-5. Restart CCO and reconnect
 
 ### Metrics Not Updating
 
@@ -379,12 +326,13 @@ Edit dashboard.css `:root` section:
 }
 ```
 
-### Hide Tabs
+### Customize Tab Display
 
-Modify dashboard.html to hide tabs:
+Modify dashboard.html to customize which tabs appear:
 ```html
-<!-- Comment out tab buttons to hide -->
-<!-- <button class="tab-btn" data-tab="machine">Machine-Wide</button> -->
+<!-- Default: Both tabs visible -->
+<button class="tab-btn active" data-tab="project">Current Project</button>
+<button class="tab-btn" data-tab="machine">Machine-Wide</button>
 ```
 
 ## API Endpoints
@@ -414,11 +362,6 @@ GET /api/cache/stats
 ### Streaming Analytics
 ```
 GET /api/stream (Server-Sent Events)
-```
-
-### Terminal WebSocket
-```
-WS /terminal
 ```
 
 See USAGE.md for detailed endpoint documentation.
@@ -491,43 +434,19 @@ Dashboard shows:
 
 ## Advanced Features
 
-### Terminal Commands
-
-The terminal supports management commands:
-
-```bash
-# Cache management
-cache stats              # Show cache statistics
-cache clear             # Clear all cache
-cache analyze           # Analyze cache efficiency
-
-# Logging
-logs recent             # Show recent logs
-logs error              # Show only errors
-logs search <term>      # Search logs
-
-# Analytics
-analytics export json   # Export as JSON
-analytics export csv    # Export as CSV
-analytics summary       # Show summary
-
-# System
-system info             # Show system information
-system health           # Show health check
-config show             # Show configuration
-```
-
 ### Export Data
 
-Export analytics for external analysis:
+Export analytics for external analysis via API:
 
 ```bash
-# From terminal tab
-export json             # Download as JSON file
-export csv              # Download as CSV file
-
-# Via API
+# Export as JSON
 curl http://localhost:3000/api/export/analytics?days=7 > analytics.json
+
+# Export as CSV
+curl http://localhost:3000/api/export/csv?days=30 > analytics.csv
+
+# Export specific project
+curl http://localhost:3000/api/export/project/my-project?format=json > project.json
 ```
 
 ## Support and Help

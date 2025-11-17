@@ -1,37 +1,20 @@
 # Claude Code Orchestrator Proxy (CCO)
 
-**Version:** 202511-1
+**Version:** 2025.11.1
 
 **Unified LLM API proxy with automatic cost savings, multi-model routing, and real-time analytics.**
 
 CCO sits between Claude Code and multiple LLM providers, transparently handling caching, routing, and cost tracking. Use Claude's most powerful models while automatically saving 50-90% on API costs through intelligent caching and self-hosted model routing.
 
-## Version Format
-
-CCO uses date-based versioning: `YYYY.MM.N`
-
-- `YYYY`: Four-digit year (2025, 2026, etc.)
-- `MM`: Two-digit month (01-12)
-- `N`: Release number within that month (resets to 1 at the start of each month)
-
-**Examples:**
-- `2025.11.1`: First release in November 2025
-- `2025.11.2`: Second release in November 2025
-- `2025.11.3`: Third release in November 2025
-- `2025.12.1`: First release in December 2025
-- `2026.1.1`: First release in January 2026
-
-This format provides clarity on when a version was released, with the release number incrementing for each release within the same month and resetting to 1 with each new month.
-
 ## What is CCO?
 
-CCO is a production-ready proxy server that:
+CCO is a production-ready API proxy daemon that:
 
 - **Saves money**: Caches API responses to eliminate duplicate requests (100% cost savings on hits)
 - **Routes requests**: Sends requests to Claude API, OpenAI, Ollama, or local LLMs automatically
 - **Tracks costs**: Real-time analytics dashboard showing costs, savings, and model usage
 - **Stays transparent**: Works exactly like the Claude API—no code changes needed
-- **Runs anywhere**: Single binary, Docker support, zero configuration overhead
+- **Runs anywhere**: Cross-platform (macOS, Windows, Linux), single binary, zero configuration
 
 ## Quick Start (2 minutes)
 
@@ -39,12 +22,12 @@ CCO is a production-ready proxy server that:
 
 ```bash
 # Download the latest release
-curl -L https://github.com/example/cco/releases/download/latest/cco-proxy -o cco-proxy
-chmod +x cco-proxy
+curl -L https://github.com/example/cco/releases/download/latest/cco -o cco
+chmod +x cco
 
 # Or build from source
 cargo build --release
-./target/release/cco-proxy
+./target/release/cco
 ```
 
 ### 2. Configure API Keys
@@ -61,14 +44,17 @@ export OPENAI_API_KEY="sk-..."
 ollama serve
 ```
 
-### 3. Start the Proxy
+### 3. Start the Daemon
 
 ```bash
-# Start on port 8000 (default)
-./cco-proxy
+# Start on port 3000 (default)
+cco run
 
 # Or specify a port
-./cco-proxy --port 9000
+cco run --port 9000
+
+# Run with debug logging
+cco run --debug
 ```
 
 ### 4. Point Claude Code to CCO
@@ -78,7 +64,7 @@ In your Claude Code configuration or environment:
 ```bash
 # Replace the default Claude API endpoint
 export ANTHROPIC_API_KEY="sk-ant-..."  # Your real API key
-export LLM_ENDPOINT="http://localhost:8000"  # Point to CCO instead of Claude API
+export LLM_ENDPOINT="http://localhost:3000"  # Point to CCO instead of Claude API
 ```
 
 That's it! All requests now flow through CCO and benefit from caching and routing.
@@ -121,7 +107,7 @@ Using ollama/llama3-70b would cost $2.50 with Claude Sonnet
 
 ### 4. Real-Time Analytics Dashboard
 
-View live metrics:
+View live metrics in your browser:
 
 - Cost per project and model
 - Cache hit rate and savings
@@ -129,7 +115,9 @@ View live metrics:
 - Request latency
 - Model performance comparisons
 
-Access at: `http://localhost:8000` (after starting CCO)
+Access at: `http://localhost:3000` (after starting CCO)
+
+The dashboard automatically refreshes every 5 seconds to show updated metrics and trends.
 
 ### 5. Fallback Chains
 
@@ -150,11 +138,12 @@ User requests: "claude-opus-4"
        │ (API requests)
        ▼
 ┌──────────────────┐
-│   CCO Proxy      │
+│   CCO Daemon     │
 ├──────────────────┤
 │ Cache Layer      │ ← Moka in-memory cache
 │ Router           │ ← Pattern matching to providers
 │ Analytics DB     │ ← SQLite cost tracking
+│ Web Dashboard    │ ← Real-time metrics UI
 └──────┬───────────┘
        │
    ┌───┴────┬────────┬─────────┐
@@ -180,6 +169,50 @@ With CCO (70% cache hit rate):
 With self-hosted models (100% free for ollama/llama):
 - 10 people × 500 × 0.50 (half to Llama) = **$3.75/day** = **$112/month**
 - **Savings: $638/month** (85% reduction)
+
+## CLI Commands
+
+### Server Management
+
+```bash
+# Start the daemon
+cco run
+
+# Start with custom configuration
+cco run --port 8000 --host 0.0.0.0
+
+# Run with debug logging
+cco run --debug
+
+# Check server health
+cco health
+```
+
+### Installation & Updates
+
+```bash
+# Install to ~/.local/bin
+cco install
+
+# Check for updates
+cco update --check
+
+# Install updates
+cco update
+```
+
+### Analytics & Monitoring
+
+```bash
+# View current status
+cco status
+
+# View detailed logs
+cco logs
+
+# Graceful shutdown
+cco shutdown
+```
 
 ## Configuration Files
 
@@ -244,7 +277,7 @@ import anthropic
 # Change endpoint only, code stays the same
 client = anthropic.Anthropic(
     api_key="sk-ant-...",
-    base_url="http://localhost:8000"  # ← Point to CCO
+    base_url="http://localhost:3000"  # ← Point to CCO
 )
 response = client.messages.create(
     model="claude-opus-4",
@@ -252,63 +285,36 @@ response = client.messages.create(
 )
 ```
 
-## Web UI Dashboard
+## Web Dashboard
 
 The CCO dashboard provides real-time analytics and cost tracking in your browser.
 
 ### Accessing the Dashboard
 
-**Automatic (Auto-Open):**
 ```bash
-# Start CCO with auto-open enabled (default)
-./cco-proxy
+# Start CCO (dashboard auto-opens in browser)
+cco run
 
-# Dashboard automatically opens in your default browser
-# If not, manually navigate to: http://localhost:3000
-```
-
-**Manual:**
-```bash
-# Start CCO on custom port
-./cco-proxy --port 8888
-
-# Manually open browser to dashboard
-open http://localhost:8888
+# Manually navigate to:
+open http://localhost:3000
 ```
 
 ### Dashboard Features
 
-The dashboard has three main sections:
-
-**Tab 1: Current Project**
+**Current Project Tab**
 - Real-time cost, tokens, and API call metrics
 - Cache hit rate percentage and savings
 - Response time trends
 - Recent activity log
 
-**Tab 2: Machine-Wide Analytics**
+**Machine-Wide Analytics Tab**
 - Total costs and savings across all projects
 - Cost breakdown by project and model
 - Model usage distribution with charts
 - Active projects list with last activity
 - Model performance comparisons
 
-**Tab 3: Terminal**
-- Live command interface for management
-- View logs and debug information
-- Manage cache (view stats, clear if needed)
-- Export analytics data
-- System health monitoring
-
-### Dashboard Auto-Refresh
-
-The dashboard automatically refreshes every 5 seconds to show:
-- Updated metrics and trends
-- New API calls and cache hits
-- Cost calculations
-- Project activity
-
-No manual refresh needed—all data is live as requests flow through CCO.
+The dashboard automatically refreshes every 5 seconds with live data.
 
 ## Performance Impact
 
@@ -331,15 +337,15 @@ CCO adds minimal overhead:
 ### Local Development
 
 ```bash
-./cco-proxy --port 8000
+cco run --port 3000
 ```
 
 ### Docker
 
 ```bash
-docker run -p 8000:8000 \
+docker run -p 3000:3000 \
   -e ANTHROPIC_API_KEY="sk-ant-..." \
-  cco-proxy:latest
+  cco:latest
 ```
 
 ### Kubernetes
@@ -348,22 +354,22 @@ docker run -p 8000:8000 \
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cco-proxy
+  name: cco
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: cco-proxy
+      app: cco
   template:
     metadata:
       labels:
-        app: cco-proxy
+        app: cco
     spec:
       containers:
-      - name: cco-proxy
-        image: cco-proxy:latest
+      - name: cco
+        image: cco:latest
         ports:
-        - containerPort: 8000
+        - containerPort: 3000
         env:
         - name: ANTHROPIC_API_KEY
           valueFrom:
@@ -372,27 +378,11 @@ spec:
               key: anthropic
 ```
 
-## Dashboard Not Opening
-
-**Dashboard not auto-opening on startup?**
-```bash
-# Try manually with custom host/port
-./cco-proxy --host 0.0.0.0 --port 3000
-
-# Open browser manually
-open http://localhost:3000
-```
-
-**Common Issues:**
-- Firewall blocking local connections: Use `127.0.0.1` instead of `0.0.0.0`
-- Port already in use: Try `--port 9000` or higher
-- Browser not responding: Check browser console for JavaScript errors
-
 ## Troubleshooting
 
 **Port already in use?**
 ```bash
-./cco-proxy --port 9000
+cco run --port 9000
 ```
 
 **Cache not working?**
@@ -410,22 +400,60 @@ curl -X POST http://localhost:3000/api/cache/clear
 echo $ANTHROPIC_API_KEY
 
 # Test connection
-curl http://localhost:3000/health
+cco health
+```
+
+**Dashboard not opening?**
+```bash
+# Manually open browser
+open http://localhost:3000
+
+# Try different port
+cco run --port 8000
 ```
 
 See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for detailed solutions.
 
-## Next Steps
+## Version Format
+
+CCO uses date-based versioning: `YYYY.MM.N`
+
+- `YYYY`: Four-digit year (2025, 2026, etc.)
+- `MM`: Month (1-12)
+- `N`: Release number within that month (resets to 1 at the start of each month)
+
+**Examples:**
+- `2025.11.1`: First release in November 2025
+- `2025.11.2`: Second release in November 2025
+- `2025.12.1`: First release in December 2025
+
+This format provides clarity on when a version was released, with simple incrementing per month.
+
+## Roadmap
+
+### Near-Term
+- [ ] TUI dashboard for non-browser environments
+- [ ] Advanced cost prediction and budgeting
+- [ ] Multi-user authentication and project isolation
+- [ ] Enhanced caching strategies (semantic similarity)
+
+### Long-Term
+- [ ] Distributed caching across multiple machines
+- [ ] Custom model fine-tuning integration
+- [ ] Enterprise SSO and RBAC
+- [ ] Cloud-hosted CCO service
+
+## Documentation
 
 1. **[USAGE.md](./USAGE.md)** - Complete command reference and configuration
 2. **[COST_SAVINGS.md](./COST_SAVINGS.md)** - Understand savings calculations
-3. **[MULTI_MODEL.md](./MULTI_MODEL.md)** - Add more providers (OpenAI, Ollama, etc.)
-4. **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Common issues and solutions
+3. **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Common issues and solutions
+4. **[BUILDING.md](./BUILDING.md)** - Build from source instructions
 
 ## Support
 
 - Issues: [GitHub Issues](https://github.com/example/cco/issues)
-- Documentation: This folder
+- Documentation: This repository
 - Discussions: [GitHub Discussions](https://github.com/example/cco/discussions)
 
 ## License

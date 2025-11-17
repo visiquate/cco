@@ -27,7 +27,15 @@ fn main() {
     }
 
     // Set version - check environment variable first, otherwise use default
-    let version = env::var("CCO_VERSION").unwrap_or_else(|_| "2025.11.2".to_string());
+    let base_version = env::var("CCO_VERSION").unwrap_or_else(|_| "2025.11.2".to_string());
+
+    // Append git hash to version for traceability (format: YYYY.MM.N+<git-hash>)
+    let version = if git_hash != "unknown" && !git_hash.is_empty() {
+        format!("{}+{}", base_version, git_hash)
+    } else {
+        base_version
+    };
+
     println!("cargo:rustc-env=CCO_VERSION={}", version);
 
     // Enable debug info in release builds for crash diagnostics

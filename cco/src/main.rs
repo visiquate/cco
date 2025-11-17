@@ -1,13 +1,15 @@
 //! CCO CLI - Claude Code Orchestra Command Line Interface
 
 use clap::{Parser, Subcommand};
+use std::io::{BufRead, Seek};
 
-mod auto_update;
+// Binary-specific modules
 mod commands;
 mod install;
 mod update;
 
-// Import server module and version
+// Import from library
+use cco::auto_update;
 use cco::server::run_server;
 use cco::version::DateVersion;
 
@@ -64,9 +66,9 @@ enum Commands {
         #[arg(long)]
         check: bool,
 
-        /// Auto-confirm installation
+        /// Prompt for confirmation before installing (default: auto-install)
         #[arg(long)]
-        yes: bool,
+        prompt: bool,
 
         /// Update channel (stable or beta)
         #[arg(long)]
@@ -127,6 +129,96 @@ enum Commands {
         #[arg(short = 'n', long, default_value = "50")]
         lines: usize,
     },
+
+    /// Launch the TUI metrics dashboard
+    Dashboard {
+        /// Database path for metrics
+        #[arg(long, default_value = "analytics.db")]
+        database: String,
+
+        /// Refresh rate in milliseconds
+        #[arg(long, default_value = "1000")]
+        refresh_ms: u64,
+    },
+
+    /// Manage daemon lifecycle (start, stop, restart, status)
+    Daemon {
+        #[command(subcommand)]
+        action: DaemonAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum DaemonAction {
+    /// Start the daemon
+    Start {
+        /// Port to listen on (default: 3000)
+        #[arg(short, long, default_value = "3000")]
+        port: u16,
+
+        /// Host to bind to (default: 127.0.0.1)
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+
+        /// Cache size in bytes (default: 1GB)
+        #[arg(long, default_value = "1073741824")]
+        cache_size: u64,
+
+        /// Cache TTL in seconds (default: 3600)
+        #[arg(long, default_value = "3600")]
+        cache_ttl: u64,
+    },
+
+    /// Stop the daemon
+    Stop,
+
+    /// Restart the daemon
+    Restart {
+        /// Port to listen on (default: 3000)
+        #[arg(short, long, default_value = "3000")]
+        port: u16,
+
+        /// Host to bind to (default: 127.0.0.1)
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+
+        /// Cache size in bytes (default: 1GB)
+        #[arg(long, default_value = "1073741824")]
+        cache_size: u64,
+
+        /// Cache TTL in seconds (default: 3600)
+        #[arg(long, default_value = "3600")]
+        cache_ttl: u64,
+    },
+
+    /// Check daemon status
+    Status,
+
+    /// View daemon logs
+    Logs {
+        /// Follow logs (tail -f behavior)
+        #[arg(short, long)]
+        follow: bool,
+
+        /// Number of lines to show (default: 50)
+        #[arg(short = 'n', long, default_value = "50")]
+        lines: usize,
+    },
+
+    /// Install daemon as system service
+    Install,
+
+    /// Uninstall daemon from system service
+    Uninstall,
+
+    /// Enable service (start on boot)
+    Enable,
+
+    /// Disable service (don't start on boot)
+    Disable,
+
+    /// Run daemon in foreground (internal use)
+    Run,
 }
 
 #[derive(Subcommand)]
@@ -172,15 +264,30 @@ async fn main() -> anyhow::Result<()> {
     // Start background update check (non-blocking)
     auto_update::check_for_updates_async();
 
-    // If no command specified, default to run
-    let command = cli.command.unwrap_or(Commands::Run {
-        port: 3000,
-        host: "127.0.0.1".to_string(),
-        database_url: "sqlite://analytics.db".to_string(),
-        cache_size: 1073741824,
-        cache_ttl: 3600,
-        debug: false,
-    });
+    // If no command specified, default to TUI
+    let command = match cli.command {
+        Some(cmd) => cmd,
+        None => {
+            // Launch TUI by default
+            match cco::TuiApp::new().await {
+                Ok(mut app) => {
+                    return app.run().await;
+                }
+                Err(e) => {
+                    eprintln!("Failed to start TUI: {}", e);
+                    eprintln!("Falling back to daemon mode...");
+                    Commands::Run {
+                        port: 3000,
+                        host: "127.0.0.1".to_string(),
+                        database_url: "sqlite://analytics.db".to_string(),
+                        cache_size: 1073741824,
+                        cache_ttl: 3600,
+                        debug: false,
+                    }
+                }
+            }
+        }
+    };
 
     match command {
         Commands::Install { force } => {
@@ -191,12 +298,14 @@ async fn main() -> anyhow::Result<()> {
 
         Commands::Update {
             check,
-            yes,
+            prompt,
             channel,
         } => {
             // Initialize tracing for other commands
             tracing_subscriber::fmt::init();
-            update::run(check, yes, channel).await
+            // Default is auto-install (yes=true), unless --prompt is specified
+            let auto_confirm = !prompt;
+            update::run(check, auto_confirm, channel).await
         }
 
         Commands::Config { action } => {
@@ -247,23 +356,10 @@ async fn main() -> anyhow::Result<()> {
                 }
             });
 
-            // Auto-open browser after a short delay (unless NO_BROWSER env var is set)
+            // Display server URL (browser opening removed - users can open manually)
             let url = format!("http://{}:{}", host, port);
-            if std::env::var("NO_BROWSER").is_err() {
-                let url_clone = url.clone();
-                tokio::spawn(async move {
-                    // Wait a moment for the server to start
-                    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-
-                    println!("🌐 Opening browser at {}...", url_clone);
-                    if let Err(e) = webbrowser::open(&url_clone) {
-                        eprintln!("⚠️  Failed to open browser: {}", e);
-                        eprintln!("   Please manually navigate to: {}", url_clone);
-                    }
-                });
-            } else {
-                println!("🌐 Server running at {}", url);
-            }
+            println!("🌐 Server running at {}", url);
+            println!("   Open this URL in your browser to access the dashboard");
 
             // Run the actual HTTP server
             run_server(&host, port, cache_size, cache_ttl, debug).await
@@ -309,9 +405,33 @@ async fn main() -> anyhow::Result<()> {
             tracing_subscriber::fmt::init();
 
             println!("Checking health of {}:{}", host, port);
-            // In a real implementation, we would make an HTTP request to /health
-            println!("Health check would go to http://{}:{}/health", host, port);
-            Ok(())
+
+            let url = format!("http://{}:{}/health", host, port);
+            match reqwest::Client::new().get(&url).send().await {
+                Ok(response) => {
+                    let status = response.status();
+                    if status.is_success() {
+                        match response.json::<serde_json::Value>().await {
+                            Ok(json) => {
+                                println!("✅ Health check passed:");
+                                println!("{}", serde_json::to_string_pretty(&json).unwrap_or_default());
+                                Ok(())
+                            }
+                            Err(_) => {
+                                println!("✅ Health check passed (HTTP {})", status);
+                                Ok(())
+                            }
+                        }
+                    } else {
+                        eprintln!("❌ Health check failed: HTTP {}", status);
+                        std::process::exit(1);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("❌ Failed to connect to {}:{}: {}", host, port, e);
+                    std::process::exit(1);
+                }
+            }
         }
 
         Commands::Credentials { action } => {
@@ -357,6 +477,189 @@ async fn main() -> anyhow::Result<()> {
             // Initialize tracing for other commands
             tracing_subscriber::fmt::init();
             commands::logs::run(port, follow, lines).await
+        }
+
+        Commands::Dashboard { database: _, refresh_ms: _ } => {
+            // Initialize tracing for dashboard
+            tracing_subscriber::fmt::init();
+
+            match cco::TuiApp::new().await {
+                Ok(mut app) => app.run().await,
+                Err(e) => {
+                    eprintln!("❌ Failed to start TUI dashboard: {}", e);
+                    eprintln!("   Please use the web-based dashboard instead at http://localhost:3000");
+                    std::process::exit(1);
+                }
+            }
+        }
+
+        Commands::Daemon { action } => {
+            // Initialize tracing for other commands
+            tracing_subscriber::fmt::init();
+            match action {
+                DaemonAction::Start {
+                    port,
+                    host,
+                    cache_size,
+                    cache_ttl,
+                } => {
+                    let config = cco::daemon::DaemonConfig {
+                        port,
+                        host,
+                        log_level: "info".to_string(),
+                        log_rotation_size: 10 * 1024 * 1024,
+                        log_max_files: 5,
+                        database_url: "sqlite://analytics.db".to_string(),
+                        cache_size,
+                        cache_ttl,
+                        auto_start: true,
+                        health_checks: true,
+                        health_check_interval: 30,
+                    };
+
+                    let manager = cco::daemon::DaemonManager::new(config);
+                    manager.start().await
+                }
+
+                DaemonAction::Stop => {
+                    let config = cco::daemon::load_config().unwrap_or_default();
+                    let manager = cco::daemon::DaemonManager::new(config);
+                    manager.stop().await
+                }
+
+                DaemonAction::Restart {
+                    port,
+                    host,
+                    cache_size,
+                    cache_ttl,
+                } => {
+                    let config = cco::daemon::DaemonConfig {
+                        port,
+                        host,
+                        log_level: "info".to_string(),
+                        log_rotation_size: 10 * 1024 * 1024,
+                        log_max_files: 5,
+                        database_url: "sqlite://analytics.db".to_string(),
+                        cache_size,
+                        cache_ttl,
+                        auto_start: true,
+                        health_checks: true,
+                        health_check_interval: 30,
+                    };
+
+                    let manager = cco::daemon::DaemonManager::new(config);
+                    manager.restart().await
+                }
+
+                DaemonAction::Status => {
+                    let config = cco::daemon::load_config().unwrap_or_default();
+                    let manager = cco::daemon::DaemonManager::new(config);
+
+                    match manager.get_status().await {
+                        Ok(status) => {
+                            println!("\n✅ Daemon Status:");
+                            println!("   PID: {}", status.pid);
+                            println!("   Running: {}", status.is_running);
+                            println!("   Port: {}", status.port);
+                            println!("   Version: {}", status.version);
+                            println!("   Started at: {}", status.started_at);
+                            println!();
+                            Ok(())
+                        }
+                        Err(e) => {
+                            println!("\n⚠️  Daemon is not running: {}", e);
+                            Ok(())
+                        }
+                    }
+                }
+
+                DaemonAction::Logs { follow, lines } => {
+                    let log_file = cco::daemon::get_daemon_log_file()?;
+
+                    if !log_file.exists() {
+                        eprintln!("No daemon log file found: {}", log_file.display());
+                        return Ok(());
+                    }
+
+                    if follow {
+                        let mut file = std::fs::File::open(&log_file)?;
+                        file.seek(std::io::SeekFrom::End(0))?;
+
+                        println!("Following daemon logs (Ctrl+C to stop)...\n");
+
+                        let mut reader = std::io::BufReader::new(file);
+                        let mut buffer = String::new();
+
+                        loop {
+                            match reader.read_line(&mut buffer) {
+                                Ok(0) => {
+                                    tokio::time::sleep(std::time::Duration::from_millis(100))
+                                        .await;
+                                }
+                                Ok(_) => {
+                                    print!("{}", buffer);
+                                    std::io::Write::flush(&mut std::io::stdout())?;
+                                    buffer.clear();
+                                }
+                                Err(e) => {
+                                    eprintln!("Error reading log file: {}", e);
+                                    break;
+                                }
+                            }
+                        }
+                    } else {
+                        let file = std::fs::File::open(&log_file)?;
+                        let reader = std::io::BufReader::new(file);
+                        let all_lines: Vec<String> = reader.lines().collect::<Result<Vec<_>, _>>()?;
+
+                        let start = if all_lines.len() > lines {
+                            all_lines.len() - lines
+                        } else {
+                            0
+                        };
+
+                        for line in &all_lines[start..] {
+                            println!("{}", line);
+                        }
+                    }
+
+                    Ok(())
+                }
+
+                DaemonAction::Install => {
+                    let service_manager = cco::daemon::service::get_service_manager()?;
+                    service_manager.install()
+                }
+
+                DaemonAction::Uninstall => {
+                    let service_manager = cco::daemon::service::get_service_manager()?;
+                    service_manager.uninstall()
+                }
+
+                DaemonAction::Enable => {
+                    let service_manager = cco::daemon::service::get_service_manager()?;
+                    service_manager.enable()
+                }
+
+                DaemonAction::Disable => {
+                    let service_manager = cco::daemon::service::get_service_manager()?;
+                    service_manager.disable()
+                }
+
+                DaemonAction::Run => {
+                    // This is called by the service manager to run the daemon in foreground
+                    println!("🚀 Starting CCO daemon...");
+
+                    let version = DateVersion::current();
+                    println!("Version: {}", version);
+
+                    let url = "http://127.0.0.1:3000";
+                    println!("Dashboard: {}", url);
+
+                    // Run the actual HTTP server
+                    run_server("127.0.0.1", 3000, 1073741824, 3600, false).await
+                }
+            }
         }
     }
 }

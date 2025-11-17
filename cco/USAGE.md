@@ -180,14 +180,6 @@ xdg-open http://localhost:3000
 - Usage distribution charts
 - Projects table with activity timestamps
 
-**Tab 3: Terminal**
-- Interactive command-line interface
-- Live server logs
-- Cache management commands
-- System diagnostics
-- Data export options
-- Configuration management
-
 ### Auto-Refresh Behavior
 
 All dashboard data refreshes automatically every 5 seconds:
@@ -204,7 +196,6 @@ All dashboard data refreshes automatically every 5 seconds:
 - **Cache Statistics**: Monitor hit rate and savings
 - **Project Isolation**: View metrics per project
 - **Export Capability**: Download analytics as JSON or CSV
-- **Terminal Access**: Manage CCO from within the dashboard
 
 ## Dashboard API
 
@@ -440,20 +431,6 @@ data: {"cost": 45.67, "calls": 89, "tokens": 123456}
 
 event: analytics
 data: {"cost": 45.68, "calls": 90, "tokens": 123567}
-```
-
-### WebSocket Terminal
-
-```bash
-# Connect WebSocket for terminal I/O
-wscat -c ws://localhost:8000/terminal
-
-# Type commands and see output in real-time
-> cache stats
-< Hits: 1234, Misses: 456, Rate: 73%
-
-> export data
-< Exported analytics to /tmp/cco-export.json
 ```
 
 ## Data Export

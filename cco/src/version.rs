@@ -6,19 +6,24 @@
 use anyhow::Result;
 use std::cmp::Ordering;
 
-/// Date-based version structure: YYYY.MM.N
+/// Date-based version structure: YYYY.MM.N+<git-hash>
 /// - YYYY: Year (e.g., 2025)
 /// - MM: Month (1-12)
 /// - N: Release counter for that month (starts at 1)
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// - git-hash: Optional short git commit hash (7 characters)
+///
+/// Note: PartialEq and Eq compare only the semantic version (year, month, release),
+/// not the git hash. This allows versions to be equal even if built from different commits.
+#[derive(Debug, Clone)]
 pub struct DateVersion {
     year: u32,
     month: u32,
     release: u32,
+    git_hash: Option<String>,
 }
 
 impl DateVersion {
-    /// Parse version string in format "YYYY.MM.N"
+    /// Parse version string in format "YYYY.MM.N" or "YYYY.MM.N+<git-hash>"
     ///
     /// # Examples
     ///
@@ -29,13 +34,26 @@ impl DateVersion {
     /// assert_eq!(v.year(), 2025);
     /// assert_eq!(v.month(), 11);
     /// assert_eq!(v.release(), 1);
+    ///
+    /// let v2 = DateVersion::parse("2025.11.1+abc123d").unwrap();
+    /// assert_eq!(v2.year(), 2025);
+    /// assert_eq!(v2.git_hash(), Some("abc123d"));
     /// ```
     pub fn parse(version_str: &str) -> Result<Self> {
+        // Split on '+' to separate version from optional git hash
+        let parts: Vec<&str> = version_str.split('+').collect();
+        let base_version = parts[0];
+        let git_hash = if parts.len() > 1 {
+            Some(parts[1].to_string())
+        } else {
+            None
+        };
+
         // Parse "2025.11.1" format
-        let version_components: Vec<&str> = version_str.split('.').collect();
+        let version_components: Vec<&str> = base_version.split('.').collect();
         if version_components.len() != 3 {
             anyhow::bail!(
-                "Invalid version format: {} (expected YYYY.MM.N)",
+                "Invalid version format: {} (expected YYYY.MM.N or YYYY.MM.N+<git-hash>)",
                 version_str
             );
         }
@@ -58,6 +76,7 @@ impl DateVersion {
             year,
             month,
             release,
+            git_hash,
         })
     }
 
@@ -81,11 +100,31 @@ impl DateVersion {
         self.release
     }
 
+    /// Get git hash (if present)
+    pub fn git_hash(&self) -> Option<&str> {
+        self.git_hash.as_deref()
+    }
+
     /// Format as string
     pub fn to_string(&self) -> String {
-        format!("{}.{}.{}", self.year, self.month, self.release)
+        if let Some(hash) = &self.git_hash {
+            format!("{}.{}.{}+{}", self.year, self.month, self.release, hash)
+        } else {
+            format!("{}.{}.{}", self.year, self.month, self.release)
+        }
     }
 }
+
+impl PartialEq for DateVersion {
+    fn eq(&self, other: &Self) -> bool {
+        // Compare only semantic version parts, ignore git hash
+        self.year == other.year
+            && self.month == other.month
+            && self.release == other.release
+    }
+}
+
+impl Eq for DateVersion {}
 
 impl PartialOrd for DateVersion {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -102,6 +141,7 @@ impl Ord for DateVersion {
                 match self.month.cmp(&other.month) {
                     Ordering::Equal => {
                         // Finally release number
+                        // Note: git_hash is NOT compared - it's metadata, not version ordering
                         self.release.cmp(&other.release)
                     }
                     other => other,
@@ -128,6 +168,14 @@ mod tests {
         assert_eq!(v.year(), 2025);
         assert_eq!(v.month(), 11);
         assert_eq!(v.release(), 1);
+        assert_eq!(v.git_hash(), None);
+
+        // Test with git hash
+        let v2 = DateVersion::parse("2025.11.1+abc123d").unwrap();
+        assert_eq!(v2.year(), 2025);
+        assert_eq!(v2.month(), 11);
+        assert_eq!(v2.release(), 1);
+        assert_eq!(v2.git_hash(), Some("abc123d"));
     }
 
     #[test]
@@ -186,5 +234,22 @@ mod tests {
 
         let v = DateVersion::parse("2025.1.10").unwrap();
         assert_eq!(v.to_string(), "2025.1.10");
+
+        // Test with git hash
+        let v = DateVersion::parse("2025.11.1+abc123d").unwrap();
+        assert_eq!(v.to_string(), "2025.11.1+abc123d");
+    }
+
+    #[test]
+    fn test_version_comparison_ignores_git_hash() {
+        // Versions with different git hashes but same semver should be equal
+        let v1 = DateVersion::parse("2025.11.1+abc123").unwrap();
+        let v2 = DateVersion::parse("2025.11.1+def456").unwrap();
+        let v3 = DateVersion::parse("2025.11.1").unwrap();
+
+        assert_eq!(v1, v2); // Same version, different git hash
+        assert_eq!(v1, v3); // Same version, one has git hash
+        assert!(!(v1 < v2)); // Not less than
+        assert!(!(v1 > v2)); // Not greater than
     }
 }

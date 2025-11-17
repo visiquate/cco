@@ -21,9 +21,11 @@ const CONFIG = {
 };
 
 // ========================================
-// Global State
+// Global State - Initialized Immediately
 // ========================================
 
+// Initialize state object immediately when script loads (before DOMContentLoaded)
+// This ensures window.state is available for Playwright tests even if page hasn't finished loading
 const state = {
     currentTab: 'project',
     projectStats: null,
@@ -32,9 +34,41 @@ const state = {
     activity: [],
     eventSource: null,
     terminal: null,
+    terminalAdapter: null, // New: Terminal adapter (WASM or xterm)
+    terminalType: null,    // New: Current terminal type ('wasm' or 'xterm')
     fitAddon: null,
     ws: null,
     isConnected: false,
+    readyStates: {
+        dom: false,        // DOM loaded
+        sse: false,        // SSE stream connected
+        terminal: false,   // Terminal initialized
+        websocket: false,  // WebSocket connected
+        fully: false       // All components ready
+    }
+};
+
+// Expose state to window immediately for debugging and testing
+// This makes state accessible even if page loading is interrupted by long-running connections
+window.state = state;
+
+// ========================================
+// Ready State Tracking
+// ========================================
+
+// Check if all components are ready
+state.checkFullyReady = function() {
+    const allReady = this.readyStates.dom &&
+                    this.readyStates.sse &&
+                    this.readyStates.terminal &&
+                    this.readyStates.websocket;
+    if (allReady && !this.readyStates.fully) {
+        this.readyStates.fully = true;
+        console.log('[Ready State] All components ready, dispatching appReady event');
+        // Dispatch custom event for testing
+        window.dispatchEvent(new Event('appReady'));
+    }
+    return allReady;
 };
 
 // ========================================
@@ -95,6 +129,13 @@ function initTabNavigation() {
 function initSSEStream() {
     try {
         state.eventSource = new EventSource(`${CONFIG.API_BASE}/stream`);
+
+        // Mark SSE as ready when connection opens
+        state.eventSource.onopen = () => {
+            state.readyStates.sse = true;
+            console.log('[Ready State] SSE marked as ready');
+            state.checkFullyReady();
+        };
 
         state.eventSource.addEventListener('analytics', event => {
             try {
@@ -751,239 +792,230 @@ const lightTheme = {
     brightWhite: '#ffffff'
 };
 
-function initTerminal() {
+async function initTerminal() {
+    console.log('[Terminal] initTerminal() called');
     const terminalElement = document.getElementById('terminal');
-    if (!terminalElement) return;
+    if (!terminalElement) {
+        console.error('[Terminal] Terminal element not found');
+        return;
+    }
+
+    console.log('[Terminal] Terminal element found, initializing with adapter...');
 
     try {
-        // Determine current theme
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        // Get terminal preference from localStorage or default to WASM
+        const preference = TerminalManager.getPreference();
+        console.log('[Terminal] User preference:', preference);
 
-        // Create terminal instance with proper configuration
-        state.terminal = new Terminal({
-            fontSize: 14,
-            fontFamily: 'Monaco, Menlo, Ubuntu Mono, Consolas, "Courier New", monospace',
-            cursorBlink: true,
-            cursorStyle: 'block',
-            theme: isDark ? darkTheme : lightTheme,
-            scrollback: 1000,
-            cols: 120,
-            rows: 30,
-            allowProposedApi: true
-        });
+        // Clear terminal container
+        terminalElement.innerHTML = '';
 
-        // Load FitAddon
-        state.fitAddon = null;
-        try {
-            let FitAddonClass = null;
-            if (typeof window.FitAddon === 'function') {
-                FitAddonClass = window.FitAddon;
-            } else if (typeof window.FitAddon === 'object' && window.FitAddon !== null) {
-                FitAddonClass = window.FitAddon.FitAddon || window.FitAddon.default;
-            }
+        // Create terminal adapter
+        state.terminalAdapter = await TerminalManager.create('terminal', preference);
+        state.terminalType = state.terminalAdapter instanceof WasmTerminalAdapter ? 'wasm' : 'xterm';
 
-            if (typeof FitAddonClass === 'function') {
-                state.fitAddon = new FitAddonClass();
-                state.terminal.loadAddon(state.fitAddon);
-            }
-        } catch (error) {
-            console.warn('FitAddon not available:', error);
-        }
+        console.log('[Terminal] Adapter created:', state.terminalType);
 
-        // Open terminal in DOM
-        state.terminal.open(terminalElement);
+        // Update UI to reflect terminal type
+        updateTerminalTypeUI(state.terminalType);
 
-        // Focus terminal to capture keyboard input
-        state.terminal.focus();
+        // Setup adapter callbacks
+        state.terminalAdapter.onConnect = () => {
+            console.log('[Terminal] Adapter connected');
+            updateTerminalConnectionStatus(true);
 
-        // Ensure focus when clicking on terminal element
-        terminalElement.addEventListener('click', () => {
-            if (state.terminal && state.terminal.focus) {
-                state.terminal.focus();
-            }
-        });
-
-        // Fit terminal to container
-        if (state.fitAddon) {
-            setTimeout(() => {
-                try {
-                    state.fitAddon.fit();
-                    // Re-focus after fitting
-                    state.terminal.focus();
-                } catch (error) {
-                    console.warn('Error fitting terminal:', error);
-                }
-            }, 100);
-        }
-
-        // Handle window resize
-        const resizeHandler = () => {
-            if (state.terminal && state.currentTab === 'terminal' && state.fitAddon) {
-                try {
-                    state.fitAddon.fit();
-                } catch (error) {
-                    console.warn('Error fitting terminal:', error);
-                }
-            }
+            // Mark terminal and websocket as ready
+            state.readyStates.terminal = true;
+            state.readyStates.websocket = true;
+            console.log('[Ready State] Terminal and WebSocket marked as ready');
+            state.checkFullyReady();
         };
-        window.addEventListener('resize', resizeHandler);
 
-        // Initialize WebSocket connection
-        initTerminalWebSocket();
+        state.terminalAdapter.onDisconnect = () => {
+            console.log('[Terminal] Adapter disconnected');
+            updateTerminalConnectionStatus(false);
+            state.readyStates.websocket = false;
+        };
 
-        // Handle terminal input (keyboard)
-        state.terminal.onData(data => {
-            if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-                const encoder = new TextEncoder();
-                state.ws.send(encoder.encode(data));
-            }
-        });
+        state.terminalAdapter.onError = (error) => {
+            console.error('[Terminal] Adapter error:', error);
+            updateTerminalConnectionStatus(false);
+        };
 
-        // Handle terminal resize events
-        state.terminal.onResize((size) => {
-            if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-                // Send resize message to PTY backend as control message (not displayed to user)
-                const msg = `RESIZE${size.cols}x${size.rows}`;
-                const encoder = new TextEncoder();
-                const resizeData = new Uint8Array(msg.length);
-                for (let i = 0; i < msg.length; i++) {
-                    resizeData[i] = msg.charCodeAt(i);
-                }
-                state.ws.send(resizeData);
-            }
-        });
+        // Connect to WebSocket
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/terminal`;
+        await state.terminalAdapter.connect(wsUrl);
+
+        // Store reference to ws for compatibility with existing code
+        state.ws = state.terminalAdapter.ws;
+        state.terminal = state.terminalAdapter.terminal;
+
+        console.log('[Terminal] WebSocket connected successfully');
 
         // Setup terminal control buttons
-        document.getElementById('terminalClearBtn')?.addEventListener('click', () => {
-            if (state.terminal) {
-                state.terminal.clear();
-            }
-        });
-
-        document.getElementById('terminalCopyBtn')?.addEventListener('click', () => {
-            if (state.terminal) {
-                const content = state.terminal.getSelection() || '';
-                if (content) {
-                    navigator.clipboard.writeText(content).then(() => {
-                        console.log('Terminal content copied to clipboard');
-                    }).catch(error => {
-                        console.error('Failed to copy terminal content:', error);
-                    });
-                }
-            }
-        });
-
-        // Theme switching support
-        const themeObserver = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
-                    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-                    if (state.terminal) {
-                        state.terminal.options.theme = isDark ? darkTheme : lightTheme;
-                    }
-                }
-            });
-        });
-        themeObserver.observe(document.documentElement, { attributes: true });
+        setupTerminalControls();
 
         // Store cleanup function
         window.terminalCleanup = () => {
-            themeObserver.disconnect();
-            window.removeEventListener('resize', resizeHandler);
-            if (state.ws) {
-                state.ws.close();
+            if (state.terminalAdapter) {
+                state.terminalAdapter.close();
+                state.terminalAdapter = null;
             }
-            if (state.terminal) {
-                state.terminal.dispose();
-            }
+            state.terminal = null;
+            state.ws = null;
         };
 
     } catch (error) {
         console.error('Failed to initialize terminal:', error);
         const terminalDiv = document.getElementById('terminal');
         if (terminalDiv) {
-            terminalDiv.innerHTML = '<div style="padding: 20px; color: #ef4444;">Failed to initialize terminal: ' + error.message + '</div>';
+            terminalDiv.innerHTML = `<div style="padding: 20px; color: #ef4444;">
+                Failed to initialize terminal: ${error.message}
+                <br><br>
+                <button onclick="location.reload()" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    Reload Page
+                </button>
+            </div>`;
         }
     }
 }
 
-function initTerminalWebSocket() {
-    // Use the correct WebSocket endpoint: /terminal
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/terminal`;
+function setupTerminalControls() {
+    // Clear button
+    document.getElementById('terminalClearBtn')?.addEventListener('click', () => {
+        if (state.terminalAdapter) {
+            state.terminalAdapter.clear();
+        }
+    });
 
-    try {
-        state.ws = new WebSocket(wsUrl);
-        state.ws.binaryType = 'arraybuffer';
+    // Copy button
+    document.getElementById('terminalCopyBtn')?.addEventListener('click', () => {
+        if (state.terminalAdapter && state.terminalAdapter.terminal) {
+            let content = '';
 
-        state.ws.onopen = () => {
-            console.log('Terminal WebSocket connected to /terminal');
-            updateTerminalConnectionStatus(true);
-
-            // Send initial terminal size if available (as control message, not for display)
-            if (state.terminal && state.fitAddon) {
-                const size = { cols: state.terminal.cols, rows: state.terminal.rows };
-                const msg = `RESIZE${size.cols}x${size.rows}`;
-                const resizeData = new Uint8Array(msg.length);
-                for (let i = 0; i < msg.length; i++) {
-                    resizeData[i] = msg.charCodeAt(i);
-                }
-                state.ws.send(resizeData);
-            }
-            // Note: Keyboard input handler is registered in initTerminal() at line 835-840
-            // to avoid duplicate event listener registration
-        };
-
-        state.ws.onmessage = (event) => {
-            if (state.terminal && event.data instanceof ArrayBuffer) {
-                const decoder = new TextDecoder();
-                const text = decoder.decode(new Uint8Array(event.data));
-                state.terminal.write(text);
-            }
-        };
-
-        state.ws.onerror = (error) => {
-            console.error('Terminal WebSocket error:', error);
-            updateTerminalConnectionStatus(false);
-            if (state.terminal) {
-                state.terminal.write('\r\n\x1b[31m✗ WebSocket error\x1b[0m\r\n');
-            }
-        };
-
-        state.ws.onclose = () => {
-            console.log('Terminal WebSocket closed');
-            updateTerminalConnectionStatus(false);
-            if (state.terminal) {
-                state.terminal.write('\r\n\x1b[33m✗ Connection closed. Reconnecting...\x1b[0m\r\n');
+            // Try to get selection based on terminal type
+            if (state.terminalType === 'xterm' && state.terminalAdapter.terminal.getSelection) {
+                content = state.terminalAdapter.terminal.getSelection();
+            } else if (state.terminalType === 'wasm' && state.terminalAdapter.terminal.getOutput) {
+                content = state.terminalAdapter.terminal.getOutput();
             }
 
-            // Auto-reconnect after 3 seconds
-            setTimeout(() => {
-                if (state.currentTab === 'terminal') {
-                    initTerminalWebSocket();
-                }
-            }, 3000);
-        };
-    } catch (error) {
-        console.error('Error creating WebSocket:', error);
-        updateTerminalConnectionStatus(false);
+            if (content) {
+                navigator.clipboard.writeText(content).then(() => {
+                    console.log('Terminal content copied to clipboard');
+                    showToast('Terminal content copied to clipboard');
+                }).catch(error => {
+                    console.error('Failed to copy terminal content:', error);
+                    showToast('Failed to copy content', 'error');
+                });
+            } else {
+                showToast('No content to copy', 'warning');
+            }
+        }
+    });
+
+    // Terminal type switch button
+    document.getElementById('terminalTypeSwitch')?.addEventListener('click', async () => {
+        const newType = state.terminalType === 'wasm' ? 'xterm' : 'wasm';
+        console.log('[Terminal] Switching terminal type to:', newType);
+
+        // Save preference
+        TerminalManager.savePreference(newType);
+
+        // Show loading state
+        showToast(`Switching to ${newType.toUpperCase()} terminal...`, 'info');
+
+        // Cleanup current terminal
+        if (state.terminalAdapter) {
+            state.terminalAdapter.close();
+        }
+
+        // Reinitialize with new type
+        await initTerminal();
+
+        showToast(`Switched to ${state.terminalType.toUpperCase()} terminal`, 'success');
+    });
+}
+
+function updateTerminalTypeUI(type) {
+    const label = document.getElementById('terminalTypeLabel');
+    const info = document.getElementById('terminalTypeInfo');
+
+    if (label) {
+        label.textContent = `Using: ${type.toUpperCase()}`;
+    }
+
+    if (info) {
+        const performance = type === 'wasm' ? 'High Performance' : 'Standard';
+        const features = type === 'wasm' ? '256-color support' : 'Full xterm compatibility';
+        info.textContent = `${performance} - ${features}`;
     }
 }
 
+function showToast(message, type = 'info') {
+    // Simple toast notification (can be enhanced later)
+    console.log(`[Toast ${type}]:`, message);
+
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: ${type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : type === 'success' ? '#10b981' : '#3b82f6'};
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        z-index: 10000;
+        animation: slideInRight 0.3s ease-out;
+        font-size: 14px;
+        font-weight: 500;
+    `;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.animation = 'slideOutRight 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// initTerminalWebSocket is now handled by the terminal adapter
+// Keeping this stub for backward compatibility
+function initTerminalWebSocket() {
+    console.log('[WebSocket] Using terminal adapter - WebSocket managed by adapter');
+}
+
 function updateTerminalConnectionStatus(isConnected) {
-    // Update connection status indicator if it exists
+    // Update main connection status indicator
     const statusEl = document.getElementById('connectionStatus');
-    if (!statusEl) return;
+    if (statusEl) {
+        const indicator = statusEl.querySelector('.status-indicator');
+        const text = statusEl.querySelector('.status-text');
 
-    const indicator = statusEl.querySelector('.status-indicator');
-    const text = statusEl.querySelector('.status-text');
+        if (isConnected) {
+            statusEl.className = 'connection-status connected';
+            if (text) text.textContent = 'Connected';
+        } else {
+            statusEl.className = 'connection-status disconnected';
+            if (text) text.textContent = 'Disconnected';
+        }
+    }
 
-    if (isConnected) {
-        statusEl.className = 'connection-status connected';
-        if (text) text.textContent = 'Connected';
-    } else {
-        statusEl.className = 'connection-status disconnected';
-        if (text) text.textContent = 'Disconnected';
+    // Update terminal-specific status
+    const terminalStatus = document.getElementById('terminalConnectionStatus');
+    if (terminalStatus) {
+        if (isConnected) {
+            terminalStatus.className = 'connected';
+            terminalStatus.textContent = 'Connected to CCO';
+        } else {
+            terminalStatus.className = 'disconnected';
+            terminalStatus.textContent = 'Disconnected from CCO';
+        }
     }
 }
 
@@ -1252,6 +1284,11 @@ async function handleShutdown() {
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Initializing CCO Dashboard...');
+
+    // Mark DOM as ready for the Ready Signal Pattern
+    state.readyStates.dom = true;
+    console.log('[Ready State] DOM marked as ready');
+    state.checkFullyReady();
 
     // Initialize theme - ensure dark theme is set
     document.documentElement.setAttribute('data-theme', 'dark');

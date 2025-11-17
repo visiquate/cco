@@ -7,10 +7,13 @@
     <link rel="stylesheet" href="dashboard.css">
     <!-- D3.js for charting -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <!-- xterm.js for terminal emulation -->
+    <!-- xterm.js for terminal emulation (fallback) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+    <!-- WASM Terminal (preferred) -->
+    <script src="/static/wasm-terminal.js"></script>
+    <script src="/static/terminal-adapter.js"></script>
 </head>
 <body>
     <div class="dashboard-container">
@@ -234,6 +237,9 @@
                 <div class="panel-header">
                     <h2>Live Terminal</h2>
                     <div class="terminal-controls">
+                        <button class="btn-tertiary" id="terminalTypeSwitch" title="Switch terminal type">
+                            <span id="terminalTypeLabel">Using: WASM</span>
+                        </button>
                         <button class="btn-tertiary" id="terminalClearBtn" title="Clear terminal">Clear</button>
                         <button class="btn-tertiary" id="terminalCopyBtn" title="Copy terminal output">Copy</button>
                     </div>
@@ -244,7 +250,11 @@
                 </div>
 
                 <div class="terminal-info">
-                    <p>Connected to CCO. Type commands to interact with the orchestrator.</p>
+                    <p>
+                        <span id="terminalConnectionStatus">Connected to CCO</span>.
+                        Type commands to interact with the orchestrator.
+                        <span id="terminalTypeInfo" style="margin-left: 12px; color: var(--accent-primary);"></span>
+                    </p>
                 </div>
             </section>
 
