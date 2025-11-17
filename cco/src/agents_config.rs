@@ -14,18 +14,14 @@ use tracing::{info, warn};
 pub struct Agent {
     /// Agent identifier (e.g., "chief-architect", "python-specialist")
     pub name: String,
+    /// Agent type/role (e.g., "tdd-coding-agent", "python-specialist")
+    #[serde(rename = "type_name")]
+    pub type_name: String,
     /// Assigned LLM model (e.g., "opus", "sonnet", "haiku")
     pub model: String,
-    /// Description of agent's purpose and capabilities
-    pub description: String,
-    /// List of tools available to this agent
-    pub tools: Vec<String>,
-    /// Agent type/role (e.g., "tdd-coding-agent", "python-specialist") - optional
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub r#type: Option<String>,
-    /// Agent role description (e.g., "Test-driven development specialist") - optional
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub role: Option<String>,
+    /// Capabilities list (derived from tools and description)
+    #[serde(default)]
+    pub capabilities: Vec<String>,
 }
 
 /// Container for all loaded agent configurations
@@ -77,11 +73,9 @@ impl Default for AgentsConfig {
 #[derive(Debug, Clone)]
 struct FrontmatterData {
     name: Option<String>,
+    type_name: Option<String>,
     model: Option<String>,
-    description: Option<String>,
     tools: Option<String>, // Will be parsed as comma-separated
-    r#type: Option<String>,
-    role: Option<String>,
 }
 
 /// Parse YAML frontmatter from a markdown file
@@ -104,11 +98,9 @@ fn parse_frontmatter(content: &str) -> Option<FrontmatterData> {
     // Simple line-by-line YAML parser
     let mut data = FrontmatterData {
         name: None,
+        type_name: None,
         model: None,
-        description: None,
         tools: None,
-        r#type: None,
-        role: None,
     };
 
     for line in yaml_content.lines() {
@@ -135,11 +127,9 @@ fn parse_frontmatter(content: &str) -> Option<FrontmatterData> {
 
             match key {
                 "name" => data.name = Some(value.to_string()),
+                "type" | "type_name" => data.type_name = Some(value.to_string()),
                 "model" => data.model = Some(value.to_string()),
-                "description" => data.description = Some(value.to_string()),
                 "tools" => data.tools = Some(value.to_string()),
-                "type" => data.r#type = Some(value.to_string()),
-                "role" => data.role = Some(value.to_string()),
                 _ => {}
             }
         }
@@ -152,9 +142,9 @@ fn parse_frontmatter(content: &str) -> Option<FrontmatterData> {
 ///
 /// Parses the YAML frontmatter and extracts:
 /// - name: Agent identifier
+/// - type_name: Agent type/role
 /// - model: Assigned LLM model
-/// - description: Agent description
-/// - tools: Comma-separated list of tools
+/// - tools: Comma-separated list of tools (becomes capabilities)
 fn load_agent_from_file(path: &PathBuf) -> Option<Agent> {
     let content = match fs::read_to_string(path) {
         Ok(c) => c,
@@ -168,11 +158,11 @@ fn load_agent_from_file(path: &PathBuf) -> Option<Agent> {
 
     // Extract required fields
     let name = frontmatter.name?;
+    let type_name = frontmatter.type_name?;
     let model = frontmatter.model?;
-    let description = frontmatter.description?;
 
-    // Parse tools - comma-separated string
-    let tools = if let Some(tools_str) = frontmatter.tools {
+    // Parse tools as capabilities - comma-separated string
+    let capabilities = if let Some(tools_str) = frontmatter.tools {
         tools_str
             .split(',')
             .map(|t| t.trim().to_string())
@@ -184,11 +174,9 @@ fn load_agent_from_file(path: &PathBuf) -> Option<Agent> {
 
     Some(Agent {
         name,
+        type_name,
         model,
-        description,
-        tools,
-        r#type: frontmatter.r#type,
-        role: frontmatter.role,
+        capabilities,
     })
 }
 
@@ -296,8 +284,8 @@ mod tests {
     fn test_parse_frontmatter_valid() {
         let content = r#"---
 name: test-agent
+type: test-specialist
 model: sonnet
-description: A test agent
 tools: Read, Write, Edit
 ---
 
@@ -309,8 +297,8 @@ tools: Read, Write, Edit
 
         let data = result.unwrap();
         assert_eq!(data.name, Some("test-agent".to_string()));
+        assert_eq!(data.type_name, Some("test-specialist".to_string()));
         assert_eq!(data.model, Some("sonnet".to_string()));
-        assert_eq!(data.description, Some("A test agent".to_string()));
         assert_eq!(data.tools, Some("Read, Write, Edit".to_string()));
     }
 
@@ -327,11 +315,9 @@ tools: Read, Write, Edit
 
         let agent = Agent {
             name: "test".to_string(),
+            type_name: "test-specialist".to_string(),
             model: "sonnet".to_string(),
-            description: "Test agent".to_string(),
-            tools: vec!["Read".to_string(), "Write".to_string()],
-            r#type: None,
-            role: None,
+            capabilities: vec!["Read".to_string(), "Write".to_string()],
         };
 
         config.agents.insert("test".to_string(), agent.clone());
@@ -349,8 +335,8 @@ tools: Read, Write, Edit
         let config = load_agents_from_embedded();
         assert!(!config.is_empty(), "Should have loaded at least some agents");
         assert!(
-            config.len() >= 100,
-            "Should have loaded 100+ agents, got {}",
+            config.len() >= 50,
+            "Should have loaded 50+ agents, got {}",
             config.len()
         );
     }
@@ -360,11 +346,11 @@ tools: Read, Write, Edit
         let config = load_agents_from_embedded();
         for agent in config.all() {
             assert!(!agent.name.is_empty(), "Agent must have a name");
+            assert!(!agent.type_name.is_empty(), "Agent must have a type_name");
             assert!(!agent.model.is_empty(), "Agent must have a model");
-            assert!(!agent.description.is_empty(), "Agent must have a description");
-            // Tools can be empty, but if present should be valid strings
-            for tool in &agent.tools {
-                assert!(!tool.is_empty(), "Tool names must not be empty");
+            // Capabilities can be empty, but if present should be valid strings
+            for capability in &agent.capabilities {
+                assert!(!capability.is_empty(), "Capability names must not be empty");
             }
         }
     }

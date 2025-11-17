@@ -87,11 +87,9 @@ fn validate_configs() {
 #[derive(Debug, Clone)]
 struct AgentData {
     name: String,
+    type_name: String,
     model: String,
-    description: String,
-    tools: Vec<String>,
-    r#type: Option<String>,
-    role: Option<String>,
+    capabilities: Vec<String>,
 }
 
 /// Generate embedded agents code at compile time
@@ -102,58 +100,11 @@ fn generate_embedded_agents() {
     // Also load from orchestra config to merge data
     let orchestra_agents = load_agents_from_orchestra_config();
 
-    // Use markdown agents as primary source, but merge type/role from orchestra config
-    let agents = if local_agents.is_empty() {
-        orchestra_agents
+    // Use markdown agents if available, otherwise use orchestra config
+    let agents = if !local_agents.is_empty() {
+        local_agents
     } else {
-        // Merge orchestra config data into local agents
-        // Create two maps: one by type (from orchestra) and one by name (from markdown)
-        let mut merged = local_agents;
-        let _orchestra_by_type: std::collections::HashMap<String, AgentData> = orchestra_agents
-            .iter()
-            .filter_map(|a| a.r#type.as_ref().map(|t| (t.clone(), a.clone())))
-            .collect();
-        let orchestra_by_name: std::collections::HashMap<String, AgentData> = orchestra_agents
-            .into_iter()
-            .map(|a| (a.name.to_lowercase(), a))
-            .collect();
-
-        for agent in &mut merged {
-            // Try to find orchestra agent by name match
-            // Normalize by lowercasing and converting spaces to dashes
-            // Create normalized key: lowercase and replace spaces with dashes
-            let normalized_name = agent.name.to_lowercase().replace(' ', "-");
-
-            // If type is not set, use the normalized name as a default
-            if agent.r#type.is_none() {
-                agent.r#type = Some(normalized_name.clone());
-            }
-
-            // Try to find orchestra agent data to fill in role and other fields
-            // Try direct match
-            if let Some(orchestra_agent) = orchestra_by_name.get(&agent.name.to_lowercase()) {
-                if agent.role.is_none() && orchestra_agent.role.is_some() {
-                    agent.role = orchestra_agent.role.clone();
-                }
-            } else {
-                // Try with normalized name (converting spaces to dashes)
-                for (orch_key, orch_agent) in &orchestra_by_name {
-                    let orch_normalized = orch_key.replace(' ', "-");
-                    if orch_normalized == normalized_name {
-                        if agent.role.is_none() && orch_agent.role.is_some() {
-                            agent.role = orch_agent.role.clone();
-                        }
-                        break;
-                    }
-                }
-            }
-
-            // If role is still not set, use the description as a default role
-            if agent.role.is_none() {
-                agent.role = Some(agent.description.clone());
-            }
-        }
-        merged
+        orchestra_agents
     };
 
     if agents.is_empty() {
@@ -237,11 +188,9 @@ fn parse_agent_from_markdown(content: &str) -> Option<AgentData> {
 
     // Simple line-by-line YAML parser
     let mut name: Option<String> = None;
+    let mut type_name: Option<String> = None;
     let mut model: Option<String> = None;
-    let mut description: Option<String> = None;
-    let mut tools: Vec<String> = Vec::new();
-    let mut agent_type: Option<String> = None;
-    let mut role: Option<String> = None;
+    let mut capabilities: Vec<String> = Vec::new();
 
     for line in yaml_content.lines() {
         let line = line.trim();
@@ -267,18 +216,16 @@ fn parse_agent_from_markdown(content: &str) -> Option<AgentData> {
 
             match key {
                 "name" => name = Some(value.to_string()),
+                "type" | "type_name" => type_name = Some(value.to_string()),
                 "model" => model = Some(value.to_string()),
-                "description" => description = Some(value.to_string()),
-                "tools" => {
-                    // Parse comma-separated tools
-                    tools = value
+                "tools" | "capabilities" => {
+                    // Parse comma-separated tools/capabilities
+                    capabilities = value
                         .split(',')
                         .map(|t| t.trim().to_string())
                         .filter(|t| !t.is_empty())
                         .collect();
                 }
-                "type" => agent_type = Some(value.to_string()),
-                "role" => role = Some(value.to_string()),
                 _ => {}
             }
         }
@@ -286,8 +233,8 @@ fn parse_agent_from_markdown(content: &str) -> Option<AgentData> {
 
     // Validate required fields
     let name = name?;
+    let type_name = type_name?;
     let model = model?;
-    let description = description?;
 
     // Validate model
     if !["opus", "sonnet", "haiku"].contains(&model.as_str()) {
@@ -300,11 +247,9 @@ fn parse_agent_from_markdown(content: &str) -> Option<AgentData> {
 
     Some(AgentData {
         name,
+        type_name,
         model,
-        description,
-        tools,
-        r#type: agent_type,
-        role,
+        capabilities,
     })
 }
 
@@ -407,45 +352,32 @@ fn extract_agent_from_json(
         .unwrap_or("haiku")
         .to_string();
 
-    // Extract description - try multiple fields
-    let description = json_obj
-        .get("role")
-        .and_then(|v| v.as_str())
-        .or_else(|| {
-            json_obj
-                .get("description")
-                .and_then(|v| v.as_str())
-        })
-        .unwrap_or(&format!("{} agent", name))
-        .to_string();
-
-    // Extract tools from capabilities or specialties
-    let mut tools = Vec::new();
+    // Extract capabilities from capabilities or specialties arrays
+    let mut capabilities = Vec::new();
 
     // Try capabilities array
     if let Some(caps) = json_obj.get("capabilities").and_then(|v| v.as_array()) {
         for cap in caps {
             if let Some(cap_str) = cap.as_str() {
-                // Convert capability descriptions to tool names
-                tools.push(tool_name_from_capability(cap_str));
+                capabilities.push(cap_str.to_string());
             }
         }
     }
 
     // Try specialties array (if no capabilities)
-    if tools.is_empty() {
+    if capabilities.is_empty() {
         if let Some(specs) = json_obj.get("specialties").and_then(|v| v.as_array()) {
             for spec in specs {
                 if let Some(spec_str) = spec.as_str() {
-                    tools.push(tool_name_from_capability(spec_str));
+                    capabilities.push(spec_str.to_string());
                 }
             }
         }
     }
 
-    // Add standard tools if empty
-    if tools.is_empty() {
-        tools = vec![
+    // Add standard capabilities if empty
+    if capabilities.is_empty() {
+        capabilities = vec![
             "Read".to_string(),
             "Write".to_string(),
             "Edit".to_string(),
@@ -453,35 +385,12 @@ fn extract_agent_from_json(
         ];
     }
 
-    // Extract optional type and role from orchestra config
-    let agent_type = json_obj.get("type").and_then(|v| v.as_str()).map(|s| s.to_string());
-    let role = json_obj.get("role").and_then(|v| v.as_str()).map(|s| s.to_string());
-
     Some(AgentData {
         name,
+        type_name: type_name.to_string(),
         model,
-        description,
-        tools,
-        r#type: agent_type,
-        role,
+        capabilities,
     })
-}
-
-/// Convert capability/specialty description to tool name
-fn tool_name_from_capability(capability: &str) -> String {
-    match capability.to_lowercase().as_str() {
-        s if s.contains("read") => "Read".to_string(),
-        s if s.contains("write") => "Write".to_string(),
-        s if s.contains("edit") => "Edit".to_string(),
-        s if s.contains("bash") || s.contains("shell") => "Bash".to_string(),
-        s if s.contains("api") => "API".to_string(),
-        s if s.contains("database") => "Database".to_string(),
-        s if s.contains("deploy") => "Deploy".to_string(),
-        s if s.contains("test") => "Test".to_string(),
-        s if s.contains("security") => "Security".to_string(),
-        s if s.contains("performance") => "Performance".to_string(),
-        _ => "Tool".to_string(),
-    }
 }
 
 /// Generate Rust code for embedded agents
@@ -502,24 +411,11 @@ fn generate_agents_code(agents: &[AgentData]) -> String {
 
     for agent in agents {
         let agent_name = escape_string(&agent.name);
+        let agent_type_name = escape_string(&agent.type_name);
         let agent_model = escape_string(&agent.model);
-        let agent_desc = escape_string(&agent.description);
 
-        // Generate tools array
-        let tools_array = generate_tools_array(&agent.tools);
-
-        // Generate optional fields
-        let type_field = if let Some(t) = &agent.r#type {
-            format!("            r#type: Some(\"{}\".to_string()),\n", escape_string(t))
-        } else {
-            "            r#type: None,\n".to_string()
-        };
-
-        let role_field = if let Some(r) = &agent.role {
-            format!("            role: Some(\"{}\".to_string()),\n", escape_string(r))
-        } else {
-            "            role: None,\n".to_string()
-        };
+        // Generate capabilities array
+        let capabilities_array = generate_capabilities_array(&agent.capabilities);
 
         code.push_str(&format!(
             "    // {}\n",
@@ -540,19 +436,17 @@ fn generate_agents_code(agents: &[AgentData]) -> String {
             agent_name
         ));
         code.push_str(&format!(
+            "            type_name: \"{}\".to_string(),\n",
+            agent_type_name
+        ));
+        code.push_str(&format!(
             "            model: \"{}\".to_string(),\n",
             agent_model
         ));
         code.push_str(&format!(
-            "            description: \"{}\".to_string(),\n",
-            agent_desc
+            "            capabilities: vec![{}],\n",
+            capabilities_array
         ));
-        code.push_str(&format!(
-            "            tools: vec![{}],\n",
-            tools_array
-        ));
-        code.push_str(&type_field);
-        code.push_str(&role_field);
         code.push_str("        },\n");
         code.push_str("    );\n\n");
     }
@@ -610,16 +504,16 @@ fn escape_string(s: &str) -> String {
         .replace('\t', "\\t")
 }
 
-/// Generate Rust array of tool strings
-fn generate_tools_array(tools: &[String]) -> String {
-    if tools.is_empty() {
+/// Generate Rust array of capability strings
+fn generate_capabilities_array(capabilities: &[String]) -> String {
+    if capabilities.is_empty() {
         return String::new();
     }
 
-    let tool_strings: Vec<String> = tools
+    let capability_strings: Vec<String> = capabilities
         .iter()
-        .map(|t| format!("\"{}\".to_string()", escape_string(t)))
+        .map(|c| format!("\"{}\".to_string()", escape_string(c)))
         .collect();
 
-    tool_strings.join(", ")
+    capability_strings.join(", ")
 }
