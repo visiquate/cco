@@ -32,7 +32,7 @@ All agents work in parallel using Claude Code's Task tool with Knowledge Manager
 🚀 **DevOps Ready** - Automated builds, deployments, and infrastructure as code
 💾 **Persistent Memory** - Knowledge base survives conversation compactions
 💰 **Model Override** - Transparent cost optimization (73% savings via Sonnet→Haiku routing)
-🖥️ **Built-in Terminal** - Full PTY-based terminal emulation with WebSocket streaming
+📊 **Cost Monitoring** - Background daemon with TUI dashboard for real-time API cost tracking
 
 ## Quick Start
 
@@ -314,84 +314,17 @@ export ANTHROPIC_API_BASE_URL=http://localhost:3000/v1
 - **[Migration Guide](docs/MIGRATE_TO_MODEL_OVERRIDE.md)** - Enable overrides in existing deployments
 - **[API Documentation](docs/API.md)** - Integration and monitoring endpoints
 
-## Built-in Terminal System
+## Cost Monitoring System
 
-The Claude Orchestra includes a fully-functional PTY-based terminal emulator accessible through the web interface.
+Architected as a lightweight background daemon with a Terminal User Interface (TUI) dashboard for real-time API cost tracking.
 
-### Features
+### Future Features
 
-- **Real Shell Execution**: Runs genuine bash/sh processes (not simulated)
-- **WebSocket Streaming**: Real-time bidirectional communication
-- **Full Terminal Emulation**: ANSI colors, escape sequences, control characters
-- **Responsive**: 10ms polling for interactive terminal feel
-- **Secure**: Process isolation, non-blocking I/O, proper cleanup
-
-### Quick Start
-
-1. **Launch Server**
-   ```bash
-   cargo run --release
-   # Terminal available at: ws://127.0.0.1:8080/terminal
-   ```
-
-2. **Open in Browser**
-   - Navigate to `http://127.0.0.1:8080`
-   - Click Terminal tab or visit `/terminal`
-   - Start typing shell commands
-
-3. **Basic Commands**
-   ```bash
-   ls -la                    # List files
-   cd /path/to/dir          # Change directory
-   echo "hello world"        # Print text
-   cat file.txt             # View file contents
-   Ctrl+C                   # Interrupt command
-   Ctrl+D                   # Exit terminal
-   ```
-
-### Terminal Architecture
-
-```
-Browser (xterm.js)
-    ↓↑ WebSocket
-CCO Server (Axum)
-    ↓↑ PTY Master
-Kernel PTY Interface
-    ↓↑
-Shell Process (bash/sh)
-```
-
-### Documentation
-
-- **[Architecture Guide](docs/TERMINAL_ARCHITECTURE.md)** - System design, protocols, performance
-- **[User Guide](docs/TERMINAL_USER_GUIDE.md)** - Using the terminal, commands, keyboard shortcuts
-- **[Developer Guide](docs/TERMINAL_DEVELOPER_GUIDE.md)** - Extending features, debugging, testing
-- **[Implementation Guide](docs/TERMINAL_IMPLEMENTATION.md)** - Code structure, key functions, dependencies
-- **[API Reference](docs/TERMINAL_API_REFERENCE.md)** - WebSocket protocol, message formats, examples
-- **[Troubleshooting Guide](docs/TERMINAL_TROUBLESHOOTING.md)** - Common issues and solutions
-
-### Performance
-
-- **Memory per session**: ~100KB baseline
-- **Polling interval**: 10ms (100Hz response rate)
-- **Keep-alive**: 30s interval (detects stale connections)
-- **Typical latency**: 15-50ms round-trip (network dependent)
-- **Scalability**: Supports hundreds of concurrent sessions (file descriptor limited)
-
-### Security
-
-- Runs as current user (no privilege escalation)
-- Non-blocking I/O prevents DOS attacks
-- Session isolation via separate processes
-- Secure WebSocket recommended for production (WSS)
-- Process terminated on disconnect
-
-### Limitations
-
-- **Terminal Resize**: Logged but not fully implemented (future feature)
-- **Mouse Support**: Not currently implemented
-- **File Transfer**: Use curl/wget/scp (future native support planned)
-- **Multiple Terminals**: One terminal per connection (use tmux/screen for multiplexing)
+- **Real-Time Cost Monitor**: Live tracking of API costs as requests are made
+- **Cost Summary**: Aggregate costs, token counts, and per-model tier breakdowns
+- **Historical Tracking**: SQLite-based persistence for long-term metrics analysis
+- **Cross-Platform**: Native executables for macOS and Windows
+- **Self-Contained**: No external dependencies—single binary deployment
 
 ## Documentation
 
