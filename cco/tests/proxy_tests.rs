@@ -77,7 +77,7 @@ mod proxy_tests {
             temperature: f32,
             max_tokens: u32,
         ) -> String {
-            use sha2::{Sha256, Digest};
+            use sha2::{Digest, Sha256};
             use std::fmt::Write;
 
             let mut hasher = Sha256::new();
@@ -95,7 +95,11 @@ mod proxy_tests {
         }
 
         async fn handle_request(&self, request: ChatRequest) -> ChatResponse {
-            let prompt = request.messages.last().map(|m| m.content.clone()).unwrap_or_default();
+            let prompt = request
+                .messages
+                .last()
+                .map(|m| m.content.clone())
+                .unwrap_or_default();
             let cache_key = Self::generate_cache_key(
                 &request.model,
                 &prompt,
@@ -207,8 +211,15 @@ mod proxy_tests {
 
         // First request - cache miss
         let response1 = proxy.handle_request(request.clone()).await;
-        assert!(!response1.from_cache, "First request should be a cache miss");
-        assert_eq!(proxy.get_api_call_count().await, 1, "Should have made 1 API call");
+        assert!(
+            !response1.from_cache,
+            "First request should be a cache miss"
+        );
+        assert_eq!(
+            proxy.get_api_call_count().await,
+            1,
+            "Should have made 1 API call"
+        );
 
         // Second identical request - cache hit
         let response2 = proxy.handle_request(request.clone()).await;
@@ -219,7 +230,10 @@ mod proxy_tests {
             "Should still have only 1 API call (cache hit didn't trigger new call)"
         );
 
-        assert_eq!(response1.content, response2.content, "Response content should match");
+        assert_eq!(
+            response1.content, response2.content,
+            "Response content should match"
+        );
         assert_eq!(response1.input_tokens, response2.input_tokens);
         assert_eq!(response1.output_tokens, response2.output_tokens);
     }
@@ -240,8 +254,15 @@ mod proxy_tests {
 
         let response = proxy.handle_request(request).await;
 
-        assert!(!response.from_cache, "Cache miss should return from_cache=false");
-        assert_eq!(proxy.get_api_call_count().await, 1, "Should have made 1 API call");
+        assert!(
+            !response.from_cache,
+            "Cache miss should return from_cache=false"
+        );
+        assert_eq!(
+            proxy.get_api_call_count().await,
+            1,
+            "Should have made 1 API call"
+        );
     }
 
     #[tokio::test]
@@ -266,9 +287,16 @@ mod proxy_tests {
         let mut request2 = base_request.clone();
         request2.model = "claude-sonnet-3.5".to_string();
         let response2 = proxy.handle_request(request2).await;
-        assert!(!response2.from_cache, "Different model should trigger cache miss");
+        assert!(
+            !response2.from_cache,
+            "Different model should trigger cache miss"
+        );
 
-        assert_eq!(proxy.get_api_call_count().await, 2, "Should have made 2 API calls");
+        assert_eq!(
+            proxy.get_api_call_count().await,
+            2,
+            "Should have made 2 API calls"
+        );
     }
 
     // ========== REQUEST PARAMETER TESTS ==========
@@ -294,7 +322,10 @@ mod proxy_tests {
         let mut request2 = base_request;
         request2.temperature = Some(1.5);
         let response2 = proxy.handle_request(request2).await;
-        assert!(!response2.from_cache, "Different temperature should trigger cache miss");
+        assert!(
+            !response2.from_cache,
+            "Different temperature should trigger cache miss"
+        );
 
         assert_eq!(proxy.get_api_call_count().await, 2);
     }
@@ -320,7 +351,10 @@ mod proxy_tests {
         let mut request2 = base_request;
         request2.max_tokens = Some(4096);
         let response2 = proxy.handle_request(request2).await;
-        assert!(!response2.from_cache, "Different max_tokens should trigger cache miss");
+        assert!(
+            !response2.from_cache,
+            "Different max_tokens should trigger cache miss"
+        );
 
         assert_eq!(proxy.get_api_call_count().await, 2);
     }
@@ -346,7 +380,10 @@ mod proxy_tests {
         let mut request2 = base_request;
         request2.messages[0].content = "Question 2".to_string();
         let response2 = proxy.handle_request(request2).await;
-        assert!(!response2.from_cache, "Different prompt should trigger cache miss");
+        assert!(
+            !response2.from_cache,
+            "Different prompt should trigger cache miss"
+        );
 
         assert_eq!(proxy.get_api_call_count().await, 2);
     }
@@ -393,7 +430,11 @@ mod proxy_tests {
         let resp2b = proxy.handle_request(request2.clone()).await;
         assert!(resp2b.from_cache);
 
-        assert_eq!(proxy.get_api_call_count().await, 2, "Should have made 2 API calls total");
+        assert_eq!(
+            proxy.get_api_call_count().await,
+            2,
+            "Should have made 2 API calls total"
+        );
     }
 
     #[tokio::test]
@@ -446,8 +487,14 @@ mod proxy_tests {
         assert!(!response.id.is_empty(), "Response should have ID");
         assert_eq!(response.model, "claude-opus-4");
         assert!(!response.content.is_empty(), "Response should have content");
-        assert!(response.input_tokens > 0, "Response should have input tokens");
-        assert!(response.output_tokens > 0, "Response should have output tokens");
+        assert!(
+            response.input_tokens > 0,
+            "Response should have input tokens"
+        );
+        assert!(
+            response.output_tokens > 0,
+            "Response should have output tokens"
+        );
     }
 
     #[tokio::test]
@@ -513,7 +560,10 @@ mod proxy_tests {
 
         // 100 requests with 25 unique questions = ~25 unique cache keys
         let api_calls = proxy.get_api_call_count().await;
-        assert!(api_calls <= 100, "API call count should not exceed request count");
+        assert!(
+            api_calls <= 100,
+            "API call count should not exceed request count"
+        );
         assert!(api_calls >= 20, "Should have at least 20 API calls");
     }
 

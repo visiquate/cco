@@ -31,6 +31,8 @@ All agents work in parallel using Claude Code's Task tool with Knowledge Manager
 📚 **Auto Documentation** - Parallel documentation generation as code is written
 🚀 **DevOps Ready** - Automated builds, deployments, and infrastructure as code
 💾 **Persistent Memory** - Knowledge base survives conversation compactions
+💰 **Model Override** - Transparent cost optimization (73% savings via Sonnet→Haiku routing)
+🖥️ **Built-in Terminal** - Full PTY-based terminal emulation with WebSocket streaming
 
 ## Quick Start
 
@@ -286,6 +288,110 @@ node ~/git/cc-orchestra/src/knowledge-manager.js store "Task complete: [task]" -
 - **Speed**: 2.8-4.4x faster than sequential
 - **Token Reduction**: ~32% with Knowledge Manager
 - **Coordination Overhead**: Minimal with built-in coordination
+
+## Model Override Feature
+
+Save 73% on LLM costs with transparent model rewriting:
+
+```bash
+# Enable cost optimization (Sonnet → Haiku routing)
+export ANTHROPIC_API_BASE_URL=http://localhost:3000/v1
+./cco run --port 3000
+
+# Claude Code continues to work normally, but pays Haiku prices!
+```
+
+**Cost Savings Example:**
+- Small team (5 agents, 50 runs/month): Save **$26/month** ($318/year)
+- Medium team (10 agents, 300 runs/month): Save **$693/month** ($8,316/year)
+- Large deployment (50 agents, 1000 runs/month): Save **$6,476/month** ($77,712/year)
+
+**Documentation:**
+- **[User Guide](docs/MODEL_OVERRIDE_USER_GUIDE.md)** - How to use model overrides
+- **[Operator Guide](docs/MODEL_OVERRIDE_OPERATOR_GUIDE.md)** - Deploy and manage in production
+- **[Configuration Reference](docs/MODEL_OVERRIDE_CONFIG_REFERENCE.md)** - All configuration options
+- **[Cost Analysis](docs/COST_ANALYSIS.md)** - Detailed cost calculations and ROI
+- **[Migration Guide](docs/MIGRATE_TO_MODEL_OVERRIDE.md)** - Enable overrides in existing deployments
+- **[API Documentation](docs/API.md)** - Integration and monitoring endpoints
+
+## Built-in Terminal System
+
+The Claude Orchestra includes a fully-functional PTY-based terminal emulator accessible through the web interface.
+
+### Features
+
+- **Real Shell Execution**: Runs genuine bash/sh processes (not simulated)
+- **WebSocket Streaming**: Real-time bidirectional communication
+- **Full Terminal Emulation**: ANSI colors, escape sequences, control characters
+- **Responsive**: 10ms polling for interactive terminal feel
+- **Secure**: Process isolation, non-blocking I/O, proper cleanup
+
+### Quick Start
+
+1. **Launch Server**
+   ```bash
+   cargo run --release
+   # Terminal available at: ws://127.0.0.1:8080/terminal
+   ```
+
+2. **Open in Browser**
+   - Navigate to `http://127.0.0.1:8080`
+   - Click Terminal tab or visit `/terminal`
+   - Start typing shell commands
+
+3. **Basic Commands**
+   ```bash
+   ls -la                    # List files
+   cd /path/to/dir          # Change directory
+   echo "hello world"        # Print text
+   cat file.txt             # View file contents
+   Ctrl+C                   # Interrupt command
+   Ctrl+D                   # Exit terminal
+   ```
+
+### Terminal Architecture
+
+```
+Browser (xterm.js)
+    ↓↑ WebSocket
+CCO Server (Axum)
+    ↓↑ PTY Master
+Kernel PTY Interface
+    ↓↑
+Shell Process (bash/sh)
+```
+
+### Documentation
+
+- **[Architecture Guide](docs/TERMINAL_ARCHITECTURE.md)** - System design, protocols, performance
+- **[User Guide](docs/TERMINAL_USER_GUIDE.md)** - Using the terminal, commands, keyboard shortcuts
+- **[Developer Guide](docs/TERMINAL_DEVELOPER_GUIDE.md)** - Extending features, debugging, testing
+- **[Implementation Guide](docs/TERMINAL_IMPLEMENTATION.md)** - Code structure, key functions, dependencies
+- **[API Reference](docs/TERMINAL_API_REFERENCE.md)** - WebSocket protocol, message formats, examples
+- **[Troubleshooting Guide](docs/TERMINAL_TROUBLESHOOTING.md)** - Common issues and solutions
+
+### Performance
+
+- **Memory per session**: ~100KB baseline
+- **Polling interval**: 10ms (100Hz response rate)
+- **Keep-alive**: 30s interval (detects stale connections)
+- **Typical latency**: 15-50ms round-trip (network dependent)
+- **Scalability**: Supports hundreds of concurrent sessions (file descriptor limited)
+
+### Security
+
+- Runs as current user (no privilege escalation)
+- Non-blocking I/O prevents DOS attacks
+- Session isolation via separate processes
+- Secure WebSocket recommended for production (WSS)
+- Process terminated on disconnect
+
+### Limitations
+
+- **Terminal Resize**: Logged but not fully implemented (future feature)
+- **Mouse Support**: Not currently implemented
+- **File Transfer**: Use curl/wget/scp (future native support planned)
+- **Multiple Terminals**: One terminal per connection (use tmux/screen for multiplexing)
 
 ## Documentation
 

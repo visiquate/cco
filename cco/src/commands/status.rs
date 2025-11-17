@@ -30,14 +30,12 @@ pub struct InstanceInfo {
 
 /// Get the PID directory path
 pub fn get_pid_dir() -> Result<PathBuf> {
-    let data_dir = data_local_dir()
-        .context("Failed to get local data directory")?;
+    let data_dir = data_local_dir().context("Failed to get local data directory")?;
 
     let pid_dir = data_dir.join("cco").join("pids");
 
     // Create directory if it doesn't exist
-    fs::create_dir_all(&pid_dir)
-        .context("Failed to create PID directory")?;
+    fs::create_dir_all(&pid_dir).context("Failed to create PID directory")?;
 
     Ok(pid_dir)
 }
@@ -50,11 +48,9 @@ pub fn get_pid_file(port: u16) -> Result<PathBuf> {
 
 /// Read a PID file
 pub fn read_pid_file(path: &PathBuf) -> Result<PidInfo> {
-    let contents = fs::read_to_string(path)
-        .context("Failed to read PID file")?;
+    let contents = fs::read_to_string(path).context("Failed to read PID file")?;
 
-    let pid_info: PidInfo = serde_json::from_str(&contents)
-        .context("Failed to parse PID file")?;
+    let pid_info: PidInfo = serde_json::from_str(&contents).context("Failed to parse PID file")?;
 
     Ok(pid_info)
 }
@@ -69,8 +65,7 @@ pub fn is_process_running(pid: u32) -> bool {
 
 /// Clean up stale PID file
 pub fn cleanup_stale_pid_file(path: &PathBuf) -> Result<()> {
-    fs::remove_file(path)
-        .context("Failed to remove stale PID file")?;
+    fs::remove_file(path).context("Failed to remove stale PID file")?;
     Ok(())
 }
 
@@ -80,8 +75,7 @@ pub fn get_all_instances() -> Result<Vec<InstanceInfo>> {
     let mut instances = Vec::new();
 
     // Read all PID files
-    let entries = fs::read_dir(&pid_dir)
-        .context("Failed to read PID directory")?;
+    let entries = fs::read_dir(&pid_dir).context("Failed to read PID directory")?;
 
     for entry in entries {
         let entry = entry.context("Failed to read directory entry")?;
@@ -153,8 +147,10 @@ pub async fn run() -> Result<()> {
     }
 
     // Display header
-    println!("\n{:<8} {:<8} {:<12} {:<30} {:<15} {:<10}",
-             "PID", "PORT", "UPTIME", "DASHBOARD", "VERSION", "STATUS");
+    println!(
+        "\n{:<8} {:<8} {:<12} {:<30} {:<15} {:<10}",
+        "PID", "PORT", "UPTIME", "DASHBOARD", "VERSION", "STATUS"
+    );
     println!("{}", "-".repeat(95));
 
     // Display instances
@@ -165,13 +161,15 @@ pub async fn run() -> Result<()> {
             "stopped"
         };
 
-        println!("{:<8} {:<8} {:<12} {:<30} {:<15} {:<10}",
-                 instance.pid,
-                 instance.port,
-                 instance.uptime,
-                 instance.dashboard_url,
-                 instance.version,
-                 status);
+        println!(
+            "{:<8} {:<8} {:<12} {:<30} {:<15} {:<10}",
+            instance.pid,
+            instance.port,
+            instance.uptime,
+            instance.dashboard_url,
+            instance.version,
+            status
+        );
     }
 
     println!();

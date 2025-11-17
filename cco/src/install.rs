@@ -3,7 +3,7 @@
 //! Handles self-installation of the CCO binary to ~/.local/bin/
 //! and updates shell rc files for PATH configuration.
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use std::env;
 use std::fs;
 use std::io::Write;
@@ -12,8 +12,8 @@ use std::path::{Path, PathBuf};
 
 /// Detect the user's current shell
 fn detect_shell() -> Result<String> {
-    let shell = env::var("SHELL")
-        .context("Could not detect shell from $SHELL environment variable")?;
+    let shell =
+        env::var("SHELL").context("Could not detect shell from $SHELL environment variable")?;
 
     let shell_name = Path::new(&shell)
         .file_name()
@@ -26,8 +26,7 @@ fn detect_shell() -> Result<String> {
 
 /// Get the appropriate shell RC file path
 fn get_shell_rc_path(shell: &str) -> Result<PathBuf> {
-    let home = dirs::home_dir()
-        .ok_or_else(|| anyhow!("Could not determine home directory"))?;
+    let home = dirs::home_dir().ok_or_else(|| anyhow!("Could not determine home directory"))?;
 
     let rc_file = match shell {
         "zsh" => home.join(".zshrc"),
@@ -77,7 +76,7 @@ fn update_shell_rc(shell: &str) -> Result<()> {
     let path_exports = vec![
         r#"export PATH="$HOME/.local/bin:$PATH""#,
         r#"export PATH="~/.local/bin:$PATH""#,
-        "set -gx PATH $HOME/.local/bin $PATH",  // fish syntax
+        "set -gx PATH $HOME/.local/bin $PATH", // fish syntax
     ];
 
     for export in &path_exports {
@@ -111,19 +110,16 @@ pub async fn run(force: bool) -> Result<()> {
     println!("→ Installing CCO v{}...", env!("CARGO_PKG_VERSION"));
 
     // Get the current executable path
-    let current_exe = env::current_exe()
-        .context("Could not determine current executable path")?;
+    let current_exe = env::current_exe().context("Could not determine current executable path")?;
 
     // Determine installation directory
-    let home = dirs::home_dir()
-        .ok_or_else(|| anyhow!("Could not determine home directory"))?;
+    let home = dirs::home_dir().ok_or_else(|| anyhow!("Could not determine home directory"))?;
     let install_dir = home.join(".local/bin");
     let install_path = install_dir.join("cco");
 
     // Create installation directory
     println!("→ Creating {}/", install_dir.display());
-    fs::create_dir_all(&install_dir)
-        .context("Could not create installation directory")?;
+    fs::create_dir_all(&install_dir).context("Could not create installation directory")?;
 
     // Check if binary already exists
     if install_path.exists() && !force {
@@ -163,7 +159,10 @@ pub async fn run(force: bool) -> Result<()> {
                         println!("\nVerify with: cco version");
                     }
                     Err(e) => {
-                        println!("\n⚠️  Could not automatically update shell configuration: {}", e);
+                        println!(
+                            "\n⚠️  Could not automatically update shell configuration: {}",
+                            e
+                        );
                         println!("\nManually add this to your shell RC file:");
                         println!(r#"  export PATH="$HOME/.local/bin:$PATH""#);
                     }

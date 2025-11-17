@@ -3,7 +3,7 @@
 //! Handles background checking for updates and notifying users.
 
 use anyhow::Result;
-use chrono::{DateTime, Utc, Duration};
+use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -169,9 +169,7 @@ async fn check_for_updates_internal() -> Result<()> {
         .timeout(std::time::Duration::from_secs(10))
         .build()?;
 
-    let url = format!(
-        "https://api.github.com/repos/brentley/cco-releases/releases/latest"
-    );
+    let url = format!("https://api.github.com/repos/brentley/cco-releases/releases/latest");
 
     let response = client
         .get(&url)
@@ -198,10 +196,16 @@ async fn check_for_updates_internal() -> Result<()> {
         // Update available
         if config.updates.auto_install {
             // TODO: Implement silent auto-install
-            println!("ℹ️  Auto-installing CCO {} in background...", release.tag_name);
+            println!(
+                "ℹ️  Auto-installing CCO {} in background...",
+                release.tag_name
+            );
         } else {
             // Notify user
-            println!("ℹ️  New version available: {} (current: v{})", release.tag_name, current_version);
+            println!(
+                "ℹ️  New version available: {} (current: v{})",
+                release.tag_name, current_version
+            );
             println!("   Run 'cco update' to upgrade");
         }
     }
@@ -220,13 +224,19 @@ pub fn show_config() -> Result<()> {
     println!("  Channel: {}", config.updates.channel);
 
     if let Some(last_check) = config.updates.last_check {
-        println!("  Last check: {}", last_check.format("%Y-%m-%d %H:%M:%S UTC"));
+        println!(
+            "  Last check: {}",
+            last_check.format("%Y-%m-%d %H:%M:%S UTC")
+        );
     } else {
         println!("  Last check: Never");
     }
 
     if let Some(last_update) = config.updates.last_update {
-        println!("  Last update: {}", last_update.format("%Y-%m-%d %H:%M:%S UTC"));
+        println!(
+            "  Last update: {}",
+            last_update.format("%Y-%m-%d %H:%M:%S UTC")
+        );
     } else {
         println!("  Last update: Never");
     }
@@ -240,22 +250,30 @@ pub fn set_config(key: &str, value: &str) -> Result<()> {
 
     match key {
         "updates.enabled" => {
-            config.updates.enabled = value.parse()
+            config.updates.enabled = value
+                .parse()
                 .map_err(|_| anyhow::anyhow!("Invalid boolean value: {}", value))?;
         }
         "updates.auto_install" => {
-            config.updates.auto_install = value.parse()
+            config.updates.auto_install = value
+                .parse()
                 .map_err(|_| anyhow::anyhow!("Invalid boolean value: {}", value))?;
         }
         "updates.check_interval" => {
             if !["daily", "weekly", "never"].contains(&value) {
-                return Err(anyhow::anyhow!("Invalid interval: {}. Use: daily, weekly, never", value));
+                return Err(anyhow::anyhow!(
+                    "Invalid interval: {}. Use: daily, weekly, never",
+                    value
+                ));
             }
             config.updates.check_interval = value.to_string();
         }
         "updates.channel" => {
             if !["stable", "beta"].contains(&value) {
-                return Err(anyhow::anyhow!("Invalid channel: {}. Use: stable, beta", value));
+                return Err(anyhow::anyhow!(
+                    "Invalid channel: {}. Use: stable, beta",
+                    value
+                ));
             }
             config.updates.channel = value.to_string();
         }

@@ -175,10 +175,8 @@ mod router_tests {
             self.pricing.get(model).map(|pricing| {
                 let cache_read_cost =
                     (cached_tokens as f64 / 1_000_000.0) * pricing.cache_read_cost;
-                let new_input_cost =
-                    (new_tokens as f64 / 1_000_000.0) * pricing.input_cost;
-                let output_cost =
-                    (output_tokens as f64 / 1_000_000.0) * pricing.output_cost;
+                let new_input_cost = (new_tokens as f64 / 1_000_000.0) * pricing.input_cost;
+                let output_cost = (output_tokens as f64 / 1_000_000.0) * pricing.output_cost;
                 cache_read_cost + new_input_cost + output_cost
             })
         }
@@ -273,8 +271,7 @@ mod router_tests {
         let route = router.find_route("claude-opus-4").unwrap();
 
         assert_eq!(
-            route.endpoint,
-            "https://api.anthropic.com/v1",
+            route.endpoint, "https://api.anthropic.com/v1",
             "Anthropic endpoint should be https://api.anthropic.com/v1"
         );
     }
@@ -285,8 +282,7 @@ mod router_tests {
         let route = router.find_route("gpt-4").unwrap();
 
         assert_eq!(
-            route.endpoint,
-            "https://api.openai.com/v1",
+            route.endpoint, "https://api.openai.com/v1",
             "OpenAI endpoint should be https://api.openai.com/v1"
         );
     }
@@ -297,8 +293,7 @@ mod router_tests {
         let route = router.find_route("ollama/llama3-70b").unwrap();
 
         assert_eq!(
-            route.endpoint,
-            "http://localhost:11434",
+            route.endpoint, "http://localhost:11434",
             "Ollama endpoint should be http://localhost:11434"
         );
     }
@@ -313,7 +308,11 @@ mod router_tests {
         assert!(cost.is_some());
         let cost_value = cost.unwrap();
         // 1M input tokens * $15/M + 500K output tokens * $75/M = $15 + $37.50 = $52.50
-        assert!((cost_value - 52.5).abs() < 0.01, "Cost should be $52.50, got ${}", cost_value);
+        assert!(
+            (cost_value - 52.5).abs() < 0.01,
+            "Cost should be $52.50, got ${}",
+            cost_value
+        );
     }
 
     #[test]
@@ -324,7 +323,11 @@ mod router_tests {
         assert!(cost.is_some());
         let cost_value = cost.unwrap();
         // 1M input tokens * $3/M + 500K output tokens * $15/M = $3 + $7.50 = $10.50
-        assert!((cost_value - 10.5).abs() < 0.01, "Cost should be $10.50, got ${}", cost_value);
+        assert!(
+            (cost_value - 10.5).abs() < 0.01,
+            "Cost should be $10.50, got ${}",
+            cost_value
+        );
     }
 
     #[test]
@@ -335,7 +338,11 @@ mod router_tests {
         assert!(cost.is_some());
         let cost_value = cost.unwrap();
         // 1M input tokens * $30/M + 500K output tokens * $60/M = $30 + $30 = $60
-        assert!((cost_value - 60.0).abs() < 0.01, "Cost should be $60.00, got ${}", cost_value);
+        assert!(
+            (cost_value - 60.0).abs() < 0.01,
+            "Cost should be $60.00, got ${}",
+            cost_value
+        );
     }
 
     #[test]
@@ -356,8 +363,14 @@ mod router_tests {
         assert!(cost.is_some());
         let cost_value = cost.unwrap();
         // 100 input tokens * $15/M + 50 output tokens * $75/M = $0.00525
-        assert!(cost_value > 0.0, "Small token count should still cost something");
-        assert!(cost_value < 0.01, "Small token count should cost very little");
+        assert!(
+            cost_value > 0.0,
+            "Small token count should still cost something"
+        );
+        assert!(
+            cost_value < 0.01,
+            "Small token count should cost very little"
+        );
         assert!((cost_value - 0.00525).abs() < 0.00001);
     }
 
@@ -372,8 +385,14 @@ mod router_tests {
         let (actual_cost, would_be_cost, savings_amount) = savings.unwrap();
 
         assert_eq!(actual_cost, 0.0, "Proxy cache hit should cost $0");
-        assert!((would_be_cost - 52.5).abs() < 0.01, "Would-be cost should be $52.50");
-        assert!((savings_amount - 52.5).abs() < 0.01, "Savings should be $52.50");
+        assert!(
+            (would_be_cost - 52.5).abs() < 0.01,
+            "Would-be cost should be $52.50"
+        );
+        assert!(
+            (savings_amount - 52.5).abs() < 0.01,
+            "Savings should be $52.50"
+        );
     }
 
     #[test]
@@ -385,8 +404,14 @@ mod router_tests {
         let (actual_cost, would_be_cost, savings_amount) = savings.unwrap();
 
         assert_eq!(actual_cost, 0.0);
-        assert!((would_be_cost - 10.5).abs() < 0.01, "Would-be cost should be $10.50");
-        assert!((savings_amount - 10.5).abs() < 0.01, "Savings should be $10.50");
+        assert!(
+            (would_be_cost - 10.5).abs() < 0.01,
+            "Would-be cost should be $10.50"
+        );
+        assert!(
+            (savings_amount - 10.5).abs() < 0.01,
+            "Savings should be $10.50"
+        );
     }
 
     // ========== CLAUDE PROMPT CACHE TESTS ==========
@@ -483,7 +508,10 @@ mod router_tests {
 
         assert_eq!(ollama_cost, 0.0, "Ollama should be free");
         assert!((claude_cost - 52.5).abs() < 0.01);
-        assert!((savings - 52.5).abs() < 0.01, "Savings should be 100% of Claude cost");
+        assert!(
+            (savings - 52.5).abs() < 0.01,
+            "Savings should be 100% of Claude cost"
+        );
     }
 
     #[test]
@@ -509,9 +537,7 @@ mod router_tests {
     fn test_self_hosted_vs_openai_savings() {
         let router = MockRouter::new();
 
-        let openai_cost = router
-            .calculate_cost("gpt-4", 1_000_000, 500_000)
-            .unwrap();
+        let openai_cost = router.calculate_cost("gpt-4", 1_000_000, 500_000).unwrap();
 
         let ollama_cost = router
             .calculate_cost("ollama/llama3-70b", 1_000_000, 500_000)
@@ -546,7 +572,10 @@ mod router_tests {
         // 3000 requests * 1M tokens = 3B input tokens
         // 3000 requests * 0.5M tokens = 1.5B output tokens
         // 3B * $15/M + 1.5B * $75/M = $45K + $112.5K = $157.5K
-        assert!((cost - 157_500.0).abs() < 100.0, "Monthly cost should be ~$157.5K");
+        assert!(
+            (cost - 157_500.0).abs() < 100.0,
+            "Monthly cost should be ~$157.5K"
+        );
     }
 
     #[test]

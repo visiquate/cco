@@ -20,6 +20,12 @@ pub struct Agent {
     pub description: String,
     /// List of tools available to this agent
     pub tools: Vec<String>,
+    /// Agent type/role (e.g., "tdd-coding-agent", "python-specialist") - optional
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub r#type: Option<String>,
+    /// Agent role description (e.g., "Test-driven development specialist") - optional
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub role: Option<String>,
 }
 
 /// Container for all loaded agent configurations
@@ -74,6 +80,8 @@ struct FrontmatterData {
     model: Option<String>,
     description: Option<String>,
     tools: Option<String>, // Will be parsed as comma-separated
+    r#type: Option<String>,
+    role: Option<String>,
 }
 
 /// Parse YAML frontmatter from a markdown file
@@ -99,6 +107,8 @@ fn parse_frontmatter(content: &str) -> Option<FrontmatterData> {
         model: None,
         description: None,
         tools: None,
+        r#type: None,
+        role: None,
     };
 
     for line in yaml_content.lines() {
@@ -128,6 +138,8 @@ fn parse_frontmatter(content: &str) -> Option<FrontmatterData> {
                 "model" => data.model = Some(value.to_string()),
                 "description" => data.description = Some(value.to_string()),
                 "tools" => data.tools = Some(value.to_string()),
+                "type" => data.r#type = Some(value.to_string()),
+                "role" => data.role = Some(value.to_string()),
                 _ => {}
             }
         }
@@ -175,6 +187,8 @@ fn load_agent_from_file(path: &PathBuf) -> Option<Agent> {
         model,
         description,
         tools,
+        r#type: frontmatter.r#type,
+        role: frontmatter.role,
     })
 }
 
@@ -316,6 +330,8 @@ tools: Read, Write, Edit
             model: "sonnet".to_string(),
             description: "Test agent".to_string(),
             tools: vec!["Read".to_string(), "Write".to_string()],
+            r#type: None,
+            role: None,
         };
 
         config.agents.insert("test".to_string(), agent.clone());

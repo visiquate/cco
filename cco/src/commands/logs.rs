@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use dirs::data_local_dir;
 use flate2::read::GzDecoder;
 use std::fs::{self, File};
-use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom};
+use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -13,14 +13,12 @@ use super::status::get_all_instances;
 
 /// Get the logs directory path
 pub fn get_logs_dir() -> Result<PathBuf> {
-    let data_dir = data_local_dir()
-        .context("Failed to get local data directory")?;
+    let data_dir = data_local_dir().context("Failed to get local data directory")?;
 
     let logs_dir = data_dir.join("cco").join("logs");
 
     // Create directory if it doesn't exist
-    fs::create_dir_all(&logs_dir)
-        .context("Failed to create logs directory")?;
+    fs::create_dir_all(&logs_dir).context("Failed to create logs directory")?;
 
     Ok(logs_dir)
 }
@@ -75,8 +73,7 @@ fn read_last_lines(file: &mut File, num_lines: usize) -> Result<Vec<String>> {
 
 /// Read a gzipped log file
 fn read_gz_file(path: &PathBuf) -> Result<Vec<String>> {
-    let file = File::open(path)
-        .context("Failed to open gzipped log file")?;
+    let file = File::open(path).context("Failed to open gzipped log file")?;
 
     let decoder = GzDecoder::new(file);
     let reader = BufReader::new(decoder);
@@ -105,10 +102,12 @@ pub async fn show_logs(port: u16, follow: bool, num_lines: usize) -> Result<()> 
 /// Show static logs (last N lines)
 fn show_static_logs(log_file_path: &PathBuf, num_lines: usize) -> Result<()> {
     // Check for rotated logs (*.log.gz files)
-    let logs_dir = log_file_path.parent()
+    let logs_dir = log_file_path
+        .parent()
         .context("Failed to get logs directory")?;
 
-    let file_name = log_file_path.file_name()
+    let file_name = log_file_path
+        .file_name()
         .and_then(|s| s.to_str())
         .context("Failed to get log file name")?;
 
@@ -118,9 +117,7 @@ fn show_static_logs(log_file_path: &PathBuf, num_lines: usize) -> Result<()> {
     if let Ok(entries) = fs::read_dir(logs_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            let name = path.file_name()
-                .and_then(|s| s.to_str())
-                .unwrap_or("");
+            let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
 
             if name.starts_with(file_name) {
                 log_files.push(path);
@@ -167,8 +164,7 @@ fn show_static_logs(log_file_path: &PathBuf, num_lines: usize) -> Result<()> {
 
 /// Follow logs (tail -f behavior)
 async fn follow_logs(log_file_path: &PathBuf) -> Result<()> {
-    let mut file = File::open(log_file_path)
-        .context("Failed to open log file")?;
+    let mut file = File::open(log_file_path).context("Failed to open log file")?;
 
     // Seek to end of file
     file.seek(SeekFrom::End(0))?;
@@ -209,9 +205,7 @@ pub async fn logs_interactive(follow: bool, num_lines: usize) -> Result<()> {
         return Ok(());
     }
 
-    let running_instances: Vec<_> = instances.into_iter()
-        .filter(|i| i.is_running)
-        .collect();
+    let running_instances: Vec<_> = instances.into_iter().filter(|i| i.is_running).collect();
 
     if running_instances.is_empty() {
         println!("No CCO instances running");
@@ -229,11 +223,13 @@ pub async fn logs_interactive(follow: bool, num_lines: usize) -> Result<()> {
     println!();
 
     for (idx, instance) in running_instances.iter().enumerate() {
-        println!("  {}. Port {} (PID {}) - {}",
-                 idx + 1,
-                 instance.port,
-                 instance.pid,
-                 instance.dashboard_url);
+        println!(
+            "  {}. Port {} (PID {}) - {}",
+            idx + 1,
+            instance.port,
+            instance.pid,
+            instance.dashboard_url
+        );
     }
 
     println!();

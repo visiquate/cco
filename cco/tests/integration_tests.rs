@@ -46,10 +46,19 @@ mod integration_tests {
     impl ModelRouter {
         fn new() -> Self {
             let mut models = HashMap::new();
-            models.insert("claude-opus-4".to_string(), "https://api.anthropic.com".to_string());
-            models.insert("claude-sonnet-3.5".to_string(), "https://api.anthropic.com".to_string());
+            models.insert(
+                "claude-opus-4".to_string(),
+                "https://api.anthropic.com".to_string(),
+            );
+            models.insert(
+                "claude-sonnet-3.5".to_string(),
+                "https://api.anthropic.com".to_string(),
+            );
             models.insert("gpt-4".to_string(), "https://api.openai.com".to_string());
-            models.insert("ollama/llama3".to_string(), "http://localhost:11434".to_string());
+            models.insert(
+                "ollama/llama3".to_string(),
+                "http://localhost:11434".to_string(),
+            );
 
             Self { models }
         }
@@ -69,7 +78,7 @@ mod integration_tests {
         }
 
         fn generate_cache_key(model: &str, prompt: &str) -> String {
-            use sha2::{Sha256, Digest};
+            use sha2::{Digest, Sha256};
             use std::fmt::Write;
 
             let mut hasher = Sha256::new();
@@ -346,8 +355,15 @@ mod integration_tests {
         let env = CCOTestEnvironment::new().await;
 
         for i in 0..5 {
-            env.process_request("claude-opus-4", &format!("prompt {}", i), 1000, 500, 15.0, 75.0)
-                .await;
+            env.process_request(
+                "claude-opus-4",
+                &format!("prompt {}", i),
+                1000,
+                500,
+                15.0,
+                75.0,
+            )
+            .await;
         }
 
         assert_eq!(env.get_total_requests().await, 5);
@@ -450,7 +466,11 @@ mod integration_tests {
             .await;
 
         assert!(!result.success);
-        assert_eq!(env.get_total_requests().await, 0, "Failed request should not be logged");
+        assert_eq!(
+            env.get_total_requests().await,
+            0,
+            "Failed request should not be logged"
+        );
     }
 
     // ========== CONCURRENT REQUEST HANDLING ==========

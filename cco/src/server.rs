@@ -5,13 +5,19 @@ use crate::analytics::{AnalyticsEngine, ApiCallRecord, ActivityEvent};
 use crate::cache::MokaCache;
 use crate::proxy::{ChatRequest, ChatResponse, ProxyServer};
 use crate::router::ModelRouter;
+use crate::security::{
+    localhost_only_middleware, validate_message_size, validate_terminal_dimensions,
+    validate_utf8, ConnectionTracker,
+};
+use crate::terminal::TerminalSession;
 use crate::version::DateVersion;
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
-        Json, State, Path as AxumPath,
+        ConnectInfo, Json, State, Path as AxumPath,
     },
     http::{header, StatusCode},
+    middleware,
     response::{
         sse::{Event, KeepAlive, Sse},
         Html, IntoResponse, Response,
@@ -30,8 +36,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::net::TcpListener;
+use tokio::sync::Mutex;
+use tokio::time::{interval, Duration};
 use tower_http::cors::CorsLayer;
-use tracing::info;
+use tracing::{trace, error, info, warn};
 
 /// Agent configuration from orchestration config
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -52,6 +60,7 @@ pub struct ServerState {
     pub model_overrides: Arc<HashMap<String, String>>,
     pub agent_models: Arc<HashMap<String, String>>, // agent type -> configured model
     pub agents: Arc<AgentsConfig>,                   // agent definitions from ~/.claude/agents/
+    pub connection_tracker: ConnectionTracker,       // connection tracking for rate limiting
 }
 
 /// PID file metadata structure
@@ -886,106 +895,519 @@ async fn stream(
     Sse::new(stream).keep_alive(KeepAlive::default())
 }
 
-/// WebSocket terminal endpoint handler
-async fn terminal_handler(ws: WebSocketUpgrade, State(state): State<Arc<ServerState>>) -> Response {
-    ws.on_upgrade(move |socket| handle_terminal_socket(socket, state))
-}
+/// WebSocket terminal endpoint handler with security
+async fn terminal_handler(
+    ws: WebSocketUpgrade,
+    State(state): State<Arc<ServerState>>,
+    ConnectInfo(addr): ConnectInfo<std::net::SocketAddr>,
+) -> Response {
+    let ip = addr.ip();
 
-/// Handle WebSocket terminal connection
-async fn handle_terminal_socket(socket: WebSocket, _state: Arc<ServerState>) {
-    use futures::{SinkExt, StreamExt};
+    trace!(
+        ip = %ip,
+        remote_addr = %addr,
+        "WebSocket upgrade request received for terminal"
+    );
 
-    let (mut sender, mut receiver) = socket.split();
-
-    // Send welcome message
-    let welcome_msg = r#"{
-        "type": "output",
-        "data": "CCO Terminal v2025.11.2\nType 'help' for available commands.\n\n$ "
-    }"#;
-
-    if sender
-        .send(Message::Text(welcome_msg.to_string()))
-        .await
-        .is_err()
-    {
-        return;
+    // Check connection limit for this IP
+    if !state.connection_tracker.try_acquire(ip).await {
+        let current_count = state.connection_tracker.get_count(ip).await;
+        warn!(
+            ip = %ip,
+            current_connections = current_count,
+            max_allowed = 10,
+            "Terminal connection rejected: too many concurrent connections"
+        );
+        return (
+            StatusCode::TOO_MANY_REQUESTS,
+            "Too many concurrent connections from this IP",
+        )
+            .into_response();
     }
 
-    // Handle incoming messages
-    while let Some(msg) = StreamExt::next(&mut receiver).await {
-        match msg {
-            Ok(Message::Text(text)) => {
-                // Parse command from JSON
-                if let Ok(cmd_json) = serde_json::from_str::<serde_json::Value>(&text) {
-                    if let Some(command) = cmd_json.get("command").and_then(|v| v.as_str()) {
-                        let response = execute_command(command).await;
+    trace!(
+        ip = %ip,
+        "Connection slot acquired for terminal"
+    );
 
-                        let response_json = serde_json::json!({
-                            "type": "output",
-                            "data": response
-                        });
+    info!(
+        ip = %ip,
+        "Terminal connection accepted, initiating WebSocket upgrade"
+    );
 
-                        if let Ok(json_str) = serde_json::to_string(&response_json) {
-                            if sender.send(Message::Text(json_str)).await.is_err() {
+    // Clone state and IP for the socket handler
+    let state_clone = state.clone();
+    let ip_clone = ip;
+
+    ws.on_upgrade(move |socket| async move {
+        trace!(
+            ip = %ip_clone,
+            "WebSocket upgrade complete (101 Switching Protocols)"
+        );
+        handle_terminal_socket(socket, state_clone.clone(), ip_clone).await;
+        // Release connection when socket closes
+        state_clone.connection_tracker.release(ip_clone).await;
+    })
+}
+
+/// Handle WebSocket terminal connection with real PTY and security validation
+async fn handle_terminal_socket(
+    socket: WebSocket,
+    _state: Arc<ServerState>,
+    ip: std::net::IpAddr,
+) {
+    use futures::{SinkExt, StreamExt};
+
+    // Security constants
+    const MAX_MESSAGE_SIZE: usize = 64 * 1024; // 64KB
+    const IDLE_TIMEOUT: Duration = Duration::from_secs(5 * 60); // 5 minutes
+
+    trace!(
+        ip = %ip,
+        "Entering WebSocket handler for terminal connection"
+    );
+
+    // Spawn a real shell session
+    let session = match TerminalSession::spawn_shell() {
+        Ok(s) => s,
+        Err(e) => {
+            error!(
+                ip = %ip,
+                error = %e,
+                "Failed to spawn PTY shell session"
+            );
+            return;
+        }
+    };
+
+    let session_id = session.session_id().to_string();
+    trace!(
+        ip = %ip,
+        session_id = %session_id,
+        "PTY shell session spawned successfully"
+    );
+
+    info!(
+        ip = %ip,
+        session_id = %session_id,
+        "Terminal session initialized and ready for I/O"
+    );
+
+    trace!(
+        ip = %ip,
+        session_id = %session_id,
+        "Splitting WebSocket into sender and receiver"
+    );
+
+    let (sender, mut receiver) = socket.split();
+    let sender = Arc::new(Mutex::new(sender));
+
+    // Send initial shell output
+    trace!(
+        ip = %ip,
+        session_id = %session_id,
+        "Reading initial shell output"
+    );
+
+    let mut output_buffer = [0u8; 4096];
+    if let Ok(n) = session.read_output(&mut output_buffer).await {
+        if n > 0 {
+            trace!(
+                ip = %ip,
+                session_id = %session_id,
+                bytes = n,
+                "Initial shell output received, sending to client"
+            );
+            let msg = Message::Binary(output_buffer[..n].to_vec());
+            if sender.lock().await.send(msg).await.is_err() {
+                error!(
+                    ip = %ip,
+                    session_id = %session_id,
+                    "Failed to send initial output to client"
+                );
+                let _ = session.close_session().await;
+                return;
+            }
+        } else {
+            trace!(
+                ip = %ip,
+                session_id = %session_id,
+                "No initial shell output available"
+            );
+        }
+    } else {
+        warn!(
+            ip = %ip,
+            session_id = %session_id,
+            "Error reading initial shell output"
+        );
+    }
+
+    // Spawn a background task to read shell output and send to client
+    let session_clone = session.clone();
+    let session_id_clone = session_id.clone();
+    let ip_clone = ip;
+    let sender_clone = sender.clone();
+    let sender_handle = tokio::spawn(async move {
+        trace!(
+            ip = %ip_clone,
+            session_id = %session_id_clone,
+            "Background task started for reading shell output"
+        );
+
+        let mut read_interval = interval(Duration::from_millis(10));
+        let mut idle_timer = tokio::time::interval(Duration::from_secs(1));
+        let mut last_activity = std::time::Instant::now();
+
+        loop {
+            tokio::select! {
+                _ = read_interval.tick() => {
+                    let mut buffer = [0u8; 4096];
+                    match session_clone.read_output(&mut buffer).await {
+                        Ok(n) if n > 0 => {
+                            trace!(
+                                ip = %ip_clone,
+                                session_id = %session_id_clone,
+                                bytes = n,
+                                "Shell output received, sending to client"
+                            );
+                            last_activity = std::time::Instant::now();
+                            // Send output to client via WebSocket
+                            let msg = Message::Binary(buffer[..n].to_vec());
+                            let mut sender_lock = sender_clone.lock().await;
+                            if let Err(e) = sender_lock.send(msg).await {
+                                warn!(
+                                    ip = %ip_clone,
+                                    session_id = %session_id_clone,
+                                    error = %e,
+                                    "Failed to send shell output to client"
+                                );
                                 break;
                             }
                         }
+                        Ok(_) => {}, // No data available
+                        Err(e) => {
+                            warn!(
+                                ip = %ip_clone,
+                                session_id = %session_id_clone,
+                                error = %e,
+                                "Error reading from shell in background task"
+                            );
+                            break;
+                        }
+                    }
+                }
+                _ = idle_timer.tick() => {
+                    // Check for idle timeout
+                    if last_activity.elapsed() > IDLE_TIMEOUT {
+                        info!(
+                            ip = %ip_clone,
+                            session_id = %session_id_clone,
+                            idle_seconds = last_activity.elapsed().as_secs(),
+                            timeout_secs = IDLE_TIMEOUT.as_secs(),
+                            "Terminal session idle timeout reached"
+                        );
+                        break;
+                    }
 
-                        // Send prompt
-                        let prompt_json = serde_json::json!({
-                            "type": "output",
-                            "data": "$ "
-                        });
-
-                        if let Ok(json_str) = serde_json::to_string(&prompt_json) {
-                            if sender.send(Message::Text(json_str)).await.is_err() {
-                                break;
-                            }
+                    // Keep-alive: check if process is still running
+                    match session_clone.is_running().await {
+                        Ok(true) => {
+                            trace!(
+                                ip = %ip_clone,
+                                session_id = %session_id_clone,
+                                "Shell process health check: running"
+                            );
+                        },
+                        Ok(false) => {
+                            info!(
+                                ip = %ip_clone,
+                                session_id = %session_id_clone,
+                                "Shell process no longer running"
+                            );
+                            break;
+                        }
+                        Err(e) => {
+                            warn!(
+                                ip = %ip_clone,
+                                session_id = %session_id_clone,
+                                error = %e,
+                                "Error checking if shell is running"
+                            );
+                            break;
                         }
                     }
                 }
             }
+        }
+
+        trace!(
+            ip = %ip_clone,
+            session_id = %session_id_clone,
+            "Background task exiting"
+        );
+    });
+
+    // Handle incoming WebSocket messages from client with security validation
+    trace!(
+        ip = %ip,
+        session_id = %session_id,
+        "Starting WebSocket message handling loop"
+    );
+
+    let mut last_message_time = std::time::Instant::now();
+
+    while let Some(msg) = StreamExt::next(&mut receiver).await {
+        // Update last activity time
+        last_message_time = std::time::Instant::now();
+
+        match msg {
+            Ok(Message::Binary(data)) => {
+                trace!(
+                    ip = %ip,
+                    session_id = %session_id,
+                    size = data.len(),
+                    "Binary message received from client"
+                );
+
+                // Validate message size
+                if let Err(e) = validate_message_size(&data, MAX_MESSAGE_SIZE) {
+                    warn!(
+                        ip = %ip,
+                        session_id = %session_id,
+                        size = data.len(),
+                        max_size = MAX_MESSAGE_SIZE,
+                        error = %e,
+                        "Binary message size limit exceeded"
+                    );
+                    let _ = sender.lock().await
+                        .send(Message::Close(Some(axum::extract::ws::CloseFrame {
+                            code: axum::extract::ws::close_code::POLICY,
+                            reason: std::borrow::Cow::from(e),
+                        })))
+                        .await;
+                    break;
+                }
+
+                // Raw terminal input from client
+                match session.write_input(&data).await {
+                    Ok(n) => {
+                        trace!(
+                            ip = %ip,
+                            session_id = %session_id,
+                            bytes = n,
+                            "Binary input written to shell stdin"
+                        );
+                    }
+                    Err(e) => {
+                        error!(
+                            ip = %ip,
+                            session_id = %session_id,
+                            error = %e,
+                            "Failed to write binary input to shell"
+                        );
+                        break;
+                    }
+                }
+            }
+            Ok(Message::Text(text)) => {
+                trace!(
+                    ip = %ip,
+                    session_id = %session_id,
+                    size = text.len(),
+                    "Text message received from client"
+                );
+
+                // Validate message size
+                if let Err(e) = validate_message_size(text.as_bytes(), MAX_MESSAGE_SIZE) {
+                    warn!(
+                        ip = %ip,
+                        session_id = %session_id,
+                        size = text.len(),
+                        max_size = MAX_MESSAGE_SIZE,
+                        error = %e,
+                        "Text message size limit exceeded"
+                    );
+                    let _ = sender.lock().await
+                        .send(Message::Close(Some(axum::extract::ws::CloseFrame {
+                            code: axum::extract::ws::close_code::POLICY,
+                            reason: std::borrow::Cow::from(e),
+                        })))
+                        .await;
+                    break;
+                }
+
+                // Validate UTF-8 (though axum already does this for Text messages)
+                if let Err(e) = validate_utf8(text.as_bytes()) {
+                    warn!(
+                        ip = %ip,
+                        session_id = %session_id,
+                        error = %e,
+                        "Invalid UTF-8 in text message"
+                    );
+                    continue;
+                }
+
+                // Check for resize message: "\x1b[RESIZE;COLS;ROWS"
+                if text.starts_with("\x1b[RESIZE;") {
+                    trace!(
+                        ip = %ip,
+                        session_id = %session_id,
+                        "Terminal resize command received"
+                    );
+
+                    if let Some(rest) = text.strip_prefix("\x1b[RESIZE;") {
+                        let parts: Vec<&str> = rest.split(';').collect();
+                        if parts.len() >= 2 {
+                            if let (Ok(cols), Ok(rows)) = (
+                                parts[0].parse::<u16>(),
+                                parts[1].trim().parse::<u16>(),
+                            ) {
+                                trace!(
+                                    ip = %ip,
+                                    session_id = %session_id,
+                                    cols = cols,
+                                    rows = rows,
+                                    "Resize dimensions parsed"
+                                );
+
+                                // Validate dimensions
+                                if let Err(e) = validate_terminal_dimensions(cols, rows) {
+                                    warn!(
+                                        ip = %ip,
+                                        session_id = %session_id,
+                                        cols = cols,
+                                        rows = rows,
+                                        error = %e,
+                                        "Invalid terminal dimensions"
+                                    );
+                                    continue;
+                                }
+
+                                if let Err(e) = session.set_terminal_size(cols, rows).await {
+                                    warn!(
+                                        ip = %ip,
+                                        session_id = %session_id,
+                                        cols = cols,
+                                        rows = rows,
+                                        error = %e,
+                                        "Terminal resize operation failed"
+                                    );
+                                } else {
+                                    info!(
+                                        ip = %ip,
+                                        session_id = %session_id,
+                                        cols = cols,
+                                        rows = rows,
+                                        "Terminal resized successfully"
+                                    );
+                                }
+                            } else {
+                                warn!(
+                                    ip = %ip,
+                                    session_id = %session_id,
+                                    message = %text,
+                                    "Failed to parse resize dimensions from command"
+                                );
+                            }
+                        } else {
+                            warn!(
+                                ip = %ip,
+                                session_id = %session_id,
+                                parts_count = parts.len(),
+                                "Resize command missing required parts"
+                            );
+                        }
+                    }
+                } else {
+                    // Treat as text input
+                    trace!(
+                        ip = %ip,
+                        session_id = %session_id,
+                        size = text.len(),
+                        "Text input received, writing to shell"
+                    );
+
+                    if let Err(e) = session.write_input(text.as_bytes()).await {
+                        error!(
+                            ip = %ip,
+                            session_id = %session_id,
+                            error = %e,
+                            "Failed to write text input to shell"
+                        );
+                        break;
+                    }
+                }
+            }
             Ok(Message::Close(_)) => {
+                info!(
+                    ip = %ip,
+                    session_id = %session_id,
+                    "Client initiated WebSocket close"
+                );
                 break;
             }
-            _ => {}
+            Err(e) => {
+                warn!(
+                    ip = %ip,
+                    session_id = %session_id,
+                    error = %e,
+                    "WebSocket error occurred"
+                );
+                trace!("WebSocket error details: {}", e);
+                break;
+            }
+            _ => {
+                trace!(
+                    ip = %ip,
+                    session_id = %session_id,
+                    "Other WebSocket message type received"
+                );
+            }
         }
     }
-}
 
-/// Execute a terminal command
-async fn execute_command(command: &str) -> String {
-    let cmd = command.trim();
+    trace!(
+        ip = %ip,
+        session_id = %session_id,
+        "Exiting WebSocket message handling loop"
+    );
 
-    match cmd {
-        "" => String::new(),
-        "help" => r#"Available commands:
-  help           - Show this help message
-  version        - Show CCO version
-  status         - Show system status
-  cache stats    - Show cache statistics
-  clear          - Clear screen
-  exit           - Close terminal
-"#
-        .to_string(),
-        "version" => {
-            format!("CCO Proxy v{}\n", DateVersion::current())
-        }
-        "status" => "Status: Running\nUptime: Active\nCache: Operational\n".to_string(),
-        "cache stats" => {
-            "Cache Statistics:\n  Hit Rate: N/A\n  Entries: N/A\n  Size: N/A\n".to_string()
-        }
-        "clear" => {
-            "\x1b[2J\x1b[H".to_string() // ANSI clear screen
-        }
-        "exit" => "Goodbye!\n".to_string(),
-        _ => {
-            format!(
-                "Unknown command: {}\nType 'help' for available commands.\n",
-                cmd
-            )
-        }
+    // Clean up
+    trace!(
+        ip = %ip,
+        session_id = %session_id,
+        "Aborting background task for shell output"
+    );
+    sender_handle.abort();
+
+    trace!(
+        ip = %ip,
+        session_id = %session_id,
+        "Closing terminal session and PTY"
+    );
+
+    if let Err(e) = session.close_session().await {
+        warn!(
+            ip = %ip,
+            session_id = %session_id,
+            error = %e,
+            "Error closing terminal session"
+        );
+    } else {
+        trace!(
+            ip = %ip,
+            session_id = %session_id,
+            "Terminal session closed successfully"
+        );
     }
+
+    info!(
+        ip = %ip,
+        session_id = %session_id,
+        duration_secs = last_message_time.elapsed().as_secs(),
+        "Terminal connection cleanup complete"
+    );
 }
 
 /// Load model override rules from configuration
@@ -1035,67 +1457,59 @@ async fn claude_history_metrics(
 
 /// Load agent model configurations from orchestration config file
 ///
-/// Reads from config/orchestra-config.json and extracts agent type -> model mappings
+/// Embeds config/orchestra-config.json at compile time and extracts agent type -> model mappings
 /// This ensures the proxy respects the orchestration layer's model assignments
 fn load_agent_models() -> HashMap<String, String> {
     let mut agent_models = HashMap::new();
 
-    // Try to load from orchestra-config.json
-    let config_path = "../config/orchestra-config.json";
+    // Embed orchestra-config.json at compile time (same pattern as dashboard.html)
+    // Path is relative to this source file: cco/src/server.rs → ../../config/orchestra-config.json
+    const ORCHESTRA_CONFIG: &str = include_str!("../../config/orchestra-config.json");
 
-    match fs::read_to_string(config_path) {
-        Ok(contents) => match serde_json::from_str::<serde_json::Value>(&contents) {
-            Ok(config) => {
-                // Extract architect model
-                if let Some(architect) = config.get("architect") {
-                    if let Some(model) = architect.get("model").and_then(|m| m.as_str()) {
-                        agent_models.insert("chief-architect".to_string(), model.to_string());
-                        info!("✓ Loaded architect model: {}", model);
-                    }
+    match serde_json::from_str::<serde_json::Value>(ORCHESTRA_CONFIG) {
+        Ok(config) => {
+            // Extract architect model
+            if let Some(architect) = config.get("architect") {
+                if let Some(model) = architect.get("model").and_then(|m| m.as_str()) {
+                    agent_models.insert("chief-architect".to_string(), model.to_string());
+                    info!("✓ Loaded architect model: {}", model);
                 }
-
-                // Extract coding agents models
-                if let Some(agents) = config.get("codingAgents").and_then(|a| a.as_array()) {
-                    for agent in agents {
-                        if let (Some(agent_type), Some(model)) = (
-                            agent.get("type").and_then(|t| t.as_str()),
-                            agent.get("model").and_then(|m| m.as_str()),
-                        ) {
-                            agent_models.insert(agent_type.to_string(), model.to_string());
-                            info!("✓ Loaded agent model: {} → {}", agent_type, model);
-                        }
-                    }
-                }
-
-                // Extract support agents models
-                if let Some(agents) = config.get("supportTeam").and_then(|a| a.as_array()) {
-                    for agent in agents {
-                        if let (Some(agent_type), Some(model)) = (
-                            agent.get("type").and_then(|t| t.as_str()),
-                            agent.get("model").and_then(|m| m.as_str()),
-                        ) {
-                            agent_models.insert(agent_type.to_string(), model.to_string());
-                            info!("✓ Loaded agent model: {} → {}", agent_type, model);
-                        }
-                    }
-                }
-
-                info!(
-                    "📊 Loaded {} agent model configurations from {}",
-                    agent_models.len(),
-                    config_path
-                );
             }
-            Err(e) => {
-                info!(
-                    "⚠️  Failed to parse orchestra-config.json: {}. Using defaults.",
-                    e
-                );
+
+            // Extract coding agents models
+            if let Some(agents) = config.get("codingAgents").and_then(|a| a.as_array()) {
+                for agent in agents {
+                    if let (Some(agent_type), Some(model)) = (
+                        agent.get("type").and_then(|t| t.as_str()),
+                        agent.get("model").and_then(|m| m.as_str()),
+                    ) {
+                        agent_models.insert(agent_type.to_string(), model.to_string());
+                        info!("✓ Loaded agent model: {} → {}", agent_type, model);
+                    }
+                }
             }
-        },
+
+            // Extract support agents models
+            if let Some(agents) = config.get("supportTeam").and_then(|a| a.as_array()) {
+                for agent in agents {
+                    if let (Some(agent_type), Some(model)) = (
+                        agent.get("type").and_then(|t| t.as_str()),
+                        agent.get("model").and_then(|m| m.as_str()),
+                    ) {
+                        agent_models.insert(agent_type.to_string(), model.to_string());
+                        info!("✓ Loaded agent model: {} → {}", agent_type, model);
+                    }
+                }
+            }
+
+            info!(
+                "📊 Loaded {} agent model configurations from embedded orchestration config",
+                agent_models.len()
+            );
+        }
         Err(e) => {
             info!(
-                "⚠️  Could not read orchestra-config.json ({}). Agent-aware overrides will not work.",
+                "⚠️  Failed to parse embedded orchestra-config.json: {}. Using defaults.",
                 e
             );
         }
@@ -1110,6 +1524,7 @@ pub async fn run_server(
     port: u16,
     cache_size: u64,
     cache_ttl: u64,
+    debug: bool,
 ) -> anyhow::Result<()> {
     info!(
         "🚀 Starting CCO Proxy Server v{}",
@@ -1127,6 +1542,11 @@ pub async fn run_server(
         cache_ttl,
         cache_ttl / 3600
     );
+
+    // Log debug mode status
+    if debug {
+        info!("🐛 Debug mode: ENABLED");
+    }
 
     // Setup file logging
     setup_file_logging(port)?;
@@ -1158,7 +1578,7 @@ pub async fn run_server(
 
     // Spawn background task to save metrics every 60 seconds
     let analytics_clone = analytics.clone();
-    tokio::spawn(async move {
+    let metrics_handle = tokio::spawn(async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(60));
         loop {
             interval.tick().await;
@@ -1167,6 +1587,9 @@ pub async fn run_server(
             }
         }
     });
+
+    // Initialize connection tracker (max 10 concurrent connections per IP)
+    let connection_tracker = ConnectionTracker::new(10);
 
     let state = Arc::new(ServerState {
         cache,
@@ -1177,9 +1600,18 @@ pub async fn run_server(
         model_overrides,
         agent_models,
         agents,
+        connection_tracker,
     });
 
-    // Build router
+    // Build terminal route with localhost-only security
+    // Note: CORS middleware is NOT applied to WebSocket routes as it can interfere with the upgrade
+    // ConnectInfo is provided globally via into_make_service_with_connect_info
+    let terminal_route = Router::new()
+        .route("/terminal", get(terminal_handler))
+        .layer(middleware::from_fn(localhost_only_middleware))
+        .with_state(state.clone());
+
+    // Build main app router
     let app = Router::new()
         // Dashboard routes
         .route("/", get(dashboard_html))
@@ -1197,9 +1629,9 @@ pub async fn run_server(
         .route("/api/overrides/stats", get(override_stats))
         .route("/api/shutdown", post(shutdown_handler))
         .route("/api/stream", get(stream))
-        .route("/terminal", get(terminal_handler))
         .route("/v1/chat/completions", post(chat_completion))
         .layer(CorsLayer::permissive())
+        .merge(terminal_route)
         .with_state(state);
 
     // Create listener
@@ -1220,9 +1652,17 @@ pub async fn run_server(
     info!("Press Ctrl+C to stop");
 
     // Run server with graceful shutdown
-    let result = axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
-        .await;
+    // Note: into_make_service_with_connect_info is required for ConnectInfo extraction
+    let result = axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown_signal())
+    .await;
+
+    // Abort background metrics task to prevent hanging on shutdown
+    info!("Aborting background metrics task...");
+    metrics_handle.abort();
 
     // Cleanup PID file
     info!("Cleaning up PID file...");

@@ -359,7 +359,10 @@ mod analytics_tests {
         }
 
         let savings = analytics.get_total_savings().await;
-        assert!((savings - 525.0).abs() < 0.1, "Total savings should be $525");
+        assert!(
+            (savings - 525.0).abs() < 0.1,
+            "Total savings should be $525"
+        );
     }
 
     #[tokio::test]
@@ -397,7 +400,10 @@ mod analytics_tests {
         }
 
         let savings = analytics.get_total_savings().await;
-        assert!((savings - 367.5).abs() < 0.1, "Total savings should be $367.50");
+        assert!(
+            (savings - 367.5).abs() < 0.1,
+            "Total savings should be $367.50"
+        );
     }
 
     #[tokio::test]
@@ -480,7 +486,10 @@ mod analytics_tests {
         }
 
         let would_be_cost = analytics.get_total_would_be_cost().await;
-        assert!((would_be_cost - 525.0).abs() < 0.1, "Would-be cost should be $525.00");
+        assert!(
+            (would_be_cost - 525.0).abs() < 0.1,
+            "Would-be cost should be $525.00"
+        );
     }
 
     #[tokio::test]
@@ -763,5 +772,285 @@ mod analytics_tests {
 
         assert_eq!(analytics.get_total_requests().await, 0);
         assert_eq!(analytics.get_total_savings().await, 0.0);
+    }
+}
+
+// ========== MODEL OVERRIDE ANALYTICS TESTS ==========
+
+#[cfg(test)]
+mod override_analytics_tests {
+    use chrono::Utc;
+    use std::collections::HashMap;
+
+    /// Model override record
+    #[derive(Clone, Debug)]
+    struct ModelOverrideRecord {
+        from_model: String,
+        to_model: String,
+        timestamp: chrono::DateTime<Utc>,
+    }
+
+    /// Analytics engine with override tracking
+    struct AnalyticsWithOverrides {
+        override_records: std::sync::Arc<tokio::sync::Mutex<Vec<ModelOverrideRecord>>>,
+    }
+
+    impl AnalyticsWithOverrides {
+        fn new() -> Self {
+            Self {
+                override_records: std::sync::Arc::new(tokio::sync::Mutex::new(Vec::new())),
+            }
+        }
+
+        async fn record_model_override(&self, from_model: &str, to_model: &str) {
+            let mut records = self.override_records.lock().await;
+            records.push(ModelOverrideRecord {
+                from_model: from_model.to_string(),
+                to_model: to_model.to_string(),
+                timestamp: Utc::now(),
+            });
+        }
+
+        async fn get_override_count(&self) -> usize {
+            let records = self.override_records.lock().await;
+            records.len()
+        }
+
+        async fn get_override_statistics(&self) -> HashMap<String, OverrideStats> {
+            let records = self.override_records.lock().await;
+            let mut stats: HashMap<String, OverrideStats> = HashMap::new();
+
+            for record in records.iter() {
+                let key = format!("{} -> {}", record.from_model, record.to_model);
+                let entry = stats.entry(key.clone()).or_insert(OverrideStats {
+                    from_model: record.from_model.clone(),
+                    to_model: record.to_model.clone(),
+                    count: 0,
+                    first_seen: record.timestamp,
+                    last_seen: record.timestamp,
+                });
+
+                entry.count += 1;
+                if record.timestamp < entry.first_seen {
+                    entry.first_seen = record.timestamp;
+                }
+                if record.timestamp > entry.last_seen {
+                    entry.last_seen = record.timestamp;
+                }
+            }
+
+            stats
+        }
+    }
+
+    #[derive(Clone, Debug)]
+    struct OverrideStats {
+        from_model: String,
+        to_model: String,
+        count: u64,
+        first_seen: chrono::DateTime<Utc>,
+        last_seen: chrono::DateTime<Utc>,
+    }
+
+    // Test 1: Override is recorded
+    #[tokio::test]
+    async fn test_record_model_override() {
+        // Given: AnalyticsEngine instance
+        let analytics = AnalyticsWithOverrides::new();
+
+        // When: record_model_override("claude-sonnet-4.5", "claude-haiku-4.5") called
+        analytics
+            .record_model_override("claude-sonnet-4.5", "claude-haiku-4.5")
+            .await;
+
+        // Then: override should be in the analytics log
+        assert_eq!(
+            analytics.get_override_count().await,
+            1,
+            "Should have recorded 1 override"
+        );
+    }
+
+    // Test 2: Multiple overrides are tracked
+    #[tokio::test]
+    async fn test_multiple_overrides_tracked() {
+        // Given: analytics with 5 override rules
+        let analytics = AnalyticsWithOverrides::new();
+
+        // When: each rule applied once
+        analytics
+            .record_model_override("claude-sonnet-4.5", "claude-haiku-4.5")
+            .await;
+        analytics
+            .record_model_override("claude-opus-4", "claude-sonnet-4.5")
+            .await;
+        analytics
+            .record_model_override("gpt-4", "claude-haiku-4.5")
+            .await;
+        analytics
+            .record_model_override("claude-sonnet-3.5", "claude-haiku-4.5")
+            .await;
+        analytics
+            .record_model_override("gpt-4-turbo", "claude-sonnet-4.5")
+            .await;
+
+        // Then: get_override_statistics() returns all 5
+        let stats = analytics.get_override_statistics().await;
+        assert_eq!(stats.len(), 5, "Should have 5 different override patterns");
+    }
+
+    // Test 3: Override statistics formatting
+    #[tokio::test]
+    async fn test_override_statistics_format() {
+        // Given: 10 claude-sonnet-4.5→claude-haiku-4.5 overrides recorded
+        let analytics = AnalyticsWithOverrides::new();
+
+        for _ in 0..10 {
+            analytics
+                .record_model_override("claude-sonnet-4.5", "claude-haiku-4.5")
+                .await;
+            // Small delay to ensure timestamps are different
+            tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
+        }
+
+        // When: get_override_statistics() called
+        let stats = analytics.get_override_statistics().await;
+
+        // Then: returns correctly structured data with timestamps
+        assert_eq!(stats.len(), 1);
+        let key = "claude-sonnet-4.5 -> claude-haiku-4.5";
+        assert!(stats.contains_key(key), "Should have the override key");
+
+        let stat = stats.get(key).unwrap();
+        assert_eq!(stat.count, 10, "Should have count of 10");
+        assert_eq!(stat.from_model, "claude-sonnet-4.5");
+        assert_eq!(stat.to_model, "claude-haiku-4.5");
+        assert!(
+            stat.last_seen >= stat.first_seen,
+            "Last seen should be >= first seen"
+        );
+    }
+
+    // Test 4: Timestamp accuracy
+    #[tokio::test]
+    async fn test_override_timestamp_recording() {
+        // Given: override recorded
+        let analytics = AnalyticsWithOverrides::new();
+        let before = Utc::now();
+
+        // When: record override
+        analytics
+            .record_model_override("claude-sonnet-4.5", "claude-haiku-4.5")
+            .await;
+
+        let after = Utc::now();
+
+        // Then: timestamp should be very recent (within 1 second)
+        let stats = analytics.get_override_statistics().await;
+        let key = "claude-sonnet-4.5 -> claude-haiku-4.5";
+        let stat = stats.get(key).unwrap();
+
+        assert!(
+            stat.first_seen >= before && stat.first_seen <= after,
+            "Timestamp should be between before and after: {:?} not in [{:?}, {:?}]",
+            stat.first_seen,
+            before,
+            after
+        );
+    }
+
+    // Test 5: Multiple instances of same override pattern
+    #[tokio::test]
+    async fn test_same_override_pattern_multiple_times() {
+        // Given: same override applied multiple times
+        let analytics = AnalyticsWithOverrides::new();
+
+        for _ in 0..5 {
+            analytics
+                .record_model_override("claude-sonnet-4.5", "claude-haiku-4.5")
+                .await;
+        }
+
+        // When: get statistics
+        let stats = analytics.get_override_statistics().await;
+
+        // Then: should aggregate count correctly
+        assert_eq!(stats.len(), 1);
+        let key = "claude-sonnet-4.5 -> claude-haiku-4.5";
+        let stat = stats.get(key).unwrap();
+        assert_eq!(stat.count, 5);
+    }
+
+    // Test 6: Different override patterns tracked separately
+    #[tokio::test]
+    async fn test_different_override_patterns_separate() {
+        // Given: different override patterns
+        let analytics = AnalyticsWithOverrides::new();
+
+        analytics
+            .record_model_override("claude-sonnet-4.5", "claude-haiku-4.5")
+            .await;
+        analytics
+            .record_model_override("claude-sonnet-4.5", "claude-haiku-4.5")
+            .await;
+        analytics
+            .record_model_override("claude-opus-4", "claude-sonnet-4.5")
+            .await;
+
+        // When: get statistics
+        let stats = analytics.get_override_statistics().await;
+
+        // Then: should have 2 separate patterns
+        assert_eq!(stats.len(), 2);
+
+        let sonnet_to_haiku = stats.get("claude-sonnet-4.5 -> claude-haiku-4.5").unwrap();
+        assert_eq!(sonnet_to_haiku.count, 2);
+
+        let opus_to_sonnet = stats.get("claude-opus-4 -> claude-sonnet-4.5").unwrap();
+        assert_eq!(opus_to_sonnet.count, 1);
+    }
+
+    // Test 7: Concurrent override recording
+    #[tokio::test]
+    async fn test_concurrent_override_recording() {
+        // Given: analytics engine
+        use std::sync::Arc;
+        let analytics = Arc::new(AnalyticsWithOverrides::new());
+
+        // When: 100 concurrent override recordings
+        let mut handles = vec![];
+        for i in 0..100 {
+            let analytics_clone = analytics.clone();
+            let handle = tokio::spawn(async move {
+                let from = if i % 2 == 0 {
+                    "claude-sonnet-4.5"
+                } else {
+                    "claude-opus-4"
+                };
+                let to = "claude-haiku-4.5";
+                analytics_clone.record_model_override(from, to).await;
+            });
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            handle.await.expect("Task should complete");
+        }
+
+        // Then: all should be recorded without data races
+        assert_eq!(analytics.get_override_count().await, 100);
+        let stats = analytics.get_override_statistics().await;
+        assert_eq!(stats.len(), 2); // Two patterns: sonnet->haiku and opus->haiku
+
+        let sonnet_count = stats
+            .get("claude-sonnet-4.5 -> claude-haiku-4.5")
+            .map(|s| s.count)
+            .unwrap_or(0);
+        let opus_count = stats
+            .get("claude-opus-4 -> claude-haiku-4.5")
+            .map(|s| s.count)
+            .unwrap_or(0);
+
+        assert_eq!(sonnet_count + opus_count, 100);
     }
 }

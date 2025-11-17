@@ -2,10 +2,10 @@
 
 use clap::{Parser, Subcommand};
 
-mod install;
-mod update;
 mod auto_update;
 mod commands;
+mod install;
+mod update;
 
 // Import server module and version
 use cco::server::run_server;
@@ -13,7 +13,9 @@ use cco::version::DateVersion;
 
 #[derive(Parser)]
 #[command(name = "cco")]
-#[command(about = "Claude Code Orchestra - Multi-agent development system with intelligent caching")]
+#[command(
+    about = "Claude Code Orchestra - Multi-agent development system with intelligent caching"
+)]
 #[command(version = env!("CCO_VERSION"))]
 struct Cli {
     #[command(subcommand)]
@@ -43,6 +45,10 @@ enum Commands {
         /// Cache TTL in seconds
         #[arg(long, default_value = "3600")]
         cache_ttl: u64,
+
+        /// Enable debug logging
+        #[arg(long)]
+        debug: bool,
     },
 
     /// Install CCO to ~/.local/bin
@@ -161,9 +167,6 @@ enum CredentialAction {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Initialize tracing
-    tracing_subscriber::fmt::init();
-
     let cli = Cli::parse();
 
     // Start background update check (non-blocking)
@@ -176,29 +179,38 @@ async fn main() -> anyhow::Result<()> {
         database_url: "sqlite://analytics.db".to_string(),
         cache_size: 1073741824,
         cache_ttl: 3600,
+        debug: false,
     });
 
     match command {
         Commands::Install { force } => {
+            // Initialize tracing for other commands
+            tracing_subscriber::fmt::init();
             install::run(force).await
         }
 
-        Commands::Update { check, yes, channel } => {
+        Commands::Update {
+            check,
+            yes,
+            channel,
+        } => {
+            // Initialize tracing for other commands
+            tracing_subscriber::fmt::init();
             update::run(check, yes, channel).await
         }
 
-        Commands::Config { action } => match action {
-            ConfigAction::Set { key, value } => {
-                auto_update::set_config(&key, &value)
+        Commands::Config { action } => {
+            // Initialize tracing for other commands
+            tracing_subscriber::fmt::init();
+            match action {
+                ConfigAction::Set { key, value } => auto_update::set_config(&key, &value),
+                ConfigAction::Get { key } => {
+                    auto_update::get_config(&key)?;
+                    Ok(())
+                }
+                ConfigAction::Show => auto_update::show_config(),
             }
-            ConfigAction::Get { key } => {
-                auto_update::get_config(&key)?;
-                Ok(())
-            }
-            ConfigAction::Show => {
-                auto_update::show_config()
-            }
-        },
+        }
 
         Commands::Run {
             port,
@@ -206,7 +218,18 @@ async fn main() -> anyhow::Result<()> {
             database_url: _database_url,
             cache_size,
             cache_ttl,
+            debug,
         } => {
+            // Configure logging level based on debug flag BEFORE initializing tracing
+            if debug {
+                std::env::set_var("RUST_LOG", "debug");
+            } else {
+                std::env::set_var("RUST_LOG", "info");
+            }
+
+            // Initialize tracing with the configured log level
+            tracing_subscriber::fmt::init();
+
             let version = DateVersion::current();
             println!("🚀 Starting Claude Code Orchestra {}...", version);
 
@@ -215,31 +238,41 @@ async fn main() -> anyhow::Result<()> {
                 if let Ok(Some(latest)) = update::check_latest_version().await {
                     let current = DateVersion::current();
                     if latest != current {
-                        println!("\nℹ️  New version available: {} (current: {})", latest, current);
+                        println!(
+                            "\nℹ️  New version available: {} (current: {})",
+                            latest, current
+                        );
                         println!("   Run 'cco update' to upgrade");
                     }
                 }
             });
 
-            // Auto-open browser after a short delay
+            // Auto-open browser after a short delay (unless NO_BROWSER env var is set)
             let url = format!("http://{}:{}", host, port);
-            let url_clone = url.clone();
-            tokio::spawn(async move {
-                // Wait a moment for the server to start
-                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+            if std::env::var("NO_BROWSER").is_err() {
+                let url_clone = url.clone();
+                tokio::spawn(async move {
+                    // Wait a moment for the server to start
+                    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
 
-                println!("🌐 Opening browser at {}...", url_clone);
-                if let Err(e) = webbrowser::open(&url_clone) {
-                    eprintln!("⚠️  Failed to open browser: {}", e);
-                    eprintln!("   Please manually navigate to: {}", url_clone);
-                }
-            });
+                    println!("🌐 Opening browser at {}...", url_clone);
+                    if let Err(e) = webbrowser::open(&url_clone) {
+                        eprintln!("⚠️  Failed to open browser: {}", e);
+                        eprintln!("   Please manually navigate to: {}", url_clone);
+                    }
+                });
+            } else {
+                println!("🌐 Server running at {}", url);
+            }
 
             // Run the actual HTTP server
-            run_server(&host, port, cache_size, cache_ttl).await
+            run_server(&host, port, cache_size, cache_ttl, debug).await
         }
 
         Commands::Version => {
+            // Initialize tracing for other commands
+            tracing_subscriber::fmt::init();
+
             let version = DateVersion::current();
             println!("CCO version {}", version);
             println!("Build: Production");
@@ -249,7 +282,10 @@ async fn main() -> anyhow::Result<()> {
             tokio::spawn(async move {
                 match update::check_latest_version().await {
                     Ok(Some(latest)) if latest != version => {
-                        println!("\n⚠️  New version available: {} (current: {})", latest, version);
+                        println!(
+                            "\n⚠️  New version available: {} (current: {})",
+                            latest, version
+                        );
                         println!("   Run 'cco update' to upgrade");
                     }
                     Ok(Some(_)) => {
@@ -269,39 +305,57 @@ async fn main() -> anyhow::Result<()> {
         }
 
         Commands::Health { host, port } => {
+            // Initialize tracing for other commands
+            tracing_subscriber::fmt::init();
+
             println!("Checking health of {}:{}", host, port);
             // In a real implementation, we would make an HTTP request to /health
             println!("Health check would go to http://{}:{}/health", host, port);
             Ok(())
         }
 
-        Commands::Credentials { action } => match action {
-            CredentialAction::Store { key, value: _ } => {
-                println!("Storing credential: {}", key);
-                // In a real implementation, we would encrypt and store the credential
-                Ok(())
+        Commands::Credentials { action } => {
+            // Initialize tracing for other commands
+            tracing_subscriber::fmt::init();
+
+            match action {
+                CredentialAction::Store { key, value: _ } => {
+                    println!("Storing credential: {}", key);
+                    // In a real implementation, we would encrypt and store the credential
+                    Ok(())
+                }
+                CredentialAction::Retrieve { key } => {
+                    println!("Retrieving credential: {}", key);
+                    // In a real implementation, we would retrieve and decrypt the credential
+                    Ok(())
+                }
+                CredentialAction::List => {
+                    println!("Listing credentials");
+                    // In a real implementation, we would list all stored credentials
+                    Ok(())
+                }
             }
-            CredentialAction::Retrieve { key } => {
-                println!("Retrieving credential: {}", key);
-                // In a real implementation, we would retrieve and decrypt the credential
-                Ok(())
-            }
-            CredentialAction::List => {
-                println!("Listing credentials");
-                // In a real implementation, we would list all stored credentials
-                Ok(())
-            }
-        },
+        }
 
         Commands::Status => {
+            // Initialize tracing for other commands
+            tracing_subscriber::fmt::init();
             commands::status::run().await
         }
 
         Commands::Shutdown { port, all } => {
+            // Initialize tracing for other commands
+            tracing_subscriber::fmt::init();
             commands::shutdown::run(port, all).await
         }
 
-        Commands::Logs { port, follow, lines } => {
+        Commands::Logs {
+            port,
+            follow,
+            lines,
+        } => {
+            // Initialize tracing for other commands
+            tracing_subscriber::fmt::init();
             commands::logs::run(port, follow, lines).await
         }
     }

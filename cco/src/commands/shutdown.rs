@@ -18,12 +18,18 @@ pub async fn shutdown_by_port(port: u16) -> Result<()> {
     let pid_info = super::status::read_pid_file(&pid_file)?;
 
     if !is_process_running(pid_info.pid) {
-        println!("Instance on port {} (PID {}) is not running", port, pid_info.pid);
+        println!(
+            "Instance on port {} (PID {}) is not running",
+            port, pid_info.pid
+        );
         super::status::cleanup_stale_pid_file(&pid_file)?;
         return Ok(());
     }
 
-    println!("Shutting down CCO instance on port {} (PID {})...", port, pid_info.pid);
+    println!(
+        "Shutting down CCO instance on port {} (PID {})...",
+        port, pid_info.pid
+    );
 
     // Send SIGTERM signal
     if let Err(e) = send_sigterm(pid_info.pid) {
@@ -75,9 +81,7 @@ pub async fn shutdown_all() -> Result<()> {
         return Ok(());
     }
 
-    let running_instances: Vec<_> = instances.into_iter()
-        .filter(|i| i.is_running)
-        .collect();
+    let running_instances: Vec<_> = instances.into_iter().filter(|i| i.is_running).collect();
 
     if running_instances.is_empty() {
         println!("No CCO instances running");
@@ -104,9 +108,7 @@ pub async fn shutdown_interactive() -> Result<()> {
         return Ok(());
     }
 
-    let running_instances: Vec<_> = instances.into_iter()
-        .filter(|i| i.is_running)
-        .collect();
+    let running_instances: Vec<_> = instances.into_iter().filter(|i| i.is_running).collect();
 
     if running_instances.is_empty() {
         println!("No CCO instances running");
@@ -118,11 +120,13 @@ pub async fn shutdown_interactive() -> Result<()> {
     println!();
 
     for (idx, instance) in running_instances.iter().enumerate() {
-        println!("  {}. Port {} (PID {}) - {}",
-                 idx + 1,
-                 instance.port,
-                 instance.pid,
-                 instance.dashboard_url);
+        println!(
+            "  {}. Port {} (PID {}) - {}",
+            idx + 1,
+            instance.port,
+            instance.pid,
+            instance.dashboard_url
+        );
     }
 
     println!();
@@ -166,8 +170,7 @@ fn send_sigterm(pid: u32) -> Result<()> {
     use nix::unistd::Pid as NixPid;
 
     let nix_pid = NixPid::from_raw(pid as i32);
-    signal::kill(nix_pid, Signal::SIGTERM)
-        .context("Failed to send SIGTERM")?;
+    signal::kill(nix_pid, Signal::SIGTERM).context("Failed to send SIGTERM")?;
 
     Ok(())
 }
@@ -179,8 +182,7 @@ fn send_sigkill(pid: u32) -> Result<()> {
     use nix::unistd::Pid as NixPid;
 
     let nix_pid = NixPid::from_raw(pid as i32);
-    signal::kill(nix_pid, Signal::SIGKILL)
-        .context("Failed to send SIGKILL")?;
+    signal::kill(nix_pid, Signal::SIGKILL).context("Failed to send SIGKILL")?;
 
     Ok(())
 }

@@ -24,7 +24,9 @@ mod cache_tests {
 
     #[derive(Clone, Debug)]
     struct MockCache {
-        data: std::sync::Arc<tokio::sync::Mutex<std::collections::HashMap<String, MockCachedResponse>>>,
+        data: std::sync::Arc<
+            tokio::sync::Mutex<std::collections::HashMap<String, MockCachedResponse>>,
+        >,
         hits: std::sync::Arc<std::sync::atomic::AtomicU64>,
         misses: std::sync::Arc<std::sync::atomic::AtomicU64>,
     }
@@ -32,7 +34,9 @@ mod cache_tests {
     impl MockCache {
         fn new() -> Self {
             Self {
-                data: std::sync::Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
+                data: std::sync::Arc::new(
+                    tokio::sync::Mutex::new(std::collections::HashMap::new()),
+                ),
                 hits: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
                 misses: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
             }
@@ -44,7 +48,8 @@ mod cache_tests {
                 self.hits.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 Some(value.clone())
             } else {
-                self.misses.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                self.misses
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 None
             }
         }
@@ -72,13 +77,8 @@ mod cache_tests {
     }
 
     /// Helper function to generate cache keys
-    fn generate_cache_key(
-        model: &str,
-        prompt: &str,
-        temperature: f32,
-        max_tokens: u32,
-    ) -> String {
-        use sha2::{Sha256, Digest};
+    fn generate_cache_key(model: &str, prompt: &str, temperature: f32, max_tokens: u32) -> String {
+        use sha2::{Digest, Sha256};
         use std::fmt::Write;
 
         let mut hasher = Sha256::new();
@@ -114,7 +114,11 @@ mod cache_tests {
         // First retrieval should be a hit
         let cached = cache.get(&key).await;
         assert!(cached.is_some(), "Cache should contain inserted response");
-        assert_eq!(cached.unwrap(), response, "Cached response should match inserted response");
+        assert_eq!(
+            cached.unwrap(),
+            response,
+            "Cached response should match inserted response"
+        );
     }
 
     #[tokio::test]
@@ -173,7 +177,10 @@ mod cache_tests {
         let key1 = generate_cache_key("claude-opus-4", "prompt 1", 1.0, 4096);
         let key2 = generate_cache_key("claude-opus-4", "prompt 2", 1.0, 4096);
 
-        assert_ne!(key1, key2, "Different prompts should generate different keys");
+        assert_ne!(
+            key1, key2,
+            "Different prompts should generate different keys"
+        );
     }
 
     #[test]
@@ -181,7 +188,10 @@ mod cache_tests {
         let key1 = generate_cache_key("claude-opus-4", "test", 1.0, 4096);
         let key2 = generate_cache_key("gpt-4", "test", 1.0, 4096);
 
-        assert_ne!(key1, key2, "Different models should generate different keys");
+        assert_ne!(
+            key1, key2,
+            "Different models should generate different keys"
+        );
     }
 
     #[test]
@@ -189,7 +199,10 @@ mod cache_tests {
         let key1 = generate_cache_key("claude-opus-4", "test", 0.5, 4096);
         let key2 = generate_cache_key("claude-opus-4", "test", 1.5, 4096);
 
-        assert_ne!(key1, key2, "Different temperatures should generate different keys");
+        assert_ne!(
+            key1, key2,
+            "Different temperatures should generate different keys"
+        );
     }
 
     #[test]
@@ -197,7 +210,10 @@ mod cache_tests {
         let key1 = generate_cache_key("claude-opus-4", "test", 1.0, 2048);
         let key2 = generate_cache_key("claude-opus-4", "test", 1.0, 4096);
 
-        assert_ne!(key1, key2, "Different max_tokens should generate different keys");
+        assert_ne!(
+            key1, key2,
+            "Different max_tokens should generate different keys"
+        );
     }
 
     #[test]
@@ -265,7 +281,9 @@ mod cache_tests {
                     input_tokens: 100 * i as u32,
                     output_tokens: 50 * i as u32,
                 };
-                cache_for_insert.insert(format!("key_{}", i), response).await;
+                cache_for_insert
+                    .insert(format!("key_{}", i), response)
+                    .await;
             }
         });
 
@@ -312,7 +330,9 @@ mod cache_tests {
         let key_sonnet = generate_cache_key("claude-sonnet-3.5", "test prompt", 1.0, 4096);
 
         cache.insert(key_opus.clone(), response_opus.clone()).await;
-        cache.insert(key_sonnet.clone(), response_sonnet.clone()).await;
+        cache
+            .insert(key_sonnet.clone(), response_sonnet.clone())
+            .await;
 
         // Verify isolation
         let cached_opus = cache.get(&key_opus).await.unwrap();
@@ -369,7 +389,11 @@ mod cache_tests {
         cache.insert("same_key".to_string(), response2).await;
 
         let cached = cache.get("same_key").await;
-        assert_eq!(cached.unwrap().content, "Second response", "Most recent value should be in cache");
+        assert_eq!(
+            cached.unwrap().content,
+            "Second response",
+            "Most recent value should be in cache"
+        );
     }
 
     // ========== CLEAR AND RESET TESTS ==========
@@ -389,7 +413,10 @@ mod cache_tests {
         assert!(cache.get("key1").await.is_some());
 
         cache.clear().await;
-        assert!(cache.get("key1").await.is_none(), "Cache should be empty after clear");
+        assert!(
+            cache.get("key1").await.is_none(),
+            "Cache should be empty after clear"
+        );
     }
 
     // ========== METRICS EDGE CASES ==========

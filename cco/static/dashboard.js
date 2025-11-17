@@ -265,7 +265,8 @@ function updateModelBreakdown(breakdown) {
 
         const percentage = totalCost > 0 ? (modelTotalCost / totalCost * 100).toFixed(1) : 0;
         const totalModelTokens = data.input_tokens + data.output_tokens;
-        const modelName = model.replace('claude-', '').replace(/-\d+$/, '');
+        // Use model name directly - it's already clean from the backend
+        const modelName = model;
 
         const cost = modelTotalCost;
         const messageCount = data.message_count !== undefined && data.message_count !== null ? data.message_count : 0;
@@ -421,7 +422,14 @@ function updateModelsTableFromBreakdown(breakdown) {
         return;
     }
 
-    tbody.innerHTML = Object.entries(breakdown).map(([modelName, data]) => {
+    // Sort entries by cost descending for consistent ordering
+    const sortedEntries = Object.entries(breakdown).sort((a, b) => {
+        const costA = (a[1].total_cost || 0);
+        const costB = (b[1].total_cost || 0);
+        return costB - costA;
+    });
+
+    tbody.innerHTML = sortedEntries.map(([modelName, data]) => {
         const cost = data.total_cost !== undefined ? data.total_cost : 0;
         const calls = data.message_count !== undefined ? data.message_count : 0;
         const inputTokens = data.input_tokens !== undefined ? data.input_tokens : 0;
@@ -815,10 +823,14 @@ function initTerminal() {
         // Handle terminal resize events
         state.terminal.onResize((size) => {
             if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-                // Send resize message to PTY backend
+                // Send resize message to PTY backend as control message (not displayed to user)
                 const msg = `RESIZE${size.cols}x${size.rows}`;
                 const encoder = new TextEncoder();
-                state.ws.send(encoder.encode(msg));
+                const resizeData = new Uint8Array(msg.length);
+                for (let i = 0; i < msg.length; i++) {
+                    resizeData[i] = msg.charCodeAt(i);
+                }
+                state.ws.send(resizeData);
             }
         });
 
@@ -889,12 +901,15 @@ function initTerminalWebSocket() {
             console.log('Terminal WebSocket connected to /terminal');
             updateTerminalConnectionStatus(true);
 
-            // Send initial terminal size if available
+            // Send initial terminal size if available (as control message, not for display)
             if (state.terminal && state.fitAddon) {
                 const size = { cols: state.terminal.cols, rows: state.terminal.rows };
                 const msg = `RESIZE${size.cols}x${size.rows}`;
-                const encoder = new TextEncoder();
-                state.ws.send(encoder.encode(msg));
+                const resizeData = new Uint8Array(msg.length);
+                for (let i = 0; i < msg.length; i++) {
+                    resizeData[i] = msg.charCodeAt(i);
+                }
+                state.ws.send(resizeData);
             }
         };
 

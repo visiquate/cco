@@ -34,21 +34,31 @@ impl DateVersion {
         // Parse "2025.11.1" format
         let version_components: Vec<&str> = version_str.split('.').collect();
         if version_components.len() != 3 {
-            anyhow::bail!("Invalid version format: {} (expected YYYY.MM.N)", version_str);
+            anyhow::bail!(
+                "Invalid version format: {} (expected YYYY.MM.N)",
+                version_str
+            );
         }
 
-        let year: u32 = version_components[0].parse()
+        let year: u32 = version_components[0]
+            .parse()
             .map_err(|_| anyhow::anyhow!("Invalid year: {}", version_components[0]))?;
-        let month: u32 = version_components[1].parse()
+        let month: u32 = version_components[1]
+            .parse()
             .map_err(|_| anyhow::anyhow!("Invalid month: {}", version_components[1]))?;
-        let release: u32 = version_components[2].parse()
+        let release: u32 = version_components[2]
+            .parse()
             .map_err(|_| anyhow::anyhow!("Invalid release number: {}", version_components[2]))?;
 
         if month < 1 || month > 12 {
             anyhow::bail!("Invalid month: {} (must be 1-12)", month);
         }
 
-        Ok(Self { year, month, release })
+        Ok(Self {
+            year,
+            month,
+            release,
+        })
     }
 
     /// Get current version from environment or default

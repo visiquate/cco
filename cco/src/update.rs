@@ -2,14 +2,14 @@
 //!
 //! Handles checking for updates and installing new versions from GitHub releases.
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 use std::env;
 use std::fs;
+use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
-use std::io::Read;
 
 use cco::version::DateVersion;
 
@@ -135,7 +135,10 @@ async fn download_file(url: &str, path: &Path) -> Result<()> {
     let response = client.get(url).send().await?;
 
     if !response.status().is_success() {
-        return Err(anyhow!("Download failed with status: {}", response.status()));
+        return Err(anyhow!(
+            "Download failed with status: {}",
+            response.status()
+        ));
     }
 
     let bytes = response.bytes().await?;
@@ -166,8 +169,7 @@ fn verify_checksum(file_path: &Path, expected_checksum: &str) -> Result<bool> {
 
 /// Get the installation path for CCO
 fn get_install_path() -> Result<PathBuf> {
-    let home = dirs::home_dir()
-        .ok_or_else(|| anyhow!("Could not determine home directory"))?;
+    let home = dirs::home_dir().ok_or_else(|| anyhow!("Could not determine home directory"))?;
     Ok(home.join(".local/bin/cco"))
 }
 
@@ -197,7 +199,10 @@ async fn check_for_updates(channel: &str) -> Result<Option<GitHubRelease>> {
     println!("→ Latest version: {}", latest_version_str);
 
     // Try to parse as DateVersion for comparison
-    match (DateVersion::parse(current_version), DateVersion::parse(&latest_version_str)) {
+    match (
+        DateVersion::parse(current_version),
+        DateVersion::parse(&latest_version_str),
+    ) {
         (Ok(current), Ok(latest)) => {
             if latest > current {
                 Ok(Some(release))
@@ -246,7 +251,9 @@ async fn install_update(release: &GitHubRelease, auto_confirm: bool) -> Result<(
         format!("cco-{}-{}.tar.gz", release.tag_name, platform)
     };
 
-    let asset = release.assets.iter()
+    let asset = release
+        .assets
+        .iter()
         .find(|a| a.name == asset_name)
         .ok_or_else(|| anyhow!("No release asset found for platform: {}", platform))?;
 
@@ -261,8 +268,13 @@ async fn install_update(release: &GitHubRelease, auto_confirm: bool) -> Result<(
     }
 
     if release.body.lines().count() > 10 {
-        println!("  ... (see full release notes: {})",
-                 format!("https://github.com/{}/releases/tag/{}", GITHUB_REPO, release.tag_name));
+        println!(
+            "  ... (see full release notes: {})",
+            format!(
+                "https://github.com/{}/releases/tag/{}",
+                GITHUB_REPO, release.tag_name
+            )
+        );
     }
 
     // Prompt for confirmation unless auto-confirm is enabled
@@ -292,8 +304,7 @@ async fn install_update(release: &GitHubRelease, auto_confirm: bool) -> Result<(
     download_file(&asset.browser_download_url, &temp_file).await?;
 
     // Try to download and verify checksum if available
-    let checksum_asset = release.assets.iter()
-        .find(|a| a.name == "checksums.sha256");
+    let checksum_asset = release.assets.iter().find(|a| a.name == "checksums.sha256");
 
     if let Some(checksum_asset) = checksum_asset {
         println!("→ Verifying checksum...");
@@ -353,8 +364,7 @@ async fn install_update(release: &GitHubRelease, auto_confirm: bool) -> Result<(
         fs::set_permissions(&binary_path, perms)?;
     }
 
-    fs::copy(&binary_path, &install_path)
-        .context("Failed to install new binary")?;
+    fs::copy(&binary_path, &install_path).context("Failed to install new binary")?;
 
     // Verify new binary works
     match std::process::Command::new(&install_path)
@@ -394,7 +404,10 @@ pub async fn run(check_only: bool, auto_confirm: bool, channel: Option<String>) 
     let channel = channel.as_deref().unwrap_or("stable");
 
     if !["stable", "beta"].contains(&channel) {
-        return Err(anyhow!("Invalid channel: {}. Use 'stable' or 'beta'", channel));
+        return Err(anyhow!(
+            "Invalid channel: {}. Use 'stable' or 'beta'",
+            channel
+        ));
     }
 
     match check_for_updates(channel).await? {

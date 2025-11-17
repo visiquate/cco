@@ -447,6 +447,8 @@ mod tests {
             model: Some("claude-opus-4".to_string()),
             tokens: Some(1000),
             latency_ms: Some(150),
+            status: Some("success".to_string()),
+            cost: Some(0.05),
         };
 
         analytics.record_event(event).await;
@@ -470,6 +472,8 @@ mod tests {
                 model: None,
                 tokens: None,
                 latency_ms: None,
+                status: Some("success".to_string()),
+                cost: None,
             };
             analytics.record_event(event).await;
         }
@@ -495,6 +499,8 @@ mod tests {
                 model: None,
                 tokens: None,
                 latency_ms: None,
+                status: Some("success".to_string()),
+                cost: None,
             };
             analytics.record_event(event).await;
         }

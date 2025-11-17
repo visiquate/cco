@@ -15,7 +15,7 @@ use axum::{
 use dashmap::DashMap;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
-use tracing::{debug, warn};
+use tracing::{trace, warn};
 
 /// Connection tracking for rate limiting and connection limits
 /// Uses DashMap for lock-free concurrent access (avoids double Arc issue)
@@ -39,6 +39,12 @@ impl ConnectionTracker {
     /// Try to acquire a connection slot for the given IP
     /// Returns true if allowed, false if limit exceeded
     pub async fn try_acquire(&self, ip: IpAddr) -> bool {
+        trace!(
+            ip = %ip,
+            max_allowed = self.max_connections_per_ip,
+            "Attempting to acquire connection slot"
+        );
+
         // Check and increment atomically
         let mut entry = self.connections.entry(ip).or_insert(0);
 
@@ -52,10 +58,11 @@ impl ConnectionTracker {
             false
         } else {
             *entry += 1;
-            debug!(
+            trace!(
                 ip = %ip,
                 current_connections = *entry,
-                "Connection acquired"
+                max_allowed = self.max_connections_per_ip,
+                "Connection slot acquired successfully"
             );
             true
         }
@@ -63,26 +70,46 @@ impl ConnectionTracker {
 
     /// Release a connection slot for the given IP
     pub async fn release(&self, ip: IpAddr) {
+        trace!(
+            ip = %ip,
+            "Attempting to release connection slot"
+        );
+
         if let Some(mut entry) = self.connections.get_mut(&ip) {
             if *entry > 0 {
                 *entry -= 1;
-                debug!(
+                trace!(
                     ip = %ip,
                     remaining_connections = *entry,
-                    "Connection released"
+                    "Connection slot released"
                 );
             }
             // Remove entry if count reaches zero to prevent unbounded growth
             if *entry == 0 {
                 drop(entry);
                 self.connections.remove(&ip);
+                trace!(
+                    ip = %ip,
+                    "Connection entry removed from tracker (count reached zero)"
+                );
             }
+        } else {
+            trace!(
+                ip = %ip,
+                "No connection entry found for IP (already removed)"
+            );
         }
     }
 
     /// Get current connection count for an IP
     pub async fn get_count(&self, ip: IpAddr) -> usize {
-        self.connections.get(&ip).map(|r| *r).unwrap_or(0)
+        let count = self.connections.get(&ip).map(|r| *r).unwrap_or(0);
+        trace!(
+            ip = %ip,
+            connection_count = count,
+            "Connection count queried"
+        );
+        count
     }
 }
 
@@ -101,20 +128,38 @@ pub async fn localhost_only_middleware(
     next: Next,
 ) -> Response {
     let ip = addr.ip();
+    let path = request.uri().path().to_string();
+    let method = request.method().to_string();
+
+    trace!(
+        ip = %ip,
+        path = %path,
+        method = %method,
+        "Localhost validation check initiated"
+    );
 
     if is_localhost(&ip) {
-        debug!(
+        trace!(
             ip = %ip,
-            path = %request.uri().path(),
-            "Localhost connection accepted"
+            path = %path,
+            method = %method,
+            "Localhost IP validation passed, request accepted"
         );
         next.run(request).await
     } else {
         warn!(
             ip = %ip,
-            path = %request.uri().path(),
-            "Remote connection blocked - localhost only"
+            path = %path,
+            method = %method,
+            "Remote (non-localhost) connection blocked by security middleware"
         );
+
+        trace!(
+            ip = %ip,
+            path = %path,
+            "Sending 403 Forbidden response for non-localhost access"
+        );
+
         (
             StatusCode::FORBIDDEN,
             "Access denied: localhost connections only",
@@ -134,7 +179,7 @@ pub async fn localhost_only_middleware(
 /// * `Err(String)` with error message if size is exceeded
 pub fn validate_message_size(data: &[u8], max_size: usize) -> Result<(), String> {
     if data.len() > max_size {
-        debug!(
+        trace!(
             message_size = data.len(),
             max_size = max_size,
             "Message size limit exceeded"
@@ -191,7 +236,7 @@ pub fn validate_utf8(data: &[u8]) -> Result<(), String> {
     std::str::from_utf8(data)
         .map(|_| ())
         .map_err(|e| {
-            debug!("Invalid UTF-8 encoding: {}", e);
+            trace!("Invalid UTF-8 encoding: {}", e);
             "Invalid UTF-8 encoding".to_string()
         })
 }

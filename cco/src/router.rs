@@ -295,8 +295,9 @@ mod tests {
             )
             .unwrap();
 
-        let would_be_cost =
-            router.calculate_cost("claude-opus-4", total_input, output_tokens).unwrap();
+        let would_be_cost = router
+            .calculate_cost("claude-opus-4", total_input, output_tokens)
+            .unwrap();
 
         let savings = would_be_cost - actual_cost;
 
