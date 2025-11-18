@@ -146,6 +146,12 @@ enum Commands {
         #[command(subcommand)]
         action: DaemonAction,
     },
+
+    /// Manage the CCO HTTP server (install, run, uninstall)
+    Server {
+        #[command(subcommand)]
+        action: ServerAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -222,6 +228,25 @@ enum DaemonAction {
 }
 
 #[derive(Subcommand)]
+enum ServerAction {
+    /// Install/initialize server (idempotent)
+    Install {
+        /// Force reinstall even if already installed
+        #[arg(long)]
+        force: bool,
+    },
+    /// Run the server (starts in background, idempotent)
+    Run {
+        #[arg(short, long, default_value = "3000")]
+        port: u16,
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+    },
+    /// Uninstall server (idempotent)
+    Uninstall,
+}
+
+#[derive(Subcommand)]
 enum ConfigAction {
     /// Set a configuration value
     Set {
@@ -261,29 +286,50 @@ enum CredentialAction {
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
-    // Start background update check (non-blocking)
-    auto_update::check_for_updates_async();
+    // Check for updates synchronously BEFORE launching anything
+    // This ensures we're always running the latest version
+    // Note: Uses config settings (enabled, auto_install, check_interval)
+    // To disable: Set CCO_AUTO_UPDATE=false environment variable
+    auto_update::check_for_updates_blocking().await;
 
-    // If no command specified, default to TUI
+    // If no command specified, default to install + run server + launch TUI
     let command = match cli.command {
         Some(cmd) => cmd,
         None => {
-            // Launch TUI by default
+            // Initialize tracing early for default command
+            tracing_subscriber::fmt::init();
+
+            let version = DateVersion::current();
+            println!("🚀 Starting Claude Code Orchestra {}...", version);
+
+            // Step 1: Install server (idempotent)
+            println!("📦 Installing server...");
+            if let Err(e) = commands::server::install(false).await {
+                eprintln!("⚠️  Server install failed: {}", e);
+                eprintln!("   Attempting to continue anyway...");
+            }
+
+            // Step 2: Start server (idempotent)
+            println!("🔌 Starting server on 127.0.0.1:3000...");
+            if let Err(e) = commands::server::run("127.0.0.1", 3000).await {
+                eprintln!("❌ Server start failed: {}", e);
+                eprintln!("   Cannot proceed without server.");
+                std::process::exit(1);
+            }
+
+            // Step 3: Launch TUI
+            println!("🎯 Launching TUI dashboard...");
+            println!();
+
             match cco::TuiApp::new().await {
                 Ok(mut app) => {
                     return app.run().await;
                 }
                 Err(e) => {
-                    eprintln!("Failed to start TUI: {}", e);
-                    eprintln!("Falling back to daemon mode...");
-                    Commands::Run {
-                        port: 3000,
-                        host: "127.0.0.1".to_string(),
-                        database_url: "sqlite://analytics.db".to_string(),
-                        cache_size: 1073741824,
-                        cache_ttl: 3600,
-                        debug: false,
-                    }
+                    eprintln!("❌ TUI failed to start: {}", e);
+                    eprintln!("   Server is still running at http://127.0.0.1:3000");
+                    eprintln!("   You can access it via browser or run 'cco dashboard'");
+                    std::process::exit(1);
                 }
             }
         }
@@ -325,8 +371,8 @@ async fn main() -> anyhow::Result<()> {
             port,
             host,
             database_url: _database_url,
-            cache_size,
-            cache_ttl,
+            cache_size: _cache_size,
+            cache_ttl: _cache_ttl,
             debug,
         } => {
             // Configure logging level based on debug flag BEFORE initializing tracing
@@ -356,13 +402,34 @@ async fn main() -> anyhow::Result<()> {
                 }
             });
 
-            // Display server URL (browser opening removed - users can open manually)
-            let url = format!("http://{}:{}", host, port);
-            println!("🌐 Server running at {}", url);
-            println!("   Open this URL in your browser to access the dashboard");
+            // Step 1: Install server (idempotent)
+            println!("📦 Installing server...");
+            if let Err(e) = commands::server::install(false).await {
+                eprintln!("⚠️  Server install failed: {}", e);
+                eprintln!("   Attempting to continue anyway...");
+            }
 
-            // Run the actual HTTP server
-            run_server(&host, port, cache_size, cache_ttl, debug).await
+            // Step 2: Start server (idempotent)
+            println!("🔌 Starting server on {}:{}...", host, port);
+            if let Err(e) = commands::server::run(&host, port).await {
+                eprintln!("❌ Server start failed: {}", e);
+                eprintln!("   Cannot proceed without server.");
+                std::process::exit(1);
+            }
+
+            // Step 3: Launch TUI
+            println!("🎯 Launching TUI dashboard...");
+            println!();
+
+            match cco::TuiApp::new().await {
+                Ok(mut app) => app.run().await,
+                Err(e) => {
+                    eprintln!("❌ Failed to start TUI: {}", e);
+                    eprintln!("   Server is still running at http://{}:{}", host, port);
+                    eprintln!("   You can access it via browser or run 'cco dashboard'");
+                    std::process::exit(1);
+                }
+            }
         }
 
         Commands::Version => {
@@ -658,6 +725,25 @@ async fn main() -> anyhow::Result<()> {
 
                     // Run the actual HTTP server
                     run_server("127.0.0.1", 3000, 1073741824, 3600, false).await
+                }
+            }
+        }
+
+        Commands::Server { action } => {
+            // Initialize tracing for server commands
+            tracing_subscriber::fmt::init();
+
+            match action {
+                ServerAction::Install { force } => {
+                    commands::server::install(force).await
+                }
+
+                ServerAction::Run { host, port } => {
+                    commands::server::run(&host, port).await
+                }
+
+                ServerAction::Uninstall => {
+                    commands::server::uninstall().await
                 }
             }
         }

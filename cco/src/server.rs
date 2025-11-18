@@ -609,23 +609,40 @@ async fn dashboard_js() -> impl IntoResponse {
 
 /// Analytics stats endpoint - unified format for dashboard
 async fn stats(State(state): State<Arc<ServerState>>) -> Result<Json<StatsResponse>, ServerError> {
-    // Calculate totals
-    let total_requests = state.analytics.get_total_requests().await;
-    let total_actual_cost = state.analytics.get_total_actual_cost().await;
-    let total_would_be_cost = state.analytics.get_total_would_be_cost().await;
+    // Load real Claude history metrics
+    let project_path = get_current_project_path()
+        .map_err(|e| ServerError::Internal(format!("Failed to determine project path: {}", e)))?;
 
-    // Get recent activity
+    let claude_metrics = crate::claude_history::load_claude_project_metrics(&project_path)
+        .await
+        .map_err(|e| ServerError::Internal(format!("Failed to load Claude metrics: {}", e)))?;
+
+    // Get recent activity from analytics engine
     let activity = state.analytics.get_recent_activity(20).await;
 
-    // Generate chart data
-    let metrics_by_model = state.analytics.get_metrics_by_model().await;
+    // Build model distribution from Claude history
+    let model_distribution: Vec<ModelDistribution> = if claude_metrics.total_cost > 0.0 {
+        claude_metrics
+            .model_breakdown
+            .iter()
+            .map(|(model_name, breakdown)| {
+                let percentage = (breakdown.total_cost / claude_metrics.total_cost) * 100.0;
+                ModelDistribution {
+                    model: model_name.clone(),
+                    percentage: percentage.round(),
+                }
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
 
     // Cost over time: For now, just show current cost over past 30 days (mock data)
     let today = chrono::Local::now();
     let mut cost_over_time = Vec::new();
     for i in 0..30 {
         let date = today - chrono::Duration::days(i);
-        let daily_cost = total_actual_cost / 30.0;
+        let daily_cost = claude_metrics.total_cost / 30.0;
         cost_over_time.push(ChartDataPoint {
             date: date.format("%Y-%m-%d").to_string(),
             cost: daily_cost,
@@ -636,25 +653,8 @@ async fn stats(State(state): State<Arc<ServerState>>) -> Result<Json<StatsRespon
     // Cost by project
     let cost_by_project = vec![ProjectChartData {
         project: "Claude Orchestra".to_string(),
-        cost: total_actual_cost,
+        cost: claude_metrics.total_cost,
     }];
-
-    // Model distribution
-    let total_model_cost: f64 = metrics_by_model.values().map(|m| m.actual_cost).sum();
-    let model_distribution: Vec<ModelDistribution> = if total_model_cost > 0.0 {
-        metrics_by_model
-            .iter()
-            .map(|(model_name, metrics)| {
-                let percentage = (metrics.actual_cost / total_model_cost) * 100.0;
-                ModelDistribution {
-                    model: model_name.clone(),
-                    percentage,
-                }
-            })
-            .collect()
-    } else {
-        Vec::new()
-    };
 
     let chart_data = ChartData {
         cost_over_time,
@@ -662,12 +662,15 @@ async fn stats(State(state): State<Arc<ServerState>>) -> Result<Json<StatsRespon
         model_distribution,
     };
 
+    // Calculate total tokens from Claude history
+    let total_tokens = claude_metrics.total_input_tokens + claude_metrics.total_output_tokens;
+
     Ok(Json(StatsResponse {
         project: ProjectInfo {
             name: "Claude Orchestra".to_string(),
-            cost: total_actual_cost,
-            tokens: total_would_be_cost as u64,
-            calls: total_requests,
+            cost: claude_metrics.total_cost,
+            tokens: total_tokens,
+            calls: claude_metrics.messages_count,
             last_updated: Utc::now().to_rfc3339(),
         },
         machine: MachineInfo {

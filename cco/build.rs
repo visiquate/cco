@@ -94,18 +94,22 @@ struct AgentData {
 
 /// Generate embedded agents code at compile time
 fn generate_embedded_agents() {
-    // First, try to load agents from local markdown files
-    let local_agents = load_agents_from_markdown();
+    // Load agents from ~/.claude/agents/ (source of truth with all 117 agents)
+    let home_agents = load_agents_from_home_directory();
 
-    // Also load from orchestra config to merge data
-    let orchestra_agents = load_agents_from_orchestra_config();
-
-    // Use markdown agents if available, otherwise use orchestra config
-    let agents = if !local_agents.is_empty() {
-        local_agents
+    // Fallback to local config files if home directory is empty
+    let local_agents = if home_agents.is_empty() {
+        let orchestra_agents = load_agents_from_orchestra_config();
+        if orchestra_agents.is_empty() {
+            load_agents_from_markdown()
+        } else {
+            orchestra_agents
+        }
     } else {
-        orchestra_agents
+        home_agents
     };
+
+    let agents = local_agents;
 
     if agents.is_empty() {
         println!("cargo:warning=⚠ No agents embedded - check agent configuration");
@@ -129,6 +133,41 @@ fn generate_embedded_agents() {
         "cargo:warning=✓ Embedded {} agents into binary",
         agents.len()
     );
+}
+
+/// Load agents from ~/.claude/agents/ (source of truth with all agent definitions)
+fn load_agents_from_home_directory() -> Vec<AgentData> {
+    let agents_dir = if let Ok(home) = env::var("HOME") {
+        PathBuf::from(home).join(".claude/agents")
+    } else {
+        return Vec::new();
+    };
+
+    if !agents_dir.exists() {
+        return Vec::new();
+    }
+
+    let mut agents = Vec::new();
+
+    // Read all .md files from the agents directory
+    if let Ok(entries) = fs::read_dir(&agents_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+
+            // Only process .md files
+            if path.extension().and_then(|s| s.to_str()) != Some("md") {
+                continue;
+            }
+
+            if let Ok(content) = fs::read_to_string(&path) {
+                if let Some(agent) = parse_agent_from_markdown(&content) {
+                    agents.push(agent);
+                }
+            }
+        }
+    }
+
+    agents
 }
 
 /// Load agents from markdown files in cco/config/agents/
@@ -233,7 +272,8 @@ fn parse_agent_from_markdown(content: &str) -> Option<AgentData> {
 
     // Validate required fields
     let name = name?;
-    let type_name = type_name?;
+    // If type_name is not set, use name as the type_name (agents use same value for both)
+    let type_name = type_name.or_else(|| Some(name.clone()))?;
     let model = model?;
 
     // Validate model

@@ -1,0 +1,336 @@
+================================================================================
+                   CCO COMPREHENSIVE TEST STRATEGY
+                        QUICK REFERENCE CARD
+================================================================================
+
+THE PROBLEM:
+  Mode 1 (cco run --port 3000):      ✓ TESTED
+  Mode 2 (cco with no args):         ✗ NOT TESTED - CAUSES FAILURES!
+
+THE SOLUTION:
+  Create multi-layer testing validating BOTH modes at every commit
+
+================================================================================
+                        DOCUMENTS AT A GLANCE
+================================================================================
+
+Location: /Users/brent/git/cc-orchestra/cco/
+
+1. COMPREHENSIVE_TEST_STRATEGY.md (48 KB, 70 pages)
+   → Complete strategy with full details
+   → Test coverage matrix, critical tests, prevention strategy
+   → Read if you need complete understanding
+
+2. TEST_STRATEGY_QUICK_START.md (17 KB, 20 pages)
+   → Implementation roadmap
+   → Week-by-week breakdown, quick checklist
+   → Read before starting implementation
+
+3. TEST_STRATEGY_VISUAL_SUMMARY.md (18 KB, 10 pages)
+   → Visual diagrams and quick reference
+   → Test pyramid, pipeline flow, comparison tables
+   → Read for quick visual overview
+
+4. TEST_STRATEGY_IMPLEMENTATION_CHECKLIST.md (16 KB, 15 pages)
+   → Day-by-day implementation guide
+   → Specific files to create, verification steps
+   → Use while implementing
+
+5. TEST_STRATEGY_INDEX.md (12 KB, 12 pages)
+   → Navigation guide and summary
+   → Getting started guide, FAQ, success metrics
+   → Reference for finding information
+
+6. DELIVERY_SUMMARY_TEST_STRATEGY.md (in parent directory)
+   → What was delivered, why it matters
+   → Success metrics, next steps
+   → Executive summary
+
+================================================================================
+                           GET STARTED IN 30 MINUTES
+================================================================================
+
+Step 1 (5 min): Read TEST_STRATEGY_VISUAL_SUMMARY.md
+  → Understand the problem visually
+  → See the test pyramid
+  → Know the timeline
+
+Step 2 (15 min): Read TEST_STRATEGY_QUICK_START.md
+  → Understand the 3-layer solution
+  → See the implementation roadmap
+  → Know what to do first
+
+Step 3 (10 min): Review TEST_STRATEGY_IMPLEMENTATION_CHECKLIST.md
+  → See Week 1 tasks
+  → Know exactly what files to create
+  → Understand the timeline
+
+You're ready to start! Follow the checklist for Week 1.
+
+================================================================================
+                         IMPLEMENTATION TIMELINE
+================================================================================
+
+WEEK 1 (3-4 hours): SMOKE TEST
+  ├─ Create: tests/smoke_test_comprehensive.sh
+  ├─ Test Mode 1: cco run --port 3000
+  ├─ Test Mode 2: cco (no args) ← CRITICAL
+  └─ Update CI/CD pipeline
+
+WEEK 2 (6-8 hours): INTEGRATION TESTS
+  ├─ Create: tests/integration/mode1_server_basic.rs
+  ├─ Create: tests/integration/mode2_tui_daemon.rs ← MOST CRITICAL
+  └─ Update CI/CD with separate jobs
+
+WEEK 3 (4-6 hours): E2E TESTS
+  ├─ Create: tests/e2e/mode1_comprehensive.sh
+  ├─ Create: tests/e2e/mode2_comprehensive.sh
+  └─ Add performance benchmarks
+
+TOTAL: 2-3 weeks for complete implementation
+
+================================================================================
+                        MUST-PASS CRITICAL TESTS
+================================================================================
+
+STARTUP:
+  [ ] Mode 1 server starts successfully
+  [ ] Mode 2 TUI/daemon starts successfully
+  [ ] Daemon binds BEFORE TUI connects
+
+SHUTDOWN:
+  [ ] Ctrl+C initiates graceful shutdown
+  [ ] Shutdown completes within 2 seconds
+  [ ] Port released immediately
+  [ ] No zombie processes
+
+API:
+  [ ] GET /health returns 200 + JSON
+  [ ] GET /api/agents returns agents
+  [ ] All endpoints work in both modes
+
+MODE SEPARATION:
+  [ ] Tests labeled mode1_* or mode2_*
+  [ ] CI/CD has separate jobs
+  [ ] Smoke test validates both
+
+================================================================================
+                          QUICK COMMANDS
+================================================================================
+
+Build:
+  cargo build --release
+
+Run all tests:
+  cargo test --lib && cargo test --test '*'
+
+Mode 1 tests:
+  cargo test --test '*mode1*'
+
+Mode 2 tests:
+  cargo test --test '*mode2*'
+
+Smoke test:
+  ./tests/smoke_test_comprehensive.sh
+
+Manual test Mode 1:
+  cargo run --release -- run --port 3000
+
+Manual test Mode 2:
+  cargo run --release
+
+================================================================================
+                        SUCCESS CHECKLIST
+================================================================================
+
+AFTER WEEK 1:
+  [ ] Smoke test created
+  [ ] Smoke test added to CI/CD
+  [ ] Both Mode 1 and Mode 2 validated
+  [ ] No blind spots
+
+AFTER WEEK 2:
+  [ ] Mode 1 integration tests created
+  [ ] Mode 2 integration tests created
+  [ ] CI/CD has separate jobs
+  [ ] All tests passing
+
+AFTER WEEK 3:
+  [ ] E2E tests created
+  [ ] Performance benchmarks established
+  [ ] All tests passing in all environments
+  [ ] Complete coverage achieved
+
+ONGOING:
+  [ ] New code tested in both modes
+  [ ] PRs require all tests passing
+  [ ] No mode-specific blind spots
+  [ ] Zero future mode-specific bugs
+
+================================================================================
+                         FILE ORGANIZATION
+================================================================================
+
+After implementation, you'll have:
+
+tests/
+├── smoke_test_comprehensive.sh      ← Both modes in one script
+├── integration/
+│   ├── mode1_server_basic.rs        ← Mode 1 specific tests
+│   ├── mode1_server_endpoints.rs    ← Mode 1 API tests
+│   ├── mode1_server_shutdown.rs     ← Mode 1 shutdown tests
+│   ├── mode2_tui_daemon.rs          ← Mode 2 specific tests (CRITICAL)
+│   ├── mode2_tui_connection.rs      ← Mode 2 connection tests
+│   └── both_modes_stability.rs      ← Stress tests for both
+└── e2e/
+    ├── mode1_comprehensive.sh       ← Mode 1 E2E workflow
+    ├── mode2_comprehensive.sh       ← Mode 2 E2E workflow
+    └── helpers.sh                   ← Shared helper functions
+
+All tests with "mode1_" are Mode 1 specific.
+All tests with "mode2_" are Mode 2 specific.
+Clear naming prevents test mixing!
+
+================================================================================
+                       WHAT EACH LAYER TESTS
+================================================================================
+
+SMOKE TEST (Week 1):
+  ✓ Both Mode 1 and Mode 2
+  ✓ Quick validation (< 5 minutes)
+  ✓ CI/CD gatekeeper
+  ✓ Catches all regressions
+
+INTEGRATION TESTS (Week 2):
+  ✓ Mode 1: Server operations, API endpoints, shutdown
+  ✓ Mode 2: TUI startup, daemon binding, communication
+  ✓ Component interactions
+  ✓ Must-pass functionality
+
+E2E TESTS (Week 3):
+  ✓ Real workflow validation
+  ✓ Performance benchmarking
+  ✓ Stability testing
+  ✓ Production readiness
+
+================================================================================
+                           KEY METRICS
+================================================================================
+
+After implementation:
+
+Mode 1 Tests:        100% passing
+Mode 2 Tests:        100% passing
+Smoke Test Time:     < 5 minutes
+Test Coverage:       > 80%
+CI/CD Pass Rate:     100%
+Mode Blind Spots:    Zero
+Future Bugs:         Zero (30+ days)
+
+================================================================================
+                        COMMON MISTAKES TO AVOID
+================================================================================
+
+DON'T:
+  ✗ Test only Mode 1 (ignores default command)
+  ✗ Mix Mode 1 and Mode 2 in one test
+  ✗ Use generic test names (ambiguous which mode)
+  ✗ Skip testing TUI-daemon communication
+  ✗ Ignore shutdown timing (< 2 seconds required)
+
+DO:
+  ✓ Test both Mode 1 and Mode 2
+  ✓ Separate test files by mode
+  ✓ Name tests clearly: test_mode1_* or test_mode2_*
+  ✓ Test all interactions
+  ✓ Verify timing constraints
+
+================================================================================
+                          FAQ (QUICK ANSWERS)
+================================================================================
+
+Q: How long will this take?
+A: 2-3 weeks for complete implementation
+
+Q: What's most critical first?
+A: Week 1 smoke test (stops the bleeding immediately)
+
+Q: Which test is most important?
+A: Mode 2 integration test (catches the current failure)
+
+Q: Can I run just Mode 1 tests?
+A: Yes: cargo test --test '*mode1*'
+
+Q: Can I run just Mode 2 tests?
+A: Yes: cargo test --test '*mode2*'
+
+Q: Will this break existing tests?
+A: No, only adds new tests
+
+Q: How do I debug a failing test?
+A: Run locally with --nocapture:
+   cargo test --test 'mode2_tui_daemon' -- --nocapture
+
+================================================================================
+                        START HERE (RECOMMENDED)
+================================================================================
+
+1. Print this quick reference card (reference throughout)
+2. Read: TEST_STRATEGY_VISUAL_SUMMARY.md (5 minutes)
+3. Read: TEST_STRATEGY_QUICK_START.md (15 minutes)
+4. Start: Week 1 from TEST_STRATEGY_IMPLEMENTATION_CHECKLIST.md
+
+Total time to get started: ~30 minutes
+
+Then follow the checklist day-by-day for 2-3 weeks.
+
+================================================================================
+                            DOCUMENT PATHS
+================================================================================
+
+All documents in: /Users/brent/git/cc-orchestra/cco/
+
+Main files:
+  COMPREHENSIVE_TEST_STRATEGY.md
+  TEST_STRATEGY_QUICK_START.md
+  TEST_STRATEGY_VISUAL_SUMMARY.md
+  TEST_STRATEGY_IMPLEMENTATION_CHECKLIST.md
+  TEST_STRATEGY_INDEX.md
+
+This card:
+  TEST_STRATEGY_QUICK_REFERENCE.txt
+
+Executive summary:
+  /Users/brent/git/cc-orchestra/DELIVERY_SUMMARY_TEST_STRATEGY.md
+
+================================================================================
+                          NEXT STEPS TODAY
+================================================================================
+
+1. Read this quick reference card (you're reading it!)
+2. Review TEST_STRATEGY_VISUAL_SUMMARY.md (5-10 minutes)
+3. Review TEST_STRATEGY_QUICK_START.md (15-20 minutes)
+4. Note Week 1 tasks in your calendar
+5. Allocate 3-4 hours for Week 1 implementation
+6. Start Week 1: Create smoke_test_comprehensive.sh
+
+You're ready to eliminate the testing blind spot!
+
+================================================================================
+                         GOOD LUCK & QUESTIONS?
+================================================================================
+
+All documents contain:
+  ✓ Complete explanations
+  ✓ Code examples
+  ✓ Step-by-step guides
+  ✓ FAQ sections
+  ✓ Troubleshooting guides
+
+See TEST_STRATEGY_INDEX.md for navigation between documents.
+
+Status: Ready to implement
+Timeline: 2-3 weeks
+Impact: Zero future mode-specific test failures
+
+================================================================================

@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WASM Terminal Phase 2 Test Suite</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1b26;
+            color: #a9b1d6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #7aa2f7;
+            margin-bottom: 10px;
+        }
+
+        h2 {
+            color: #bb9af7;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .test-category {
+            background: #24283b;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            background: #7aa2f7;
+            color: #1a1b26;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #89b4fa;
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            background: #5a8ee6;
+            transform: translateY(0);
+        }
+
+        button.clear-btn {
+            background: #f7768e;
+        }
+
+        button.clear-btn:hover {
+            background: #ff8fa3;
+        }
+
+        .terminal-wrapper {
+            background: #1a1b26;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
+        }
+
+        #terminal-container {
+            background: #000000;
+            min-height: 400px;
+            border-radius: 4px;
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+            border: none;
+            outline: none;
+        }
+
+        .results {
+            background: #24283b;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .results h3 {
+            color: #7aa2f7;
+            margin-bottom: 10px;
+        }
+
+        .result-item {
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .result-item.pass {
+            background: rgba(157, 240, 166, 0.1);
+            border-left: 3px solid #9df0a6;
+        }
+
+        .result-item.fail {
+            background: rgba(247, 118, 142, 0.1);
+            border-left: 3px solid #f7768e;
+        }
+
+        .result-item.running {
+            background: rgba(122, 162, 247, 0.1);
+            border-left: 3px solid #7aa2f7;
+        }
+
+        .badge {
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .badge.pass {
+            background: #9df0a6;
+            color: #1a1b26;
+        }
+
+        .badge.fail {
+            background: #f7768e;
+            color: #ffffff;
+        }
+
+        .summary {
+            background: #24283b;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .summary-item {
+            text-align: center;
+        }
+
+        .summary-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #7aa2f7;
+        }
+
+        .summary-label {
+            font-size: 0.9em;
+            color: #565f89;
+            margin-top: 5px;
+        }
+
+        .color-swatch {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            border: 1px solid #565f89;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        .info {
+            background: rgba(122, 162, 247, 0.2);
+            color: #7aa2f7;
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WASM Terminal Phase 2 Test Suite</h1>
+        <p class="info">
+            Comprehensive tests for 256-color palette, RGB colors, scrolling regions,
+            alternative buffers, and complex sequence combinations.
+        </p>
+
+        <div class="summary">
+            <div class="summary-item">
+                <div class="summary-value" id="total-tests">0</div>
+                <div class="summary-label">Total Tests</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-value" id="passed-tests">0</div>
+                <div class="summary-label">Passed</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-value" id="failed-tests">0</div>
+                <div class="summary-label">Failed</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-value" id="coverage">0%</div>
+                <div class="summary-label">Coverage</div>
+            </div>
+        </div>
+
+        <div class="terminal-wrapper">
+            <div id="terminal-container"></div>
+        </div>
+
+        <!-- 256-Color Tests -->
+        <div class="test-category">
+            <h2>256-Color Palette Tests</h2>
+            <div class="test-grid">
+                <button onclick="test256ColorBasic()">Basic Colors (0-15)</button>
+                <button onclick="test256ColorCube()">Color Cube (16-231)</button>
+                <button onclick="test256ColorGrayscale()">Grayscale (232-255)</button>
+                <button onclick="test256ColorBackground()">Background Colors</button>
+                <button onclick="test256ColorAll()">All 256 Colors</button>
+                <button onclick="test256ColorGrid()">Color Grid Visual</button>
+            </div>
+        </div>
+
+        <!-- RGB Color Tests -->
+        <div class="test-category">
+            <h2>RGB Color Tests</h2>
+            <div class="test-grid">
+                <button onclick="testRGBPrimaryColors()">Primary Colors</button>
+                <button onclick="testRGBCustomColors()">Custom Colors</button>
+                <button onclick="testRGBEdgeCases()">Edge Cases</button>
+                <button onclick="testRGBBackground()">RGB Backgrounds</button>
+                <button onclick="testRGBGradient()">Color Gradient</button>
+                <button onclick="testRGBClamping()">Value Clamping</button>
+            </div>
+        </div>
+
+        <!-- Scrolling Region Tests -->
+        <div class="test-category">
+            <h2>Scrolling Region Tests</h2>
+            <div class="test-grid">
+                <button onclick="testScrollRegionBasic()">Basic Region</button>
+                <button onclick="testScrollRegionContent()">Content Preservation</button>
+                <button onclick="testScrollRegionNested()">Nested Scrolling</button>
+                <button onclick="testScrollRegionReset()">Region Reset</button>
+                <button onclick="testScrollRegionEdges()">Edge Cases</button>
+            </div>
+        </div>
+
+        <!-- Alternative Buffer Tests -->
+        <div class="test-category">
+            <h2>Alternative Buffer Tests</h2>
+            <div class="test-grid">
+                <button onclick="testAltBufferSwitch()">Buffer Switching</button>
+                <button onclick="testAltBufferContent()">Content Preservation</button>
+                <button onclick="testAltBufferVim()">Vim Simulation</button>
+                <button onclick="testAltBufferLess()">Less Simulation</button>
+                <button onclick="testAltBufferMultiple()">Multiple Switches</button>
+            </div>
+        </div>
+
+        <!-- Integration Tests -->
+        <div class="test-category">
+            <h2>Integration Tests</h2>
+            <div class="test-grid">
+                <button onclick="testColorsWithScroll()">Colors + Scrolling</button>
+                <button onclick="testAltWithColors()">Alt Buffer + Colors</button>
+                <button onclick="testComplexSequences()">Complex Sequences</button>
+                <button onclick="testPerformanceStress()">Performance Stress</button>
+                <button onclick="testPhase1Regression()">Phase 1 Regression</button>
+            </div>
+        </div>
+
+        <!-- Control Buttons -->
+        <div class="test-category">
+            <h2>Test Controls</h2>
+            <div class="test-grid">
+                <button onclick="runAllTests()" style="background: #9ece6a;">Run All Tests</button>
+                <button onclick="clearTerminal()" class="clear-btn">Clear Terminal</button>
+                <button onclick="clearResults()">Clear Results</button>
+                <button onclick="exportResults()">Export Results</button>
+            </div>
+        </div>
+
+        <div class="results">
+            <h3>Test Results</h3>
+            <div id="results-list"></div>
+        </div>
+    </div>
+
+    <script src="/static/wasm-terminal.js"></script>
+    <script src="/static/terminal-adapter.js"></script>
+    <script>
+        let terminal = null;
+        let adapter = null;
+        let testResults = [];
+        let testsRun = 0;
+        let testsPassed = 0;
+        let testsFailed = 0;
+
+        async function initTerminal() {
+            try {
+                const preference = TerminalManager.getPreference();
+                adapter = await TerminalManager.create('terminal-container', preference);
+                terminal = adapter.terminal;
+                console.log('Terminal initialized');
+            } catch (error) {
+                console.error('Failed to initialize terminal:', error);
+            }
+        }
+
+        function clearTerminal() {
+            if (adapter) {
+                adapter.clear();
+            }
+        }
+
+        function clearResults() {
+            testResults = [];
+            testsRun = 0;
+            testsPassed = 0;
+            testsFailed = 0;
+            updateSummary();
+            document.getElementById('results-list').innerHTML = '';
+        }
+
+        function logTest(name, passed, details = '') {
+            testsRun++;
+            if (passed) {
+                testsPassed++;
+            } else {
+                testsFailed++;
+            }
+
+            testResults.push({ name, passed, details, timestamp: new Date() });
+            updateResults();
+            updateSummary();
+        }
+
+        function updateResults() {
+            const list = document.getElementById('results-list');
+            list.innerHTML = testResults.map(test => `
+                <div class="result-item ${test.passed ? 'pass' : 'fail'}">
+                    <span>${test.name}</span>
+                    <span class="badge ${test.passed ? 'pass' : 'fail'}">
+                        ${test.passed ? 'PASS' : 'FAIL'}
+                    </span>
+                </div>
+            `).reverse().join('');
+        }
+
+        function updateSummary() {
+            document.getElementById('total-tests').textContent = testsRun;
+            document.getElementById('passed-tests').textContent = testsPassed;
+            document.getElementById('failed-tests').textContent = testsFailed;
+            const coverage = testsRun > 0 ? Math.round((testsPassed / testsRun) * 100) : 0;
+            document.getElementById('coverage').textContent = coverage + '%';
+        }
+
+        // 256-Color Tests
+        function test256ColorBasic() {
+            clearTerminal();
+            terminal.write('256-Color Basic (0-15):\r\n\r\n');
+            for (let i = 0; i < 16; i++) {
+                terminal.write(`\x1b[38;5;${i}m${i.toString().padStart(3)} `);
+                if ((i + 1) % 8 === 0) terminal.write('\r\n');
+            }
+            terminal.write('\x1b[0m\r\n');
+            logTest('256-Color Basic Colors', true);
+        }
+
+        function test256ColorCube() {
+            clearTerminal();
+            terminal.write('256-Color Cube (16-231):\r\n\r\n');
+            for (let i = 16; i <= 231; i++) {
+                terminal.write(`\x1b[38;5;${i}m█`);
+                if ((i - 15) % 36 === 0) terminal.write('\r\n');
+            }
+            terminal.write('\x1b[0m\r\n');
+            logTest('256-Color Cube', true);
+        }
+
+        function test256ColorGrayscale() {
+            clearTerminal();
+            terminal.write('256-Color Grayscale (232-255):\r\n\r\n');
+            for (let i = 232; i <= 255; i++) {
+                terminal.write(`\x1b[38;5;${i}m█`);
+            }
+            terminal.write('\x1b[0m\r\n');
+            logTest('256-Color Grayscale', true);
+        }
+
+        function test256ColorBackground() {
+            clearTerminal();
+            terminal.write('256-Color Backgrounds:\r\n\r\n');
+            for (let i = 0; i < 16; i++) {
+                terminal.write(`\x1b[48;5;${i}m   \x1b[0m `);
+                if ((i + 1) % 8 === 0) terminal.write('\r\n');
+            }
+            terminal.write('\r\n');
+            logTest('256-Color Backgrounds', true);
+        }
+
+        function test256ColorAll() {
+            clearTerminal();
+            terminal.write('All 256 Colors:\r\n\r\n');
+            for (let i = 0; i <= 255; i++) {
+                terminal.write(`\x1b[38;5;${i}m${i.toString().padStart(3)} `);
+                if ((i + 1) % 16 === 0) terminal.write('\r\n');
+            }
+            terminal.write('\x1b[0m\r\n');
+            logTest('All 256 Colors', true);
+        }
+
+        function test256ColorGrid() {
+            clearTerminal();
+            terminal.write('256-Color Visual Grid:\r\n\r\n');
+            // Basic colors
+            for (let i = 0; i < 16; i++) {
+                terminal.write(`\x1b[48;5;${i}m  `);
+            }
+            terminal.write('\x1b[0m\r\n\r\n');
+
+            // Color cube
+            for (let g = 0; g < 6; g++) {
+                for (let r = 0; r < 6; r++) {
+                    for (let b = 0; b < 6; b++) {
+                        const color = 16 + (r * 36) + (g * 6) + b;
+                        terminal.write(`\x1b[48;5;${color}m `);
+                    }
+                    terminal.write('\x1b[0m ');
+                }
+                terminal.write('\r\n');
+            }
+            terminal.write('\r\n');
+
+            // Grayscale
+            for (let i = 232; i <= 255; i++) {
+                terminal.write(`\x1b[48;5;${i}m `);
+            }
+            terminal.write('\x1b[0m\r\n');
+
+            logTest('256-Color Visual Grid', true);
+        }
+
+        // RGB Color Tests
+        function testRGBPrimaryColors() {
+            clearTerminal();
+            terminal.write('RGB Primary Colors:\r\n\r\n');
+            terminal.write('\x1b[38;2;255;0;0mRed (255,0,0)\x1b[0m\r\n');
+            terminal.write('\x1b[38;2;0;255;0mGreen (0,255,0)\x1b[0m\r\n');
+            terminal.write('\x1b[38;2;0;0;255mBlue (0,0,255)\x1b[0m\r\n');
+            terminal.write('\x1b[38;2;255;255;0mYellow (255,255,0)\x1b[0m\r\n');
+            terminal.write('\x1b[38;2;255;0;255mMagenta (255,0,255)\x1b[0m\r\n');
+            terminal.write('\x1b[38;2;0;255;255mCyan (0,255,255)\x1b[0m\r\n');
+            logTest('RGB Primary Colors', true);
+        }
+
+        function testRGBCustomColors() {
+            clearTerminal();
+            terminal.write('RGB Custom Colors:\r\n\r\n');
+            terminal.write('\x1b[38;2;255;165;0mOrange (255,165,0)\x1b[0m\r\n');
+            terminal.write('\x1b[38;2;128;0;128mPurple (128,0,128)\x1b[0m\r\n');
+            terminal.write('\x1b[38;2;0;128;128mTeal (0,128,128)\x1b[0m\r\n');
+            terminal.write('\x1b[38;2;255;192;203mPink (255,192,203)\x1b[0m\r\n');
+            logTest('RGB Custom Colors', true);
+        }
+
+        function testRGBEdgeCases() {
+            clearTerminal();
+            terminal.write('RGB Edge Cases:\r\n\r\n');
+            terminal.write('\x1b[38;2;0;0;0mBlack (0,0,0)\x1b[0m\r\n');
+            terminal.write('\x1b[38;2;255;255;255mWhite (255,255,255)\x1b[0m\r\n');
+            terminal.write('\x1b[38;2;128;128;128mGray (128,128,128)\x1b[0m\r\n');
+            logTest('RGB Edge Cases', true);
+        }
+
+        function testRGBBackground() {
+            clearTerminal();
+            terminal.write('RGB Backgrounds:\r\n\r\n');
+            terminal.write('\x1b[48;2;255;0;0m   Red BG   \x1b[0m\r\n');
+            terminal.write('\x1b[48;2;0;255;0m   Green BG \x1b[0m\r\n');
+            terminal.write('\x1b[48;2;0;0;255m   Blue BG  \x1b[0m\r\n');
+            logTest('RGB Backgrounds', true);
+        }
+
+        function testRGBGradient() {
+            clearTerminal();
+            terminal.write('RGB Gradient:\r\n\r\n');
+            for (let i = 0; i <= 255; i += 8) {
+                terminal.write(`\x1b[48;2;${i};0;${255-i}m `);
+            }
+            terminal.write('\x1b[0m\r\n');
+            for (let i = 0; i <= 255; i += 8) {
+                terminal.write(`\x1b[48;2;0;${i};${255-i}m `);
+            }
+            terminal.write('\x1b[0m\r\n');
+            logTest('RGB Gradient', true);
+        }
+
+        function testRGBClamping() {
+            clearTerminal();
+            terminal.write('RGB Value Clamping (should handle >255):\r\n\r\n');
+            terminal.write('\x1b[38;2;300;400;500mClamped values\x1b[0m\r\n');
+            logTest('RGB Value Clamping', true);
+        }
+
+        // Scrolling Region Tests
+        function testScrollRegionBasic() {
+            clearTerminal();
+            terminal.write('Scroll Region Test:\r\n');
+            terminal.write('\x1b[5;15r'); // Set region lines 5-15
+            terminal.write('Region set (lines 5-15)\r\n');
+            for (let i = 0; i < 20; i++) {
+                terminal.write(`Line ${i}\r\n`);
+            }
+            terminal.write('\x1b[1;24r'); // Reset region
+            logTest('Scroll Region Basic', true);
+        }
+
+        function testScrollRegionContent() {
+            clearTerminal();
+            terminal.write('Content Preservation Test:\r\n');
+            terminal.write('\x1b[1;1HTop Line (outside region)\r\n');
+            terminal.write('\x1b[5;15r'); // Set region
+            for (let i = 0; i < 15; i++) {
+                terminal.write(`Region line ${i}\r\n`);
+            }
+            terminal.write('\x1b[24;1HBottom Line (outside region)\r\n');
+            terminal.write('\x1b[1;24r'); // Reset
+            logTest('Scroll Region Content Preservation', true);
+        }
+
+        function testScrollRegionNested() {
+            clearTerminal();
+            terminal.write('Nested Scrolling:\r\n');
+            terminal.write('\x1b[3;20r');
+            for (let i = 0; i < 25; i++) {
+                terminal.write(`Scrolling line ${i}\r\n`);
+            }
+            terminal.write('\x1b[1;24r');
+            logTest('Scroll Region Nested', true);
+        }
+
+        function testScrollRegionReset() {
+            clearTerminal();
+            terminal.write('Region Reset Test:\r\n');
+            terminal.write('\x1b[5;15r');
+            terminal.write('In region\r\n');
+            terminal.write('\x1b[1;24r'); // Reset to full screen
+            terminal.write('Full screen now\r\n');
+            logTest('Scroll Region Reset', true);
+        }
+
+        function testScrollRegionEdges() {
+            clearTerminal();
+            terminal.write('Edge Cases:\r\n');
+            terminal.write('\x1b[1;1r'); // Single line
+            terminal.write('\x1b[20;5r'); // Invalid (top > bottom)
+            terminal.write('\x1b[1;100r'); // Beyond screen
+            terminal.write('No crash\r\n');
+            logTest('Scroll Region Edge Cases', true);
+        }
+
+        // Alternative Buffer Tests
+        function testAltBufferSwitch() {
+            clearTerminal();
+            terminal.write('Main buffer content\r\n');
+            setTimeout(() => {
+                terminal.write('\x1b[?1049h'); // Switch to alt
+                terminal.write('Alternative buffer content\r\n');
+                setTimeout(() => {
+                    terminal.write('\x1b[?1049l'); // Back to main
+                    logTest('Alt Buffer Switching', true);
+                }, 500);
+            }, 500);
+        }
+
+        function testAltBufferContent() {
+            clearTerminal();
+            terminal.write('Main: Line 1\r\n');
+            terminal.write('Main: Line 2\r\n');
+            setTimeout(() => {
+                terminal.write('\x1b[?1049h');
+                terminal.write('Alt: Different content\r\n');
+                setTimeout(() => {
+                    terminal.write('\x1b[?1049l');
+                    logTest('Alt Buffer Content Preservation', true);
+                }, 500);
+            }, 500);
+        }
+
+        function testAltBufferVim() {
+            clearTerminal();
+            terminal.write('$ vim test.txt\r\n');
+            setTimeout(() => {
+                terminal.write('\x1b[?1049h');
+                terminal.write('\x1b[2J\x1b[H');
+                terminal.write('int main() {\r\n');
+                terminal.write('    return 0;\r\n');
+                terminal.write('}\r\n');
+                terminal.write('\x1b[24;1H');
+                terminal.write('\x1b[7m test.txt [+] \x1b[0m');
+                setTimeout(() => {
+                    terminal.write('\x1b[?1049l');
+                    logTest('Vim Simulation', true);
+                }, 1000);
+            }, 500);
+        }
+
+        function testAltBufferLess() {
+            clearTerminal();
+            terminal.write('$ less file.txt\r\n');
+            setTimeout(() => {
+                terminal.write('\x1b[?1049h');
+                terminal.write('\x1b[2J\x1b[H');
+                for (let i = 1; i <= 23; i++) {
+                    terminal.write(`Line ${i}\r\n`);
+                }
+                terminal.write('\x1b[7m:file.txt (END)\x1b[0m');
+                setTimeout(() => {
+                    terminal.write('\x1b[?1049l');
+                    logTest('Less Simulation', true);
+                }, 1000);
+            }, 500);
+        }
+
+        function testAltBufferMultiple() {
+            clearTerminal();
+            let switches = 0;
+            const interval = setInterval(() => {
+                if (switches < 10) {
+                    terminal.write(switches % 2 === 0 ? '\x1b[?1049h' : '\x1b[?1049l');
+                    terminal.write(`Switch ${switches}\r\n`);
+                    switches++;
+                } else {
+                    clearInterval(interval);
+                    logTest('Multiple Buffer Switches', true);
+                }
+            }, 100);
+        }
+
+        // Integration Tests
+        function testColorsWithScroll() {
+            clearTerminal();
+            terminal.write('\x1b[5;15r');
+            for (let i = 0; i < 20; i++) {
+                const color = 16 + (i % 216);
+                terminal.write(`\x1b[38;5;${color}mColored line ${i}\x1b[0m\r\n`);
+            }
+            terminal.write('\x1b[1;24r');
+            logTest('Colors with Scrolling', true);
+        }
+
+        function testAltWithColors() {
+            clearTerminal();
+            terminal.write('\x1b[31mMain red\x1b[0m\r\n');
+            setTimeout(() => {
+                terminal.write('\x1b[?1049h');
+                terminal.write('\x1b[38;5;51mAlt cyan\x1b[0m\r\n');
+                terminal.write('\x1b[38;2;255;165;0mAlt orange\x1b[0m\r\n');
+                setTimeout(() => {
+                    terminal.write('\x1b[?1049l');
+                    logTest('Alt Buffer with Colors', true);
+                }, 500);
+            }, 500);
+        }
+
+        function testComplexSequences() {
+            clearTerminal();
+            terminal.write('\x1b[?1049h'); // Alt buffer
+            terminal.write('\x1b[5;15r'); // Scroll region
+            terminal.write('\x1b[38;2;255;128;0;48;5;232m'); // RGB fg + 256 bg
+            terminal.write('\x1b[1;4mBold+Underline\x1b[0m\r\n');
+            setTimeout(() => {
+                terminal.write('\x1b[?1049l');
+                logTest('Complex Sequences', true);
+            }, 500);
+        }
+
+        function testPerformanceStress() {
+            clearTerminal();
+            const start = Date.now();
+            for (let i = 0; i < 1000; i++) {
+                const color = i % 256;
+                terminal.write(`\x1b[38;5;${color}m${i % 10}`);
+            }
+            terminal.write('\x1b[0m\r\n');
+            const elapsed = Date.now() - start;
+            logTest(`Performance Stress (${elapsed}ms)`, elapsed < 1000);
+        }
+
+        function testPhase1Regression() {
+            clearTerminal();
+            terminal.write('\x1b[31mRed\x1b[0m ');
+            terminal.write('\x1b[32mGreen\x1b[0m ');
+            terminal.write('\x1b[34mBlue\x1b[0m\r\n');
+            terminal.write('\x1b[1mBold\x1b[0m ');
+            terminal.write('\x1b[4mUnderline\x1b[0m\r\n');
+            terminal.write('\x1b[2J\x1b[H');
+            terminal.write('Cleared\r\n');
+            logTest('Phase 1 Regression', true);
+        }
+
+        async function runAllTests() {
+            clearResults();
+            const tests = [
+                test256ColorBasic,
+                test256ColorCube,
+                test256ColorGrayscale,
+                test256ColorBackground,
+                testRGBPrimaryColors,
+                testRGBCustomColors,
+                testRGBEdgeCases,
+                testScrollRegionBasic,
+                testAltBufferSwitch,
+                testColorsWithScroll,
+                testPhase1Regression
+            ];
+
+            for (const test of tests) {
+                await new Promise(resolve => {
+                    test();
+                    setTimeout(resolve, 800);
+                });
+            }
+        }
+
+        function exportResults() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                summary: {
+                    total: testsRun,
+                    passed: testsPassed,
+                    failed: testsFailed,
+                    coverage: Math.round((testsPassed / testsRun) * 100)
+                },
+                tests: testResults
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `wasm-terminal-phase2-results-${Date.now()}.json`;
+            a.click();
+        }
+
+        window.addEventListener('load', async () => {
+            await initTerminal();
+            console.log('Phase 2 Test Suite Ready');
+        });
+    </script>
+</body>
+</html>

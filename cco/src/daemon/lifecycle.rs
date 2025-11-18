@@ -61,13 +61,10 @@ impl DaemonManager {
         let exe_path = std::env::current_exe()
             .context("Failed to get current executable path")?;
 
-        // Start the daemon with 'run' command
+        // Start the daemon with 'daemon run' command (runs HTTP server in foreground)
         let child = Command::new(&exe_path)
+            .arg("daemon")
             .arg("run")
-            .arg("--port")
-            .arg(self.config.port.to_string())
-            .arg("--host")
-            .arg(&self.config.host)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
