@@ -2,26 +2,37 @@
 //!
 //! This module provides the functionality to launch Claude Code with full
 //! orchestration support including daemon auto-start, temp file verification,
-//! and environment variable injection.
+//! environment variable injection, and orchestration sidecar auto-start.
 
 use anyhow::{Context, Result};
 use std::env;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use cco::version::DateVersion;
+
+/// Type alias for sidecar lifecycle wrapper
+type SidecarHandle = Arc<RwLock<Option<cco::orchestration::SidecarLifecycle>>>;
+
+/// Global sidecar handle for graceful shutdown
+static mut SIDECAR_HANDLE: Option<SidecarHandle> = None;
 
 /// Launch Claude Code with orchestration support
 ///
 /// This is the main entry point when a user runs `cco` without any subcommand.
-/// It ensures the daemon is running, temp settings exist, environment variables are set,
-/// and then launches Claude Code in the current working directory.
+/// It ensures the daemon is running, starts the orchestration sidecar, temp settings exist,
+/// environment variables are set, and then launches Claude Code in the current working directory.
 ///
 /// # Flow
 /// 1. Ensure daemon is running (auto-start if needed)
-/// 2. Get temp settings file path
-/// 3. Verify temp files exist (daemon should have created them)
-/// 4. Set ORCHESTRATOR_* environment variables
-/// 5. Find Claude Code executable in PATH
-/// 6. Launch Claude Code with --settings flag and all arguments passed through
+/// 2. Start orchestration sidecar on port 3001 (background task)
+/// 3. Get temp settings file path
+/// 4. Verify temp files exist (daemon should have created them)
+/// 5. Set ORCHESTRATOR_* and sidecar environment variables
+/// 6. Find Claude Code executable in PATH
+/// 7. Launch Claude Code with --settings flag and all arguments passed through
+/// 8. Gracefully shutdown sidecar on exit
 ///
 /// # Arguments
 /// * `args` - Arguments to pass through to Claude Code
@@ -38,26 +49,71 @@ pub async fn launch_claude_code(args: Vec<String>) -> Result<()> {
     // Step 1: Ensure daemon is running
     ensure_daemon_running().await?;
 
-    // Step 2: Get temp settings file path
+    // Step 2: Start orchestration sidecar (graceful degradation if it fails)
+    let sidecar_result = start_orchestration_sidecar().await;
+    match sidecar_result {
+        Ok(handle) => {
+            unsafe {
+                SIDECAR_HANDLE = Some(handle);
+            }
+            println!("✅ Orchestration sidecar started on port 3001");
+        }
+        Err(e) => {
+            eprintln!("⚠️  Warning: Orchestration sidecar failed to start: {}", e);
+            eprintln!("   Claude Code will run without sidecar support");
+        }
+    }
+
+    // Step 3: Get temp settings file path
     let settings_path = get_orchestrator_settings_path()?;
 
-    // Step 3: Verify temp files exist (daemon should have created them)
+    // Step 4: Verify temp files exist (daemon should have created them)
     verify_temp_files_exist(&settings_path).await?;
 
-    // Step 4: Set orchestrator environment variables
+    // Step 5: Set orchestrator and sidecar environment variables
     set_orchestrator_env_vars(&settings_path);
+    set_sidecar_env_vars();
 
-    // Step 5: Find and launch Claude Code
-    launch_claude_code_process(&settings_path, args).await?;
+    // Flush all buffered output before launching Claude Code
+    let _ = std::io::Write::flush(&mut std::io::stdout());
 
+    // Step 6 & 7: Find and launch Claude Code
+    let result = launch_claude_code_process(&settings_path, args).await;
+
+    // Step 8: Gracefully shutdown sidecar
+    shutdown_sidecar().await;
+
+    result?;
     Ok(())
 }
 
-/// Ensure daemon is running, start if needed
+/// Compare two version strings and return true if daemon version is older than cco version
+///
+/// Parses versions in format "YYYY.MM.N" or "YYYY.MM.N+<git-hash>" and compares them.
+/// If parsing fails, returns false (no update needed).
+///
+/// # Arguments
+/// * `cco_version` - CCO binary version string
+/// * `daemon_version` - Daemon version string
+///
+/// # Returns
+/// * `true` - Daemon version is older than CCO version
+/// * `false` - Daemon version is same or newer, or parsing failed
+fn is_daemon_version_older(cco_version: &str, daemon_version: &str) -> bool {
+    match (DateVersion::parse(cco_version), DateVersion::parse(daemon_version)) {
+        (Ok(cco_v), Ok(daemon_v)) => daemon_v < cco_v,
+        _ => false, // If parsing fails, assume versions are compatible
+    }
+}
+
+/// Ensure daemon is running, start if needed, and auto-update if daemon is older
 ///
 /// Checks if the daemon is running by attempting to get its status.
 /// If the daemon is not running, it will auto-start and wait up to 3 seconds
 /// for the daemon to become healthy.
+///
+/// If the daemon is running but its version is older than the CCO binary,
+/// the daemon will be automatically restarted to pick up the latest version.
 ///
 /// # Returns
 /// * `Ok(())` - Daemon is running and healthy
@@ -68,12 +124,27 @@ async fn ensure_daemon_running() -> Result<()> {
     let config = load_config().unwrap_or_default();
     let manager = DaemonManager::new(config);
 
+    let cco_version = DateVersion::current();
+
     // Check if daemon is running
     match manager.get_status().await {
-        Ok(_status) => {
-            // Daemon is running
-            println!("✅ Daemon is running");
-            Ok(())
+        Ok(status) => {
+            // Daemon is running - check if version needs updating
+            if is_daemon_version_older(cco_version, &status.version) {
+                println!("⚠️  Daemon version older than cco binary, auto-updating...");
+                println!("   CCO version: {}", cco_version);
+                println!("   Daemon version: {}", status.version);
+
+                // Restart daemon to pick up new version
+                manager.restart().await.context("Failed to restart daemon for update")?;
+
+                println!("✅ Daemon updated to {}", cco_version);
+                Ok(())
+            } else {
+                // Versions are compatible
+                println!("✅ Daemon is running");
+                Ok(())
+            }
         }
         Err(_) => {
             // Daemon not running, start it
@@ -149,6 +220,97 @@ async fn verify_temp_files_exist(settings_path: &PathBuf) -> Result<()> {
 
     println!("✅ Orchestrator settings found");
     Ok(())
+}
+
+/// Start the orchestration sidecar on port 3001
+///
+/// Initializes the orchestration sidecar system and starts it in a background task.
+/// The sidecar provides HTTP endpoints for:
+/// - Context injection to agents
+/// - Event bus coordination
+/// - Result storage and retrieval
+/// - Agent lifecycle management
+///
+/// # Returns
+/// * `Ok(SidecarHandle)` - Handle to the running sidecar task
+/// * `Err` - Failed to initialize or start sidecar
+async fn start_orchestration_sidecar() -> Result<SidecarHandle> {
+    use cco::orchestration::{initialize, SidecarLifecycle, ServerConfig};
+
+    // Create default sidecar configuration
+    let config = ServerConfig::default();
+
+    // Initialize orchestration state
+    let state = initialize(config.clone()).await?;
+
+    // Create sidecar lifecycle manager
+    let mut lifecycle = SidecarLifecycle::new(state);
+
+    // Start the sidecar server (will bind to 127.0.0.1:3001)
+    lifecycle.start().await?;
+
+    // Wait for sidecar to be ready (max 2 seconds) by polling health endpoint
+    for attempt in 1..=20 {
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        // Try to ping the sidecar health endpoint
+        if let Ok(response) = reqwest::Client::new()
+            .get("http://127.0.0.1:3001/health")
+            .timeout(std::time::Duration::from_secs(1))
+            .send()
+            .await
+        {
+            if response.status().is_success() {
+                // Allow background task to complete initialization logging
+                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+                // Sidecar is ready
+                return Ok(Arc::new(RwLock::new(Some(lifecycle))));
+            }
+        }
+
+        if attempt == 20 {
+            return Err(anyhow::anyhow!(
+                "Sidecar failed to respond to health check within 2 seconds. Port 3001 may be in use."
+            ));
+        }
+    }
+
+    Err(anyhow::anyhow!(
+        "Sidecar startup timeout exceeded"
+    ))
+}
+
+/// Gracefully shutdown the orchestration sidecar
+///
+/// Cleanly shuts down the sidecar and releases port 3001.
+/// This is called when Claude Code exits.
+async fn shutdown_sidecar() {
+    unsafe {
+        if let Some(handle) = SIDECAR_HANDLE.take() {
+            let mut handle_guard = handle.write().await;
+            if let Some(mut lifecycle) = handle_guard.take() {
+                // Stop the sidecar gracefully
+                if let Err(e) = lifecycle.stop().await {
+                    eprintln!("Warning: Failed to stop sidecar gracefully: {}", e);
+                } else {
+                    println!("✅ Orchestration sidecar stopped");
+                }
+            }
+        }
+    }
+}
+
+/// Set sidecar-specific environment variables
+///
+/// Sets environment variables for sidecar configuration:
+/// * `ORCHESTRATION_SIDECAR_PORT` - Port the sidecar listens on (3001)
+/// * `ORCHESTRATION_SIDECAR_ENABLED` - Flag to enable sidecar features (true)
+/// * `ORCHESTRATION_SIDECAR_URL` - Base URL for sidecar API (http://127.0.0.1:3001)
+fn set_sidecar_env_vars() {
+    env::set_var("ORCHESTRATION_SIDECAR_PORT", "3001");
+    env::set_var("ORCHESTRATION_SIDECAR_ENABLED", "true");
+    env::set_var("ORCHESTRATION_SIDECAR_URL", "http://127.0.0.1:3001");
 }
 
 /// Set ORCHESTRATOR_* environment variables
@@ -243,9 +405,10 @@ fn find_claude_code_executable() -> Result<PathBuf> {
 ///
 /// Spawns the Claude Code process with:
 /// * --settings flag pointing to orchestrator settings
+/// * -allow-dangerously-skip-permissions flag for agent autonomy
 /// * All pass-through arguments from user
 /// * Current working directory preserved
-/// * All ORCHESTRATOR_* environment variables set
+/// * All ORCHESTRATOR_* and sidecar environment variables set
 ///
 /// # Arguments
 /// * `settings_path` - Path to orchestrator settings file
@@ -262,6 +425,7 @@ async fn launch_claude_code_process(settings_path: &PathBuf, args: Vec<String>) 
     println!("   Working directory: {}", cwd.display());
     println!("   Settings: {}", settings_path.display());
     println!("   Executable: {}", claude_code_path.display());
+    println!("   Agent autonomy: enabled");
 
     if !args.is_empty() {
         println!("   Arguments: {}", args.join(" "));
@@ -269,11 +433,25 @@ async fn launch_claude_code_process(settings_path: &PathBuf, args: Vec<String>) 
 
     println!();
 
-    // Build command with --settings flag
+    // Build command with required flags
     let mut cmd = Command::new(&claude_code_path);
+
+    // Explicitly configure stdio to prevent buffering issues
+    cmd.stdin(std::process::Stdio::inherit());
+    cmd.stdout(std::process::Stdio::inherit());
+    cmd.stderr(std::process::Stdio::inherit());
+
+    // Add settings flag pointing to orchestrator configuration
     cmd.arg("--settings");
     cmd.arg(settings_path);
+
+    // Add permission bypass flag to allow agents to run without confirmation
+    cmd.arg("--allow-dangerously-skip-permissions");
+
+    // Add user-provided arguments
     cmd.args(&args);
+
+    // Set working directory to current directory
     cmd.current_dir(&cwd);
 
     // Execute Claude Code and wait for it to complete
@@ -370,5 +548,34 @@ mod tests {
             assert!(e.to_string().contains("not found in PATH"));
             assert!(e.to_string().contains("https://claude.ai/code"));
         }
+    }
+
+    #[test]
+    fn test_is_daemon_version_older() {
+        // Test basic version comparison
+        assert!(is_daemon_version_older("2025.11.2", "2025.11.1")); // CCO newer
+        assert!(!is_daemon_version_older("2025.11.1", "2025.11.2")); // Daemon newer
+        assert!(!is_daemon_version_older("2025.11.1", "2025.11.1")); // Same version
+
+        // Test with different months
+        assert!(is_daemon_version_older("2025.12.1", "2025.11.5")); // Newer month
+        assert!(!is_daemon_version_older("2025.11.5", "2025.12.1")); // Older month
+
+        // Test with different years
+        assert!(is_daemon_version_older("2026.1.1", "2025.12.1")); // Newer year
+        assert!(!is_daemon_version_older("2025.12.1", "2026.1.1")); // Older year
+
+        // Test with git hashes (should be ignored in comparison)
+        assert!(!is_daemon_version_older("2025.11.1+abc123", "2025.11.1+def456"));
+        assert!(is_daemon_version_older("2025.11.2+abc123", "2025.11.1+def456"));
+
+        // Test with one version having hash
+        assert!(is_daemon_version_older("2025.11.2+abc123", "2025.11.1"));
+        assert!(!is_daemon_version_older("2025.11.1+abc123", "2025.11.2"));
+
+        // Test with invalid versions (should return false)
+        assert!(!is_daemon_version_older("invalid.version", "2025.11.1"));
+        assert!(!is_daemon_version_older("2025.11.1", "invalid.version"));
+        assert!(!is_daemon_version_older("invalid", "invalid"));
     }
 }

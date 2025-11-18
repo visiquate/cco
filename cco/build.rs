@@ -26,18 +26,27 @@ fn main() {
         );
     }
 
-    // Set version - automatic date-based versioning (YYYY.MM.DD+commithash)
-    // Check environment variable first (for manual override), otherwise use date-based version
-    let base_version = env::var("CCO_VERSION").unwrap_or_else(|_| {
-        // Generate date-based version: YYYY.MM.DD (e.g., 2025.11.17)
-        chrono::Local::now().format("%Y.%-m.%-d").to_string()
+    // Set version - use VERSION_DATE environment variable (required) with git hash
+    // VERSION_DATE must be in format: YYYY.MM.DD (e.g., 2025.11.18)
+    let base_version = env::var("VERSION_DATE").unwrap_or_else(|_| {
+        eprintln!("ERROR: VERSION_DATE environment variable is required!");
+        eprintln!("Usage: VERSION_DATE=2025.11.18 cargo build --release");
+        eprintln!("Format: YYYY.MM.DD (e.g., 2025.11.18)");
+        std::process::exit(1);
     });
+
+    // Validate VERSION_DATE format (basic check: should contain dots and be reasonably long)
+    if !base_version.contains('.') || base_version.len() < 8 {
+        eprintln!("ERROR: VERSION_DATE format invalid: {}", base_version);
+        eprintln!("Expected format: YYYY.MM.DD (e.g., 2025.11.18)");
+        std::process::exit(1);
+    }
 
     // Append git hash to version for traceability (format: YYYY.MM.DD+<git-hash>)
     let version = if git_hash != "unknown" && !git_hash.is_empty() {
         format!("{}+{}", base_version, git_hash)
     } else {
-        base_version
+        format!("{}+unknown", base_version)
     };
 
     println!("cargo:rustc-env=CCO_VERSION={}", version);

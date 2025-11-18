@@ -9,6 +9,7 @@ use std::fs;
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 /// Detect the user's current shell
 fn detect_shell() -> Result<String> {
@@ -43,6 +44,32 @@ fn get_shell_rc_path(shell: &str) -> Result<PathBuf> {
     };
 
     Ok(rc_file)
+}
+
+/// Get version from a CCO binary by running `cco version`
+fn get_binary_version(binary_path: &Path) -> Option<String> {
+    let output = Command::new(binary_path)
+        .arg("version")
+        .output()
+        .ok()?;
+
+    if output.status.success() {
+        String::from_utf8(output.stdout)
+            .ok()
+            .map(|s| s.trim().to_string())
+    } else {
+        None
+    }
+}
+
+/// Check if new version is newer than old version
+fn is_newer_version(new_version: &str, old_version: &str) -> bool {
+    use cco::version::DateVersion;
+
+    match (DateVersion::parse(new_version), DateVersion::parse(old_version)) {
+        (Ok(new_v), Ok(old_v)) => new_v > old_v,
+        _ => false, // If parsing fails, assume not an upgrade
+    }
 }
 
 /// Check if ~/.local/bin is already in PATH
@@ -123,9 +150,29 @@ pub async fn run(force: bool) -> Result<()> {
 
     // Check if binary already exists
     if install_path.exists() && !force {
-        println!("⚠️  CCO is already installed at {}", install_path.display());
-        println!("   Use --force to reinstall");
-        return Ok(());
+        // Get versions to check if this is an upgrade
+        let current_version = env!("CARGO_PKG_VERSION");
+        if let Some(installed_version) = get_binary_version(&install_path) {
+            if is_newer_version(current_version, &installed_version) {
+                // This is a newer version, proceed with upgrade
+                println!("📦 Upgrading CCO from {} to {}...", installed_version, current_version);
+            } else if installed_version == current_version {
+                println!("✅ CCO v{} is already installed at {}", installed_version, install_path.display());
+                println!("   No upgrade needed");
+                return Ok(());
+            } else {
+                // Installed version is newer
+                println!("⚠️  Installed version ({}) is newer than new version ({})",
+                    installed_version, current_version);
+                println!("   Use --force to downgrade");
+                return Ok(());
+            }
+        } else {
+            // Could not determine installed version, ask for --force
+            println!("⚠️  CCO is already installed at {}", install_path.display());
+            println!("   Use --force to reinstall");
+            return Ok(());
+        }
     }
 
     // Copy binary to installation directory
