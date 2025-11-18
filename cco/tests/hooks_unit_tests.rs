@@ -524,10 +524,10 @@ async fn test_execute_hook_with_payload() {
     let validate_hook = |p: HookPayload| async move {
         assert_eq!(p.command, "configure");
         assert_eq!(p.context.get("config").unwrap(), "test_value");
-        Ok(())
+        Ok::<(), String>(())
     };
 
-    let result = validate_hook(payload).await;
+    let result: Result<(), String> = validate_hook(payload).await;
     assert!(result.is_ok());
 }
 
@@ -659,7 +659,7 @@ async fn test_retry_exhaustion() {
 
     let always_fail_hook = |counter: Arc<AtomicUsize>| async move {
         counter.fetch_add(1, Ordering::SeqCst);
-        Err("Always fails".to_string())
+        Err::<(), String>("Always fails".to_string())
     };
 
     // Simulate retry logic
@@ -682,11 +682,11 @@ async fn test_retry_count_tracking() {
 
     let counting_hook = |counter: Arc<AtomicUsize>| async move {
         counter.fetch_add(1, Ordering::SeqCst);
-        Err("Track attempts".to_string())
+        Err::<(), String>("Track attempts".to_string())
     };
 
     for _ in 0..=max_retries {
-        let _ = counting_hook(Arc::clone(&attempt_counter)).await;
+        let _: Result<(), String> = counting_hook(Arc::clone(&attempt_counter)).await;
     }
 
     assert_eq!(attempt_counter.load(Ordering::SeqCst), max_retries + 1);
@@ -698,10 +698,10 @@ async fn test_no_retry_on_immediate_success() {
 
     let immediate_success_hook = |counter: Arc<AtomicUsize>| async move {
         counter.fetch_add(1, Ordering::SeqCst);
-        Ok(())
+        Ok::<(), String>(())
     };
 
-    let result = immediate_success_hook(Arc::clone(&attempt_counter)).await;
+    let result: Result<(), String> = immediate_success_hook(Arc::clone(&attempt_counter)).await;
 
     assert!(result.is_ok());
     assert_eq!(attempt_counter.load(Ordering::SeqCst), 1); // Only one attempt
@@ -714,14 +714,14 @@ async fn test_retry_delay() {
 
     let delayed_hook = |counter: Arc<AtomicUsize>| async move {
         counter.fetch_add(1, Ordering::SeqCst);
-        Err("Delayed retry".to_string())
+        Err::<(), String>("Delayed retry".to_string())
     };
 
     let start = Instant::now();
 
     // Simulate 2 retries with delay
     for i in 0..3 {
-        let _ = delayed_hook(Arc::clone(&attempt_counter)).await;
+        let _: Result<(), String> = delayed_hook(Arc::clone(&attempt_counter)).await;
         if i < 2 {
             sleep(retry_delay).await;
         }
@@ -781,22 +781,18 @@ async fn test_hook_panic_no_retry() {
 async fn test_multiple_hook_panic_isolation() {
     let results = Arc::new(dashmap::DashMap::new());
 
-    let hooks: Vec<Box<dyn Fn() -> _ + Send>> = vec![
-        Box::new(|| async { Ok(()) }),
-        Box::new(|| async { panic!("Middle hook panics") }),
-        Box::new(|| async { Ok(()) }),
-    ];
+    // Execute hooks independently without using a Vec of closures (type mismatch issue)
+    // Hook 0: should succeed
+    let result_0 = tokio::spawn(async { Ok::<(), String>(()) }).await;
+    results.insert(0, result_0.is_ok());
 
-    // Execute hooks independently
-    for (i, _hook) in hooks.iter().enumerate() {
-        let result = if i == 1 {
-            tokio::spawn(async { panic!("Middle hook panics") }).await
-        } else {
-            tokio::spawn(async { Ok(()) as Result<(), String> }).await
-        };
+    // Hook 1: should panic
+    let result_1 = tokio::spawn(async { panic!("Middle hook panics") }).await;
+    results.insert(1, result_1.is_ok());
 
-        results.insert(i, result.is_ok());
-    }
+    // Hook 2: should succeed
+    let result_2 = tokio::spawn(async { Ok::<(), String>(()) }).await;
+    results.insert(2, result_2.is_ok());
 
     // Verify hooks 0 and 2 succeeded, hook 1 panicked
     assert_eq!(results.get(&0).unwrap().clone(), true);
@@ -842,16 +838,16 @@ async fn test_concurrent_execution_isolation() {
 
     for _ in 0..10 {
         let state = Arc::clone(&shared_state);
-        let handle = tokio::spawn(async move {
+        let handle: tokio::task::JoinHandle<Result<(), String>> = tokio::spawn(async move {
             state.fetch_add(1, Ordering::SeqCst);
             sleep(Duration::from_millis(10)).await;
-            Ok(())
+            Ok::<(), String>(())
         });
         handles.push(handle);
     }
 
     for handle in handles {
-        handle.await.unwrap();
+        handle.await.unwrap().unwrap();
     }
 
     assert_eq!(shared_state.load(Ordering::SeqCst), 10);

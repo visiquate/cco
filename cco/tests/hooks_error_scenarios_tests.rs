@@ -415,7 +415,8 @@ async fn test_concurrent_with_long_running_request() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
 
     // Start a potentially slow request
-    let long_cmd = daemon.client.classify(&"x".repeat(50000));
+    let long_string = "x".repeat(50000);
+    let long_cmd = daemon.client.classify(&long_string);
 
     // Start fast requests concurrently
     let fast1 = daemon.client.classify("ls");

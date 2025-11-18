@@ -43,18 +43,24 @@
 //! - HookExecutor is clone-able and shareable across async tasks
 //! - All hook executions are independent and non-blocking
 
+pub mod audit;
 pub mod config;
 pub mod error;
 pub mod executor;
 pub mod llm;
+pub mod permissions;
 pub mod registry;
 pub mod types;
 
 // Re-export core types for convenience
+pub use audit::{Decision, DecisionDatabase, DecisionStats, SqliteAuditDatabase};
 pub use config::{HookLlmConfig, HooksCallbacks, HooksConfig, HooksPermissions};
 pub use error::{HookError, HookResult};
 pub use executor::HookExecutor;
 pub use llm::CrudClassifier;
+pub use permissions::{
+    PermissionConfig, PermissionDecision, PermissionHandler, PermissionRequest, PermissionResponse,
+};
 pub use registry::HookRegistry;
 pub use types::{
     ClassificationResult, CrudClassification, Hook, HookContext, HookPayload, HookType,

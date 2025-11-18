@@ -22,6 +22,7 @@ const INITIAL_BACKOFF: Duration = Duration::from_millis(100);
 const MAX_BACKOFF: Duration = Duration::from_secs(2);
 
 /// API client for daemon communication
+#[derive(Clone)]
 pub struct ApiClient {
     pub base_url: String,
     client: Client,

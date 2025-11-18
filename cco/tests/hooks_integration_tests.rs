@@ -474,8 +474,9 @@ hooks = ["cleanup_temp_files"]
 #[tokio::test]
 async fn test_hooks_disabled_via_config() {
     // Config with hooks_enabled = false
+    let hooks_enabled = false;
     let config = MockDaemonConfig {
-        hooks_enabled: false,
+        hooks_enabled,
         hooks: {
             let mut map = HashMap::new();
             map.insert("PreStart".to_string(), vec!["should_not_run".to_string()]);
@@ -488,7 +489,7 @@ async fn test_hooks_disabled_via_config() {
 
     // If hooks_enabled = false, hooks should not be registered
     // (Current mock doesn't implement this, but real version should)
-    assert!(!config.hooks_enabled);
+    assert!(!hooks_enabled);
 }
 
 #[tokio::test]

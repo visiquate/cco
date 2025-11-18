@@ -18,6 +18,7 @@ use tempfile::TempDir;
 use tokio::time::sleep;
 
 /// Test client for interacting with daemon API
+#[derive(Clone)]
 pub struct TestClient {
     pub client: Client,
     pub base_url: String,
@@ -241,7 +242,7 @@ pub fn test_hooks_config() -> HooksConfig {
 }
 
 /// Create a test daemon configuration with hooks
-pub fn test_daemon_config_with_hooks() -> DaemonConfig {
+pub fn create_daemon_config_with_hooks() -> DaemonConfig {
     let mut config = DaemonConfig::default();
     config.hooks = test_hooks_config();
     config
@@ -255,7 +256,7 @@ mod tests {
     fn test_find_available_port() {
         let port = find_available_port().unwrap();
         assert!(port > 0);
-        assert!(port < 65536);
+        // port is u16, so it's always <= 65535
     }
 
     #[test]
@@ -274,7 +275,7 @@ mod tests {
 
     #[test]
     fn test_daemon_config_with_hooks() {
-        let config = test_daemon_config_with_hooks();
+        let config = create_daemon_config_with_hooks();
         assert!(config.hooks.enabled);
     }
 
