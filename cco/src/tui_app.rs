@@ -600,7 +600,7 @@ impl TuiApp {
         cost_by_tier: &CostByTier,
         recent_calls: &[RecentCall],
         health: &HealthResponse,
-        is_active: bool,
+        _is_active: bool,
         status_message: &str,
     ) {
         let area = f.size();
@@ -618,27 +618,26 @@ impl TuiApp {
             )
             .split(area);
 
-        // Header
+        // Header with Status (server info, port, uptime)
         Self::render_header(f, health, chunks[0]);
 
-        // Main content area - single panel with cost summary and recent calls
+        // Main content area - reorganized layout
+        // Section 1: Status (server info, port, uptime) - moved to header
+        // Section 2: Cost Summary by Tier
+        // Section 3: Recent API Calls (dynamic height - fill remainder)
         let content_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(7),  // Cost summary table
-                Constraint::Length(3),  // Active/Idle status
-                Constraint::Min(5),     // Recent calls list
+                Constraint::Length(11),  // Cost summary table (7 + haiku row + separators)
+                Constraint::Min(3),      // Recent calls list (dynamic height - fill to bottom)
             ].as_ref())
             .split(chunks[1]);
 
-        // Cost summary by tier
+        // Cost summary by tier (Section 2)
         Self::render_cost_summary(f, cost_by_tier, content_chunks[0]);
 
-        // Active/Idle indicator
-        Self::render_status_indicator(f, is_active, content_chunks[1]);
-
-        // Recent API calls
-        Self::render_recent_calls(f, recent_calls, content_chunks[2]);
+        // Recent API calls with dynamic height (Section 3)
+        Self::render_recent_calls_dynamic(f, recent_calls, content_chunks[1]);
 
         // Footer
         Self::render_footer(f, chunks[2], status_message);
@@ -651,9 +650,16 @@ impl TuiApp {
         let minutes = (uptime % 3600) / 60;
         let seconds = uptime % 60;
 
+        // Section 1: Status (server info, port, uptime)
+        let port_str = if health.port == 0 {
+            "3000".to_string() // Default port if not set
+        } else {
+            health.port.to_string()
+        };
+
         let header_str = format!(
             "v{} | Port: {} | Uptime: {:02}:{:02}:{:02}",
-            health.version, health.port, hours, minutes, seconds
+            health.version, port_str, hours, minutes, seconds
         );
 
         let header_text = vec![Line::from(vec![
@@ -668,8 +674,9 @@ impl TuiApp {
 
         let header = Paragraph::new(header_text).block(
             Block::default()
-                .borders(Borders::BOTTOM)
-                .border_style(Style::default().fg(Color::Gray)),
+                .title("Status")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Cyan)),
         );
 
         f.render_widget(header, area);
@@ -756,9 +763,9 @@ impl TuiApp {
 
         let para = Paragraph::new(text).block(
             Block::default()
-                .title("Cost Summary by Tier")
+                .title("Cost Summary by Tier (Haiku, Sonnet, Opus)")
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Cyan)),
+                .border_style(Style::default().fg(Color::Green)),
         );
 
         f.render_widget(para, area);
@@ -775,32 +782,20 @@ impl TuiApp {
         }
     }
 
-    /// Render active/idle status indicator
-    fn render_status_indicator(f: &mut Frame, is_active: bool, area: Rect) {
-        let (indicator, color) = if is_active {
-            ("🟢 ACTIVE", Color::Green)
+    /// Render recent API calls with dynamic height
+    fn render_recent_calls_dynamic(f: &mut Frame, calls: &[RecentCall], area: Rect) {
+        // Calculate how many calls can fit in the available area
+        // Account for borders (top and bottom = 2 lines) and title (1 line)
+        let available_height = area.height.saturating_sub(3) as usize;
+        let display_count = if available_height > 0 {
+            std::cmp::min(calls.len(), available_height)
         } else {
-            ("🔴 IDLE", Color::Red)
+            0
         };
 
-        let text = vec![Line::from(Span::styled(
-            format!("Status: {}", indicator),
-            Style::default().fg(color).add_modifier(Modifier::BOLD),
-        ))];
-
-        let para = Paragraph::new(text).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Gray)),
-        );
-
-        f.render_widget(para, area);
-    }
-
-    /// Render recent API calls
-    fn render_recent_calls(f: &mut Frame, calls: &[RecentCall], area: Rect) {
         let items: Vec<ListItem> = calls
             .iter()
+            .take(display_count)
             .map(|call| {
                 let tier_color = match call.tier.as_str() {
                     "Opus" => Color::Magenta,
@@ -820,9 +815,19 @@ impl TuiApp {
             })
             .collect();
 
+        let title = if calls.is_empty() {
+            "Recent API Calls (None)".to_string()
+        } else {
+            format!(
+                "Recent API Calls ({} of {})",
+                display_count,
+                calls.len()
+            )
+        };
+
         let list = List::new(items).block(
             Block::default()
-                .title("Recent API Calls (Last 20)")
+                .title(title)
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         );
