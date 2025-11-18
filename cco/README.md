@@ -21,13 +21,12 @@ CCO is a production-ready API proxy daemon that:
 ### 1. Install CCO
 
 ```bash
-# Download the latest release
-curl -L https://github.com/example/cco/releases/download/latest/cco -o cco
-chmod +x cco
+# Install using official installation script
+curl -fsSL https://cco.visiquate.com/install.sh | sh
 
 # Or build from source
 cargo build --release
-./target/release/cco
+sudo ln -sf $(pwd)/target/release/cco /usr/local/bin/cco
 ```
 
 ### 2. Configure API Keys
@@ -44,30 +43,24 @@ export OPENAI_API_KEY="sk-..."
 ollama serve
 ```
 
-### 3. Start the Daemon
+### 3. Launch Claude Code with Orchestration
 
 ```bash
-# Start on port 3000 (default)
-cco run
+# Navigate to your project
+cd ~/my-project
 
-# Or specify a port
-cco run --port 9000
+# Launch Claude Code (daemon auto-starts if needed)
+cco
 
-# Run with debug logging
-cco run --debug
+# In another terminal, monitor activity
+cco tui
 ```
 
-### 4. Point Claude Code to CCO
-
-In your Claude Code configuration or environment:
-
-```bash
-# Replace the default Claude API endpoint
-export ANTHROPIC_API_KEY="sk-ant-..."  # Your real API key
-export LLM_ENDPOINT="http://localhost:3000"  # Point to CCO instead of Claude API
-```
-
-That's it! All requests now flow through CCO and benefit from caching and routing.
+That's it! CCO automatically:
+- Starts the daemon if not running
+- Creates encrypted settings in OS temp directory
+- Sets orchestration environment variables
+- Launches Claude Code in your current directory
 
 ## Key Features
 
@@ -153,6 +146,74 @@ User requests: "claude-opus-4"
 │ API  │ │ API  │ │ LLM  │ │ LLM  │
 └──────┘ └──────┘ └──────┘ └──────┘
 ```
+
+## Usage
+
+### Basic Commands
+
+```bash
+# Launch Claude Code with orchestration
+cco                    # Launches in current directory
+
+# Launch TUI monitoring dashboard
+cco tui                # Real-time metrics and agent activity
+
+# Manage daemon
+cco daemon start       # Start daemon (usually auto-starts)
+cco daemon stop        # Stop daemon
+cco daemon restart     # Restart daemon
+cco daemon status      # Check daemon status
+cco daemon logs        # View daemon logs
+
+# Version and updates
+cco version            # Show version
+cco update             # Check/install updates
+
+# Pass arguments to Claude Code
+cco --help             # Shows Claude Code help
+cco analyze main.rs    # Runs Claude Code analysis
+```
+
+### Workflows
+
+#### Development with Monitoring
+
+```bash
+# Terminal 1: Development
+cd ~/my-awesome-project
+cco                    # Launches Claude Code with orchestration
+
+# Terminal 2: Monitoring
+cco tui                # Watch agent activity in real-time
+```
+
+#### Multiple Projects
+
+```bash
+# Each project gets same daemon + VFS
+cd ~/project-1
+cco                    # Launches Claude Code for project 1
+
+# In another terminal
+cd ~/project-2
+cco                    # Launches Claude Code for project 2
+# Both share the same daemon for routing/orchestration
+```
+
+### Environment Variables (Auto-Set)
+
+When you run `cco`, these variables are automatically set for Claude Code:
+
+```bash
+ORCHESTRATOR_ENABLED=true
+ORCHESTRATOR_SETTINGS=$TMPDIR/.cco-orchestrator-settings
+ORCHESTRATOR_API_URL=http://localhost:3000
+```
+
+**Note**: `$TMPDIR` is the OS temp directory:
+- macOS: `/var/folders/xx/xxx/T/`
+- Windows: `C:\Users\[user]\AppData\Local\Temp\`
+- Linux: `/tmp/`
 
 ## Real-World Example: Save $500/month
 

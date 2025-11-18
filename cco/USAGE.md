@@ -1,34 +1,251 @@
-# CCO Command Reference & Configuration Guide
+# CCO User Guide
 
-Complete documentation for all CCO commands, environment variables, and configuration options.
+Complete guide for using Claude Code Orchestrator (CCO) with the enhanced CLI.
 
-## Starting CCO
+---
 
-### Default Startup (with Dashboard Auto-Open)
+## Table of Contents
 
-```bash
-# Start CCO on default port 3000 with auto-open dashboard
-./cco-proxy
+1. [What is CCO?](#what-is-cco)
+2. [Basic Workflows](#basic-workflows)
+3. [Command Reference](#command-reference)
+4. [Advanced Usage](#advanced-usage)
+5. [Troubleshooting](#troubleshooting)
 
-# Dashboard automatically opens in your default browser
-# If it doesn't, navigate manually to http://localhost:3000
+---
+
+## What is CCO?
+
+CCO (Claude Code Orchestrator) is a multi-agent development system that enhances Claude Code with:
+
+- **119 Specialized Agents**: Architecture, coding, testing, security, DevOps
+- **Temp-Based Settings**: Encrypted configuration files in OS temp directory
+- **Daemon-Based Routing**: Intelligent request routing and orchestration
+- **Real-Time Monitoring**: TUI dashboard for metrics and agent activity
+- **Cost Tracking**: Monitor API usage and savings
+
+### How It Works
+
+```
+┌─────────────────────────────────────────────────────┐
+│  cco (CLI)                                          │
+│  ├─ Ensures daemon is running                      │
+│  ├─ Verifies settings files exist                  │
+│  ├─ Sets ORCHESTRATOR_* environment variables      │
+│  └─ Launches Claude Code in current directory      │
+└─────────────────────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────────────────────┐
+│  CCO Daemon (Background)                            │
+│  ├─ HTTP API Server (port 3000)                     │
+│  ├─ Temp Files ($TMPDIR/.cco-*)                     │
+│  │   ├─ .cco-orchestrator-settings (encrypted)     │
+│  │   ├─ .cco-agents-sealed (encrypted)             │
+│  │   ├─ .cco-rules-sealed (encrypted)              │
+│  │   └─ .cco-hooks-sealed (encrypted)              │
+│  └─ Agent communication & metrics                   │
+└─────────────────────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────────────────────┐
+│  Claude Code (with Orchestration)                   │
+│  ├─ Reads settings from temp files                 │
+│  ├─ Decrypts agent definitions                     │
+│  ├─ Coordinates 119 specialized agents             │
+│  └─ Reports metrics to daemon                      │
+└─────────────────────────────────────────────────────┘
 ```
 
-### Custom Configuration
+---
+
+## Basic Workflows
+
+### Workflow 1: Single Development Session
 
 ```bash
+# Start fresh
+$ cco daemon start
+
+# Launch Claude Code
+$ cd ~/my-project
+$ cco
+
+# Now develop with Claude Code
+# The daemon runs in background
+```
+
+**What happens:**
+1. Check if daemon is running (auto-starts if not)
+2. Verify settings files exist in temp directory
+3. Set `ORCHESTRATOR_*` environment variables
+4. Launch Claude Code in current directory
+
+### Workflow 2: Development + Monitoring
+
+```bash
+# Terminal 1: Development
+$ cd ~/my-project
+$ cco                    # Launches Claude Code
+
+# Terminal 2: Monitoring (in parallel)
+$ cco tui               # Shows dashboard with agent activity
+```
+
+**Benefits:**
+- Real-time visibility into agent coordination
+- Cost tracking and API usage metrics
+- Cache hit rates and savings
+
+### Workflow 3: Multiple Projects
+
+```bash
+# Each project gets same daemon + VFS
+$ cd ~/project-1
+$ cco                   # Launches Claude Code for project 1
+
+# In another terminal
+$ cd ~/project-2
+$ cco                   # Launches Claude Code for project 2
+# Both share the same daemon for routing/orchestration
+```
+
+**Benefits:**
+- Single daemon serves all projects
+- Consistent orchestration rules
+- Shared cache and metrics
+
+---
+
+## Command Reference
+
+### Core Commands
+
+| Command | Purpose | Example |
+|---------|---------|---------|
+| `cco` | Launch Claude Code with orchestration | `cco` |
+| `cco tui` | Launch monitoring dashboard | `cco tui` |
+| `cco daemon start` | Start daemon (usually not needed) | `cco daemon start` |
+| `cco daemon stop` | Stop daemon | `cco daemon stop` |
+| `cco daemon restart` | Restart daemon | `cco daemon restart` |
+| `cco daemon status` | Check daemon status | `cco daemon status` |
+| `cco daemon logs` | View daemon logs | `cco daemon logs --follow` |
+| `cco version` | Show version | `cco version` |
+| `cco update` | Check for updates | `cco update` |
+
+### Starting CCO
+
+#### Launch Claude Code (Primary Use)
+
+```bash
+# Navigate to project
+cd ~/my-awesome-project
+
+# Launch Claude Code with orchestration
+cco
+
+# Expected output:
+# ✅ Daemon is running
+# ✅ VFS mounted and healthy
+# ✅ Orchestration environment configured
+# 🚀 Launching Claude Code with orchestration support...
+#    Working directory: /Users/you/my-awesome-project
+#    VFS mount: /var/run/cco/
+```
+
+#### Launch TUI Dashboard
+
+```bash
+# In another terminal, monitor activity
+cco tui
+
+# Expected output:
+# ✅ Daemon is running
+# 🎯 Launching TUI dashboard...
+#
+# (TUI interface shows real-time metrics)
+```
+
+### Daemon Management
+
+#### Start Daemon
+
+```bash
+# Start daemon (auto-starts if not running)
+cco daemon start
+
+# Start with custom port
+cco daemon start --port 3001
+
+# Start with custom cache settings
+cco daemon start --cache-size 2000 --cache-ttl 7200
+```
+
+#### Stop Daemon
+
+```bash
+# Gracefully stop daemon
+cco daemon stop
+
+# Force stop if not responding
+cco daemon stop --force
+```
+
+#### Restart Daemon
+
+```bash
+# Restart daemon (preserves configuration)
+cco daemon restart
+
+# Restart with new settings
+cco daemon restart --port 3001
+```
+
+#### Check Status
+
+```bash
+# Check if daemon is running
+cco daemon status
+
+# Output:
+# Daemon is running (PID: 12345)
+# Uptime: 2 hours 15 minutes
+# VFS: /var/run/cco (mounted)
+# Dashboard: http://localhost:3000
+```
+
+#### View Logs
+
+```bash
+# View recent logs
+cco daemon logs
+
+# Follow logs in real-time
+cco daemon logs --follow
+
+# Filter by level
+cco daemon logs --level error
+
+# View last N lines
+cco daemon logs --tail 50
+```
+
+### Configuration
+
+```bash
+# Custom Configuration
 # Start on custom port with auto-open
-./cco-proxy --port 9000
+cco daemon start --port 9000
 # Dashboard opens at http://localhost:9000
 
 # Start with verbose logging
-./cco-proxy --log-level debug
+cco daemon start --log-level debug
 
 # Start with custom database path
-./cco-proxy --db-path /var/lib/cco/analytics.db
+cco daemon start --db-path /var/lib/cco/analytics.db
 
 # Bind to all interfaces (for team servers)
-./cco-proxy --host 0.0.0.0 --port 3000
+cco daemon start --host 0.0.0.0 --port 3000
 ```
 
 ### Command Line Options
@@ -73,6 +290,92 @@ export CCO_ENABLE_CACHE=true             # Enable/disable caching
 export CCO_ENABLE_ANALYTICS=true         # Enable/disable analytics
 export CCO_ENABLE_DASHBOARD=true         # Enable/disable dashboard
 ```
+
+---
+
+## Advanced Usage
+
+### Pass Arguments to Claude Code
+
+```bash
+# Get Claude Code help
+cco --help                    # Claude Code help (not CCO help)
+
+# Analyze a file
+cco analyze src/main.rs       # Analyze file
+
+# Refactor code
+cco refactor legacy.py --target modern
+
+# Any Claude Code argument works
+cco explain code.py
+cco test integration_tests.rs
+```
+
+### Environment Variables
+
+CCO automatically sets these when launching Claude Code:
+
+```bash
+ORCHESTRATOR_ENABLED=true
+ORCHESTRATOR_SETTINGS=$TMPDIR/.cco-orchestrator-settings
+ORCHESTRATOR_API_URL=http://localhost:3000
+```
+
+**Note:** `$TMPDIR` is the OS temp directory:
+- macOS: `/var/folders/xx/xxx/T/`
+- Windows: `C:\Users\[user]\AppData\Local\Temp\`
+- Linux: `/tmp/`
+
+**Manual override** (advanced):
+
+```bash
+# Override API URL (for remote daemon)
+export ORCHESTRATOR_API_URL=http://remote-server:3000
+cco
+
+# Disable orchestration temporarily
+export ORCHESTRATOR_ENABLED=false
+cco
+```
+
+### Multiple Daemons (Advanced)
+
+Normally you run **one daemon per machine**. But you can run isolated daemons per project:
+
+```bash
+# Project 1: Use port 3000
+cd ~/project-1
+cco daemon start --port 3000
+export ORCHESTRATOR_API_URL=http://localhost:3000
+cco
+
+# Project 2: Use port 3001
+cd ~/project-2
+cco daemon start --port 3001
+export ORCHESTRATOR_API_URL=http://localhost:3001
+cco
+```
+
+**Note:** This is **rarely needed**. One daemon can serve all projects.
+
+### Remote Daemon Setup
+
+For team development with shared daemon:
+
+```bash
+# Server: Start daemon (accessible to team)
+ssh team-server
+cco daemon start --host 0.0.0.0 --port 3000
+
+# Developer workstation: Point to remote daemon
+export ORCHESTRATOR_API_URL=http://team-server:3000
+cco
+
+# All developers share same daemon, VFS, and metrics
+```
+
+---
 
 ## Using CCO with Python
 

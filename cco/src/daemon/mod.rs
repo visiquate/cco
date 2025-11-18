@@ -2,14 +2,18 @@
 //!
 //! Provides daemon start, stop, restart, status, logs, and service installation
 //! functionality for macOS (LaunchAgent) and Linux (systemd).
+//!
+//! Also includes temporary file management for serving agent definitions.
 
 pub mod config;
 pub mod lifecycle;
 pub mod service;
+pub mod temp_files;
 
 pub use config::{DaemonConfig, load_config, save_config};
 pub use lifecycle::{DaemonManager, DaemonStatus};
 pub use service::{ServiceManager, PlatformService};
+pub use temp_files::TempFileManager;
 
 use anyhow::Result;
 use std::path::PathBuf;

@@ -6,6 +6,12 @@ Solutions for common problems and how to debug them.
 
 **CCO won't start?** → Jump to [Startup Issues](#startup-issues)
 
+**Daemon won't start?** → Jump to [Daemon Issues](#daemon-issues)
+
+**Temp files not found?** → Jump to [Temp File Issues](#temp-file-issues)
+
+**Claude Code not launching?** → Jump to [Claude Code Integration](#claude-code-integration)
+
 **Requests not being cached?** → Jump to [Cache Issues](#cache-issues)
 
 **API key errors?** → Jump to [Authentication Issues](#authentication-issues)
@@ -13,6 +19,296 @@ Solutions for common problems and how to debug them.
 **Performance problems?** → Jump to [Performance Issues](#performance-issues)
 
 **Dashboard not working?** → Jump to [Dashboard Issues](#dashboard-issues)
+
+---
+
+## Daemon Issues
+
+### Error: "Daemon failed to start"
+
+**Problem:** Daemon won't start or crashes immediately
+
+**Solution 1: Check port conflicts**
+```bash
+# Check if port 3000 is in use
+lsof -i :3000
+
+# If in use, kill the process
+kill <PID>
+
+# Or use a different port
+cco daemon start --port 3001
+```
+
+**Solution 2: Check daemon logs**
+```bash
+# View daemon logs for errors
+cco daemon logs
+
+# Look for specific error messages
+# Common issues:
+# - "Address already in use" → Port conflict
+# - "Permission denied" → Fix temp directory permissions
+# - "Failed to write temp file" → Temp directory not writable
+```
+
+**Solution 3: Check permissions**
+```bash
+# Temp directory may need permissions
+mkdir -p $TMPDIR
+chmod 755 $TMPDIR
+
+# Restart daemon
+cco daemon restart
+```
+
+### Error: "Daemon is not running"
+
+**Problem:** Daemon status shows not running
+
+**Solution 1: Start daemon**
+```bash
+# Start daemon explicitly
+cco daemon start
+
+# Expected output:
+# ✅ Daemon started successfully
+#    PID: 12345
+#    VFS: /var/run/cco
+#    Dashboard: http://localhost:3000
+```
+
+**Solution 2: Check if daemon process exists**
+```bash
+# Find daemon process
+ps aux | grep cco
+
+# If process exists but status says "not running":
+# Kill zombie process
+kill <PID>
+
+# Start fresh
+cco daemon start
+```
+
+**Solution 3: Remove lock file**
+```bash
+# Stale lock file may prevent start
+rm -f /var/run/cco.lock
+
+# Try starting again
+cco daemon start
+```
+
+---
+
+## Temp File Issues
+
+### Error: "Temp files not found"
+
+**Problem:** Settings files missing from temp directory
+
+**Solution 1: Restart daemon**
+```bash
+# Restart to recreate temp files
+cco daemon restart
+
+# Verify files created
+ls -la $TMPDIR/.cco-*
+# Should show encrypted files
+```
+
+**Solution 2: Check temp directory**
+```bash
+# Verify temp directory exists and is writable
+echo $TMPDIR
+# Should show path like /var/folders/xx/xxx/T/
+
+# Test write permissions
+touch $TMPDIR/test && rm $TMPDIR/test
+# Should succeed without errors
+
+# If fails, check permissions
+ls -la $TMPDIR
+```
+
+**Solution 3: Check permissions**
+```bash
+# Verify directory permissions
+ls -la $TMPDIR
+
+# If permission denied:
+chmod 755 $TMPDIR
+
+# Restart daemon
+cco daemon restart
+```
+
+**Solution 4: Manual verification**
+```bash
+# List temp files
+ls -la $TMPDIR/.cco-*
+# Should show:
+# .cco-orchestrator-settings
+# .cco-agents-sealed
+# .cco-rules-sealed
+# .cco-hooks-sealed
+
+# All files should be encrypted (binary data)
+# File permissions should be -rw------- (600)
+```
+
+### Error: "Settings file verification failed"
+
+**Problem:** Temp files corrupted or encryption key mismatch
+
+**Solution:**
+```bash
+# Remove corrupted files
+rm -f $TMPDIR/.cco-*
+
+# Restart daemon to recreate
+cco daemon restart
+
+# Verify files recreated
+ls -la $TMPDIR/.cco-*
+# Should show fresh encrypted files
+```
+
+### Error: "Temp file missing: .cco-agents-sealed"
+
+**Problem:** Expected file not in temp directory
+
+**Solution:**
+```bash
+# Restart daemon to regenerate files
+cco daemon restart
+
+# Verify all files present
+ls -la $TMPDIR/.cco-*
+# Should show all files:
+# .cco-orchestrator-settings
+# .cco-agents-sealed
+# .cco-rules-sealed
+# .cco-hooks-sealed
+
+# If still missing, check daemon logs
+cco daemon logs | grep -i "temp\|file\|sealed"
+```
+
+---
+
+## Claude Code Integration
+
+### Error: "Claude Code executable not found"
+
+**Problem:** CCO can't find Claude Code in PATH
+
+**Solution 1: Install Claude Code**
+```bash
+# Install from official site
+# https://claude.ai/code
+
+# Verify installation
+which claude-code
+# or
+which claude
+
+# Should show path like:
+# /usr/local/bin/claude-code
+```
+
+**Solution 2: Add to PATH**
+```bash
+# Find where Claude Code is installed
+find /usr /opt ~/Applications -name "claude-code" 2>/dev/null
+
+# Add to PATH in shell profile
+echo 'export PATH="$PATH:/path/to/claude-code"' >> ~/.zshrc  # or ~/.bashrc
+
+# Reload shell
+source ~/.zshrc  # or ~/.bashrc
+
+# Verify
+which claude-code
+```
+
+**Solution 3: Create symlink**
+```bash
+# If Claude Code installed but not in PATH
+sudo ln -s /path/to/claude-code /usr/local/bin/claude-code
+
+# Verify
+which claude-code
+# Output: /usr/local/bin/claude-code
+```
+
+### Error: "Launch takes 3+ seconds"
+
+**Problem:** First `cco` invocation is slow
+
+**Cause:** This is **normal behavior** - daemon auto-starts on first run
+
+**Solution:**
+```bash
+# First run (3-4 seconds - daemon starting)
+time cco
+# real    0m3.542s
+
+# Subsequent runs (<1 second - daemon already running)
+time cco
+# real    0m0.234s
+
+# To avoid delay, pre-start daemon:
+cco daemon start
+# Then `cco` will be instant
+```
+
+### Error: "Environment variables not set"
+
+**Problem:** ORCHESTRATOR_* variables not in Claude Code environment
+
+**Cause:** Running Claude Code directly instead of via `cco`
+
+**Solution:**
+```bash
+# Don't do this:
+claude-code  # Variables NOT set
+
+# Do this instead:
+cco  # Variables automatically set
+
+# Verify variables are set (from within Claude Code):
+env | grep ORCHESTRATOR
+# Should show:
+# ORCHESTRATOR_ENABLED=true
+# ORCHESTRATOR_VFS_MOUNT=/var/run/cco
+# ORCHESTRATOR_API_URL=http://localhost:3000
+# ... (and more)
+```
+
+### Error: "Multiple cco processes running"
+
+**Problem:** `cco` and `cco tui` running simultaneously
+
+**This is normal and expected behavior!**
+
+```bash
+# Terminal 1: Development
+cco  # Claude Code process
+
+# Terminal 2: Monitoring
+cco tui  # TUI dashboard process
+
+# Both processes:
+# - Share the same daemon
+# - Have separate UIs
+# - Don't conflict
+
+# Verify both are running
+ps aux | grep cco
+# Should show multiple cco processes - this is correct
+```
 
 ---
 

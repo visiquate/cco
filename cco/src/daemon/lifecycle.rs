@@ -57,6 +57,11 @@ impl DaemonManager {
             fs::write(&log_file, "")?;
         }
 
+        // Create temp files for orchestrator settings
+        let temp_manager = super::TempFileManager::new();
+        temp_manager.create_files().await
+            .context("Failed to create orchestrator temp files")?;
+
         // Get the binary path (the cco binary itself)
         let exe_path = std::env::current_exe()
             .context("Failed to get current executable path")?;
@@ -87,6 +92,7 @@ impl DaemonManager {
         println!("✅ Daemon started successfully (PID: {})", pid);
         println!("   Dashboard: http://{}:{}", self.config.host, self.config.port);
         println!("   Log file: {}", log_file.display());
+        println!("   Settings: {}", temp_manager.settings_path().display());
 
         // CRITICAL FIX: Wait for daemon to fully initialize
         // Daemon needs time to:
@@ -110,6 +116,9 @@ impl DaemonManager {
             if pid_file.exists() {
                 let _ = fs::remove_file(&pid_file);
             }
+            // Clean up temp files even if daemon isn't running
+            let temp_manager = super::TempFileManager::new();
+            let _ = temp_manager.cleanup_files().await;
             return Ok(());
         }
 
@@ -126,6 +135,12 @@ impl DaemonManager {
             if !self.is_process_running(status.pid) {
                 println!("✅ Daemon shut down gracefully");
                 self.cleanup_pid_file()?;
+
+                // Clean up temp files
+                let temp_manager = super::TempFileManager::new();
+                temp_manager.cleanup_files().await
+                    .context("Failed to cleanup orchestrator temp files")?;
+
                 return Ok(());
             }
         }
@@ -141,6 +156,12 @@ impl DaemonManager {
         if !self.is_process_running(status.pid) {
             println!("✅ Daemon force shut down");
             self.cleanup_pid_file()?;
+
+            // Clean up temp files
+            let temp_manager = super::TempFileManager::new();
+            temp_manager.cleanup_files().await
+                .context("Failed to cleanup orchestrator temp files")?;
+
             Ok(())
         } else {
             bail!("Failed to shutdown daemon (PID {})", status.pid)
@@ -305,5 +326,34 @@ mod tests {
 
         // Should not error if file doesn't exist
         assert!(manager.cleanup_pid_file().is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_daemon_startup_creates_temp_files() {
+        use std::env;
+
+        let temp_manager = super::super::TempFileManager::new();
+
+        // Ensure cleanup before test
+        let _ = temp_manager.cleanup_files().await;
+
+        // Create files
+        temp_manager.create_files().await.unwrap();
+
+        // Verify they exist
+        let temp_dir = env::temp_dir();
+        assert!(temp_dir.join(".cco-orchestrator-settings").exists());
+        assert!(temp_dir.join(".cco-agents-sealed").exists());
+        assert!(temp_dir.join(".cco-rules-sealed").exists());
+        assert!(temp_dir.join(".cco-hooks-sealed").exists());
+
+        // Cleanup
+        temp_manager.cleanup_files().await.unwrap();
+
+        // Verify cleanup
+        assert!(!temp_dir.join(".cco-orchestrator-settings").exists());
+        assert!(!temp_dir.join(".cco-agents-sealed").exists());
+        assert!(!temp_dir.join(".cco-rules-sealed").exists());
+        assert!(!temp_dir.join(".cco-hooks-sealed").exists());
     }
 }

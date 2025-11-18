@@ -22,10 +22,17 @@ use cco::version::DateVersion;
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
+
+    /// Arguments to pass to Claude Code (when no subcommand specified)
+    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+    claude_args: Vec<String>,
 }
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Launch TUI monitoring dashboard
+    Tui,
+
     /// Run the CCO proxy server
     Run {
         /// Port to listen on
@@ -292,50 +299,25 @@ async fn main() -> anyhow::Result<()> {
     // To disable: Set CCO_AUTO_UPDATE=false environment variable
     auto_update::check_for_updates_blocking().await;
 
-    // If no command specified, default to install + run server + launch TUI
+    // If no command specified, default to launching Claude Code with orchestration
     let command = match cli.command {
         Some(cmd) => cmd,
         None => {
             // Initialize tracing early for default command
             tracing_subscriber::fmt::init();
 
-            let version = DateVersion::current();
-            println!("🚀 Starting Claude Code Orchestra {}...", version);
-
-            // Step 1: Install server (idempotent)
-            println!("📦 Installing server...");
-            if let Err(e) = commands::server::install(false).await {
-                eprintln!("⚠️  Server install failed: {}", e);
-                eprintln!("   Attempting to continue anyway...");
-            }
-
-            // Step 2: Start server (idempotent)
-            println!("🔌 Starting server on 127.0.0.1:3000...");
-            if let Err(e) = commands::server::run("127.0.0.1", 3000).await {
-                eprintln!("❌ Server start failed: {}", e);
-                eprintln!("   Cannot proceed without server.");
-                std::process::exit(1);
-            }
-
-            // Step 3: Launch TUI
-            println!("🎯 Launching TUI dashboard...");
-            println!();
-
-            match cco::TuiApp::new().await {
-                Ok(mut app) => {
-                    return app.run().await;
-                }
-                Err(e) => {
-                    eprintln!("❌ TUI failed to start: {}", e);
-                    eprintln!("   Server is still running at http://127.0.0.1:3000");
-                    eprintln!("   You can access it via browser or run 'cco dashboard'");
-                    std::process::exit(1);
-                }
-            }
+            // Launch Claude Code with orchestration support
+            return commands::launcher::launch_claude_code(cli.claude_args).await;
         }
     };
 
     match command {
+        Commands::Tui => {
+            // Initialize tracing for TUI command
+            tracing_subscriber::fmt::init();
+            commands::tui::launch_tui().await
+        }
+
         Commands::Install { force } => {
             // Initialize tracing for other commands
             tracing_subscriber::fmt::init();
