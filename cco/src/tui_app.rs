@@ -26,7 +26,6 @@ use tokio::time::sleep;
 
 use crate::api_client::{ApiClient, HealthResponse};
 use crate::daemon::{DaemonConfig, DaemonManager};
-use crate::analytics::ActivityEvent;
 
 /// Cost breakdown by tier
 #[derive(Debug, Clone)]
@@ -328,10 +327,17 @@ impl TuiApp {
                 let mut opus_cost = 0.0;
                 let mut haiku_cost = 0.0;
                 let mut total_cost = 0.0;
+                let mut sonnet_calls = 0u64;
+                let mut opus_calls = 0u64;
+                let mut haiku_calls = 0u64;
+                let mut total_calls = 0u64;
 
-                // Get total cost from stats
+                // Get total cost and calls from stats
                 if let Some(total) = stats.get("project").and_then(|p| p.get("cost")).and_then(|c| c.as_f64()) {
                     total_cost = total;
+                }
+                if let Some(calls) = stats.get("project").and_then(|p| p.get("calls")).and_then(|c| c.as_u64()) {
+                    total_calls = calls;
                 }
 
                 // Sum costs per model name to calculate totals
@@ -340,13 +346,17 @@ impl TuiApp {
                         // Estimate cost based on percentage if available
                         if let Some(percentage) = model_item.get("percentage").and_then(|p| p.as_f64()) {
                             let cost = (total_cost * percentage) / 100.0;
+                            let calls = ((total_calls as f64 * percentage) / 100.0) as u64;
 
                             if model_name.to_lowercase().contains("sonnet") {
                                 sonnet_cost += cost;
+                                sonnet_calls += calls;
                             } else if model_name.to_lowercase().contains("opus") {
                                 opus_cost += cost;
+                                opus_calls += calls;
                             } else if model_name.to_lowercase().contains("haiku") {
                                 haiku_cost += cost;
+                                haiku_calls += calls;
                             }
                         }
                     }
@@ -364,27 +374,70 @@ impl TuiApp {
                     (0.0, 0.0, 0.0)
                 };
 
+                // Extract token statistics from activity events if available
+                let (sonnet_tokens, opus_tokens, haiku_tokens, total_tokens) =
+                    self.extract_token_stats_from_activity(stats);
+
                 cost_by_tier = CostByTier {
                     sonnet_cost,
                     sonnet_pct,
-                    sonnet_calls: 0, // TODO: extract from metrics_by_model
-                    sonnet_tokens: TokenStats::default(),
+                    sonnet_calls,
+                    sonnet_tokens,
                     opus_cost,
                     opus_pct,
-                    opus_calls: 0,
-                    opus_tokens: TokenStats::default(),
+                    opus_calls,
+                    opus_tokens,
                     haiku_cost,
                     haiku_pct,
-                    haiku_calls: 0,
-                    haiku_tokens: TokenStats::default(),
+                    haiku_calls,
+                    haiku_tokens,
                     total_cost: total_calculated,
-                    total_calls: 0,
-                    total_tokens: TokenStats::default(),
+                    total_calls,
+                    total_tokens,
                 };
             }
         }
 
         cost_by_tier
+    }
+
+    /// Extract token statistics from activity events
+    fn extract_token_stats_from_activity(&self, stats: &serde_json::Value) -> (TokenStats, TokenStats, TokenStats, TokenStats) {
+        let mut sonnet_stats = TokenStats::default();
+        let mut opus_stats = TokenStats::default();
+        let mut haiku_stats = TokenStats::default();
+        let mut total_stats = TokenStats::default();
+
+        // Parse activity events to extract token usage
+        if let Some(activity) = stats.get("activity").and_then(|a| a.as_array()) {
+            for event in activity {
+                if let Some(model) = event.get("model").and_then(|m| m.as_str()) {
+                    if let Some(tokens) = event.get("tokens").and_then(|t| t.as_u64()) {
+                        // Note: The activity events only have total tokens, not broken down by input/output/cache
+                        // We'll distribute them roughly: 60% input, 40% output for estimates
+                        let estimated_input = (tokens as f64 * 0.6) as u64;
+                        let estimated_output = (tokens as f64 * 0.4) as u64;
+
+                        let model_lower = model.to_lowercase();
+                        if model_lower.contains("sonnet") {
+                            sonnet_stats.input += estimated_input;
+                            sonnet_stats.output += estimated_output;
+                        } else if model_lower.contains("opus") {
+                            opus_stats.input += estimated_input;
+                            opus_stats.output += estimated_output;
+                        } else if model_lower.contains("haiku") {
+                            haiku_stats.input += estimated_input;
+                            haiku_stats.output += estimated_output;
+                        }
+
+                        total_stats.input += estimated_input;
+                        total_stats.output += estimated_output;
+                    }
+                }
+            }
+        }
+
+        (sonnet_stats, opus_stats, haiku_stats, total_stats)
     }
 
     /// Parse recent API calls from activity events
