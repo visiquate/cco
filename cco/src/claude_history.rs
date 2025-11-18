@@ -79,6 +79,7 @@ struct ClaudeMessage {
     #[serde(rename = "type")]
     message_type: String,
     message: Option<MessageContent>,
+    timestamp: Option<String>,  // ISO 8601 timestamp (e.g., "2025-11-11T22:35:42.543Z")
 }
 
 #[derive(Debug, Deserialize)]
@@ -88,11 +89,11 @@ struct MessageContent {
 }
 
 #[derive(Debug, Deserialize)]
-struct UsageData {
-    input_tokens: Option<u64>,
-    output_tokens: Option<u64>,
-    cache_creation_input_tokens: Option<u64>,
-    cache_read_input_tokens: Option<u64>,
+pub struct UsageData {
+    pub input_tokens: Option<u64>,
+    pub output_tokens: Option<u64>,
+    pub cache_creation_input_tokens: Option<u64>,
+    pub cache_read_input_tokens: Option<u64>,
 }
 
 /// Model pricing structure matching Python live-monitor.py
@@ -102,7 +103,7 @@ struct UsageData {
 /// - cache_read_input_tokens: 10% of regular input cost (90% discount - cached content doesn't consume full tokens)
 ///
 /// Returns: (input_price, output_price, cache_write_price, cache_read_price) per million tokens
-fn get_model_pricing(model_name: &str) -> (f64, f64, f64, f64) {
+pub fn get_model_pricing(model_name: &str) -> (f64, f64, f64, f64) {
     // Normalize model name by extracting the base model
     let normalized = normalize_model_name(model_name);
 
@@ -160,7 +161,7 @@ fn get_model_pricing(model_name: &str) -> (f64, f64, f64, f64) {
 ///   "claude-opus-4-1" → "claude-opus-4-1"
 ///   "claude-haiku-4-5-20251001" → "claude-haiku-4-5"
 ///   "claude-3-5-haiku-20241022" → "claude-3-5-haiku"
-fn normalize_model_name(model_name: &str) -> String {
+pub fn normalize_model_name(model_name: &str) -> String {
     // Remove date suffix if present (format: -YYYYMMDD)
     let parts: Vec<&str> = model_name.split('-').collect();
 
@@ -186,7 +187,7 @@ fn normalize_model_name(model_name: &str) -> String {
 }
 
 /// Calculate cost for a given token count
-fn calculate_cost(tokens: u64, cost_per_million: f64) -> f64 {
+pub fn calculate_cost(tokens: u64, cost_per_million: f64) -> f64 {
     (tokens as f64 / 1_000_000.0) * cost_per_million
 }
 
@@ -201,8 +202,8 @@ fn parse_jsonl_line(line: &str) -> Option<ClaudeMessage> {
     }
 }
 
-/// Parse a single JSONL file and extract assistant messages with usage data
-async fn parse_jsonl_file(path: &Path) -> Result<Vec<(String, UsageData)>> {
+/// Parse a single JSONL file and extract assistant messages with usage data and timestamps
+async fn parse_jsonl_file(path: &Path) -> Result<Vec<(String, UsageData, Option<String>)>> {
     let file = fs::File::open(path).await?;
     let reader = BufReader::new(file);
     let mut lines = reader.lines();
@@ -214,7 +215,7 @@ async fn parse_jsonl_file(path: &Path) -> Result<Vec<(String, UsageData)>> {
             if msg.message_type == "assistant" {
                 if let Some(content) = msg.message {
                     if let (Some(model), Some(usage)) = (content.model, content.usage) {
-                        messages.push((model, usage));
+                        messages.push((model, usage, msg.timestamp));
                     }
                 }
             }
@@ -364,7 +365,7 @@ pub async fn load_claude_project_metrics(project_path: &str) -> Result<ClaudeMet
 
             match parse_jsonl_file(&path).await {
                 Ok(messages) => {
-                    for (model, usage) in messages {
+                    for (model, usage, _timestamp) in messages {
                         let normalized_model = normalize_model_name(&model);
                         let (input_price, output_price, cache_write_price, cache_read_price) =
                             get_model_pricing(&normalized_model);
@@ -419,6 +420,88 @@ pub async fn load_claude_project_metrics(project_path: &str) -> Result<ClaudeMet
     metrics.last_updated = Utc::now();
 
     Ok(metrics)
+}
+
+/// Load Claude project metrics grouped by date for time-series analysis
+///
+/// Returns a HashMap where key is date (YYYY-MM-DD) and value is metrics for that day
+///
+/// # Arguments
+/// * `project_path` - Path to the Claude project directory
+///
+/// # Returns
+/// HashMap<date, Vec<(model, usage_data, timestamp)>> for each day
+///
+/// # Example
+/// ```no_run
+/// use cco::claude_history::load_claude_project_metrics_by_date;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let daily_metrics = load_claude_project_metrics_by_date(
+///         "/Users/brent/.claude/projects/cc-orchestra"
+///     ).await?;
+///
+///     for (date, metrics) in daily_metrics {
+///         println!("Date: {}, Messages: {}", date, metrics.len());
+///     }
+///     Ok(())
+/// }
+/// ```
+pub async fn load_claude_project_metrics_by_date(
+    project_path: &str,
+) -> Result<std::collections::HashMap<String, Vec<(String, UsageData, String)>>> {
+    use std::collections::HashMap;
+
+    let project_dir = Path::new(project_path);
+
+    if !project_dir.exists() {
+        tracing::warn!("Project directory does not exist: {}", project_path);
+        return Ok(HashMap::new());
+    }
+
+    let mut metrics_by_date: HashMap<String, Vec<(String, UsageData, String)>> = HashMap::new();
+
+    // Read all JSONL files in the directory
+    let mut entries = fs::read_dir(project_dir).await?;
+
+    while let Some(entry) = entries.next_entry().await? {
+        let path = entry.path();
+
+        // Only process .jsonl files
+        if path.extension().and_then(|s| s.to_str()) == Some("jsonl") {
+            match parse_jsonl_file(&path).await {
+                Ok(messages) => {
+                    for (model, usage, timestamp_opt) in messages {
+                        // Extract date from timestamp
+                        if let Some(timestamp_str) = timestamp_opt {
+                            // Parse ISO 8601 timestamp and extract date
+                            if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&timestamp_str) {
+                                let date = dt.format("%Y-%m-%d").to_string();
+                                metrics_by_date
+                                    .entry(date)
+                                    .or_insert_with(Vec::new)
+                                    .push((model, usage, timestamp_str));
+                            } else {
+                                tracing::debug!(
+                                    "Failed to parse timestamp: {}. Skipping message.",
+                                    timestamp_str
+                                );
+                            }
+                        } else {
+                            tracing::debug!("Message missing timestamp. Skipping.");
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to parse file {:?}: {}", path, e);
+                    // Continue processing other files
+                }
+            }
+        }
+    }
+
+    Ok(metrics_by_date)
 }
 
 #[cfg(test)]

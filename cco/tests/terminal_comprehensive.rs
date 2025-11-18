@@ -104,11 +104,11 @@ async fn test_terminal_control_character_combinations() {
     let session = TerminalSession::spawn_shell().unwrap();
 
     // Ctrl+A (beginning of line), Ctrl+E (end of line), Ctrl+K (kill line)
-    let control_chars = vec![
-        &[0x01] as &[u8], // Ctrl+A
-        &[0x05],          // Ctrl+E
-        &[0x0B],          // Ctrl+K
-        &[0x0C],          // Ctrl+L (clear screen)
+    let control_chars: Vec<&[u8]> = vec![
+        &[0x01u8], // Ctrl+A
+        &[0x05u8], // Ctrl+E
+        &[0x0Bu8], // Ctrl+K
+        &[0x0Cu8], // Ctrl+L (clear screen)
     ];
 
     for ctrl in control_chars {

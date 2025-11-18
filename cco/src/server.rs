@@ -64,6 +64,7 @@ pub struct ServerState {
     pub agents: Arc<AgentsConfig>,                   // agent definitions from ~/.claude/agents/
     pub connection_tracker: ConnectionTracker,       // connection tracking for rate limiting
     pub shutdown_flag: Arc<AtomicBool>,              // signal to background tasks to shutdown
+    pub persistence: Option<Arc<crate::persistence::PersistenceLayer>>,  // metrics database
 }
 
 /// PID file metadata structure
@@ -657,18 +658,53 @@ async fn stats(State(state): State<Arc<ServerState>>) -> Result<Json<StatsRespon
         Vec::new()
     };
 
-    // Cost over time: For now, just show current cost over past 30 days (mock data)
-    let today = chrono::Local::now();
+    // Cost over time: Try to get real data from database, fall back to mock data
     let mut cost_over_time = Vec::new();
-    for i in 0..30 {
-        let date = today - chrono::Duration::days(i);
-        let daily_cost = claude_metrics.total_cost / 30.0;
-        cost_over_time.push(ChartDataPoint {
-            date: date.format("%Y-%m-%d").to_string(),
-            cost: daily_cost,
-        });
+
+    if let Some(ref persistence) = state.persistence {
+        let claude_history = persistence.claude_history();
+        let today = chrono::Utc::now();
+        let start_date = (today - chrono::Duration::days(30)).format("%Y-%m-%d").to_string();
+        let end_date = today.format("%Y-%m-%d").to_string();
+
+        match claude_history.get_daily_totals(&start_date, &end_date).await {
+            Ok(daily_totals) => {
+                for total in daily_totals {
+                    cost_over_time.push(ChartDataPoint {
+                        date: total.date,
+                        cost: total.cost,
+                    });
+                }
+                info!("✅ Loaded {} days of historic metrics from database", cost_over_time.len());
+            }
+            Err(e) => {
+                warn!("Failed to load historic metrics from database: {}", e);
+                // Fall back to mock data
+                let today = chrono::Local::now();
+                for i in 0..30 {
+                    let date = today - chrono::Duration::days(i);
+                    let daily_cost = claude_metrics.total_cost / 30.0;
+                    cost_over_time.push(ChartDataPoint {
+                        date: date.format("%Y-%m-%d").to_string(),
+                        cost: daily_cost,
+                    });
+                }
+                cost_over_time.reverse();
+            }
+        }
+    } else {
+        // No database available, use mock data
+        let today = chrono::Local::now();
+        for i in 0..30 {
+            let date = today - chrono::Duration::days(i);
+            let daily_cost = claude_metrics.total_cost / 30.0;
+            cost_over_time.push(ChartDataPoint {
+                date: date.format("%Y-%m-%d").to_string(),
+                cost: daily_cost,
+            });
+        }
+        cost_over_time.reverse();
     }
-    cost_over_time.reverse();
 
     // Cost by project
     let cost_by_project = vec![ProjectChartData {
@@ -1813,6 +1849,35 @@ pub async fn run_server(
     // Initialize connection tracker (max 10 concurrent connections per IP)
     let connection_tracker = ConnectionTracker::new(10);
 
+    // Initialize metrics database
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
+    let db_path = format!("{}/.claude/cco_metrics.db", home);
+    let persistence = match crate::persistence::PersistenceLayer::new(&db_path).await {
+        Ok(p) => {
+            info!("✅ Metrics database initialized: {}", db_path);
+
+            // Run migration if needed
+            let claude_history = p.claude_history();
+            if let Ok(false) = claude_history.is_migrated().await {
+                info!("📊 Running Claude history migration from JSONL files...");
+                if let Ok(project_path) = get_current_project_path() {
+                    match claude_history.migrate_from_jsonl(&project_path).await {
+                        Ok(_) => info!("✅ Migration complete"),
+                        Err(e) => warn!("Migration failed: {}", e),
+                    }
+                } else {
+                    warn!("Could not determine project path for migration");
+                }
+            }
+
+            Some(Arc::new(p))
+        }
+        Err(e) => {
+            warn!("Failed to initialize metrics database: {}", e);
+            None
+        }
+    };
+
     let state = Arc::new(ServerState {
         cache,
         router,
@@ -1824,6 +1889,7 @@ pub async fn run_server(
         agents,
         connection_tracker,
         shutdown_flag: shutdown_flag.clone(),
+        persistence,
     });
 
     // Spawn background task to save metrics every 60 seconds

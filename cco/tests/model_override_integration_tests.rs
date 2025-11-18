@@ -196,11 +196,16 @@ mod model_override_integration_tests {
             // Check cache
             let cache = self.cache.lock().await;
             if let Some(cached) = cache.get(&cache_key) {
+                // Clone data before dropping lock
+                let input_tokens = cached.input_tokens;
+                let output_tokens = cached.output_tokens;
+                let cached_model = cached.model.clone();
+                let cached_content = cached.content.clone();
                 drop(cache);
 
                 // Calculate savings
                 let would_be_cost =
-                    self.calculate_cost(&request.model, cached.input_tokens, cached.output_tokens);
+                    self.calculate_cost(&request.model, input_tokens, output_tokens);
 
                 // Record analytics
                 let mut analytics = self.analytics.lock().await;
@@ -211,8 +216,8 @@ mod model_override_integration_tests {
                     } else {
                         None
                     },
-                    input_tokens: cached.input_tokens,
-                    output_tokens: cached.output_tokens,
+                    input_tokens,
+                    output_tokens,
                     cache_hit: true,
                     actual_cost: 0.0,
                     would_be_cost,
@@ -220,10 +225,10 @@ mod model_override_integration_tests {
                 });
 
                 return ChatResponse {
-                    model: cached.model.clone(),
-                    content: cached.content.clone(),
-                    input_tokens: cached.input_tokens,
-                    output_tokens: cached.output_tokens,
+                    model: cached_model,
+                    content: cached_content,
+                    input_tokens,
+                    output_tokens,
                     from_cache: true,
                 };
             }

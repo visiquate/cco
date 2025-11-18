@@ -42,6 +42,11 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 echo -e "${GREEN}   CCO Installer - Claude Code Orchestra${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
+echo -e "${GREEN}✨ No system dependencies required!${NC}"
+echo -e "${GREEN}   - No macFUSE installation needed${NC}"
+echo -e "${GREEN}   - No kernel extensions${NC}"
+echo -e "${GREEN}   - Works on macOS, Linux, and Windows${NC}"
+echo ""
 
 # Detect OS and architecture
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"

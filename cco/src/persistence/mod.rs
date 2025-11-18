@@ -3,6 +3,9 @@
 
 pub mod models;
 pub mod schema;
+pub mod claude_history_models;
+pub mod claude_history_schema;
+pub mod claude_history_persistence;
 
 use models::{ApiMetricRecord, DailySummary, HourlyAggregation, MonitoringSession};
 use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
@@ -71,6 +74,11 @@ impl PersistenceLayer {
 
         // Create schema
         sqlx::raw_sql(schema::SCHEMA)
+            .execute(&pool)
+            .await?;
+
+        // Create Claude history schema
+        sqlx::raw_sql(claude_history_schema::CLAUDE_HISTORY_SCHEMA)
             .execute(&pool)
             .await?;
 
@@ -328,6 +336,11 @@ impl PersistenceLayer {
     /// Get the database file path
     pub fn db_path(&self) -> &Path {
         &self.db_path
+    }
+
+    /// Get Claude history persistence layer
+    pub fn claude_history(&self) -> claude_history_persistence::ClaudeHistoryPersistence {
+        claude_history_persistence::ClaudeHistoryPersistence::new(self.pool.clone())
     }
 
     /// Get metrics recorded count for a specific session

@@ -41,7 +41,7 @@ mod security_tests {
 
     /// Test secure temporary directory creation
     /// HIGH FIX #3: Unpredictable name, 0o700 permissions
-    #[tokio::test]
+    #[test]
     #[cfg(unix)]
     fn test_secure_temp_directory_permissions() {
         use std::os::unix::fs::PermissionsExt;

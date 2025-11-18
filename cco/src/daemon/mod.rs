@@ -8,7 +8,9 @@
 
 pub mod config;
 pub mod hooks;
+pub mod knowledge;
 pub mod lifecycle;
+pub mod security;
 pub mod server;
 pub mod service;
 pub mod temp_files;
@@ -16,6 +18,7 @@ pub mod temp_files;
 pub use config::{DaemonConfig, load_config, save_config};
 pub use hooks::{HookExecutor, HookRegistry, HookType, HookPayload, HooksConfig};
 pub use lifecycle::{DaemonManager, DaemonStatus};
+pub use security::{TokenManager, CredentialDetector, RateLimiter, ValidatedMetadata};
 pub use server::{run_daemon_server, DaemonState};
 pub use service::{ServiceManager, PlatformService};
 pub use temp_files::TempFileManager;
