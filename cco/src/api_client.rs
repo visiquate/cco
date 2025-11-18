@@ -23,7 +23,7 @@ const MAX_BACKOFF: Duration = Duration::from_secs(2);
 
 /// API client for daemon communication
 pub struct ApiClient {
-    base_url: String,
+    pub base_url: String,
     client: Client,
     max_retries: u32,
 }
@@ -83,7 +83,7 @@ impl ApiClient {
     }
 
     /// Generic GET request with retry logic
-    async fn get_with_retry<T: for<'de> Deserialize<'de>>(&self, url: &str) -> Result<T> {
+    pub async fn get_with_retry<T: for<'de> Deserialize<'de>>(&self, url: &str) -> Result<T> {
         let mut last_error = None;
         let mut backoff = INITIAL_BACKOFF;
 
