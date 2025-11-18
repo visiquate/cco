@@ -22,9 +22,10 @@ pub enum ProviderType {
 pub struct ModelPricing {
     pub model: String,
     pub provider: String,
-    pub input_cost: f64,      // $ per 1M tokens
-    pub output_cost: f64,     // $ per 1M tokens
-    pub cache_read_cost: f64, // $ per 1M tokens (Claude cache only)
+    pub input_cost: f64,       // $ per 1M tokens
+    pub output_cost: f64,      // $ per 1M tokens
+    pub cache_write_cost: f64, // $ per 1M tokens (Claude cache only)
+    pub cache_read_cost: f64,  // $ per 1M tokens (Claude cache only)
 }
 
 /// Route rule for model -> provider mapping
@@ -48,7 +49,7 @@ impl Default for RouterConfig {
     fn default() -> Self {
         let mut pricing = HashMap::new();
 
-        // Claude models
+        // Claude models - Opus 4
         pricing.insert(
             "claude-opus-4".to_string(),
             ModelPricing {
@@ -56,10 +57,37 @@ impl Default for RouterConfig {
                 provider: "anthropic".to_string(),
                 input_cost: 15.0,
                 output_cost: 75.0,
+                cache_write_cost: 18.75,
                 cache_read_cost: 1.5,
             },
         );
 
+        // Claude Sonnet 4.5 (new naming convention)
+        pricing.insert(
+            "claude-sonnet-4".to_string(),
+            ModelPricing {
+                model: "claude-sonnet-4".to_string(),
+                provider: "anthropic".to_string(),
+                input_cost: 3.0,
+                output_cost: 15.0,
+                cache_write_cost: 3.75,
+                cache_read_cost: 0.3,
+            },
+        );
+
+        pricing.insert(
+            "claude-sonnet-4-5-20251001".to_string(),
+            ModelPricing {
+                model: "claude-sonnet-4-5-20251001".to_string(),
+                provider: "anthropic".to_string(),
+                input_cost: 3.0,
+                output_cost: 15.0,
+                cache_write_cost: 3.75,
+                cache_read_cost: 0.3,
+            },
+        );
+
+        // Claude Sonnet 3.5 (legacy naming)
         pricing.insert(
             "claude-sonnet-3.5".to_string(),
             ModelPricing {
@@ -67,7 +95,33 @@ impl Default for RouterConfig {
                 provider: "anthropic".to_string(),
                 input_cost: 3.0,
                 output_cost: 15.0,
+                cache_write_cost: 3.75,
                 cache_read_cost: 0.3,
+            },
+        );
+
+        // Claude Haiku 4.5 (new naming convention)
+        pricing.insert(
+            "claude-haiku-4".to_string(),
+            ModelPricing {
+                model: "claude-haiku-4".to_string(),
+                provider: "anthropic".to_string(),
+                input_cost: 1.0,
+                output_cost: 5.0,
+                cache_write_cost: 1.25,
+                cache_read_cost: 0.1,
+            },
+        );
+
+        pricing.insert(
+            "claude-haiku-4-5-20251001".to_string(),
+            ModelPricing {
+                model: "claude-haiku-4-5-20251001".to_string(),
+                provider: "anthropic".to_string(),
+                input_cost: 1.0,
+                output_cost: 5.0,
+                cache_write_cost: 1.25,
+                cache_read_cost: 0.1,
             },
         );
 
@@ -79,6 +133,7 @@ impl Default for RouterConfig {
                 provider: "openai".to_string(),
                 input_cost: 30.0,
                 output_cost: 60.0,
+                cache_write_cost: 0.0,
                 cache_read_cost: 0.0,
             },
         );
@@ -91,6 +146,7 @@ impl Default for RouterConfig {
                 provider: "ollama".to_string(),
                 input_cost: 0.0,
                 output_cost: 0.0,
+                cache_write_cost: 0.0,
                 cache_read_cost: 0.0,
             },
         );
@@ -102,6 +158,7 @@ impl Default for RouterConfig {
                 provider: "ollama".to_string(),
                 input_cost: 0.0,
                 output_cost: 0.0,
+                cache_write_cost: 0.0,
                 cache_read_cost: 0.0,
             },
         );
@@ -180,15 +237,17 @@ impl ModelRouter {
     pub fn calculate_cost_with_claude_cache(
         &self,
         model: &str,
+        cache_write_tokens: u32,
         cached_tokens: u32,
         new_tokens: u32,
         output_tokens: u32,
     ) -> Option<f64> {
         self.config.pricing.get(model).map(|pricing| {
+            let cache_write_cost = (cache_write_tokens as f64 / 1_000_000.0) * pricing.cache_write_cost;
             let cache_read_cost = (cached_tokens as f64 / 1_000_000.0) * pricing.cache_read_cost;
             let new_input_cost = (new_tokens as f64 / 1_000_000.0) * pricing.input_cost;
             let output_cost = (output_tokens as f64 / 1_000_000.0) * pricing.output_cost;
-            cache_read_cost + new_input_cost + output_cost
+            cache_write_cost + cache_read_cost + new_input_cost + output_cost
         })
     }
 
@@ -282,6 +341,7 @@ mod tests {
     fn test_claude_cache_savings_with_90_percent_cached() {
         let router = ModelRouter::new();
         let total_input = 1_000_000u32;
+        let cache_write_tokens = 0u32;  // No cache write in this scenario
         let cached_tokens = 900_000u32;
         let new_tokens = 100_000u32;
         let output_tokens = 500_000u32;
@@ -289,6 +349,7 @@ mod tests {
         let actual_cost = router
             .calculate_cost_with_claude_cache(
                 "claude-opus-4",
+                cache_write_tokens,
                 cached_tokens,
                 new_tokens,
                 output_tokens,
@@ -301,6 +362,7 @@ mod tests {
 
         let savings = would_be_cost - actual_cost;
 
+        // Cache write: 0K * $18.75/M = $0.00
         // Cache read: 900K * $1.5/M = $1.35
         // New input: 100K * $15/M = $1.50
         // Output: 500K * $75/M = $37.50
