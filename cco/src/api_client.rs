@@ -172,6 +172,18 @@ pub struct Stats {
     pub cache_hits: u64,
     #[serde(default)]
     pub cache_misses: u64,
+    /// Token breakdown by model tier (Haiku, Sonnet, Opus)
+    #[serde(default)]
+    pub token_breakdown: std::collections::HashMap<String, ModelTokens>,
+}
+
+/// Token breakdown for a specific model tier
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct ModelTokens {
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub cache_read_tokens: u64,
+    pub cache_write_tokens: u64,
 }
 
 /// Calculate exponential backoff delay

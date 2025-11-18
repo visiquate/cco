@@ -224,6 +224,100 @@ async fn parse_jsonl_file(path: &Path) -> Result<Vec<(String, UsageData)>> {
     Ok(messages)
 }
 
+/// Load Claude metrics from home directory metrics.json file
+///
+/// This loads the newer Claude Code metrics format from ~/.claude/metrics.json
+///
+/// # Returns
+/// ClaudeMetrics struct with aggregated usage and cost data
+///
+/// # Example
+/// ```no_run
+/// use cco::claude_history::load_claude_metrics_from_home_dir;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let metrics = load_claude_metrics_from_home_dir().await?;
+///     println!("Total cost: ${:.2}", metrics.total_cost);
+///     println!("Total API calls: {}", metrics.messages_count);
+///     Ok(())
+/// }
+/// ```
+pub async fn load_claude_metrics_from_home_dir() -> Result<ClaudeMetrics> {
+    // Get home directory
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
+    let metrics_path = format!("{}/.claude/metrics.json", home);
+    let metrics_file = Path::new(&metrics_path);
+
+    if !metrics_file.exists() {
+        tracing::debug!("Claude metrics file does not exist: {}", metrics_path);
+        return Ok(ClaudeMetrics::default());
+    }
+
+    // Read and parse the JSON array
+    let content = fs::read_to_string(metrics_file).await?;
+
+    #[derive(Debug, Deserialize)]
+    struct MetricsEntry {
+        model: String,
+        input_tokens: u64,
+        output_tokens: u64,
+        #[serde(default)]
+        cache_hit: bool,
+        actual_cost: f64,
+        #[serde(default)]
+        would_be_cost: f64,
+        #[serde(default)]
+        savings: f64,
+    }
+
+    let entries: Vec<MetricsEntry> = serde_json::from_str(&content)?;
+
+    let mut metrics = ClaudeMetrics::default();
+
+    for entry in entries {
+        let normalized_model = normalize_model_name(&entry.model);
+        let (input_price, output_price, cache_write_price, cache_read_price) =
+            get_model_pricing(&normalized_model);
+
+        // Aggregate totals
+        metrics.total_input_tokens += entry.input_tokens;
+        metrics.total_output_tokens += entry.output_tokens;
+        metrics.total_cost += entry.actual_cost;
+        metrics.messages_count += 1;
+
+        // Update per-model breakdown
+        let breakdown = metrics.model_breakdown
+            .entry(normalized_model.clone())
+            .or_insert_with(ModelBreakdown::default);
+
+        breakdown.input_tokens += entry.input_tokens;
+        breakdown.output_tokens += entry.output_tokens;
+        breakdown.total_cost += entry.actual_cost;
+        breakdown.message_count += 1;
+
+        // Calculate individual cost components for the breakdown
+        // Note: The actual_cost from metrics.json is the authoritative total
+        // We distribute it proportionally based on token pricing
+        let total_cost_estimate =
+            calculate_cost(entry.input_tokens, input_price) +
+            calculate_cost(entry.output_tokens, output_price);
+
+        if total_cost_estimate > 0.0 {
+            let input_ratio = calculate_cost(entry.input_tokens, input_price) / total_cost_estimate;
+            let output_ratio = calculate_cost(entry.output_tokens, output_price) / total_cost_estimate;
+
+            breakdown.input_cost += entry.actual_cost * input_ratio;
+            breakdown.output_cost += entry.actual_cost * output_ratio;
+        }
+    }
+
+    metrics.conversations_count = 1; // Single metrics file represents current session
+    metrics.last_updated = Utc::now();
+
+    Ok(metrics)
+}
+
 /// Load Claude project metrics from a project directory
 ///
 /// # Arguments

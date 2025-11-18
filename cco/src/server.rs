@@ -609,13 +609,33 @@ async fn dashboard_js() -> impl IntoResponse {
 
 /// Analytics stats endpoint - unified format for dashboard
 async fn stats(State(state): State<Arc<ServerState>>) -> Result<Json<StatsResponse>, ServerError> {
-    // Load real Claude history metrics
-    let project_path = get_current_project_path()
-        .map_err(|e| ServerError::Internal(format!("Failed to determine project path: {}", e)))?;
+    // Try loading from home directory metrics.json first (newer Claude Code format)
+    let claude_metrics = match crate::claude_history::load_claude_metrics_from_home_dir().await {
+        Ok(metrics) if metrics.total_cost > 0.0 || metrics.messages_count > 0 => {
+            trace!("✅ Loaded metrics from ~/.claude/metrics.json");
+            metrics
+        }
+        Ok(_) => {
+            // Fall back to project-based JSONL files
+            trace!("No data in ~/.claude/metrics.json, trying project JSONL files");
+            let project_path = get_current_project_path()
+                .map_err(|e| ServerError::Internal(format!("Failed to determine project path: {}", e)))?;
 
-    let claude_metrics = crate::claude_history::load_claude_project_metrics(&project_path)
-        .await
-        .map_err(|e| ServerError::Internal(format!("Failed to load Claude metrics: {}", e)))?;
+            crate::claude_history::load_claude_project_metrics(&project_path)
+                .await
+                .map_err(|e| ServerError::Internal(format!("Failed to load Claude metrics: {}", e)))?
+        }
+        Err(e) => {
+            // If home dir fails, try project path
+            trace!("Error loading from ~/.claude/metrics.json: {}, trying project JSONL files", e);
+            let project_path = get_current_project_path()
+                .map_err(|e| ServerError::Internal(format!("Failed to determine project path: {}", e)))?;
+
+            crate::claude_history::load_claude_project_metrics(&project_path)
+                .await
+                .map_err(|e| ServerError::Internal(format!("Failed to load Claude metrics: {}", e)))?
+        }
+    };
 
     // Get recent activity from analytics engine
     let activity = state.analytics.get_recent_activity(20).await;
@@ -665,6 +685,34 @@ async fn stats(State(state): State<Arc<ServerState>>) -> Result<Json<StatsRespon
     // Calculate total tokens from Claude history
     let total_tokens = claude_metrics.total_input_tokens + claude_metrics.total_output_tokens;
 
+    // Build token breakdown by model tier from Claude metrics
+    let mut token_breakdown = HashMap::new();
+    for (model_name, breakdown) in &claude_metrics.model_breakdown {
+        // Normalize model names to tier names (Haiku, Sonnet, Opus)
+        let tier_name = if model_name.contains("haiku") {
+            "Haiku"
+        } else if model_name.contains("sonnet") {
+            "Sonnet"
+        } else if model_name.contains("opus") {
+            "Opus"
+        } else {
+            model_name.as_str()
+        };
+
+        // Aggregate tokens for this tier
+        let tier_info = token_breakdown.entry(tier_name.to_string()).or_insert(TokenBreakdownInfo {
+            input_tokens: 0,
+            output_tokens: 0,
+            cache_read_tokens: 0,
+            cache_write_tokens: 0,
+        });
+
+        tier_info.input_tokens += breakdown.input_tokens;
+        tier_info.output_tokens += breakdown.output_tokens;
+        tier_info.cache_read_tokens += breakdown.cache_read_tokens;
+        tier_info.cache_write_tokens += breakdown.cache_creation_tokens;
+    }
+
     Ok(Json(StatsResponse {
         project: ProjectInfo {
             name: "Claude Orchestra".to_string(),
@@ -672,6 +720,11 @@ async fn stats(State(state): State<Arc<ServerState>>) -> Result<Json<StatsRespon
             tokens: total_tokens,
             calls: claude_metrics.messages_count,
             last_updated: Utc::now().to_rfc3339(),
+            token_breakdown: if token_breakdown.is_empty() {
+                None
+            } else {
+                Some(token_breakdown)
+            },
         },
         machine: MachineInfo {
             cpu: "N/A".to_string(),
@@ -834,6 +887,16 @@ pub struct ProjectInfo {
     pub tokens: u64,
     pub calls: u64,
     pub last_updated: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token_breakdown: Option<HashMap<String, TokenBreakdownInfo>>,
+}
+
+#[derive(serde::Serialize)]
+pub struct TokenBreakdownInfo {
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub cache_read_tokens: u64,
+    pub cache_write_tokens: u64,
 }
 
 #[derive(serde::Serialize)]
@@ -940,6 +1003,7 @@ async fn stream(
                     tokens: total_would_be_cost as u64,
                     calls: total_requests,
                     last_updated: Utc::now().to_rfc3339(),
+                    token_breakdown: None, // SSE stream doesn't include detailed breakdown
                 },
                 machine: MachineInfo {
                     cpu: "N/A".to_string(),
@@ -1591,12 +1655,33 @@ fn load_model_overrides() -> HashMap<String, String> {
 /// Claude history metrics REST endpoint
 async fn claude_history_metrics(
 ) -> Result<Json<crate::claude_history::ClaudeMetrics>, ServerError> {
-    let project_path = get_current_project_path()
-        .map_err(|e| ServerError::Internal(format!("Failed to determine project path: {}", e)))?;
+    // Try loading from home directory metrics.json first (newer Claude Code format)
+    let metrics = match crate::claude_history::load_claude_metrics_from_home_dir().await {
+        Ok(metrics) if metrics.total_cost > 0.0 || metrics.messages_count > 0 => {
+            trace!("✅ Loaded metrics from ~/.claude/metrics.json");
+            metrics
+        }
+        Ok(_) => {
+            // Fall back to project-based JSONL files
+            trace!("No data in ~/.claude/metrics.json, trying project JSONL files");
+            let project_path = get_current_project_path()
+                .map_err(|e| ServerError::Internal(format!("Failed to determine project path: {}", e)))?;
 
-    let metrics = crate::claude_history::load_claude_project_metrics(&project_path)
-        .await
-        .map_err(|e| ServerError::Internal(format!("Failed to load Claude metrics: {}", e)))?;
+            crate::claude_history::load_claude_project_metrics(&project_path)
+                .await
+                .map_err(|e| ServerError::Internal(format!("Failed to load Claude metrics: {}", e)))?
+        }
+        Err(e) => {
+            // If home dir fails, try project path
+            trace!("Error loading from ~/.claude/metrics.json: {}, trying project JSONL files", e);
+            let project_path = get_current_project_path()
+                .map_err(|e| ServerError::Internal(format!("Failed to determine project path: {}", e)))?;
+
+            crate::claude_history::load_claude_project_metrics(&project_path)
+                .await
+                .map_err(|e| ServerError::Internal(format!("Failed to load Claude metrics: {}", e)))?
+        }
+    };
 
     Ok(Json(metrics))
 }

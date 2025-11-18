@@ -22,7 +22,10 @@ use ratatui::{
 };
 use std::io;
 use std::time::Duration;
+use std::path::PathBuf;
 use tokio::time::sleep;
+use tokio::fs;
+use tokio::io::{AsyncBufReadExt, BufReader};
 
 use crate::api_client::{ApiClient, HealthResponse};
 use crate::daemon::{DaemonConfig, DaemonManager};
@@ -86,6 +89,28 @@ pub struct RecentCall {
     pub file: String,
 }
 
+/// Overall summary from metrics
+#[derive(Debug, Clone, Default)]
+pub struct OverallSummary {
+    pub total_cost: f64,
+    pub total_tokens: u64,
+    pub total_input_tokens: u64,
+    pub total_output_tokens: u64,
+    pub total_calls: u64,
+    pub opus_cost: f64,
+    pub sonnet_cost: f64,
+    pub haiku_cost: f64,
+}
+
+/// Per-project summary
+#[derive(Debug, Clone)]
+pub struct ProjectSummary {
+    pub name: String,
+    pub cost: f64,
+    pub tokens: u64,
+    pub calls: u64,
+}
+
 /// Application state tracking
 #[derive(Debug, Clone)]
 pub enum AppState {
@@ -103,6 +128,8 @@ pub enum AppState {
         recent_calls: Vec<RecentCall>,
         health: HealthResponse,
         is_active: bool,
+        overall_summary: OverallSummary,
+        project_summaries: Vec<ProjectSummary>,
     },
     /// Error state with message
     Error(String),
@@ -126,6 +153,158 @@ pub struct TuiApp {
     should_quit: bool,
     /// Status message
     status_message: String,
+}
+
+/// Load overall metrics from ~/.claude/metrics.json
+async fn load_overall_metrics() -> Result<OverallSummary> {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
+    let metrics_path = PathBuf::from(&home).join(".claude").join("metrics.json");
+
+    if !metrics_path.exists() {
+        return Ok(OverallSummary::default());
+    }
+
+    let content = fs::read_to_string(&metrics_path).await?;
+    let metrics: serde_json::Value = serde_json::from_str(&content)?;
+
+    let summary = OverallSummary {
+        total_cost: metrics.get("total_cost")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0),
+        total_tokens: metrics.get("total_tokens")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0),
+        total_input_tokens: metrics.get("total_input_tokens")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0),
+        total_output_tokens: metrics.get("total_output_tokens")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0),
+        total_calls: metrics.get("messages_count")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0),
+        opus_cost: metrics.get("model_breakdown")
+            .and_then(|mb| mb.get("claude-opus-4"))
+            .and_then(|m| m.get("total_cost"))
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0),
+        sonnet_cost: metrics.get("model_breakdown")
+            .and_then(|mb| mb.get("claude-sonnet-4-5"))
+            .and_then(|m| m.get("total_cost"))
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0),
+        haiku_cost: metrics.get("model_breakdown")
+            .and_then(|mb| mb.get("claude-haiku-4-5"))
+            .and_then(|m| m.get("total_cost"))
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0),
+    };
+
+    Ok(summary)
+}
+
+/// Load project summaries from ~/.claude/projects/*/claude.jsonl
+async fn load_project_summaries() -> Result<Vec<ProjectSummary>> {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
+    let projects_dir = PathBuf::from(&home).join(".claude").join("projects");
+
+    if !projects_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut projects = Vec::new();
+    let mut entries = fs::read_dir(&projects_dir).await?;
+
+    while let Some(entry) = entries.next_entry().await? {
+        let path = entry.path();
+        if path.is_dir() {
+            let claude_jsonl = path.join("claude.jsonl");
+            if claude_jsonl.exists() {
+                if let Ok(summary) = load_project_from_jsonl(&claude_jsonl, &path).await {
+                    projects.push(summary);
+                }
+            }
+        }
+    }
+
+    // Sort by cost descending
+    projects.sort_by(|a, b| b.cost.partial_cmp(&a.cost).unwrap_or(std::cmp::Ordering::Equal));
+
+    Ok(projects)
+}
+
+/// Load a single project's metrics from its claude.jsonl file
+async fn load_project_from_jsonl(jsonl_path: &PathBuf, project_dir: &PathBuf) -> Result<ProjectSummary> {
+    let file = fs::File::open(jsonl_path).await?;
+    let reader = BufReader::new(file);
+    let mut lines = reader.lines();
+
+    let mut total_cost = 0.0;
+    let mut total_tokens = 0u64;
+    let mut calls = 0u64;
+
+    while let Some(line) = lines.next_line().await? {
+        if let Ok(msg) = serde_json::from_str::<serde_json::Value>(&line) {
+            if let Some(message) = msg.get("message") {
+                if let Some(usage) = message.get("usage") {
+                    calls += 1;
+
+                    let input_tokens = usage.get("input_tokens")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0);
+                    let output_tokens = usage.get("output_tokens")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0);
+
+                    total_tokens += input_tokens + output_tokens;
+
+                    // Extract model name and estimate cost
+                    if let Some(model) = message.get("model").and_then(|m| m.as_str()) {
+                        let (input_price, output_price, _, _) = get_model_pricing(model);
+                        total_cost += (input_tokens as f64 / 1_000_000.0) * input_price;
+                        total_cost += (output_tokens as f64 / 1_000_000.0) * output_price;
+                    }
+                }
+            }
+        }
+    }
+
+    let project_name = project_dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "Unknown".to_string());
+
+    Ok(ProjectSummary {
+        name: project_name,
+        cost: total_cost,
+        tokens: total_tokens,
+        calls,
+    })
+}
+
+/// Get model pricing for cost estimation (matches pricing from claude_history.rs)
+fn get_model_pricing(model_name: &str) -> (f64, f64, f64, f64) {
+    let normalized = normalize_model_name(model_name);
+    match normalized.as_str() {
+        "claude-sonnet-4-5" | "claude-3-5-sonnet" => (3.0, 15.0, 3.75, 0.30),
+        "claude-haiku-4-5" | "claude-3-5-haiku" => (1.0, 5.0, 1.25, 0.10),
+        "claude-opus-4" | "claude-opus-4-1" => (15.0, 75.0, 18.75, 1.50),
+        _ => (3.0, 15.0, 3.75, 0.30), // Default to Sonnet
+    }
+}
+
+/// Normalize model name for pricing lookup
+fn normalize_model_name(model_name: &str) -> String {
+    let parts: Vec<&str> = model_name.split('-').collect();
+    if parts.len() >= 3 {
+        if let Some(last) = parts.last() {
+            if last.len() == 8 && last.chars().all(|c| c.is_ascii_digit()) {
+                return parts[..parts.len() - 1].join("-");
+            }
+        }
+    }
+    model_name.to_string()
 }
 
 impl TuiApp {
@@ -302,11 +481,23 @@ impl TuiApp {
                 // Determine if system is active (has recent activity)
                 let is_active = !recent_calls.is_empty();
 
+                // Load overall metrics from ~/.claude/metrics.json
+                let overall_summary = load_overall_metrics()
+                    .await
+                    .unwrap_or_default();
+
+                // Load project summaries from ~/.claude/projects/*/claude.jsonl
+                let project_summaries = load_project_summaries()
+                    .await
+                    .unwrap_or_default();
+
                 self.state = AppState::Connected {
                     cost_by_tier,
                     recent_calls,
                     health,
                     is_active,
+                    overall_summary,
+                    project_summaries,
                 };
             }
             (Err(e), _) | (_, Err(e)) => {
@@ -320,25 +511,29 @@ impl TuiApp {
     fn parse_cost_by_tier(&self, stats: &serde_json::Value) -> CostByTier {
         let mut cost_by_tier = CostByTier::default();
 
+        // Get total cost and calls from stats.project
+        let total_cost = stats.get("project")
+            .and_then(|p| p.get("cost"))
+            .and_then(|c| c.as_f64())
+            .unwrap_or(0.0);
+        let total_calls = stats.get("project")
+            .and_then(|p| p.get("calls"))
+            .and_then(|c| c.as_u64())
+            .unwrap_or(0);
+        let total_tokens = stats.get("project")
+            .and_then(|p| p.get("tokens"))
+            .and_then(|t| t.as_u64())
+            .unwrap_or(0);
+
         // Try to extract model_distribution from chart_data
         if let Some(chart_data) = stats.get("chart_data") {
             if let Some(model_distribution) = chart_data.get("model_distribution").and_then(|d| d.as_array()) {
                 let mut sonnet_cost = 0.0;
                 let mut opus_cost = 0.0;
                 let mut haiku_cost = 0.0;
-                let mut total_cost = 0.0;
                 let mut sonnet_calls = 0u64;
                 let mut opus_calls = 0u64;
                 let mut haiku_calls = 0u64;
-                let mut total_calls = 0u64;
-
-                // Get total cost and calls from stats
-                if let Some(total) = stats.get("project").and_then(|p| p.get("cost")).and_then(|c| c.as_f64()) {
-                    total_cost = total;
-                }
-                if let Some(calls) = stats.get("project").and_then(|p| p.get("calls")).and_then(|c| c.as_u64()) {
-                    total_calls = calls;
-                }
 
                 // Sum costs per model name to calculate totals
                 for model_item in model_distribution {
@@ -374,9 +569,17 @@ impl TuiApp {
                     (0.0, 0.0, 0.0)
                 };
 
-                // Extract token statistics from activity events if available
-                let (sonnet_tokens, opus_tokens, haiku_tokens, total_tokens) =
-                    self.extract_token_stats_from_activity(stats);
+                // Extract token statistics per model from chart_data if available
+                let (sonnet_tokens, opus_tokens, haiku_tokens) =
+                    self.extract_token_stats_per_model(stats, total_tokens);
+
+                // Build total token stats
+                let total_token_stats = TokenStats {
+                    input: (total_tokens as f64 * 0.6) as u64,
+                    output: (total_tokens as f64 * 0.4) as u64,
+                    cache_write: 0,
+                    cache_read: 0,
+                };
 
                 cost_by_tier = CostByTier {
                     sonnet_cost,
@@ -393,7 +596,7 @@ impl TuiApp {
                     haiku_tokens,
                     total_cost: total_calculated,
                     total_calls,
-                    total_tokens,
+                    total_tokens: total_token_stats,
                 };
             }
         }
@@ -401,43 +604,39 @@ impl TuiApp {
         cost_by_tier
     }
 
-    /// Extract token statistics from activity events
-    fn extract_token_stats_from_activity(&self, stats: &serde_json::Value) -> (TokenStats, TokenStats, TokenStats, TokenStats) {
+    /// Extract token statistics per model from model_breakdown in chart_data
+    fn extract_token_stats_per_model(&self, stats: &serde_json::Value, total_tokens: u64) -> (TokenStats, TokenStats, TokenStats) {
         let mut sonnet_stats = TokenStats::default();
         let mut opus_stats = TokenStats::default();
         let mut haiku_stats = TokenStats::default();
-        let mut total_stats = TokenStats::default();
 
-        // Parse activity events to extract token usage
-        if let Some(activity) = stats.get("activity").and_then(|a| a.as_array()) {
-            for event in activity {
-                if let Some(model) = event.get("model").and_then(|m| m.as_str()) {
-                    if let Some(tokens) = event.get("tokens").and_then(|t| t.as_u64()) {
-                        // Note: The activity events only have total tokens, not broken down by input/output/cache
-                        // We'll distribute them roughly: 60% input, 40% output for estimates
-                        let estimated_input = (tokens as f64 * 0.6) as u64;
-                        let estimated_output = (tokens as f64 * 0.4) as u64;
+        // Try to extract from model_breakdown if available
+        if let Some(chart_data) = stats.get("chart_data") {
+            if let Some(model_distribution) = chart_data.get("model_distribution").and_then(|d| d.as_array()) {
+                for model_item in model_distribution {
+                    if let Some(model_name) = model_item.get("model").and_then(|m| m.as_str()) {
+                        if let Some(percentage) = model_item.get("percentage").and_then(|p| p.as_f64()) {
+                            let model_tokens = ((total_tokens as f64 * percentage) / 100.0) as u64;
+                            let estimated_input = (model_tokens as f64 * 0.6) as u64;
+                            let estimated_output = (model_tokens as f64 * 0.4) as u64;
 
-                        let model_lower = model.to_lowercase();
-                        if model_lower.contains("sonnet") {
-                            sonnet_stats.input += estimated_input;
-                            sonnet_stats.output += estimated_output;
-                        } else if model_lower.contains("opus") {
-                            opus_stats.input += estimated_input;
-                            opus_stats.output += estimated_output;
-                        } else if model_lower.contains("haiku") {
-                            haiku_stats.input += estimated_input;
-                            haiku_stats.output += estimated_output;
+                            if model_name.to_lowercase().contains("sonnet") {
+                                sonnet_stats.input += estimated_input;
+                                sonnet_stats.output += estimated_output;
+                            } else if model_name.to_lowercase().contains("opus") {
+                                opus_stats.input += estimated_input;
+                                opus_stats.output += estimated_output;
+                            } else if model_name.to_lowercase().contains("haiku") {
+                                haiku_stats.input += estimated_input;
+                                haiku_stats.output += estimated_output;
+                            }
                         }
-
-                        total_stats.input += estimated_input;
-                        total_stats.output += estimated_output;
                     }
                 }
             }
         }
 
-        (sonnet_stats, opus_stats, haiku_stats, total_stats)
+        (sonnet_stats, opus_stats, haiku_stats)
     }
 
     /// Parse recent API calls from activity events
@@ -530,8 +729,10 @@ impl TuiApp {
                 recent_calls,
                 health,
                 is_active,
+                overall_summary,
+                project_summaries,
             } => {
-                Self::render_connected(f, cost_by_tier, recent_calls, health, *is_active, status_message);
+                Self::render_connected(f, cost_by_tier, recent_calls, health, *is_active, overall_summary, project_summaries, status_message);
             }
             AppState::Error(err) => {
                 Self::render_error(f, err);
@@ -601,6 +802,8 @@ impl TuiApp {
         recent_calls: &[RecentCall],
         health: &HealthResponse,
         _is_active: bool,
+        overall_summary: &OverallSummary,
+        project_summaries: &[ProjectSummary],
         status_message: &str,
     ) {
         let area = f.size();
@@ -621,23 +824,30 @@ impl TuiApp {
         // Header with Status (server info, port, uptime)
         Self::render_header(f, health, chunks[0]);
 
-        // Main content area - reorganized layout
-        // Section 1: Status (server info, port, uptime) - moved to header
-        // Section 2: Cost Summary by Tier
-        // Section 3: Recent API Calls (dynamic height - fill remainder)
+        // Main content area layout with Overall Summary and Project Summaries
         let content_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(11),  // Cost summary table (7 + haiku row + separators)
-                Constraint::Min(3),      // Recent calls list (dynamic height - fill to bottom)
+                Constraint::Length(3),   // Overall Summary
+                Constraint::Length(3 + (project_summaries.len() as u16).min(5)), // Project Summaries (3 header lines + up to 5 projects)
+                Constraint::Length(11),  // Cost summary table
+                Constraint::Min(2),      // Recent calls list (dynamic height)
             ].as_ref())
             .split(chunks[1]);
 
-        // Cost summary by tier (Section 2)
-        Self::render_cost_summary(f, cost_by_tier, content_chunks[0]);
+        // Overall Summary (Section 1)
+        Self::render_overall_summary(f, overall_summary, content_chunks[0]);
 
-        // Recent API calls with dynamic height (Section 3)
-        Self::render_recent_calls_dynamic(f, recent_calls, content_chunks[1]);
+        // Project Summaries (Section 2)
+        if !project_summaries.is_empty() {
+            Self::render_project_summaries(f, project_summaries, content_chunks[1]);
+        }
+
+        // Cost summary by tier (Section 3)
+        Self::render_cost_summary(f, cost_by_tier, content_chunks[2]);
+
+        // Recent API calls with dynamic height (Section 4)
+        Self::render_recent_calls_dynamic(f, recent_calls, content_chunks[3]);
 
         // Footer
         Self::render_footer(f, chunks[2], status_message);
@@ -680,6 +890,104 @@ impl TuiApp {
         );
 
         f.render_widget(header, area);
+    }
+
+    /// Render overall summary from metrics
+    fn render_overall_summary(f: &mut Frame, summary: &OverallSummary, area: Rect) {
+        let total_tokens_formatted = if summary.total_tokens >= 1_000_000 {
+            format!("{:.2}M", summary.total_tokens as f64 / 1_000_000.0)
+        } else if summary.total_tokens >= 1_000 {
+            format!("{:.1}K", summary.total_tokens as f64 / 1_000.0)
+        } else {
+            format!("{}", summary.total_tokens)
+        };
+
+        let opus_pct = if summary.total_cost > 0.0 {
+            (summary.opus_cost / summary.total_cost) * 100.0
+        } else {
+            0.0
+        };
+
+        let sonnet_pct = if summary.total_cost > 0.0 {
+            (summary.sonnet_cost / summary.total_cost) * 100.0
+        } else {
+            0.0
+        };
+
+        let haiku_pct = if summary.total_cost > 0.0 {
+            (summary.haiku_cost / summary.total_cost) * 100.0
+        } else {
+            0.0
+        };
+
+        let summary_line = format!(
+            "Cost: ${:.5}  Tokens: {}  Calls: {}  | Opus: {:.0}% | Sonnet: {:.0}% | Haiku: {:.0}%",
+            summary.total_cost,
+            total_tokens_formatted,
+            summary.total_calls,
+            opus_pct,
+            sonnet_pct,
+            haiku_pct
+        );
+
+        let text = vec![Line::from(Span::styled(
+            summary_line,
+            Style::default().fg(Color::Cyan),
+        ))];
+
+        let para = Paragraph::new(text).block(
+            Block::default()
+                .title("Overall Summary")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Magenta)),
+        );
+
+        f.render_widget(para, area);
+    }
+
+    /// Render project summaries
+    fn render_project_summaries(f: &mut Frame, projects: &[ProjectSummary], area: Rect) {
+        let mut text = vec![Line::from(vec![
+            Span::styled("Project Name               ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled("Cost         ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled("Tokens    ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled("Calls", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+        ])];
+
+        for project in projects.iter().take(5) {
+            let name = if project.name.len() > 26 {
+                format!("{}...", &project.name[..23])
+            } else {
+                format!("{:<26}", project.name)
+            };
+
+            let tokens_formatted = if project.tokens >= 1_000_000 {
+                format!("{:.2}M", project.tokens as f64 / 1_000_000.0)
+            } else if project.tokens >= 1_000 {
+                format!("{:.1}K", project.tokens as f64 / 1_000.0)
+            } else {
+                format!("{}", project.tokens)
+            };
+
+            let line = format!(
+                "{} ${:>10.5}  {:>8}  {}",
+                name, project.cost, tokens_formatted, project.calls
+            );
+
+            text.push(Line::from(Span::styled(
+                line,
+                Style::default().fg(Color::Yellow),
+            )));
+        }
+
+        let para = Paragraph::new(text).block(
+            Block::default()
+                .title(format!("Project Summaries ({} total)", projects.len()))
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Blue)),
+        );
+
+        f.render_widget(para, area);
     }
 
     /// Render cost summary by tier

@@ -4,8 +4,10 @@ version = "0.0.0"  # Placeholder - actual version is date-based (see CCO_VERSION
 edition = "2021"
 
 [package.metadata]
-# Actual CCO version using date-based format: YYYY.MM.N
-display_version = "2025.11.3"
+# Actual CCO version using automatic date-based format: YYYY.MM.DD+commithash
+# Version is automatically generated at build time (see build.rs)
+# Example: 2025.11.17+e37b7c0
+display_version = "auto"
 
 [[bin]]
 name = "cco"

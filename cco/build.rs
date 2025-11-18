@@ -26,10 +26,14 @@ fn main() {
         );
     }
 
-    // Set version - check environment variable first, otherwise use default
-    let base_version = env::var("CCO_VERSION").unwrap_or_else(|_| "2025.11.5".to_string());
+    // Set version - automatic date-based versioning (YYYY.MM.DD+commithash)
+    // Check environment variable first (for manual override), otherwise use date-based version
+    let base_version = env::var("CCO_VERSION").unwrap_or_else(|_| {
+        // Generate date-based version: YYYY.MM.DD (e.g., 2025.11.17)
+        chrono::Local::now().format("%Y.%-m.%-d").to_string()
+    });
 
-    // Append git hash to version for traceability (format: YYYY.MM.N+<git-hash>)
+    // Append git hash to version for traceability (format: YYYY.MM.DD+<git-hash>)
     let version = if git_hash != "unknown" && !git_hash.is_empty() {
         format!("{}+{}", base_version, git_hash)
     } else {
