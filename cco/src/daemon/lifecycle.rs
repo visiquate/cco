@@ -90,10 +90,35 @@ impl DaemonManager {
             fs::write(&log_file, "")?;
         }
 
-        // Create temp files for orchestrator settings
+        // Create temp files for orchestrator settings with daemon config
         let temp_manager = super::TempFileManager::new();
-        temp_manager.create_files().await
-            .context("Failed to create orchestrator temp files")?;
+
+        // Write orchestrator settings with full daemon config (includes hooks)
+        temp_manager.write_orchestrator_settings(&self.config).await
+            .context("Failed to write orchestrator settings")?;
+
+        // Create sealed files (agents, rules, hooks)
+        let agents = temp_manager.generate_agents()?;
+        fs::write(temp_manager.agents_path(), agents)?;
+
+        let rules = temp_manager.generate_rules()?;
+        fs::write(temp_manager.rules_path(), rules)?;
+
+        let hooks = temp_manager.generate_hooks()?;
+        fs::write(temp_manager.hooks_path(), hooks)?;
+
+        // Set Unix permissions for sealed files
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            for path in [
+                temp_manager.agents_path(),
+                temp_manager.rules_path(),
+                temp_manager.hooks_path(),
+            ] {
+                fs::set_permissions(path, fs::Permissions::from_mode(0o644))?;
+            }
+        }
 
         // Get the binary path (the cco binary itself)
         let exe_path = std::env::current_exe()

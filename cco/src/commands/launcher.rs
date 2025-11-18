@@ -163,6 +163,7 @@ async fn verify_temp_files_exist(settings_path: &PathBuf) -> Result<()> {
 /// * `ORCHESTRATOR_RULES` - Path to sealed orchestrator rules in temp directory
 /// * `ORCHESTRATOR_HOOKS` - Path to sealed hooks config in temp directory
 /// * `ORCHESTRATOR_API_URL` - Daemon API endpoint (http://localhost:3000)
+/// * `ORCHESTRATOR_HOOKS_CONFIG` - JSON hooks configuration (from settings file)
 ///
 /// # Arguments
 /// * `settings_path` - Path to the settings file
@@ -175,6 +176,33 @@ fn set_orchestrator_env_vars(settings_path: &PathBuf) {
     env::set_var("ORCHESTRATOR_RULES", temp_dir.join(".cco-rules-sealed").to_string_lossy().to_string());
     env::set_var("ORCHESTRATOR_HOOKS", temp_dir.join(".cco-hooks-sealed").to_string_lossy().to_string());
     env::set_var("ORCHESTRATOR_API_URL", "http://localhost:3000");
+
+    // Read settings file and extract hooks configuration
+    if let Ok(settings_content) = std::fs::read_to_string(settings_path) {
+        if let Ok(settings) = serde_json::from_str::<serde_json::Value>(&settings_content) {
+            // Pass entire hooks config as JSON for Claude Code to parse
+            if let Some(hooks) = settings.get("hooks") {
+                if let Ok(hooks_json) = serde_json::to_string(hooks) {
+                    env::set_var("ORCHESTRATOR_HOOKS_CONFIG", hooks_json);
+                }
+
+                // Set specific permission flags for quick access
+                if let Some(perms) = hooks.get("permissions") {
+                    if let Some(auto_allow_read) = perms.get("allow_file_read").and_then(|v| v.as_bool()) {
+                        env::set_var("ORCHESTRATOR_AUTO_ALLOW_READ", auto_allow_read.to_string());
+                    }
+                    if let Some(require_cud) = perms.get("allow_command_modification").and_then(|v| v.as_bool()) {
+                        env::set_var("ORCHESTRATOR_REQUIRE_CUD_CONFIRMATION", (!require_cud).to_string());
+                    }
+                }
+
+                // Set hooks enabled flag
+                if let Some(enabled) = hooks.get("enabled").and_then(|v| v.as_bool()) {
+                    env::set_var("ORCHESTRATOR_HOOKS_ENABLED", enabled.to_string());
+                }
+            }
+        }
+    }
 
     println!("✅ Orchestration environment configured");
 }

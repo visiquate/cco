@@ -52,6 +52,11 @@ ratatui = { version = "0.26", features = ["serde"] }
 crossterm = { version = "0.27", features = ["serde"] }
 which = "5.0"
 
+# LLM inference engine (Phase 1B)
+llm = "0.1"
+indicatif = "0.17"
+rand = "0.8"
+
 [target.'cfg(unix)'.dependencies]
 nix = { version = "0.27", features = ["signal"] }
 libc = "0.2"

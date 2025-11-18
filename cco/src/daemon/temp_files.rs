@@ -9,10 +9,13 @@
 //! Files are created on daemon start and cleaned up on daemon stop.
 
 use anyhow::Result;
+use chrono::Utc;
 use serde_json::json;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
+
+use super::config::DaemonConfig;
 
 /// Temp file manager for orchestrator resources
 pub struct TempFileManager {
@@ -35,8 +38,11 @@ impl TempFileManager {
     }
 
     /// Create all temporary files with content
+    ///
+    /// This method creates temp files with default configuration.
+    /// For daemon-managed settings, use `write_orchestrator_settings()` instead.
     pub async fn create_files(&self) -> Result<()> {
-        // Generate settings JSON
+        // Generate settings JSON with defaults
         let settings = self.generate_settings()?;
         fs::write(&self.settings_path, settings)?;
 
@@ -70,6 +76,83 @@ impl TempFileManager {
             "Orchestrator temp files created at: {}",
             self.settings_path.display()
         );
+
+        Ok(())
+    }
+
+    /// Write orchestrator settings from daemon config
+    ///
+    /// This is the preferred method for daemon startup as it includes
+    /// the full hooks configuration from the daemon config.
+    pub async fn write_orchestrator_settings(&self, daemon_config: &DaemonConfig) -> Result<()> {
+        let settings = json!({
+            "version": env!("CARGO_PKG_VERSION"),
+            "timestamp": chrono::Utc::now().to_rfc3339(),
+
+            "daemon": {
+                "host": daemon_config.host,
+                "port": daemon_config.port,
+                "version": env!("CARGO_PKG_VERSION"),
+            },
+
+            "orchestrator": {
+                "enabled": true,
+                "api_url": format!("http://{}:{}", daemon_config.host, daemon_config.port),
+            },
+
+            "hooks": {
+                "enabled": daemon_config.hooks.enabled,
+                "timeout_ms": daemon_config.hooks.timeout_ms,
+                "max_retries": daemon_config.hooks.max_retries,
+                "llm": {
+                    "model_type": daemon_config.hooks.llm.model_type,
+                    "model_name": daemon_config.hooks.llm.model_name,
+                    "model_path": daemon_config.hooks.llm.model_path.to_string_lossy(),
+                    "model_size_mb": daemon_config.hooks.llm.model_size_mb,
+                    "quantization": daemon_config.hooks.llm.quantization,
+                    "loaded": daemon_config.hooks.llm.loaded,
+                    "inference_timeout_ms": daemon_config.hooks.llm.inference_timeout_ms,
+                    "temperature": daemon_config.hooks.llm.temperature,
+                },
+                "permissions": {
+                    "allow_command_modification": daemon_config.hooks.permissions.allow_command_modification,
+                    "allow_execution_blocking": daemon_config.hooks.permissions.allow_execution_blocking,
+                    "allow_external_calls": daemon_config.hooks.permissions.allow_external_calls,
+                    "allow_env_access": daemon_config.hooks.permissions.allow_env_access,
+                    "allow_file_read": daemon_config.hooks.permissions.allow_file_read,
+                    "allow_file_write": daemon_config.hooks.permissions.allow_file_write,
+                }
+            },
+
+            "agents": {
+                "sealed_file": self.agents_path.to_string_lossy()
+            },
+            "rules": {
+                "sealed_file": self.rules_path.to_string_lossy()
+            },
+            "hooks_file": {
+                "sealed_file": self.hooks_path.to_string_lossy()
+            },
+
+            "environment": {
+                "orchestrator_enabled": std::env::var("ORCHESTRATOR_ENABLED").ok(),
+                "orchestrator_settings": std::env::var("ORCHESTRATOR_SETTINGS").ok(),
+            },
+
+            "temp_dir": env::temp_dir().to_string_lossy()
+        });
+
+        let settings_json = serde_json::to_string_pretty(&settings)?;
+        fs::write(&self.settings_path, settings_json)?;
+
+        // Set Unix permissions (read for all)
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&self.settings_path, fs::Permissions::from_mode(0o644))?;
+        }
+
+        tracing::info!("Wrote orchestrator settings to: {}", self.settings_path.display());
 
         Ok(())
     }
@@ -112,7 +195,7 @@ impl TempFileManager {
     }
 
     /// Generate orchestrator settings JSON
-    fn generate_settings(&self) -> Result<Vec<u8>> {
+    pub fn generate_settings(&self) -> Result<Vec<u8>> {
         // Get home directory for model path
         let home_dir = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/tmp"));
         let model_path = home_dir.join(".cco/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf");
@@ -160,7 +243,7 @@ impl TempFileManager {
     }
 
     /// Generate agent definitions (placeholder - will be encrypted in Phase 2)
-    fn generate_agents(&self) -> Result<Vec<u8>> {
+    pub fn generate_agents(&self) -> Result<Vec<u8>> {
         // Phase 1: Return plaintext JSON stub
         // Phase 2+: Use encryption pipeline with SBF v1 format
         let agents = json!({
@@ -187,7 +270,7 @@ impl TempFileManager {
     }
 
     /// Generate orchestration rules (placeholder - will be encrypted in Phase 2)
-    fn generate_rules(&self) -> Result<Vec<u8>> {
+    pub fn generate_rules(&self) -> Result<Vec<u8>> {
         // Phase 1: Return plaintext JSON stub
         // Phase 2+: Use encryption pipeline
         let rules = json!({
@@ -206,7 +289,7 @@ impl TempFileManager {
     }
 
     /// Generate coordination hooks (placeholder - will be encrypted in Phase 2)
-    fn generate_hooks(&self) -> Result<Vec<u8>> {
+    pub fn generate_hooks(&self) -> Result<Vec<u8>> {
         // Phase 1: Return plaintext JSON stub
         // Phase 2+: Use encryption pipeline
         let hooks = json!({
@@ -309,5 +392,93 @@ mod tests {
         assert_eq!(permissions.mode() & 0o777, 0o644);
 
         manager.cleanup_files().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_orchestrator_settings_includes_hooks() {
+        let config = DaemonConfig::default();
+        let temp_manager = TempFileManager::new();
+
+        // Write settings with daemon config
+        temp_manager.write_orchestrator_settings(&config).await.unwrap();
+
+        // Read settings file
+        let settings_content = fs::read_to_string(temp_manager.settings_path()).unwrap();
+        let settings: serde_json::Value = serde_json::from_str(&settings_content).unwrap();
+
+        // Verify hooks section exists
+        assert!(settings.get("hooks").is_some(), "hooks section missing");
+
+        let hooks = settings["hooks"].as_object().unwrap();
+
+        // Verify hooks configuration fields
+        assert!(hooks.contains_key("enabled"), "hooks.enabled missing");
+        assert!(hooks.contains_key("timeout_ms"), "hooks.timeout_ms missing");
+        assert!(hooks.contains_key("max_retries"), "hooks.max_retries missing");
+        assert!(hooks.contains_key("llm"), "hooks.llm missing");
+        assert!(hooks.contains_key("permissions"), "hooks.permissions missing");
+
+        // Verify LLM configuration
+        let llm = hooks["llm"].as_object().unwrap();
+        assert!(llm.contains_key("model_type"), "llm.model_type missing");
+        assert!(llm.contains_key("model_name"), "llm.model_name missing");
+        assert!(llm.contains_key("model_path"), "llm.model_path missing");
+        assert!(llm.contains_key("model_size_mb"), "llm.model_size_mb missing");
+        assert!(llm.contains_key("quantization"), "llm.quantization missing");
+        assert!(llm.contains_key("loaded"), "llm.loaded missing");
+        assert!(llm.contains_key("inference_timeout_ms"), "llm.inference_timeout_ms missing");
+        assert!(llm.contains_key("temperature"), "llm.temperature missing");
+
+        // Verify permissions configuration
+        let perms = hooks["permissions"].as_object().unwrap();
+        assert!(perms.contains_key("allow_command_modification"), "permissions.allow_command_modification missing");
+        assert!(perms.contains_key("allow_execution_blocking"), "permissions.allow_execution_blocking missing");
+        assert!(perms.contains_key("allow_external_calls"), "permissions.allow_external_calls missing");
+        assert!(perms.contains_key("allow_env_access"), "permissions.allow_env_access missing");
+        assert!(perms.contains_key("allow_file_read"), "permissions.allow_file_read missing");
+        assert!(perms.contains_key("allow_file_write"), "permissions.allow_file_write missing");
+
+        // Verify daemon section
+        assert!(settings.get("daemon").is_some(), "daemon section missing");
+        assert!(settings["daemon"].get("host").is_some(), "daemon.host missing");
+        assert!(settings["daemon"].get("port").is_some(), "daemon.port missing");
+        assert!(settings["daemon"].get("version").is_some(), "daemon.version missing");
+
+        // Verify orchestrator section
+        assert!(settings.get("orchestrator").is_some(), "orchestrator section missing");
+        assert!(settings["orchestrator"].get("enabled").is_some(), "orchestrator.enabled missing");
+        assert!(settings["orchestrator"].get("api_url").is_some(), "orchestrator.api_url missing");
+
+        // Cleanup
+        temp_manager.cleanup_files().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_orchestrator_settings_with_custom_hooks_config() {
+        let mut config = DaemonConfig::default();
+
+        // Customize hooks configuration
+        config.hooks.enabled = true;
+        config.hooks.timeout_ms = 7500;
+        config.hooks.max_retries = 5;
+        config.hooks.llm.temperature = 0.2;
+        config.hooks.permissions.allow_file_read = true;
+
+        let temp_manager = TempFileManager::new();
+        temp_manager.write_orchestrator_settings(&config).await.unwrap();
+
+        // Read and verify
+        let settings_content = fs::read_to_string(temp_manager.settings_path()).unwrap();
+        let settings: serde_json::Value = serde_json::from_str(&settings_content).unwrap();
+
+        // Verify customized values
+        assert_eq!(settings["hooks"]["enabled"].as_bool().unwrap(), true);
+        assert_eq!(settings["hooks"]["timeout_ms"].as_u64().unwrap(), 7500);
+        assert_eq!(settings["hooks"]["max_retries"].as_u64().unwrap(), 5);
+        assert_eq!(settings["hooks"]["llm"]["temperature"].as_f64().unwrap(), 0.2);
+        assert_eq!(settings["hooks"]["permissions"]["allow_file_read"].as_bool().unwrap(), true);
+
+        // Cleanup
+        temp_manager.cleanup_files().await.unwrap();
     }
 }
