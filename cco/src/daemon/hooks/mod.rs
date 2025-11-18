@@ -54,6 +54,7 @@ pub mod types;
 pub use config::{HookLlmConfig, HooksCallbacks, HooksConfig, HooksPermissions};
 pub use error::{HookError, HookResult};
 pub use executor::HookExecutor;
+pub use llm::CrudClassifier;
 pub use registry::HookRegistry;
 pub use types::{
     ClassificationResult, CrudClassification, Hook, HookContext, HookPayload, HookType,

@@ -149,6 +149,19 @@ pub struct HealthResponse {
     pub uptime_seconds: u64,
     #[serde(default)]
     pub port: u16,
+    #[serde(default)]
+    pub hooks: Option<HooksHealthStatus>,
+}
+
+/// Hooks system health status
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HooksHealthStatus {
+    pub enabled: bool,
+    pub classifier_available: bool,
+    pub model_loaded: bool,
+    pub model_name: String,
+    #[serde(default)]
+    pub classification_latency_ms: Option<u32>,
 }
 
 /// Agent information

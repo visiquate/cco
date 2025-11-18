@@ -564,6 +564,7 @@ async fn main() -> anyhow::Result<()> {
                         auto_start: true,
                         health_checks: true,
                         health_check_interval: 30,
+                        hooks: Default::default(),
                     };
 
                     let manager = cco::daemon::DaemonManager::new(config);
@@ -594,6 +595,7 @@ async fn main() -> anyhow::Result<()> {
                         auto_start: true,
                         health_checks: true,
                         health_check_interval: 30,
+                        hooks: Default::default(),
                     };
 
                     let manager = cco::daemon::DaemonManager::new(config);
@@ -702,11 +704,15 @@ async fn main() -> anyhow::Result<()> {
                     let version = DateVersion::current();
                     println!("Version: {}", version);
 
-                    let url = "http://127.0.0.1:3000";
-                    println!("Dashboard: {}", url);
+                    // Load daemon configuration
+                    let config = cco::daemon::load_config()
+                        .unwrap_or_else(|e| {
+                            eprintln!("Warning: Failed to load config, using defaults: {}", e);
+                            cco::daemon::DaemonConfig::default()
+                        });
 
-                    // Run the actual HTTP server
-                    run_server("127.0.0.1", 3000, 1073741824, 3600, false).await
+                    // Run the daemon HTTP server (with CRUD classifier and hooks)
+                    cco::daemon::run_daemon_server(config).await
                 }
             }
         }

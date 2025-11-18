@@ -64,6 +64,7 @@ pub async fn run(host: &str, port: u16) -> Result<()> {
         auto_start: true,
         health_checks: true,
         health_check_interval: 30,
+        hooks: Default::default(),
     };
 
     let manager = DaemonManager::new(config.clone());
