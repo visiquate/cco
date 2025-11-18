@@ -77,13 +77,39 @@ pub async fn run(host: &str, port: u16) -> Result<()> {
                 let client = ApiClient::new(base_url.clone());
 
                 match client.health().await {
-                    Ok(_) => {
-                        println!("✅ Server already running");
-                        println!("   PID: {}", status.pid);
-                        println!("   Port: {}", status.port);
-                        println!("   Version: {}", status.version);
-                        println!("   Dashboard: {}", base_url);
-                        return Ok(());
+                    Ok(health) => {
+                        // Get current binary version
+                        let current_version = env!("CCO_VERSION");
+
+                        // Compare versions (strip git hash suffix if present)
+                        let running_version = health.version.split('+').next().unwrap_or(&health.version);
+                        let binary_version = current_version.split('+').next().unwrap_or(current_version);
+
+                        if running_version != binary_version {
+                            println!("🔄 Version mismatch detected:");
+                            println!("   Running: {}", health.version);
+                            println!("   Binary:  {}", current_version);
+                            println!("   Restarting daemon with new version...");
+
+                            // Gracefully stop the old daemon
+                            if let Err(e) = manager.stop().await {
+                                println!("⚠️  Failed to stop old daemon: {}", e);
+                                println!("   Attempting to start anyway...");
+                            }
+
+                            // Wait a bit for cleanup
+                            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+                            // Fall through to start logic
+                        } else {
+                            // Versions match - already running latest
+                            println!("✅ Server already running");
+                            println!("   PID: {}", status.pid);
+                            println!("   Port: {}", status.port);
+                            println!("   Version: {}", status.version);
+                            println!("   Dashboard: {}", base_url);
+                            return Ok(());
+                        }
                     }
                     Err(e) => {
                         println!("⚠️  Server process exists but not responding: {}", e);
