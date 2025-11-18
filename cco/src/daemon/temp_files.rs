@@ -113,6 +113,10 @@ impl TempFileManager {
 
     /// Generate orchestrator settings JSON
     fn generate_settings(&self) -> Result<Vec<u8>> {
+        // Get home directory for model path
+        let home_dir = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/tmp"));
+        let model_path = home_dir.join(".cco/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf");
+
         let settings = json!({
             "version": env!("CARGO_PKG_VERSION"),
             "orchestration": {
@@ -126,7 +130,28 @@ impl TempFileManager {
                 "sealed_file": self.rules_path.to_string_lossy()
             },
             "hooks": {
-                "sealed_file": self.hooks_path.to_string_lossy()
+                "sealed_file": self.hooks_path.to_string_lossy(),
+                "enabled": true,
+                "timeout_ms": 5000,
+                "max_retries": 2,
+                "llm": {
+                    "model_type": "tinyllama",
+                    "model_name": "tinyllama-1.1b-chat-v1.0.Q4_K_M",
+                    "model_path": model_path.to_string_lossy(),
+                    "model_size_mb": 600,
+                    "quantization": "Q4_K_M",
+                    "loaded": false,
+                    "inference_timeout_ms": 2000,
+                    "temperature": 0.1
+                },
+                "permissions": {
+                    "allow_command_modification": false,
+                    "allow_execution_blocking": false,
+                    "allow_external_calls": false,
+                    "allow_env_access": false,
+                    "allow_file_read": false,
+                    "allow_file_write": false
+                }
             },
             "temp_dir": env::temp_dir().to_string_lossy()
         });

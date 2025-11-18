@@ -3,14 +3,17 @@
 //! Provides daemon start, stop, restart, status, logs, and service installation
 //! functionality for macOS (LaunchAgent) and Linux (systemd).
 //!
-//! Also includes temporary file management for serving agent definitions.
+//! Also includes temporary file management for serving agent definitions
+//! and a comprehensive hooks system for lifecycle events.
 
 pub mod config;
+pub mod hooks;
 pub mod lifecycle;
 pub mod service;
 pub mod temp_files;
 
 pub use config::{DaemonConfig, load_config, save_config};
+pub use hooks::{HookExecutor, HookRegistry, HookType, HookPayload, HooksConfig};
 pub use lifecycle::{DaemonManager, DaemonStatus};
 pub use service::{ServiceManager, PlatformService};
 pub use temp_files::TempFileManager;

@@ -8,9 +8,12 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::process::{Command, Stdio};
+use std::sync::Arc;
 use sysinfo::{Pid, System};
+use tracing::info;
 
 use super::config::DaemonConfig;
+use super::hooks::{HookExecutor, HookRegistry};
 
 /// Daemon status information
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,12 +37,42 @@ struct PidFileContent {
 /// Daemon manager for lifecycle operations
 pub struct DaemonManager {
     pub config: DaemonConfig,
+    /// Hook registry for managing lifecycle hooks
+    pub hooks_registry: Arc<HookRegistry>,
+    /// Hook executor for executing registered hooks
+    pub hooks_executor: HookExecutor,
 }
 
 impl DaemonManager {
     /// Create a new daemon manager with configuration
+    ///
+    /// Initializes the hooks system based on configuration.
     pub fn new(config: DaemonConfig) -> Self {
-        Self { config }
+        // Initialize hooks registry
+        let hooks_registry = Arc::new(HookRegistry::new());
+
+        // Create hooks executor with configuration
+        let hooks_executor = if config.hooks.is_enabled() {
+            info!(
+                timeout_ms = config.hooks.timeout_ms,
+                max_retries = config.hooks.max_retries,
+                "Initializing hooks system"
+            );
+            HookExecutor::with_config(
+                hooks_registry.clone(),
+                config.hooks.timeout(),
+                config.hooks.max_retries,
+            )
+        } else {
+            info!("Hooks system disabled");
+            HookExecutor::new(hooks_registry.clone())
+        };
+
+        Self {
+            config,
+            hooks_registry,
+            hooks_executor,
+        }
     }
 
     /// Start the daemon process

@@ -6,6 +6,8 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use super::hooks::HooksConfig;
+
 /// Daemon configuration structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonConfig {
@@ -41,6 +43,10 @@ pub struct DaemonConfig {
 
     /// Health check interval in seconds
     pub health_check_interval: u64,
+
+    /// Hooks system configuration
+    #[serde(default)]
+    pub hooks: HooksConfig,
 }
 
 impl Default for DaemonConfig {
@@ -57,6 +63,7 @@ impl Default for DaemonConfig {
             auto_start: true,
             health_checks: true,
             health_check_interval: 30,
+            hooks: HooksConfig::default(),
         }
     }
 }
@@ -84,6 +91,10 @@ impl DaemonConfig {
             "debug" | "info" | "warn" | "error" => {}
             level => anyhow::bail!("Invalid log level: {} (must be debug, info, warn, or error)", level),
         }
+
+        // Validate hooks configuration
+        self.hooks.validate()
+            .map_err(|e| anyhow::anyhow!("Hooks configuration error: {}", e))?;
 
         Ok(())
     }
