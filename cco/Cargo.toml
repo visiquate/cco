@@ -51,6 +51,7 @@ dashmap = "5.5"
 ratatui = { version = "0.26", features = ["serde"] }
 crossterm = { version = "0.27", features = ["serde"] }
 which = "5.0"
+jsonwebtoken = "9.3"
 
 # LLM inference engine (Phase 1B)
 llm = "0.1"

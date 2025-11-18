@@ -1,0 +1,86 @@
+[
+  {
+    "event_id": "evt-001",
+    "event_type": "architecture_defined",
+    "publisher": "chief-architect-uuid",
+    "topic": "architecture",
+    "data": {
+      "issue_id": "issue-123",
+      "architecture_style": "microservices",
+      "tech_stack": ["python", "fastapi", "postgresql"],
+      "next_phase": "implementation"
+    },
+    "correlation_id": "session-abc",
+    "project_id": "project-123",
+    "timestamp": "2025-11-18T10:00:00Z",
+    "ttl_seconds": 86400
+  },
+  {
+    "event_id": "evt-002",
+    "event_type": "implementation_complete",
+    "publisher": "python-specialist-uuid",
+    "topic": "implementation",
+    "data": {
+      "issue_id": "issue-123",
+      "files_created": ["src/api.py", "tests/test_api.py"],
+      "files_modified": ["requirements.txt"],
+      "status": "success",
+      "next_phase": "testing"
+    },
+    "correlation_id": "session-abc",
+    "project_id": "project-123",
+    "timestamp": "2025-11-18T10:15:00Z",
+    "ttl_seconds": 86400
+  },
+  {
+    "event_id": "evt-003",
+    "event_type": "testing_complete",
+    "publisher": "test-engineer-uuid",
+    "topic": "testing",
+    "data": {
+      "issue_id": "issue-123",
+      "tests_written": 25,
+      "tests_passing": 25,
+      "coverage": 95.2,
+      "status": "success",
+      "next_phase": "security_audit"
+    },
+    "correlation_id": "session-abc",
+    "project_id": "project-123",
+    "timestamp": "2025-11-18T10:30:00Z",
+    "ttl_seconds": 86400
+  },
+  {
+    "event_id": "evt-004",
+    "event_type": "security_audit_complete",
+    "publisher": "security-auditor-uuid",
+    "topic": "security",
+    "data": {
+      "issue_id": "issue-123",
+      "vulnerabilities_found": 0,
+      "security_score": 98,
+      "status": "approved",
+      "next_phase": "deployment"
+    },
+    "correlation_id": "session-abc",
+    "project_id": "project-123",
+    "timestamp": "2025-11-18T10:45:00Z",
+    "ttl_seconds": 86400
+  },
+  {
+    "event_id": "evt-005",
+    "event_type": "agent_failed",
+    "publisher": "python-specialist-uuid",
+    "topic": "error",
+    "data": {
+      "issue_id": "issue-124",
+      "error": "Syntax error in generated code",
+      "retry_possible": true,
+      "error_code": "SYNTAX_ERROR"
+    },
+    "correlation_id": "session-def",
+    "project_id": "project-123",
+    "timestamp": "2025-11-18T11:00:00Z",
+    "ttl_seconds": 3600
+  }
+]
