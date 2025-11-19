@@ -1,0 +1,111 @@
+name: Documentation Sync
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'README.md'
+      - 'LICENSE'
+  workflow_dispatch:
+
+jobs:
+  validate-docs:
+    name: Validate Documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify documentation structure
+        run: |
+          echo "Checking documentation structure..."
+
+          # Required files
+          REQUIRED_FILES=(
+            "README.md"
+            "LICENSE"
+            "docs/installation.md"
+            "docs/commands.md"
+            "docs/configuration.md"
+            "docs/troubleshooting.md"
+          )
+
+          MISSING_FILES=()
+          for file in "${REQUIRED_FILES[@]}"; do
+            if [ ! -f "$file" ]; then
+              MISSING_FILES+=("$file")
+            fi
+          done
+
+          if [ ${#MISSING_FILES[@]} -gt 0 ]; then
+            echo "❌ Missing required files:"
+            printf '  - %s\n' "${MISSING_FILES[@]}"
+            exit 1
+          fi
+
+          echo "✅ All required files present"
+
+      - name: Validate markdown links
+        run: |
+          echo "Checking for broken markdown links..."
+
+          # Simple check for broken internal links
+          # This is a basic implementation - could be enhanced with tools like markdown-link-check
+
+          find . -name "*.md" -type f | while read -r file; do
+            echo "Checking: $file"
+
+            # Extract markdown links and check if files exist
+            grep -oP '\[.*?\]\(\K[^)]+' "$file" | while read -r link; do
+              # Skip external links
+              if [[ "$link" =~ ^https?:// ]]; then
+                continue
+              fi
+
+              # Skip anchors
+              if [[ "$link" =~ ^# ]]; then
+                continue
+              fi
+
+              # Check if file exists (relative to current file)
+              link_dir=$(dirname "$file")
+              full_path="$link_dir/$link"
+
+              if [ ! -f "$full_path" ] && [ ! -d "$full_path" ]; then
+                echo "⚠️  Potential broken link in $file: $link"
+              fi
+            done
+          done
+
+          echo "✅ Link validation complete"
+
+      - name: Generate documentation index
+        run: |
+          echo "# CCO Documentation Index" > docs/INDEX.md
+          echo "" >> docs/INDEX.md
+          echo "Last updated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> docs/INDEX.md
+          echo "" >> docs/INDEX.md
+          echo "## Available Documentation" >> docs/INDEX.md
+          echo "" >> docs/INDEX.md
+
+          for doc in docs/*.md; do
+            if [ "$(basename $doc)" != "INDEX.md" ]; then
+              echo "- [$(basename $doc .md)](./$(basename $doc))" >> docs/INDEX.md
+            fi
+          done
+
+          cat docs/INDEX.md
+
+      - name: Documentation summary
+        run: |
+          echo "### Documentation Validation Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All documentation files validated successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Files checked:**" >> $GITHUB_STEP_SUMMARY
+          find docs -name "*.md" -type f | while read -r file; do
+            echo "- $file" >> $GITHUB_STEP_SUMMARY
+          done

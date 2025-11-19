@@ -1,0 +1,108 @@
+name: Release CCO
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v2025.11.19.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout release repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "VERSION=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download binaries from source repo
+        id: download
+        run: |
+          # For now, we'll need to get binaries from the source repository
+          # This can be done via:
+          # 1. GitHub API to fetch latest release from source repo
+          # 2. Or manual upload of pre-built binaries
+
+          # Create artifacts directory
+          mkdir -p artifacts
+
+          # TODO: Add logic to fetch/build binaries
+          # For manual workflow_dispatch, binaries should be uploaded separately
+          echo "Binaries should be available in artifacts/ directory"
+
+          # List what we have
+          ls -la artifacts/ || echo "No artifacts found - manual upload needed"
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          cat > release_notes.md <<'EOF'
+          # CCO Release ${{ steps.get_version.outputs.VERSION }}
+
+          ## Installation
+
+          See [installation documentation](./docs/installation.md) for details.
+
+          ### Quick Install
+
+          ```bash
+          # Download for your platform
+          curl -LO https://github.com/brentley/cco/releases/download/${{ steps.get_version.outputs.VERSION }}/cco-<platform>
+          chmod +x cco-<platform>
+          mv cco-<platform> /usr/local/bin/cco
+          ```
+
+          ## What's New
+
+          - CCO command-line tool release
+          - Full feature set as documented in README
+
+          ## Documentation
+
+          - [README](./README.md)
+          - [Installation Guide](./docs/installation.md)
+          - [Commands Reference](./docs/commands.md)
+          - [Configuration](./docs/configuration.md)
+          - [Troubleshooting](./docs/troubleshooting.md)
+
+          EOF
+
+          cat release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
+          name: Release ${{ steps.get_version.outputs.VERSION }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release summary
+        run: |
+          echo "### Release ${{ steps.get_version.outputs.VERSION }} Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,78 @@
+name: Test Build on Self-Hosted
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: 'Source repo branch/tag to build (default: main)'
+        required: false
+        default: 'main'
+        type: string
+
+jobs:
+  build:
+    name: Build CCO Binary
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+        with:
+          repository: brentley/cc-orchestra
+          ref: ${{ inputs.source_ref }}
+          path: cc-orchestra
+          fetch-depth: 0
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Build CCO
+        working-directory: ./cc-orchestra/cco
+        run: |
+          echo "Building CCO with VERSION_DATE..."
+          cargo build --release --verbose
+
+      - name: Generate build artifacts
+        working-directory: ./cc-orchestra/cco
+        run: |
+          # Create artifacts directory
+          mkdir -p ../../artifacts
+
+          # Copy binary with platform suffix
+          PLATFORM="$(uname -s)-$(uname -m)"
+          cp target/release/cco ../../artifacts/cco-${PLATFORM}
+
+          # Generate checksums
+          cd ../../artifacts
+          sha256sum cco-${PLATFORM} > checksums.txt
+
+          echo "Build artifacts created:"
+          ls -lh
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cco-binaries
+          path: artifacts/*
+          retention-days: 30
+
+      - name: Build summary
+        run: |
+          echo "### Build Completed Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Platform:** $(uname -s)-$(uname -m)" >> $GITHUB_STEP_SUMMARY
+          echo "**Source Ref:** ${{ inputs.source_ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Artifacts available for download from workflow run." >> $GITHUB_STEP_SUMMARY
+
+      - name: Report status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Self-hosted runner build: SUCCESS"
+          else
+            echo "❌ Self-hosted runner build: FAILED"
+            exit 1
+          fi

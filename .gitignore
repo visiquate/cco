@@ -1,0 +1,19 @@
+# Build artifacts
+*.tar.gz
+*.zip
+target/
+dist/
+
+# macOS
+.DS_Store
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.log
