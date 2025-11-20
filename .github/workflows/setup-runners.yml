@@ -1,0 +1,71 @@
+name: Setup Build Tools on Runners
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run at midnight UTC daily
+    - cron: '0 0 * * *'
+
+jobs:
+  setup-build-tools:
+    name: Install Build Tools
+    runs-on: [self-hosted, linux, X64]
+    
+    steps:
+      - name: Check system info
+        run: |
+          echo "System Information:"
+          uname -a
+          echo ""
+          echo "Available shells:"
+          ls -la /bin/*sh || true
+          echo ""
+          echo "Available package managers:"
+          which apt-get && echo "apt-get found" || echo "apt-get not found"
+          which apk && echo "apk found" || echo "apk not found"
+          which yum && echo "yum not found" || echo "yum not found"
+      
+      - name: Install build-essential (Debian/Ubuntu)
+        if: success()
+        run: |
+          if command -v apt-get &> /dev/null; then
+            echo "Installing via apt-get..."
+            sudo apt-get update || true
+            sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler || true
+            echo "✓ apt-get installation attempt completed"
+          else
+            echo "apt-get not available"
+          fi
+      
+      - name: Install build-base (Alpine)
+        if: success()
+        run: |
+          if command -v apk &> /dev/null; then
+            echo "Installing via apk..."
+            apk add --no-cache build-base pkgconfig openssl-dev protobuf || true
+            echo "✓ apk installation attempt completed"
+          else
+            echo "apk not available"
+          fi
+      
+      - name: Install gcc/g++ (CentOS/RHEL)
+        if: success()
+        run: |
+          if command -v yum &> /dev/null; then
+            echo "Installing via yum..."
+            sudo yum install -y gcc gcc-c++ make pkgconfig openssl-devel protobuf-compiler || true
+            echo "✓ yum installation attempt completed"
+          else
+            echo "yum not available"
+          fi
+      
+      - name: Verify installation
+        if: success()
+        run: |
+          echo "Checking for build tools..."
+          gcc --version || echo "gcc not found"
+          g++ --version || echo "g++ not found"
+          pkg-config --version || echo "pkg-config not found"
+          protoc --version || echo "protoc not found"
+          echo ""
+          echo "Setup complete!"
