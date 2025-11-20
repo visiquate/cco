@@ -25,6 +25,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Checkout source repo (claude-orchestra)
+        uses: actions/checkout@v4
+        with:
+          repository: langstons/claude-orchestra
+          path: source
+          fetch-depth: 0
+
       - name: Get version
         id: get_version
         run: |
@@ -47,8 +54,9 @@ jobs:
           # Create artifacts directory
           mkdir -p artifacts
 
-          # Build CCO for Linux x86_64 (current directory is already the cco project root)
-          echo "Building CCO..."
+          # Build CCO for Linux x86_64 from source repo
+          echo "Building CCO from source..."
+          cd source/cco
           cargo build --release --verbose
 
           # Get platform string
@@ -56,11 +64,11 @@ jobs:
           BINARY_NAME="cco-v${VERSION}-${PLATFORM}"
 
           # Copy binary to artifacts with proper naming
-          cp target/release/cco "artifacts/${BINARY_NAME}"
-          chmod +x "artifacts/${BINARY_NAME}"
+          cp target/release/cco "../../artifacts/${BINARY_NAME}"
+          chmod +x "../../artifacts/${BINARY_NAME}"
 
           # Generate checksums
-          cd artifacts
+          cd ../../artifacts
           sha256sum "${BINARY_NAME}" > checksums.txt
 
           echo ""
