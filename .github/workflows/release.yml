@@ -34,23 +34,37 @@ jobs:
             echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Download binaries from source repo
-        id: download
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Build CCO binaries
         run: |
-          # For now, we'll need to get binaries from the source repository
-          # This can be done via:
-          # 1. GitHub API to fetch latest release from source repo
-          # 2. Or manual upload of pre-built binaries
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          echo "Building CCO version $VERSION..."
 
           # Create artifacts directory
           mkdir -p artifacts
 
-          # TODO: Add logic to fetch/build binaries
-          # For manual workflow_dispatch, binaries should be uploaded separately
-          echo "Binaries should be available in artifacts/ directory"
+          # Build CCO for Linux x86_64
+          cd cco
+          cargo build --release --verbose
 
-          # List what we have
-          ls -la artifacts/ || echo "No artifacts found - manual upload needed"
+          # Get platform string
+          PLATFORM="linux-x86_64"
+          BINARY_NAME="cco-v${VERSION}-${PLATFORM}"
+
+          # Copy binary to artifacts with proper naming
+          cp target/release/cco "../artifacts/${BINARY_NAME}"
+
+          # Generate checksums
+          cd ../artifacts
+          sha256sum "${BINARY_NAME}" > checksums.txt
+
+          echo "✓ Build completed"
+          echo "Artifacts created:"
+          ls -lh
 
       - name: Generate release notes
         id: release_notes
