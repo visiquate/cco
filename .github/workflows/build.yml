@@ -9,6 +9,9 @@ on:
         default: 'main'
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build CCO Binary
@@ -22,6 +25,7 @@ jobs:
           ref: ${{ inputs.source_ref }}
           path: cc-orchestra
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
