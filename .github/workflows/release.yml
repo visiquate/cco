@@ -101,6 +101,33 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Delete source code archive assets
+        run: |
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          echo "Removing source code archives for $VERSION..."
+
+          # Get all assets for this release
+          ASSETS=$(curl -s \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$VERSION" \
+            | jq -r '.assets[] | select(.name | endswith(".zip") or endswith(".tar.gz")) | select(.name | test("^[v]?[0-9]+\\.[0-9]+\\.[0-9]+")) | .id')
+
+          if [ -z "$ASSETS" ]; then
+            echo "✓ No source code archives found"
+          else
+            echo "Found source code archives, deleting..."
+            for ASSET_ID in $ASSETS; do
+              echo "Deleting asset ID: $ASSET_ID"
+              curl -s -X DELETE \
+                -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Accept: application/vnd.github.v3+json" \
+                "https://api.github.com/repos/${{ github.repository }}/releases/assets/$ASSET_ID"
+              echo ""
+            done
+            echo "✓ Source code archives removed"
+          fi
+
       - name: Release summary
         run: |
           echo "### Release ${{ steps.get_version.outputs.VERSION }} Created" >> $GITHUB_STEP_SUMMARY
