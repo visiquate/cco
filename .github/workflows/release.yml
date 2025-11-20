@@ -43,16 +43,12 @@ jobs:
         run: |
           VERSION="${{ steps.get_version.outputs.VERSION }}"
           echo "Building CCO version $VERSION..."
-          echo "Current directory: $(pwd)"
-          echo "Contents:"
-          ls -la
 
           # Create artifacts directory
           mkdir -p artifacts
 
-          # Build CCO for Linux x86_64
+          # Build CCO for Linux x86_64 (current directory is already the cco project root)
           echo "Building CCO..."
-          cd cco
           cargo build --release --verbose
 
           # Get platform string
@@ -60,11 +56,11 @@ jobs:
           BINARY_NAME="cco-v${VERSION}-${PLATFORM}"
 
           # Copy binary to artifacts with proper naming
-          cp target/release/cco "../artifacts/${BINARY_NAME}"
-          chmod +x "../artifacts/${BINARY_NAME}"
+          cp target/release/cco "artifacts/${BINARY_NAME}"
+          chmod +x "artifacts/${BINARY_NAME}"
 
           # Generate checksums
-          cd ../artifacts
+          cd artifacts
           sha256sum "${BINARY_NAME}" > checksums.txt
 
           echo ""
