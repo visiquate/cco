@@ -1,0 +1,231 @@
+name: Setup Build Tools on Runners
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run daily at 2 AM UTC to verify and re-run if needed
+    - cron: '0 2 * * *'
+
+jobs:
+  setup-runner-01:
+    runs-on: [self-hosted, runner-01]
+    name: Setup Build Tools - runner-01
+    steps:
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libssl-dev \
+            protobuf-compiler
+
+      - name: Verify installation
+        run: |
+          echo "=== Verification ==="
+          gcc --version
+          make --version
+          pkg-config --version
+          protoc --version
+          dpkg -l | grep libssl-dev
+          echo "=== Build tools ready on runner-01 ==="
+
+  setup-runner-02:
+    runs-on: [self-hosted, runner-02]
+    name: Setup Build Tools - runner-02
+    steps:
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libssl-dev \
+            protobuf-compiler
+
+      - name: Verify installation
+        run: |
+          echo "=== Verification ==="
+          gcc --version
+          make --version
+          pkg-config --version
+          protoc --version
+          dpkg -l | grep libssl-dev
+          echo "=== Build tools ready on runner-02 ==="
+
+  setup-runner-03:
+    runs-on: [self-hosted, runner-03]
+    name: Setup Build Tools - runner-03
+    steps:
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libssl-dev \
+            protobuf-compiler
+
+      - name: Verify installation
+        run: |
+          echo "=== Verification ==="
+          gcc --version
+          make --version
+          pkg-config --version
+          protoc --version
+          dpkg -l | grep libssl-dev
+          echo "=== Build tools ready on runner-03 ==="
+
+  setup-runner-04:
+    runs-on: [self-hosted, runner-04]
+    name: Setup Build Tools - runner-04
+    steps:
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libssl-dev \
+            protobuf-compiler
+
+      - name: Verify installation
+        run: |
+          echo "=== Verification ==="
+          gcc --version
+          make --version
+          pkg-config --version
+          protoc --version
+          dpkg -l | grep libssl-dev
+          echo "=== Build tools ready on runner-04 ==="
+
+  setup-runner-05:
+    runs-on: [self-hosted, runner-05]
+    name: Setup Build Tools - runner-05
+    steps:
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libssl-dev \
+            protobuf-compiler
+
+      - name: Verify installation
+        run: |
+          echo "=== Verification ==="
+          gcc --version
+          make --version
+          pkg-config --version
+          protoc --version
+          dpkg -l | grep libssl-dev
+          echo "=== Build tools ready on runner-05 ==="
+
+  setup-runner-06:
+    runs-on: [self-hosted, runner-06]
+    name: Setup Build Tools - runner-06
+    steps:
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libssl-dev \
+            protobuf-compiler
+
+      - name: Verify installation
+        run: |
+          echo "=== Verification ==="
+          gcc --version
+          make --version
+          pkg-config --version
+          protoc --version
+          dpkg -l | grep libssl-dev
+          echo "=== Build tools ready on runner-06 ==="
+
+  setup-runner-07:
+    runs-on: [self-hosted, runner-07]
+    name: Setup Build Tools - runner-07
+    steps:
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libssl-dev \
+            protobuf-compiler
+
+      - name: Verify installation
+        run: |
+          echo "=== Verification ==="
+          gcc --version
+          make --version
+          pkg-config --version
+          protoc --version
+          dpkg -l | grep libssl-dev
+          echo "=== Build tools ready on runner-07 ==="
+
+  setup-runner-08:
+    runs-on: [self-hosted, runner-08]
+    name: Setup Build Tools - runner-08
+    steps:
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libssl-dev \
+            protobuf-compiler
+
+      - name: Verify installation
+        run: |
+          echo "=== Verification ==="
+          gcc --version
+          make --version
+          pkg-config --version
+          protoc --version
+          dpkg -l | grep libssl-dev
+          echo "=== Build tools ready on runner-08 ==="
+
+  setup-runner-09:
+    runs-on: [self-hosted, runner-09]
+    name: Setup Build Tools - runner-09
+    steps:
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libssl-dev \
+            protobuf-compiler
+
+      - name: Verify installation
+        run: |
+          echo "=== Verification ==="
+          gcc --version
+          make --version
+          pkg-config --version
+          protoc --version
+          dpkg -l | grep libssl-dev
+          echo "=== Build tools ready on runner-09 ==="
+
+  summary:
+    name: Setup Summary
+    needs: [setup-runner-01, setup-runner-02, setup-runner-03, setup-runner-04,
+            setup-runner-05, setup-runner-06, setup-runner-07, setup-runner-08, setup-runner-09]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check all runners status
+        run: |
+          echo "Build tools setup workflow completed"
+          echo "All 9 runners should now have:"
+          echo "  - build-essential"
+          echo "  - pkg-config"
+          echo "  - libssl-dev"
+          echo "  - protobuf-compiler"
