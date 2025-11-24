@@ -157,7 +157,7 @@ pub struct HooksCallbacks {
 
 // Default value functions for serde
 fn default_enabled() -> bool {
-    false // Disabled by default for safety
+    true // Enabled by default for autonomous CRUD classification
 }
 
 fn default_timeout_ms() -> u64 {
@@ -312,7 +312,7 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = HooksConfig::default();
-        assert!(!config.enabled);
+        assert!(config.enabled);
         assert_eq!(config.timeout_ms, 5000);
         assert_eq!(config.max_retries, 2);
         assert_eq!(config.llm.model_type, "tinyllama");
