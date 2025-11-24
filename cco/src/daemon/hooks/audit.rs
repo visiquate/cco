@@ -12,11 +12,12 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
 use sqlx::Row;
 use std::path::PathBuf;
 use std::str::FromStr;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use super::error::{HookError, HookResult};
 use super::permissions::PermissionDecision;
 use super::types::CrudClassification;
+use crate::daemon::security::CredentialDetector;
 
 /// Decision record stored in the audit log
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -118,6 +119,7 @@ pub trait DecisionDatabase: Send + Sync {
 pub struct SqliteAuditDatabase {
     pool: SqlitePool,
     db_path: PathBuf,
+    credential_detector: CredentialDetector,
 }
 
 impl SqliteAuditDatabase {
@@ -169,10 +171,36 @@ impl SqliteAuditDatabase {
                 )
             })?;
 
-        let db = Self { pool, db_path };
+        let db = Self {
+            pool,
+            db_path: db_path.clone(),
+            credential_detector: CredentialDetector::new(),
+        };
 
         // Initialize schema
         db.init_schema().await?;
+
+        // Set secure file permissions (Unix only)
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if db_path.exists() {
+                match std::fs::metadata(&db_path) {
+                    Ok(metadata) => {
+                        let mut perms = metadata.permissions();
+                        perms.set_mode(0o600); // Owner read/write only
+                        if let Err(e) = std::fs::set_permissions(&db_path, perms) {
+                            warn!("Failed to set secure permissions on audit database: {}", e);
+                        } else {
+                            info!("✅ Secure file permissions (600) set on audit database");
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Failed to get audit database metadata: {}", e);
+                    }
+                }
+            }
+        }
 
         info!("✅ Audit database initialized successfully");
         Ok(db)
@@ -244,12 +272,64 @@ impl SqliteAuditDatabase {
     pub fn db_path(&self) -> &PathBuf {
         &self.db_path
     }
+
+    /// Sanitize command by redacting detected credentials
+    ///
+    /// This method scans the command for credential patterns and redacts them
+    /// using prefix***suffix format before storage in the audit database.
+    fn sanitize_command(&self, command: &str) -> String {
+        let matches = self.credential_detector.detect(command);
+
+        if matches.is_empty() {
+            return command.to_string();
+        }
+
+        // Build sanitized string by replacing matches
+        let mut result = String::new();
+        let mut last_pos = 0;
+
+        // Process matches in forward order, skipping overlaps
+        let mut sorted_matches = matches;
+        sorted_matches.sort_by(|a, b| a.start_pos.cmp(&b.start_pos));
+
+        for credential_match in sorted_matches {
+            // Skip if this match overlaps with already processed text
+            if credential_match.start_pos < last_pos {
+                continue;
+            }
+
+            // Append text before the match
+            result.push_str(&command[last_pos..credential_match.start_pos]);
+
+            // Append redacted credential
+            result.push_str(&credential_match.matched_text);
+
+            // Update position
+            last_pos = credential_match.end_pos;
+        }
+
+        // Append remaining text
+        result.push_str(&command[last_pos..]);
+
+        result
+    }
 }
 
 #[async_trait::async_trait]
 impl DecisionDatabase for SqliteAuditDatabase {
     async fn store_decision(&self, decision: Decision) -> HookResult<()> {
         debug!("Storing decision: {} ({})", decision.command, decision.classification);
+
+        // Sanitize command to remove credentials before storage
+        let sanitized_command = self.sanitize_command(&decision.command);
+
+        // Warn if credentials were detected and sanitized
+        if sanitized_command != decision.command {
+            warn!(
+                "Credentials detected in command and sanitized before audit storage: {}",
+                sanitized_command
+            );
+        }
 
         let classification_str = format!("{:?}", decision.classification);
         let user_decision_str = format!("{:?}", decision.user_decision);
@@ -260,7 +340,7 @@ impl DecisionDatabase for SqliteAuditDatabase {
             VALUES (?, ?, ?, ?, ?, ?, ?)
             "#,
         )
-        .bind(&decision.command)
+        .bind(&sanitized_command)
         .bind(classification_str)
         .bind(decision.timestamp.to_rfc3339())
         .bind(user_decision_str)
@@ -274,7 +354,7 @@ impl DecisionDatabase for SqliteAuditDatabase {
             HookError::execution_failed("store_decision", format!("Database error: {}", e))
         })?;
 
-        debug!("Decision stored successfully");
+        debug!("Decision stored successfully (credentials sanitized if present)");
         Ok(())
     }
 
@@ -562,5 +642,165 @@ mod tests {
     async fn test_close_database() {
         let db = create_test_db().await;
         assert!(db.close().await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_credential_sanitization_api_key() {
+        let db = create_test_db().await;
+
+        let mut decision = create_test_decision();
+        decision.command = "curl -H 'api_key=sk_test_1234567890abcdef' https://api.example.com".to_string();
+
+        // Store decision
+        db.store_decision(decision).await.unwrap();
+
+        // Retrieve and verify sanitization
+        let decisions = db.get_recent_decisions(10, 0).await.unwrap();
+        assert_eq!(decisions.len(), 1);
+
+        // Command should be sanitized (not contain the raw API key)
+        assert!(!decisions[0].command.contains("sk_test_1234567890abcdef"));
+        assert!(decisions[0].command.contains("***")); // Should contain redaction marker
+    }
+
+    #[tokio::test]
+    async fn test_credential_sanitization_password() {
+        let db = create_test_db().await;
+
+        let mut decision = create_test_decision();
+        decision.command = "mysql -u root -p password=\"MySecurePassword123\" mydb".to_string();
+
+        // Store decision
+        db.store_decision(decision).await.unwrap();
+
+        // Retrieve and verify sanitization
+        let decisions = db.get_recent_decisions(10, 0).await.unwrap();
+        assert_eq!(decisions.len(), 1);
+
+        // Command should be sanitized
+        assert!(!decisions[0].command.contains("MySecurePassword123"));
+        assert!(decisions[0].command.contains("***"));
+    }
+
+    #[tokio::test]
+    async fn test_credential_sanitization_jwt_token() {
+        let db = create_test_db().await;
+
+        let mut decision = create_test_decision();
+        decision.command = "curl -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U' https://api.example.com".to_string();
+
+        // Store decision
+        db.store_decision(decision).await.unwrap();
+
+        // Retrieve and verify sanitization
+        let decisions = db.get_recent_decisions(10, 0).await.unwrap();
+        assert_eq!(decisions.len(), 1);
+
+        // Command should be sanitized
+        assert!(!decisions[0].command.contains("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"));
+        assert!(decisions[0].command.contains("***"));
+    }
+
+    #[tokio::test]
+    async fn test_credential_sanitization_github_token() {
+        let db = create_test_db().await;
+
+        let mut decision = create_test_decision();
+        decision.command = "git push https://ghp_1234567890abcdefghijklmnopqrstuv@github.com/user/repo".to_string();
+
+        // Store decision
+        db.store_decision(decision).await.unwrap();
+
+        // Retrieve and verify sanitization
+        let decisions = db.get_recent_decisions(10, 0).await.unwrap();
+        assert_eq!(decisions.len(), 1);
+
+        // Command should be sanitized
+        assert!(!decisions[0].command.contains("ghp_1234567890abcdefghijklmnopqrstuv"));
+        assert!(decisions[0].command.contains("***"));
+    }
+
+    #[tokio::test]
+    async fn test_credential_sanitization_database_url() {
+        let db = create_test_db().await;
+
+        let mut decision = create_test_decision();
+        decision.command = "postgres://user:MySecretPassword123@localhost:5432/mydb".to_string();
+
+        // Store decision
+        db.store_decision(decision).await.unwrap();
+
+        // Retrieve and verify sanitization
+        let decisions = db.get_recent_decisions(10, 0).await.unwrap();
+        assert_eq!(decisions.len(), 1);
+
+        // Command should be sanitized
+        assert!(!decisions[0].command.contains("MySecretPassword123"));
+        assert!(decisions[0].command.contains("***"));
+    }
+
+    #[tokio::test]
+    async fn test_no_sanitization_for_safe_commands() {
+        let db = create_test_db().await;
+
+        let mut decision = create_test_decision();
+        let safe_command = "ls -la /tmp/test_directory".to_string();
+        decision.command = safe_command.clone();
+
+        // Store decision
+        db.store_decision(decision).await.unwrap();
+
+        // Retrieve and verify no sanitization occurred
+        let decisions = db.get_recent_decisions(10, 0).await.unwrap();
+        assert_eq!(decisions.len(), 1);
+
+        // Command should be unchanged
+        assert_eq!(decisions[0].command, safe_command);
+        assert!(!decisions[0].command.contains("***"));
+    }
+
+    #[tokio::test]
+    async fn test_multiple_credentials_sanitization() {
+        let db = create_test_db().await;
+
+        let mut decision = create_test_decision();
+        decision.command = "curl -H 'api_key=\"abc123456789012345\"' -H 'password=\"secretpassword123\"' https://api.example.com".to_string();
+
+        // Store decision
+        db.store_decision(decision).await.unwrap();
+
+        // Retrieve and verify both credentials sanitized
+        let decisions = db.get_recent_decisions(10, 0).await.unwrap();
+        assert_eq!(decisions.len(), 1);
+
+        // Both credentials should be sanitized
+        assert!(!decisions[0].command.contains("abc123456789012345"));
+        assert!(!decisions[0].command.contains("secretpassword123"));
+        assert!(decisions[0].command.contains("***"));
+    }
+
+    #[tokio::test]
+    #[cfg(unix)]
+    async fn test_database_file_permissions() {
+        use std::fs;
+        use std::os::unix::fs::PermissionsExt;
+
+        // Create temp directory and database
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test_permissions.db");
+
+        let db = SqliteAuditDatabase::new(db_path.clone()).await.unwrap();
+
+        // Store a decision to ensure file exists
+        let decision = create_test_decision();
+        db.store_decision(decision).await.unwrap();
+
+        // Check file permissions
+        let metadata = fs::metadata(&db_path).unwrap();
+        let permissions = metadata.permissions();
+        let mode = permissions.mode();
+
+        // Verify 0600 permissions (owner read/write only)
+        assert_eq!(mode & 0o777, 0o600, "Database file should have 0600 permissions");
     }
 }

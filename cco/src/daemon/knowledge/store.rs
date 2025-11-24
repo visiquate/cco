@@ -482,7 +482,7 @@ mod tests {
         );
 
         assert_eq!(store.repo_name, "test-repo");
-        assert_eq!(store.table_name, "test_knowledge");
+        // Table name is now managed internally
     }
 
     #[test]

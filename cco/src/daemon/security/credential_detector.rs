@@ -140,7 +140,7 @@ impl CredentialDetector {
     }
 
     /// Redact credential value for logging
-    fn redact_credential(text: &str) -> String {
+    pub fn redact_credential(text: &str) -> String {
         if text.len() <= 8 {
             return "*****".to_string();
         }
