@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
 
+#[allow(dead_code)]
 const MAX_CONTEXT_SIZE: usize = 10 * 1024 * 1024; // 10MB
 const MAX_FILE_SIZE: usize = 1 * 1024 * 1024; // 1MB per file
 const PERFORMANCE_TARGET_MS: u128 = 100;

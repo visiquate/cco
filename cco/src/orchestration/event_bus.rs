@@ -15,6 +15,7 @@ use uuid::Uuid;
 
 const EVENT_BUFFER_CAPACITY: usize = 10_000;
 const EVENT_RETENTION_HOURS: i64 = 24;
+#[allow(dead_code)]
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 
 /// Event stored in the bus

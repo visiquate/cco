@@ -298,6 +298,7 @@ where
 
 /// Authentication middleware
 pub struct AuthMiddleware {
+    #[allow(dead_code)]
     token_manager: Arc<TokenManager>,
 }
 

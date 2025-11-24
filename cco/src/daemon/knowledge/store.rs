@@ -21,7 +21,6 @@ use tracing::{info, warn};
 pub struct KnowledgeStore {
     db_path: PathBuf,
     repo_name: String,
-    table_name: String,
     items: Vec<KnowledgeItem>,
 }
 
@@ -30,7 +29,7 @@ impl KnowledgeStore {
     pub fn new<P: AsRef<Path>>(
         repo_path: P,
         base_dir: Option<P>,
-        table_name: Option<String>,
+        _table_name: Option<String>,
     ) -> Self {
         let repo_path = repo_path.as_ref();
         let repo_name = Self::extract_repo_name(repo_path);
@@ -43,7 +42,6 @@ impl KnowledgeStore {
             });
 
         let db_path = base_dir.join(&repo_name);
-        let table_name = table_name.unwrap_or_else(|| "orchestra_knowledge".to_string());
 
         info!(
             "Knowledge Manager initialized for repository: {}",
@@ -54,7 +52,6 @@ impl KnowledgeStore {
         Self {
             db_path,
             repo_name,
-            table_name,
             items: Vec::new(),
         }
     }

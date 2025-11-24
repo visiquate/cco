@@ -52,6 +52,7 @@ impl Default for ServerConfig {
 
 /// JWT claims for agent authentication
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct Claims {
     sub: String,        // agent_id
     agent_type: String, // agent type name
@@ -65,6 +66,7 @@ struct Claims {
 pub struct OrchestrationServer {
     state: Arc<OrchestrationState>,
     config: ServerConfig,
+    #[allow(dead_code)]
     start_time: Instant,
 }
 
@@ -465,6 +467,7 @@ async fn clear_context_cache_handler(
 // ===== ERROR HANDLING =====
 
 #[derive(Debug)]
+#[allow(dead_code)]
 enum AppError {
     Unauthorized(String),
     BadRequest(String),
