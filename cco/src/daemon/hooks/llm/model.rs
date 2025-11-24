@@ -28,28 +28,32 @@ pub struct LlmModel {
 
 /// Extract the actual command from the classification prompt
 ///
-/// The prompt format is:
+/// The prompt format contains examples with "Command: " labels, followed by
+/// "Now classify this command:" marker, then the actual command to classify.
+/// We must use the marker to avoid extracting example commands.
+///
 /// ```text
-/// Classify this command as EXACTLY ONE of: READ, CREATE, UPDATE, or DELETE
-///
-/// Command: <ACTUAL_COMMAND>
-///
-/// Rules:
+/// Examples:
+/// Command: ls -la
 /// ...
+/// Now classify this command:
+/// Command: <ACTUAL_COMMAND>
 /// ```
 ///
-/// This function extracts just the `<ACTUAL_COMMAND>` part, avoiding false matches
-/// against the examples in the rules section.
+/// This function extracts just the `<ACTUAL_COMMAND>` part after the marker.
 fn extract_command_from_prompt(prompt: &str) -> String {
-    // Look for "Command: " followed by the actual command
-    if let Some(start_idx) = prompt.find("Command: ") {
-        let after_label = &prompt[start_idx + 9..]; // Skip "Command: "
+    // Look for the marker that precedes the actual command to classify
+    if let Some(marker_idx) = prompt.find("Now classify this command:") {
+        let after_marker = &prompt[marker_idx..];
 
-        // The command continues until we hit a newline
-        if let Some(end_idx) = after_label.find('\n') {
-            return after_label[..end_idx].trim().to_string();
-        } else {
-            // No newline found, take rest of string
+        // Find "Command: " AFTER the marker (not the examples before it)
+        if let Some(cmd_idx) = after_marker.find("Command: ") {
+            let after_label = &after_marker[cmd_idx + 9..]; // Skip "Command: "
+
+            // Extract until newline or end of string
+            if let Some(end_idx) = after_label.find('\n') {
+                return after_label[..end_idx].trim().to_string();
+            }
             return after_label.trim().to_string();
         }
     }
@@ -645,20 +649,32 @@ mod tests {
 
     #[test]
     fn test_extract_command_from_prompt() {
-        let prompt = r#"Classify this command as EXACTLY ONE of: READ, CREATE, UPDATE, or DELETE
+        // Test with realistic prompt that has examples BEFORE the actual command
+        let prompt = r#"Classify this shell command as EXACTLY ONE of: READ, CREATE, UPDATE, or DELETE
 
+Examples:
 Command: ls -la
+Classification: READ
+
+Command: mkdir newdir
+Classification: CREATE
+
+Now classify this command:
+Command: git status
 
 Rules:
 - READ: Retrieves/displays data, no side effects (ls, cat, grep, git status)
 - CREATE: Makes new resources, files, processes (touch, mkdir, git init, docker run)"#;
 
         let extracted = extract_command_from_prompt(prompt);
-        assert_eq!(extracted, "ls -la");
+        assert_eq!(extracted, "git status", "Should extract command AFTER marker, not from examples");
 
         // Test with different command
-        let prompt2 = r#"Classify this command as EXACTLY ONE of: READ, CREATE, UPDATE, or DELETE
+        let prompt2 = r#"Examples:
+Command: touch file.txt
+Classification: CREATE
 
+Now classify this command:
 Command: rm -rf /tmp/test
 
 Rules:
