@@ -5,12 +5,12 @@
 //! - 1000 requests per hour per token
 //! - 429 Too Many Requests responses with Retry-After header
 
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::RwLock;
-use tracing::{debug, warn};
+use tracing::debug;
 
 /// Rate limit configuration
 #[derive(Debug, Clone)]

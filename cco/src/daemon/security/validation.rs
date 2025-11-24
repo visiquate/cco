@@ -5,7 +5,7 @@
 //! - Metadata schema validation
 //! - Request size limiting
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;

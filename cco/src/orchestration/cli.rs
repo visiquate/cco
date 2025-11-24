@@ -8,7 +8,6 @@
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use std::sync::Arc;
 
 /// Orchestration CLI commands
 #[derive(Debug, Parser)]

@@ -3,7 +3,6 @@
 //! Defines the core data structures used for storing and retrieving knowledge items,
 //! matching the schema from the JavaScript knowledge-manager.js implementation.
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

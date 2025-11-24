@@ -6,15 +6,13 @@
 use anyhow::{Context as AnyhowContext, Result};
 use axum::{
     extract::{Path, Query, State},
-    http::{header, HeaderMap, StatusCode},
-    middleware,
-    response::{IntoResponse, Response},
+    http::StatusCode,
+    response::Response,
     routing::{delete, get, post},
     Json, Router,
 };
 use chrono::{DateTime, Utc};
-use dashmap::DashMap;
-use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
+// JWT imports removed - not needed for current implementation
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::Arc;

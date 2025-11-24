@@ -4,7 +4,7 @@
 //! The full LanceDB integration will be added in a follow-up once the Arrow/LanceDB API
 //! compatibility issues are resolved.
 
-use super::embedding::{generate_embedding, EMBEDDING_DIM};
+use super::embedding::generate_embedding;
 use super::models::*;
 use anyhow::{Context, Result};
 use chrono::Utc;

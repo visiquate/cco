@@ -9,7 +9,6 @@
 //! Files are created on daemon start and cleaned up on daemon stop.
 
 use anyhow::Result;
-use chrono::Utc;
 use serde_json::json;
 use std::env;
 use std::fs;

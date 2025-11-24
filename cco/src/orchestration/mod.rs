@@ -21,7 +21,6 @@ pub use server::{OrchestrationServer, ServerConfig};
 
 use anyhow::Result;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 /// Initialize the orchestration sidecar system
 pub async fn initialize(config: ServerConfig) -> Result<Arc<OrchestrationState>> {
