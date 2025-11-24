@@ -279,7 +279,7 @@ pub async fn load_claude_metrics_from_home_dir() -> Result<ClaudeMetrics> {
 
     for entry in entries {
         let normalized_model = normalize_model_name(&entry.model);
-        let (_input_price, _output_price, _cache_write_price, _cache_read_price) =
+        let (input_price, output_price, _cache_write_price, _cache_read_price) =
             get_model_pricing(&normalized_model);
 
         // Aggregate totals

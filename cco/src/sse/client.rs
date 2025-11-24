@@ -92,11 +92,11 @@ impl SseClient {
     ///
     /// Returns an error if the initial connection setup fails. Connection errors during
     /// streaming are handled internally with automatic reconnection.
+    #[allow(unused_assignments)]
     pub async fn connect(&self) -> Result<()> {
         let stream_url = format!("{}/api/stream", self.endpoint);
         info!("SSE client connecting to: {}", stream_url);
 
-        #[allow(unused_assignments)]
         let mut backoff = INITIAL_BACKOFF;
         let mut retry_count = 0u32;
 
