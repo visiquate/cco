@@ -200,7 +200,7 @@ fn default_inference_timeout_ms() -> u64 {
 }
 
 fn default_llm_temperature() -> f32 {
-    0.1 // Low temperature for consistent classification
+    0.5 // Balanced temperature for accurate classification with small models
 }
 
 impl Default for HooksConfig {
@@ -357,10 +357,10 @@ mod tests {
     #[test]
     fn test_is_enabled() {
         let mut config = HooksConfig::default();
-        assert!(!config.is_enabled());
+        assert!(config.is_enabled()); // Hooks are enabled by default
 
-        config.enabled = true;
-        assert!(config.is_enabled());
+        config.enabled = false;
+        assert!(!config.is_enabled());
     }
 
     #[test]
@@ -382,7 +382,7 @@ mod tests {
         assert_eq!(llm.quantization, "Q4_K_M");
         assert_eq!(llm.model_size_mb, 600);
         assert_eq!(llm.inference_timeout_ms, 2000);
-        assert_eq!(llm.temperature, 0.1);
+        assert_eq!(llm.temperature, 0.5);
         assert!(!llm.loaded);
     }
 

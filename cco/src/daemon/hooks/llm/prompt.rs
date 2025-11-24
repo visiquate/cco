@@ -29,17 +29,31 @@ use std::str::FromStr;
 /// ```
 pub fn build_crud_prompt(command: &str) -> String {
     format!(
-        r#"Classify this command as EXACTLY ONE of: READ, CREATE, UPDATE, or DELETE
+        r#"Classify this shell command as EXACTLY ONE of: READ, CREATE, UPDATE, or DELETE
 
+Examples:
+Command: ls -la
+Classification: READ
+
+Command: mkdir newdir
+Classification: CREATE
+
+Command: echo test >> file.txt
+Classification: UPDATE
+
+Command: rm file.txt
+Classification: DELETE
+
+Now classify this command:
 Command: {}
 
 Rules:
-- READ: Retrieves/displays data, no side effects (ls, cat, grep, git status)
-- CREATE: Makes new resources, files, processes (touch, mkdir, git init, docker run)
-- UPDATE: Modifies existing resources (echo >>, sed -i, git commit, chmod)
-- DELETE: Removes resources (rm, rmdir, docker rm, git branch -d)
+- READ: Retrieves/displays data, no side effects (ls, cat, grep, git status, ps, find)
+- CREATE: Makes new resources (touch, mkdir, git init, docker run, echo > file)
+- UPDATE: Modifies existing resources (echo >>, sed -i, git commit, chmod, mv, cp)
+- DELETE: Removes resources (rm, rmdir, docker rm, git branch -d, git clean)
 
-Classification (one word only):"#,
+Respond with ONLY one word - the classification:"#,
         command.trim()
     )
 }

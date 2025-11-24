@@ -436,7 +436,7 @@ mod tests {
             quantization: "Q4_K_M".to_string(),
             loaded: false,
             inference_timeout_ms: 2000,
-            temperature: 0.1,
+            temperature: 0.5,
         };
 
         let manager = ModelManager::new(config).await.unwrap();
@@ -453,7 +453,7 @@ mod tests {
             quantization: "Q4_K_M".to_string(),
             loaded: false,
             inference_timeout_ms: 2000,
-            temperature: 0.1,
+            temperature: 0.5,
         };
 
         let manager = ModelManager::new(config).await.unwrap();
@@ -473,7 +473,7 @@ mod tests {
             quantization: "Q4_K_M".to_string(),
             loaded: false,
             inference_timeout_ms: 2000,
-            temperature: 0.1,
+            temperature: 0.5,
         };
 
         let manager = tokio::runtime::Runtime::new()
