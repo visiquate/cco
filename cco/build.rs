@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_variables)]
+
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
