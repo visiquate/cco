@@ -30,6 +30,7 @@ pub fn get_log_file(port: u16) -> Result<PathBuf> {
 }
 
 /// Read last N lines from a file
+#[allow(dead_code)]
 fn read_last_lines(file: &mut File, num_lines: usize) -> Result<Vec<String>> {
     let file_size = file.metadata()?.len();
 

@@ -286,6 +286,7 @@ async fn start_orchestration_sidecar() -> Result<SidecarHandle> {
 /// Cleanly shuts down the sidecar and releases port 3001.
 /// This is called when Claude Code exits.
 async fn shutdown_sidecar() {
+    #[allow(static_mut_refs)]
     unsafe {
         if let Some(handle) = SIDECAR_HANDLE.take() {
             let mut handle_guard = handle.write().await;

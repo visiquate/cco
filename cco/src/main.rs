@@ -10,7 +10,6 @@ mod update;
 
 // Import from library
 use cco::auto_update;
-use cco::server::run_server;
 use cco::version::DateVersion;
 
 #[derive(Parser)]
