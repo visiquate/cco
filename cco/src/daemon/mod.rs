@@ -10,6 +10,7 @@ pub mod config;
 pub mod hooks;
 pub mod knowledge;
 pub mod lifecycle;
+pub mod model_cache;
 pub mod security;
 pub mod server;
 pub mod service;
