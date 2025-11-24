@@ -21,11 +21,8 @@ jobs:
       - name: Checkout source repository
         uses: actions/checkout@v4
         with:
-          repository: brentley/cc-orchestra
           ref: ${{ inputs.source_ref }}
-          path: cc-orchestra
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -33,23 +30,23 @@ jobs:
           toolchain: stable
 
       - name: Build CCO
-        working-directory: ./cc-orchestra/cco
+        working-directory: ./cco
         run: |
           echo "Building CCO with VERSION_DATE..."
           cargo build --release --verbose
 
       - name: Generate build artifacts
-        working-directory: ./cc-orchestra/cco
+        working-directory: ./cco
         run: |
           # Create artifacts directory
-          mkdir -p ../../artifacts
+          mkdir -p ../artifacts
 
           # Copy binary with platform suffix
           PLATFORM="$(uname -s)-$(uname -m)"
-          cp target/release/cco ../../artifacts/cco-${PLATFORM}
+          cp target/release/cco ../artifacts/cco-${PLATFORM}
 
           # Generate checksums
-          cd ../../artifacts
+          cd ../artifacts
           sha256sum cco-${PLATFORM} > checksums.txt
 
           echo "Build artifacts created:"
