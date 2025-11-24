@@ -1,0 +1,406 @@
+name: Release CCO
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.3.0)'
+        required: true
+        type: string
+      channel:
+        description: 'Release channel'
+        required: true
+        default: 'stable'
+        type: choice
+        options:
+          - stable
+          - beta
+          - nightly
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Validate version and create release metadata
+  prepare-release:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      channel: ${{ steps.version.outputs.channel }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+            CHANNEL="${{ github.event.inputs.channel }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            # Determine channel from version string
+            if [[ "$VERSION" == *"-beta"* ]]; then
+              CHANNEL="beta"
+            elif [[ "$VERSION" == *"-nightly"* ]]; then
+              CHANNEL="nightly"
+            else
+              CHANNEL="stable"
+            fi
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "channel=$CHANNEL" >> $GITHUB_OUTPUT
+          echo "Building CCO v$VERSION for $CHANNEL channel"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Extract changelog for this version from CHANGELOG.md
+          # This is a placeholder - implement actual changelog extraction
+          echo "changelog=See [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release Draft
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          release_name: CCO v${{ steps.version.outputs.version }}
+          body: |
+            ## CCO v${{ steps.version.outputs.version }}
+
+            Channel: ${{ steps.version.outputs.channel }}
+
+            ${{ steps.changelog.outputs.changelog }}
+
+            ### Installation
+
+            #### One-line Install (Unix/Linux/macOS)
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/brentley/cco-releases/main/install.sh | bash
+            ```
+
+            #### Windows PowerShell
+            ```powershell
+            iwr -useb https://raw.githubusercontent.com/brentley/cco-releases/main/install.ps1 | iex
+            ```
+
+            #### Manual Download
+            Download the appropriate binary for your platform below.
+
+            ### Checksums
+            SHA256 checksums are available in `checksums.sha256`
+
+          draft: true
+          prerelease: ${{ steps.version.outputs.channel != 'stable' }}
+
+  # Build binaries for all target platforms
+  build-release:
+    name: Build ${{ matrix.target }}
+    needs: prepare-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS targets
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            artifact_name: cco
+            asset_name: cco-v$VERSION-darwin-arm64
+            asset_extension: .tar.gz
+
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            artifact_name: cco
+            asset_name: cco-v$VERSION-darwin-x86_64
+            asset_extension: .tar.gz
+
+          # Linux targets
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact_name: cco
+            asset_name: cco-v$VERSION-linux-x86_64
+            asset_extension: .tar.gz
+
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact_name: cco
+            asset_name: cco-v$VERSION-linux-aarch64
+            asset_extension: .tar.gz
+            use_cross: true
+
+          # Windows targets
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            artifact_name: cco.exe
+            asset_name: cco-v$VERSION-windows-x86_64
+            asset_extension: .zip
+
+    env:
+      VERSION: ${{ needs.prepare-release.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Setup Cross compilation
+        if: matrix.use_cross
+        run: |
+          cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: cco
+          key: ${{ matrix.target }}
+
+      - name: Update version in Cargo.toml
+        run: |
+          sed -i.bak 's/^version = .*/version = "${{ env.VERSION }}"/' cco/Cargo.toml
+        if: matrix.os != 'windows-latest'
+
+      - name: Update version in Cargo.toml (Windows)
+        run: |
+          (Get-Content cco/Cargo.toml) -replace '^version = .*', 'version = "${{ env.VERSION }}"' | Set-Content cco/Cargo.toml
+        if: matrix.os == 'windows-latest'
+
+      - name: Build release binary
+        run: |
+          cd cco
+
+          # Set build metadata
+          export CCO_BUILD_VERSION="${{ env.VERSION }}"
+          export CCO_BUILD_COMMIT="${{ github.sha }}"
+          export CCO_BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          export CCO_BUILD_CHANNEL="${{ needs.prepare-release.outputs.channel }}"
+
+          if [[ "${{ matrix.use_cross }}" == "true" ]]; then
+            cross build --release --target ${{ matrix.target }} --features auto-update
+          else
+            cargo build --release --target ${{ matrix.target }} --features auto-update
+          fi
+        if: matrix.os != 'windows-latest'
+
+      - name: Build release binary (Windows)
+        run: |
+          cd cco
+
+          $env:CCO_BUILD_VERSION = "${{ env.VERSION }}"
+          $env:CCO_BUILD_COMMIT = "${{ github.sha }}"
+          $env:CCO_BUILD_DATE = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+          $env:CCO_BUILD_CHANNEL = "${{ needs.prepare-release.outputs.channel }}"
+
+          cargo build --release --target ${{ matrix.target }} --features auto-update
+        if: matrix.os == 'windows-latest'
+
+      - name: Strip binary (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            strip cco/target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          elif [[ "${{ matrix.use_cross }}" != "true" ]]; then
+            strip cco/target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          fi
+
+      - name: Package binary (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd cco/target/${{ matrix.target }}/release
+
+          # Create package directory
+          mkdir -p package
+          cp ${{ matrix.artifact_name }} package/cco
+          cp ../../../../README.md package/
+          cp ../../../../LICENSE package/
+          echo "CCO v${{ env.VERSION }}" > package/VERSION
+
+          # Create archive
+          tar czf ${{ matrix.asset_name }}${{ matrix.asset_extension }} -C package .
+
+          # Generate checksum
+          if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            shasum -a 256 ${{ matrix.asset_name }}${{ matrix.asset_extension }} > ${{ matrix.asset_name }}.sha256
+          else
+            sha256sum ${{ matrix.asset_name }}${{ matrix.asset_extension }} > ${{ matrix.asset_name }}.sha256
+          fi
+
+      - name: Package binary (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd cco/target/${{ matrix.target }}/release
+
+          # Create package directory
+          New-Item -ItemType Directory -Force -Path package
+          Copy-Item ${{ matrix.artifact_name }} package/cco.exe
+          Copy-Item ../../../../README.md package/
+          Copy-Item ../../../../LICENSE package/
+          "CCO v${{ env.VERSION }}" | Out-File -FilePath package/VERSION
+
+          # Create archive
+          Compress-Archive -Path package/* -DestinationPath "${{ matrix.asset_name }}${{ matrix.asset_extension }}"
+
+          # Generate checksum
+          $hash = Get-FileHash "${{ matrix.asset_name }}${{ matrix.asset_extension }}" -Algorithm SHA256
+          "$($hash.Hash.ToLower())  ${{ matrix.asset_name }}${{ matrix.asset_extension }}" | Out-File -FilePath "${{ matrix.asset_name }}.sha256"
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.prepare-release.outputs.upload_url }}
+          asset_path: cco/target/${{ matrix.target }}/release/${{ matrix.asset_name }}${{ matrix.asset_extension }}
+          asset_name: ${{ matrix.asset_name }}${{ matrix.asset_extension }}
+          asset_content_type: application/octet-stream
+
+      - name: Upload Checksum
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.prepare-release.outputs.upload_url }}
+          asset_path: cco/target/${{ matrix.target }}/release/${{ matrix.asset_name }}.sha256
+          asset_name: ${{ matrix.asset_name }}.sha256
+          asset_content_type: text/plain
+
+  # Generate combined checksums file
+  generate-checksums:
+    name: Generate Combined Checksums
+    needs: [prepare-release, build-release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download release assets
+        run: |
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+          mkdir -p checksums
+
+          # Download all SHA256 files
+          for platform in darwin-arm64 darwin-x86_64 linux-x86_64 linux-aarch64 windows-x86_64; do
+            asset_name="cco-v${VERSION}-${platform}"
+
+            if [[ "$platform" == windows-* ]]; then
+              ext=".zip"
+            else
+              ext=".tar.gz"
+            fi
+
+            # Try to download checksum file
+            curl -fsSL \
+              -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/tags/v${VERSION}" \
+              | jq -r ".assets[] | select(.name == \"${asset_name}.sha256\") | .browser_download_url" \
+              | xargs -I {} curl -fsSL {} -o "checksums/${asset_name}.sha256" || true
+          done
+
+          # Combine all checksums
+          cat checksums/*.sha256 > checksums.sha256
+
+      - name: Upload Combined Checksums
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.prepare-release.outputs.upload_url }}
+          asset_path: checksums.sha256
+          asset_name: checksums.sha256
+          asset_content_type: text/plain
+
+  # Publish to distribution repository
+  publish-distribution:
+    name: Publish to Distribution Repo
+    needs: [prepare-release, generate-checksums]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout distribution repository
+        uses: actions/checkout@v4
+        with:
+          repository: brentley/cco-releases
+          token: ${{ secrets.DISTRIBUTION_REPO_TOKEN }}
+          path: cco-releases
+
+      - name: Update version manifest
+        run: |
+          cd cco-releases
+
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+          CHANNEL="${{ needs.prepare-release.outputs.channel }}"
+
+          # Update version-manifest.json using jq
+          jq --arg version "$VERSION" \
+             --arg channel "$CHANNEL" \
+             --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+             --arg url "https://github.com/${{ github.repository }}/releases/tag/v$VERSION" \
+             '.latest[$channel] = $version |
+              .versions[$version] = {
+                "date": $date,
+                "platforms": {},
+                "release_notes": $url,
+                "minimum_rust": "1.75.0",
+                "breaking_changes": false
+              }' version-manifest.json > version-manifest.tmp.json
+
+          mv version-manifest.tmp.json version-manifest.json
+
+          # Commit and push
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add version-manifest.json
+          git commit -m "Update manifest for v$VERSION"
+          git push
+
+      - name: Create distribution release
+        env:
+          GITHUB_TOKEN: ${{ secrets.DISTRIBUTION_REPO_TOKEN }}
+        run: |
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+
+          # Create matching release in distribution repo
+          gh release create "v$VERSION" \
+            --repo brentley/cco-releases \
+            --title "CCO v$VERSION" \
+            --notes "See [source release](https://github.com/${{ github.repository }}/releases/tag/v$VERSION)" \
+            $([[ "${{ needs.prepare-release.outputs.channel }}" != "stable" ]] && echo "--prerelease")
+
+  # Finalize release
+  finalize-release:
+    name: Finalize Release
+    needs: [prepare-release, build-release, generate-checksums, publish-distribution]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+
+          # Publish the draft release
+          gh release edit "v$VERSION" \
+            --repo ${{ github.repository }} \
+            --draft=false
+
+      - name: Announce release
+        run: |
+          echo "CCO v${{ needs.prepare-release.outputs.version }} has been released!"
+          echo "Channel: ${{ needs.prepare-release.outputs.channel }}"
+          echo ""
+          echo "Installation:"
+          echo "  curl -fsSL https://raw.githubusercontent.com/brentley/cco-releases/main/install.sh | bash"

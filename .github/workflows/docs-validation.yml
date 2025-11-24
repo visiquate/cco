@@ -1,0 +1,204 @@
+name: Documentation Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'docs/**/*.md'
+      - '*.md'
+      - '.github/workflows/docs-validation.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'docs/**/*.md'
+      - '*.md'
+      - '.github/workflows/docs-validation.yml'
+
+# Cancel in-progress runs when a new workflow with the same group name is triggered
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  validate-markdown:
+    name: Validate Markdown Files
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Check for broken markdown links
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-quiet-mode: 'yes'
+          use-verbose-mode: 'no'
+          config-file: '.github/markdown-link-check-config.json'
+          folder-path: 'docs/'
+          file-path: './README.md, ./CLAUDE.md, ./ORCHESTRA_ROSTER.md'
+          max-depth: -1
+        continue-on-error: true
+        id: markdown-link-check
+
+      - name: Validate markdown syntax
+        uses: DavidAnson/markdownlint-cli2-action@v16
+        with:
+          globs: |
+            **/*.md
+            !node_modules
+            !.github
+        continue-on-error: true
+        id: markdown-lint
+
+      - name: Install Mermaid CLI
+        run: |
+          npm install -g @mermaid-js/mermaid-cli
+
+      - name: Extract and validate Mermaid diagrams
+        id: mermaid-validation
+        run: |
+          echo "## Mermaid Diagram Validation" > mermaid-report.txt
+          echo "" >> mermaid-report.txt
+
+          # Find all markdown files with Mermaid diagrams
+          DIAGRAM_COUNT=0
+          ERROR_COUNT=0
+
+          for mdfile in $(find docs -name "*.md" 2>/dev/null); do
+            echo "Checking $mdfile for Mermaid diagrams..."
+
+            # Extract Mermaid code blocks
+            awk '/```mermaid/,/```/' "$mdfile" > /tmp/mermaid-temp.txt
+
+            if [ -s /tmp/mermaid-temp.txt ]; then
+              # Count diagrams in this file
+              FILE_DIAGRAMS=$(grep -c "```mermaid" "$mdfile" || echo "0")
+              DIAGRAM_COUNT=$((DIAGRAM_COUNT + FILE_DIAGRAMS))
+
+              echo "- Found $FILE_DIAGRAMS Mermaid diagram(s) in $mdfile" >> mermaid-report.txt
+
+              # Extract each diagram and validate syntax
+              awk '/```mermaid/{flag=1; next} /```/{flag=0} flag' "$mdfile" > /tmp/diagram-extract.mmd
+
+              if [ -s /tmp/diagram-extract.mmd ]; then
+                # Try to render the diagram (validates syntax)
+                if mmdc -i /tmp/diagram-extract.mmd -o /tmp/diagram-test.svg 2>/tmp/mermaid-error.txt; then
+                  echo "  ✅ Diagram syntax valid" >> mermaid-report.txt
+                else
+                  ERROR_COUNT=$((ERROR_COUNT + 1))
+                  echo "  ❌ Diagram syntax error:" >> mermaid-report.txt
+                  cat /tmp/mermaid-error.txt >> mermaid-report.txt
+                fi
+              fi
+            fi
+          done
+
+          echo "" >> mermaid-report.txt
+          echo "**Summary**: Found $DIAGRAM_COUNT Mermaid diagrams, $ERROR_COUNT errors" >> mermaid-report.txt
+
+          cat mermaid-report.txt
+
+          if [ $ERROR_COUNT -gt 0 ]; then
+            echo "::warning::Found $ERROR_COUNT Mermaid diagram syntax errors"
+            exit 1
+          fi
+        continue-on-error: true
+
+      - name: Check for ASCII diagrams (should be converted to Mermaid)
+        run: |
+          echo "Checking for ASCII diagrams that should be converted to Mermaid..."
+
+          ASCII_FOUND=0
+          for mdfile in $(find docs -name "*.md" 2>/dev/null); do
+            # Look for patterns that suggest ASCII diagrams
+            if grep -E "^\s*(┌|├|└|│|─|┼|┬|┴|╔|╚|║|═)" "$mdfile" > /dev/null 2>&1; then
+              echo "::warning file=$mdfile::ASCII diagram detected - consider converting to Mermaid"
+              ASCII_FOUND=$((ASCII_FOUND + 1))
+            fi
+          done
+
+          if [ $ASCII_FOUND -gt 0 ]; then
+            echo "::notice::Found $ASCII_FOUND files with ASCII diagrams. Consider converting to Mermaid for better rendering."
+          fi
+        continue-on-error: true
+
+      - name: Validate internal links
+        run: |
+          echo "Checking for broken internal links..."
+
+          for mdfile in $(find . -name "*.md" ! -path "./node_modules/*" ! -path "./.git/*"); do
+            # Extract internal links (not starting with http)
+            grep -oP '\[.*?\]\(\K[^)]+(?=\))' "$mdfile" 2>/dev/null | while read -r link; do
+              # Skip external links
+              if [[ $link =~ ^https?:// ]]; then
+                continue
+              fi
+
+              # Skip anchors (for now)
+              if [[ $link =~ ^# ]]; then
+                continue
+              fi
+
+              # Resolve relative path
+              dir=$(dirname "$mdfile")
+              target="$dir/$link"
+
+              if [ ! -f "$target" ] && [ ! -d "$target" ]; then
+                echo "::warning file=$mdfile::Broken internal link: $link"
+              fi
+            done
+          done
+        continue-on-error: true
+
+      - name: Check documentation completeness
+        run: |
+          echo "## Documentation Completeness Check" > doc-check.txt
+          echo "" >> doc-check.txt
+
+          # Check for required documentation files
+          REQUIRED_DOCS=(
+            "README.md"
+            "docs/ORCHESTRA_USAGE_GUIDE.md"
+            "docs/QUICK_START.md"
+            "CLAUDE.md"
+          )
+
+          MISSING_DOCS=0
+          for doc in "${REQUIRED_DOCS[@]}"; do
+            if [ -f "$doc" ]; then
+              echo "✅ $doc exists" >> doc-check.txt
+            else
+              echo "❌ $doc is missing" >> doc-check.txt
+              MISSING_DOCS=$((MISSING_DOCS + 1))
+            fi
+          done
+
+          cat doc-check.txt
+
+          if [ $MISSING_DOCS -gt 0 ]; then
+            echo "::warning::$MISSING_DOCS required documentation files are missing"
+          fi
+        continue-on-error: true
+
+      - name: Validation summary
+        if: always()
+        run: |
+          echo "## Documentation Validation Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Markdown Links**: ${{ steps.markdown-link-check.outcome == 'success' && '✅ All links valid' || '⚠️ Some links may be broken' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Markdown Syntax**: ${{ steps.markdown-lint.outcome == 'success' && '✅ Valid syntax' || '⚠️ Linting issues found' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Mermaid Diagrams**: ${{ steps.mermaid-validation.outcome == 'success' && '✅ All diagrams valid' || '⚠️ Some diagram issues' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Review the workflow logs for detailed information about any issues found." >> $GITHUB_STEP_SUMMARY
+
+  # Badge status info (add to README.md):
+  # [![Documentation Validation](https://github.com/yourusername/claude-orchestra/actions/workflows/docs-validation.yml/badge.svg)](https://github.com/yourusername/claude-orchestra/actions/workflows/docs-validation.yml)

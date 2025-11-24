@@ -1,0 +1,107 @@
+[package]
+name = "cco"
+version = "0.0.0"  # Placeholder - actual version is date-based (see CCO_VERSION)
+edition = "2021"
+
+[package.metadata]
+# Actual CCO version using automatic date-based format: YYYY.MM.DD+commithash
+# Version is automatically generated at build time (see build.rs)
+# Example: 2025.11.17+e37b7c0
+display_version = "auto"
+
+[[bin]]
+name = "cco"
+path = "src/main.rs"
+
+[dependencies]
+axum = { version = "0.7", features = ["ws"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+tokio = { version = "1.35", features = ["full"] }
+tokio-stream = "0.1"
+async-trait = "0.1"
+async-stream = "0.3"
+futures = "0.3"
+moka = { version = "0.12", features = ["future"] }
+reqwest = { version = "0.11", features = ["json", "rustls-tls", "stream"] }
+reqwest-eventsource = "0.4"
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+config = "0.13"
+sha2 = "0.10"
+hex = "0.4"
+dirs = "5.0"
+semver = "1.0"
+toml = "0.8"
+tar = "0.4"
+flate2 = "1.0"
+regex = "1.10"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+thiserror = "1.0"
+anyhow = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+prometheus = "0.13"
+clap = { version = "4.4", features = ["derive"] }
+uuid = { version = "1.6", features = ["v4", "serde"] }
+sysinfo = "0.30"
+portable-pty = "0.8"
+dashmap = "5.5"
+ratatui = { version = "0.26", features = ["serde"] }
+crossterm = { version = "0.27", features = ["serde"] }
+which = "5.0"
+jsonwebtoken = "9.3"
+
+# LLM inference engine (Phase 1B)
+llm = "0.1"
+indicatif = "0.17"
+rand = "0.8"
+
+# LanceDB for embedded vector database (Issue #32)
+lancedb = "0.22"
+arrow-array = "53.0"
+arrow-schema = "53.0"
+
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.27", features = ["signal"] }
+libc = "0.2"
+
+[build-dependencies]
+include_dir = "0.7"
+chrono = { version = "0.4", features = ["serde"] }
+serde_json = "1.0"
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3.8"
+
+# WASM dependencies
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+web-sys = { version = "0.3", features = [
+    "console",
+    "Document",
+    "Element",
+    "HtmlCanvasElement",
+    "CanvasRenderingContext2d",
+    "Window",
+    "Performance"
+]}
+js-sys = "0.3"
+vte = { version = "0.13", default-features = false }
+console_error_panic_hook = "0.1"
+getrandom = { version = "0.2", features = ["js"] }
+
+# Library configuration
+[lib]
+crate-type = ["rlib"]
+path = "src/lib.rs"
+name = "cco"
+
+# WASM optimization profile
+[profile.wasm-release]
+inherits = "release"
+opt-level = "s"     # Optimize for size
+lto = true          # Link-time optimization
+codegen-units = 1   # Single codegen unit for better optimization

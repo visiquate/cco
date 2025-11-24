@@ -1,0 +1,141 @@
+[
+  {
+    "id": "result-001",
+    "agent_id": "python-specialist-uuid-1",
+    "agent_type": "python-specialist",
+    "issue_id": "issue-123",
+    "project_id": "project-abc",
+    "result": {
+      "status": "success",
+      "files_created": [
+        "src/api.py",
+        "src/models.py",
+        "tests/test_api.py"
+      ],
+      "files_modified": [
+        "requirements.txt",
+        "README.md"
+      ],
+      "decisions": [
+        "Implemented REST API with FastAPI",
+        "Added Pydantic models for request/response validation",
+        "Included comprehensive test suite"
+      ],
+      "metrics": {
+        "execution_time_ms": 4500,
+        "tokens_used": 15000,
+        "lines_of_code": 250,
+        "test_coverage": 92.5
+      },
+      "artifacts": {
+        "api_documentation": "# API Documentation\n\n## Endpoints\n\n### GET /api/items\nReturns list of items...",
+        "test_report": "All 25 tests passing\nCoverage: 92.5%"
+      },
+      "errors": [],
+      "warnings": [
+        "Consider adding rate limiting to API endpoints",
+        "Authentication not yet implemented"
+      ]
+    },
+    "timestamp": "2025-11-18T10:15:00Z"
+  },
+  {
+    "id": "result-002",
+    "agent_id": "test-engineer-uuid-1",
+    "agent_type": "test-engineer",
+    "issue_id": "issue-123",
+    "project_id": "project-abc",
+    "result": {
+      "status": "success",
+      "files_created": [
+        "tests/test_integration.py",
+        "tests/conftest.py"
+      ],
+      "files_modified": [
+        "tests/test_api.py"
+      ],
+      "decisions": [
+        "Added integration tests for API endpoints",
+        "Created pytest fixtures for test isolation",
+        "Implemented test data factories"
+      ],
+      "metrics": {
+        "execution_time_ms": 3200,
+        "tokens_used": 12000,
+        "tests_written": 35,
+        "tests_passing": 35,
+        "test_coverage": 95.2
+      },
+      "artifacts": {
+        "test_report": "Test Summary:\n  Total: 35\n  Passed: 35\n  Failed: 0\n  Coverage: 95.2%",
+        "coverage_report": "src/api.py: 98%\nsrc/models.py: 100%\nsrc/main.py: 90%"
+      },
+      "errors": [],
+      "warnings": []
+    },
+    "timestamp": "2025-11-18T10:30:00Z"
+  },
+  {
+    "id": "result-003",
+    "agent_id": "security-auditor-uuid-1",
+    "agent_type": "security-auditor",
+    "issue_id": "issue-123",
+    "project_id": "project-abc",
+    "result": {
+      "status": "success",
+      "files_created": [
+        "docs/SECURITY.md"
+      ],
+      "files_modified": [],
+      "decisions": [
+        "Security audit passed with minor recommendations",
+        "No critical vulnerabilities found",
+        "Suggested implementing rate limiting"
+      ],
+      "metrics": {
+        "execution_time_ms": 5600,
+        "tokens_used": 18000,
+        "vulnerabilities_found": 0,
+        "security_score": 98
+      },
+      "artifacts": {
+        "security_report": "Security Audit Report:\n  Critical: 0\n  High: 0\n  Medium: 0\n  Low: 2\n  Info: 5",
+        "recommendations": "1. Implement rate limiting\n2. Add HTTPS enforcement\n3. Enable CORS properly"
+      },
+      "errors": [],
+      "warnings": [
+        "Rate limiting not implemented",
+        "HTTPS not enforced"
+      ]
+    },
+    "timestamp": "2025-11-18T10:45:00Z"
+  },
+  {
+    "id": "result-004",
+    "agent_id": "python-specialist-uuid-2",
+    "agent_type": "python-specialist",
+    "issue_id": "issue-124",
+    "project_id": "project-abc",
+    "result": {
+      "status": "failed",
+      "files_created": [],
+      "files_modified": [],
+      "decisions": [],
+      "metrics": {
+        "execution_time_ms": 1200,
+        "tokens_used": 5000
+      },
+      "artifacts": {},
+      "errors": [
+        {
+          "code": "SYNTAX_ERROR",
+          "message": "Syntax error in generated code: unexpected EOF while parsing",
+          "file": "src/broken.py",
+          "line": 42
+        }
+      ],
+      "warnings": []
+    },
+    "timestamp": "2025-11-18T11:00:00Z"
+  }
+]

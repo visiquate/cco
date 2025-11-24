@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Code Orchestrator - Analytics Dashboard</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <!-- D3.js for charting -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- xterm.js for terminal emulation (fallback) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+    <!-- WASM Terminal (preferred) -->
+    <script src="/static/wasm-terminal.js"></script>
+    <script src="/static/terminal-adapter.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="header-content">
+                <h1 class="dashboard-title">Claude Code Orchestrator</h1>
+                <p class="dashboard-subtitle">Real-Time Analytics Dashboard</p>
+            </div>
+            <div class="header-controls">
+                <span class="connection-status" id="connectionStatus">
+                    <span class="status-indicator"></span>
+                    <span class="status-text">Connected</span>
+                </span>
+                <button class="btn-secondary" id="refreshBtn" title="Refresh data">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <polyline points="1 20 1 14 7 14"></polyline>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36M20.49 15a9 9 0 0 1-14.85 3.36"></path>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Tab Navigation -->
+        <nav class="tab-navigation">
+            <button class="tab-button active" data-tab="project" id="tabProject">
+                <span class="tab-icon">📊</span>
+                Current Project
+            </button>
+            <button class="tab-button" data-tab="machine" id="tabMachine">
+                <span class="tab-icon">🖥️</span>
+                Machine-Wide Analytics
+            </button>
+            <button class="tab-button" data-tab="terminal" id="tabTerminal">
+                <span class="tab-icon">⌨️</span>
+                Live Terminal
+            </button>
+            <button class="tab-button" data-tab="settings" id="tabSettings">
+                <span class="tab-icon">⚙️</span>
+                Settings
+            </button>
+        </nav>
+
+        <!-- Tab Content -->
+        <main class="tab-content">
+            <!-- Tab 1: Current Project View -->
+            <section class="tab-panel active" id="tabProject" data-panel="project">
+                <div class="panel-header">
+                    <h2>Current Project Real-Time Metrics</h2>
+                    <span class="last-update" id="projectLastUpdate">Last updated: never</span>
+                </div>
+
+                <!-- Real-Time Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Current Cost</div>
+                        <div class="stat-value" id="projectCost">$0.00</div>
+                        <div class="stat-trend" id="projectCostTrend"></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Tokens Used</div>
+                        <div class="stat-value" id="projectTokens">0</div>
+                        <div class="stat-trend" id="projectTokensTrend"></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">API Calls</div>
+                        <div class="stat-value" id="projectCalls">0</div>
+                        <div class="stat-trend" id="projectCallsTrend"></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Avg Response Time</div>
+                        <div class="stat-value" id="projectAvgTime">0ms</div>
+                        <div class="stat-trend" id="projectTimeTrend"></div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity Table -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <h3>Recent Activity</h3>
+                        <select id="activityFilter" class="filter-select">
+                            <option value="all">All Events</option>
+                            <option value="api">API Calls</option>
+                            <option value="error">Errors</option>
+                            <option value="model">Model Changes</option>
+                        </select>
+                    </div>
+                    <table class="activity-table" id="activityTable">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Event</th>
+                                <th>Type</th>
+                                <th>Duration</th>
+                                <th>Cost</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activityTableBody">
+                            <tr class="loading-row">
+                                <td colspan="6" class="text-center">Loading activity data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Tab 2: Machine-Wide Analytics -->
+            <section class="tab-panel" id="tabMachine" data-panel="machine">
+                <div class="panel-header">
+                    <h2>Machine-Wide Analytics</h2>
+                    <span class="last-update" id="machineLastUpdate">Last updated: never</span>
+                </div>
+
+                <!-- Summary Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Cost (All Time)</div>
+                        <div class="stat-value" id="totalCost">$0.00</div>
+                        <div class="stat-subtext" id="costBudget"></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Active Projects</div>
+                        <div class="stat-value" id="activeProjects">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total API Calls</div>
+                        <div class="stat-value" id="totalCalls">0</div>
+                        <div class="stat-subtext">All-time</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Tokens</div>
+                        <div class="stat-value" id="totalTokens">0</div>
+                        <div class="stat-subtext">All-time</div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="charts-container">
+                    <!-- Cost Over Time -->
+                    <div class="chart-card">
+                        <h3 class="chart-title">Cost Over Time (30 Days)</h3>
+                        <div class="chart" id="costChart"></div>
+                    </div>
+
+                    <!-- Cost by Project -->
+                    <div class="chart-card">
+                        <h3 class="chart-title">Cost by Project</h3>
+                        <div class="chart" id="projectCostChart"></div>
+                    </div>
+
+                    <!-- Model Distribution -->
+                    <div class="chart-card">
+                        <h3 class="chart-title">Model Usage Distribution</h3>
+                        <div class="chart" id="modelChart"></div>
+                    </div>
+                </div>
+
+                <!-- Project Breakdown Table -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <h3>Project Breakdown</h3>
+                        <button class="btn-tertiary" id="exportProjectsBtn">Export CSV</button>
+                    </div>
+                    <table class="data-table" id="projectsTable">
+                        <thead>
+                            <tr>
+                                <th>Project Name</th>
+                                <th>API Calls</th>
+                                <th>Tokens (Input/Output)</th>
+                                <th>Cost</th>
+                                <th>Last Activity</th>
+                            </tr>
+                        </thead>
+                        <tbody id="projectsTableBody">
+                            <tr class="loading-row">
+                                <td colspan="5" class="text-center">Loading project data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Model Usage Table -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <h3>Model Usage Summary</h3>
+                    </div>
+                    <table class="data-table" id="modelsTable">
+                        <thead>
+                            <tr>
+                                <th>Model</th>
+                                <th>Calls</th>
+                                <th>Input Tokens</th>
+                                <th>Output Tokens</th>
+                                <th>Total Cost</th>
+                                <th>Avg Cost/Call</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modelsTableBody">
+                            <tr class="loading-row">
+                                <td colspan="6" class="text-center">Loading model data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Discrepancies Section -->
+                <div class="section-card alert-section">
+                    <div class="section-header">
+                        <h3>Potential Discrepancies</h3>
+                    </div>
+                    <div id="discrepanciesContainer">
+                        <p class="text-muted">No discrepancies detected</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 3: Live Terminal -->
+            <section class="tab-panel" id="tabTerminal" data-panel="terminal">
+                <div class="panel-header">
+                    <h2>Live Terminal</h2>
+                    <div class="terminal-controls">
+                        <button class="btn-tertiary" id="terminalTypeSwitch" title="Switch terminal type">
+                            <span id="terminalTypeLabel">Using: WASM</span>
+                        </button>
+                        <button class="btn-tertiary" id="terminalClearBtn" title="Clear terminal">Clear</button>
+                        <button class="btn-tertiary" id="terminalCopyBtn" title="Copy terminal output">Copy</button>
+                    </div>
+                </div>
+
+                <div class="terminal-wrapper">
+                    <div id="terminal"></div>
+                </div>
+
+                <div class="terminal-info">
+                    <p>
+                        <span id="terminalConnectionStatus">Connected to CCO</span>.
+                        Type commands to interact with the orchestrator.
+                        <span id="terminalTypeInfo" style="margin-left: 12px; color: var(--accent-primary);"></span>
+                    </p>
+                </div>
+            </section>
+
+            <!-- Tab 4: Settings/Admin -->
+            <section class="tab-panel" id="tabSettings" data-panel="settings">
+                <div class="panel-header">
+                    <h2>Settings & Administration</h2>
+                </div>
+
+                <!-- Server Management Section -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <h3>Server Management</h3>
+                    </div>
+                    <div style="padding: 20px;">
+                        <div style="max-width: 600px;">
+                            <h4 style="margin-top: 0; color: #f1f5f9;">Shutdown Server</h4>
+                            <p style="color: #94a3b8; margin-bottom: 20px;">
+                                Gracefully shut down the CCO server. All active connections will be closed and the server will stop.
+                            </p>
+                            <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                                <p style="margin: 0; color: #ef4444; font-weight: 600;">⚠️ Warning</p>
+                                <p style="margin: 8px 0 0 0; color: #f87171; font-size: 0.875rem;">
+                                    This action will terminate all active sessions and stop the server immediately.
+                                </p>
+                            </div>
+                            <button class="btn-secondary" id="shutdownBtn" style="background: #ef4444; border-color: #ef4444; color: white; font-weight: 600;">
+                                Shutdown Server
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Future Settings Sections -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <h3>About</h3>
+                    </div>
+                    <div style="padding: 20px;">
+                        <p style="color: #94a3b8; margin: 0;">
+                            Claude Code Orchestrator (CCO) - Real-time analytics dashboard for monitoring AI-assisted development workflows.
+                        </p>
+                        <p style="color: #94a3b8; margin-top: 12px;">
+                            Version: <span id="settingsVersion">Loading...</span>
+                        </p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="dashboard-footer">
+            <div class="footer-content">
+                <span class="footer-text">Claude Code Orchestrator Dashboard</span>
+                <span class="footer-version" id="versionInfo">Loading...</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="dashboard.js"></script>
+</body>
+</html>

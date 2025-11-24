@@ -1,0 +1,361 @@
+{
+  "name": "claude-army-tdd",
+  "version": "3.0.0",
+  "description": "TDD-aware multi-agent development system with 15 agents",
+
+  "agents": {
+    "chief-architect": {
+      "name": "Chief Architect",
+      "type": "system-architect",
+      "model": "opus",
+      "fallback_model": "claude-3-5-sonnet",
+      "phase": "independent",
+      "responsibilities": [
+        "System architecture design",
+        "Component boundaries",
+        "Technology selection",
+        "Coordination strategy"
+      ],
+      "memory_writes": ["architect/decisions"],
+      "memory_reads": ["user/requirements"]
+    },
+
+    "tdd-coding-agent": {
+      "name": "TDD Coding Agent",
+      "type": "test-automator",
+      "model": "gpt-3.5-turbo",
+      "phase": "1-tdd",
+      "priority": "critical",
+      "description": "Writes comprehensive failing tests before any implementation",
+      "responsibilities": [
+        "Write failing unit tests",
+        "Create test fixtures and mocks",
+        "Define acceptance criteria",
+        "Ensure 90% coverage target",
+        "Verify tests fail (red phase)"
+      ],
+      "memory_writes": ["tdd/failing-tests/*", "tdd/fixtures"],
+      "memory_reads": ["architect/decisions"],
+      "dependencies": ["chief-architect"]
+    },
+
+    "python-expert": {
+      "name": "Python Expert",
+      "type": "python-expert",
+      "model": "gpt-3.5-turbo",
+      "phase": "1-implementation",
+      "responsibilities": [
+        "Implement Python code to pass TDD tests",
+        "FastAPI/Django development",
+        "Refactor while keeping tests green"
+      ],
+      "memory_writes": ["coder/python/*"],
+      "memory_reads": ["tdd/failing-tests/python", "architect/decisions"],
+      "dependencies": ["tdd-coding-agent"]
+    },
+
+    "swift-expert": {
+      "name": "Swift Expert",
+      "type": "ios-developer",
+      "model": "gpt-3.5-turbo",
+      "phase": "1-implementation",
+      "responsibilities": [
+        "Implement Swift/SwiftUI to pass tests",
+        "iOS native development",
+        "UIKit when needed"
+      ],
+      "memory_writes": ["coder/swift/*"],
+      "memory_reads": ["tdd/failing-tests/swift", "architect/decisions"],
+      "dependencies": ["tdd-coding-agent"]
+    },
+
+    "go-expert": {
+      "name": "Go Expert",
+      "type": "backend-dev",
+      "model": "gpt-3.5-turbo",
+      "phase": "1-implementation",
+      "responsibilities": [
+        "Implement Go services to pass tests",
+        "Microservices development",
+        "High-performance backends"
+      ],
+      "memory_writes": ["coder/go/*"],
+      "memory_reads": ["tdd/failing-tests/go", "architect/decisions"],
+      "dependencies": ["tdd-coding-agent"]
+    },
+
+    "rust-expert": {
+      "name": "Rust Expert",
+      "type": "backend-dev",
+      "model": "gpt-3.5-turbo",
+      "phase": "1-implementation",
+      "responsibilities": [
+        "Implement Rust code to pass tests",
+        "Systems programming",
+        "Performance-critical components"
+      ],
+      "memory_writes": ["coder/rust/*"],
+      "memory_reads": ["tdd/failing-tests/rust", "architect/decisions"],
+      "dependencies": ["tdd-coding-agent"]
+    },
+
+    "flutter-expert": {
+      "name": "Flutter Expert",
+      "type": "mobile-developer",
+      "model": "gpt-3.5-turbo",
+      "phase": "1-implementation",
+      "responsibilities": [
+        "Implement Flutter UI to pass tests",
+        "Cross-platform mobile development",
+        "Responsive design"
+      ],
+      "memory_writes": ["coder/flutter/*"],
+      "memory_reads": ["tdd/failing-tests/flutter", "architect/decisions"],
+      "dependencies": ["tdd-coding-agent"]
+    },
+
+    "api-explorer": {
+      "name": "API Explorer",
+      "type": "researcher",
+      "model": "gpt-3.5-turbo",
+      "phase": "1-integration",
+      "responsibilities": [
+        "Research third-party APIs",
+        "Document integration patterns",
+        "Test API endpoints"
+      ],
+      "memory_writes": ["integration/api-patterns"],
+      "memory_reads": ["architect/decisions"],
+      "dependencies": ["chief-architect"]
+    },
+
+    "salesforce-api": {
+      "name": "Salesforce API Expert",
+      "type": "backend-dev",
+      "model": "gpt-3.5-turbo",
+      "phase": "1-integration",
+      "responsibilities": [
+        "Implement Salesforce integration",
+        "REST/SOAP/Bulk API",
+        "OAuth2 setup"
+      ],
+      "memory_writes": ["integration/salesforce"],
+      "memory_reads": ["tdd/failing-tests/salesforce", "architect/decisions"],
+      "dependencies": ["tdd-coding-agent"]
+    },
+
+    "authentik-api": {
+      "name": "Authentik API Expert",
+      "type": "backend-dev",
+      "model": "gpt-3.5-turbo",
+      "phase": "1-integration",
+      "responsibilities": [
+        "Implement Authentik integration",
+        "SSO/SAML/OAuth2",
+        "User provisioning"
+      ],
+      "memory_writes": ["integration/authentik"],
+      "memory_reads": ["tdd/failing-tests/auth", "architect/decisions"],
+      "dependencies": ["tdd-coding-agent"]
+    },
+
+    "devops-engineer": {
+      "name": "DevOps Engineer",
+      "type": "deployment-engineer",
+      "model": "gpt-3.5-turbo",
+      "phase": "1-support",
+      "responsibilities": [
+        "Docker configuration",
+        "CI/CD pipelines",
+        "Kubernetes manifests",
+        "Infrastructure as code"
+      ],
+      "memory_writes": ["devops/infrastructure"],
+      "memory_reads": ["architect/decisions"],
+      "dependencies": ["chief-architect"]
+    },
+
+    "credential-manager": {
+      "name": "Credential Manager",
+      "type": "coder",
+      "model": "gpt-3.5-turbo",
+      "phase": "1-support",
+      "responsibilities": [
+        "Secure credential storage",
+        "Secret rotation",
+        "Access control",
+        "Encryption key management"
+      ],
+      "memory_writes": ["credentials/inventory"],
+      "memory_reads": ["*"],
+      "dependencies": []
+    },
+
+    "qa-engineer": {
+      "name": "QA Engineer",
+      "type": "test-automator",
+      "model": "gpt-4",
+      "phase": "2-quality",
+      "responsibilities": [
+        "Review TDD test completeness",
+        "Add edge case testing",
+        "Integration testing",
+        "Performance testing",
+        "Test quality analysis"
+      ],
+      "memory_writes": ["qa/review/*"],
+      "memory_reads": ["tdd/failing-tests/*", "coder/implementation/*"],
+      "dependencies": ["*-implementation"]
+    },
+
+    "security-auditor": {
+      "name": "Security Auditor",
+      "type": "security-auditor",
+      "model": "gpt-4",
+      "phase": "2-quality",
+      "responsibilities": [
+        "Deep vulnerability analysis",
+        "Threat modeling",
+        "OWASP compliance",
+        "Security test cases",
+        "Penetration test planning"
+      ],
+      "memory_writes": ["security/findings/*"],
+      "memory_reads": ["coder/implementation/*", "architect/decisions"],
+      "dependencies": ["*-implementation"]
+    },
+
+    "documentation-lead": {
+      "name": "Documentation Lead",
+      "type": "coder",
+      "model": "gpt-4",
+      "phase": "2-quality",
+      "responsibilities": [
+        "Technical documentation",
+        "API documentation",
+        "System diagrams",
+        "Deployment guides",
+        "Architectural reasoning"
+      ],
+      "memory_writes": ["docs/*"],
+      "memory_reads": ["architect/decisions", "coder/implementation/*", "qa/review/*"],
+      "dependencies": ["*-implementation"]
+    }
+  },
+
+  "pipeline": {
+    "strategy": "tdd-two-phase",
+    "phases": [
+      {
+        "name": "architecture",
+        "phase_id": "0",
+        "model": "claude-api",
+        "agents": ["chief-architect"],
+        "parallel": false,
+        "duration": "10 minutes",
+        "description": "Independent architecture phase using Claude API"
+      },
+      {
+        "name": "tdd-implementation",
+        "phase_id": "1",
+        "model": "qwen-fast",
+        "model_config": {
+          "actual_model": "qwen2.5-coder:7b-instruct",
+          "memory_requirement": "8GB",
+          "context_window": "32k"
+        },
+        "agents": [
+          "tdd-coding-agent",
+          "python-expert",
+          "swift-expert",
+          "go-expert",
+          "rust-expert",
+          "flutter-expert",
+          "api-explorer",
+          "salesforce-api",
+          "authentik-api",
+          "devops-engineer",
+          "credential-manager"
+        ],
+        "parallel": true,
+        "logical_order": ["tdd-coding-agent", "*"],
+        "duration": "30 minutes",
+        "description": "TDD tests written first, then parallel implementation"
+      },
+      {
+        "name": "quality-documentation",
+        "phase_id": "2",
+        "model": "qwen-quality",
+        "model_config": {
+          "actual_model": "qwen2.5-coder:32b-instruct",
+          "memory_requirement": "32GB",
+          "context_window": "32k"
+        },
+        "agents": [
+          "qa-engineer",
+          "security-auditor",
+          "documentation-lead"
+        ],
+        "parallel": true,
+        "swap_time": "40 seconds",
+        "duration": "30 minutes",
+        "description": "Deep reasoning for quality, security, and documentation"
+      }
+    ],
+    "total_duration": "70 minutes",
+    "model_swaps": 1
+  },
+
+  "llm_routing": {
+    "endpoints": {
+      "claude-api": {
+        "url": "https://api.anthropic.com/v1",
+        "models": {
+          "opus": "claude-opus-4-1",
+          "sonnet": "claude-3-5-sonnet"
+        }
+      },
+      "ccproxy": {
+        "url": "https://coder.visiquate.com/v1",
+        "models": {
+          "qwen-fast": "ollama/qwen2.5-coder:7b-instruct",
+          "qwen-quality": "ollama/qwen2.5-coder:32b-instruct"
+        },
+        "aliases": {
+          "gpt-3.5-turbo": "ollama/qwen2.5-coder:7b-instruct",
+          "gpt-4": "ollama/qwen2.5-coder:32b-instruct"
+        }
+      }
+    }
+  },
+
+  "memory_structure": {
+    "namespaces": [
+      "architect/decisions",
+      "tdd/failing-tests",
+      "tdd/fixtures",
+      "coder/implementation",
+      "integration/*",
+      "qa/review",
+      "security/findings",
+      "docs/technical",
+      "credentials/inventory"
+    ],
+    "coordination_protocol": "claude-flow@alpha",
+    "persistence": "session-based"
+  },
+
+  "success_metrics": {
+    "tdd_compliance": "100%",
+    "test_coverage": "≥90%",
+    "security_vulnerabilities": {
+      "critical": 0,
+      "high": 0
+    },
+    "pipeline_duration": "<2 hours",
+    "model_efficiency": {
+      "swaps": 1,
+      "overhead": "<2 minutes"
+    }
+  }
+}
