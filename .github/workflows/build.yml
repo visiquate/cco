@@ -31,9 +31,13 @@ jobs:
 
       - name: Build CCO
         working-directory: ./cco
+        env:
+          VERSION_DATE: ${{ github.event.repository.updated_at }}
         run: |
-          echo "Building CCO with VERSION_DATE..."
-          cargo build --release --verbose
+          # Generate version date in YYYY.MM.DD format
+          VERSION_DATE=$(date +%Y.%m.%-d)
+          echo "Building CCO with VERSION_DATE=$VERSION_DATE..."
+          VERSION_DATE=$VERSION_DATE cargo build --release --verbose
 
       - name: Generate build artifacts
         working-directory: ./cco
