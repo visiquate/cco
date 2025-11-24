@@ -21,7 +21,7 @@ jobs:
       - name: Checkout source repository
         uses: actions/checkout@v4
         with:
-          repository: langstons/claude-orchestra
+          repository: brentley/cc-orchestra
           ref: ${{ inputs.source_ref }}
           path: cc-orchestra
           fetch-depth: 0
