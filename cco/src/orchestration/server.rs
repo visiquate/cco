@@ -7,7 +7,7 @@ use anyhow::{Context as AnyhowContext, Result};
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
-    response::Response,
+    response::{IntoResponse, Response},
     routing::{delete, get, post},
     Json, Router,
 };
