@@ -37,8 +37,6 @@ jobs:
           components: rustfmt, clippy
 
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: cco
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -69,8 +67,6 @@ jobs:
           toolchain: ${{ matrix.rust }}
 
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: cco
 
       - name: Run tests
         run: cargo test --lib --all-features --verbose
@@ -116,8 +112,6 @@ jobs:
           targets: ${{ matrix.target }}
 
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: cco
 
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }} --all-features
@@ -164,8 +158,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: cco
 
       - name: Install clippy-sarif and sarif-fmt
         run: |
