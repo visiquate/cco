@@ -383,7 +383,7 @@ impl HooksPanel {
 
     /// Render statistics
     fn render_statistics(&self, f: &mut Frame, area: Rect, data: &DecisionsResponse) {
-        let stats_line = format!(
+        let _stats_line = format!(
             "READ: {:.0}% | CREATE: {:.0}% | UPDATE: {:.0}% | DELETE: {:.0}% | Total: {}",
             data.stats.read_pct(),
             data.stats.create_pct(),

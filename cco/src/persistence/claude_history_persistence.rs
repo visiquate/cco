@@ -257,7 +257,7 @@ impl ClaudeHistoryPersistence {
 
         let mut files_processed = 0;
         let mut messages_processed = 0;
-        let mut conversations_processed = metrics_by_date.len() as i64;
+        let _conversations_processed = metrics_by_date.len() as i64;
 
         // Process each day's metrics
         for (date, messages) in metrics_by_date {

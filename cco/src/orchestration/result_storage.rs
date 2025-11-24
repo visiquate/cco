@@ -134,6 +134,7 @@ impl ResultStorage {
     }
 
     /// Query results by timestamp range
+    #[allow(dead_code)]
     pub async fn query_by_time_range(
         &self,
         start: DateTime<Utc>,

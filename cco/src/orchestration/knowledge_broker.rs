@@ -112,7 +112,7 @@ impl KnowledgeBroker {
     }
 
     /// Gather previous agent outputs for an issue
-    async fn gather_previous_outputs(&self, issue_id: &str) -> Result<Vec<AgentOutput>> {
+    async fn gather_previous_outputs(&self, _issue_id: &str) -> Result<Vec<AgentOutput>> {
         // TODO: Implement previous output gathering
         Ok(vec![])
     }

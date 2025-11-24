@@ -497,7 +497,7 @@ impl ModelManager {
 
         // Get model reference
         let model_guard = self.model.lock().await;
-        let model = model_guard
+        let _model = model_guard
             .as_ref()
             .ok_or_else(|| HookError::execution_failed("inference", "Model not loaded"))?
             .clone();

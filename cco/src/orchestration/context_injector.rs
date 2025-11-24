@@ -297,7 +297,7 @@ impl ContextInjector {
     /// Gather git context
     async fn gather_git_context(
         &self,
-        root: &Path,
+        _root: &Path,
     ) -> Result<super::knowledge_broker::GitContext> {
         // TODO: Implement git integration
         Ok(super::knowledge_broker::GitContext {

@@ -432,6 +432,7 @@ impl TuiApp {
     async fn wait_for_daemon_ready(&mut self) -> Result<()> {
         let max_wait = Duration::from_secs(45); // Increased from 30 to 45 seconds for slower systems
         let start = std::time::Instant::now();
+        #[allow(unused_assignments)]
         let mut progress = 0u8;
 
         // Add initial delay before first poll - daemon needs time to initialize

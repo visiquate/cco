@@ -28,7 +28,7 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
-          manifest-path: cco/Cargo.toml
+          cache: false
 
       - name: Build CCO
         working-directory: ./cco

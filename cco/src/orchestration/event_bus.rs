@@ -217,6 +217,7 @@ impl EventBus {
     }
 
     /// Get event statistics
+    #[allow(dead_code)]
     pub async fn get_stats(&self) -> EventStats {
         self.stats.read().await.clone()
     }

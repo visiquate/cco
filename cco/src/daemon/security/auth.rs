@@ -281,7 +281,7 @@ where
             ));
         }
 
-        let token_value = &auth_header[7..]; // Skip "Bearer "
+        let _token_value = &auth_header[7..]; // Skip "Bearer "
 
         // Token validation will be done by middleware
         // This extractor just provides the context after validation
