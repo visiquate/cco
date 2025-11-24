@@ -268,8 +268,10 @@ pub async fn load_claude_metrics_from_home_dir() -> Result<ClaudeMetrics> {
         cache_hit: bool,
         actual_cost: f64,
         #[serde(default)]
+        #[allow(dead_code)]
         would_be_cost: f64,
         #[serde(default)]
+        #[allow(dead_code)]
         savings: f64,
     }
 

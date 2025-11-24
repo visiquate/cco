@@ -49,11 +49,11 @@ pub struct EventBus {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-struct EventStats {
-    total_published: usize,
-    total_delivered: usize,
-    total_failed: usize,
-    active_subscriptions: usize,
+pub struct EventStats {
+    pub total_published: usize,
+    pub total_delivered: usize,
+    pub total_failed: usize,
+    pub active_subscriptions: usize,
 }
 
 impl EventBus {

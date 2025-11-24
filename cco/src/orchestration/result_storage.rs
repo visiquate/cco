@@ -14,7 +14,7 @@ const RETENTION_DAYS: i64 = 30;
 
 /// Result metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct ResultMetadata {
+pub struct ResultMetadata {
     pub id: String,
     pub issue_id: String,
     pub agent_type: String,
