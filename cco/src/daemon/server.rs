@@ -624,10 +624,12 @@ fn create_router(state: Arc<DaemonState>) -> Router {
 }
 
 /// Run the daemon HTTP server
-pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<()> {
+///
+/// Returns the actual port the server bound to (useful when port 0 is specified)
+pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
     info!("🚀 Starting CCO Daemon Server");
     info!("   Version: {}", crate::version::DateVersion::current());
-    info!("   Port: {}", config.port);
+    info!("   Requested Port: {} (0 = random OS-assigned port)", config.port);
     info!("   Host: {}", config.host);
     info!("   Hooks enabled: {}", config.hooks.is_enabled());
 
@@ -637,7 +639,7 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<()> {
     // Create router (clone state for router while keeping reference for logging)
     let app = create_router(Arc::clone(&state));
 
-    // Bind to address
+    // Bind to address (port 0 means OS assigns random port)
     let addr: SocketAddr = format!("{}:{}", config.host, config.port)
         .parse()
         .map_err(|e| anyhow::anyhow!("Invalid address: {}", e))?;
@@ -646,19 +648,25 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("Failed to bind to {}: {}", addr, e))?;
 
-    info!("✅ Daemon server listening on http://{}", addr);
-    info!("   Health: http://{}/health", addr);
-    info!("   Classify: http://{}/api/classify", addr);
-    info!("   Permission: http://{}/api/hooks/permission-request", addr);
-    info!("   Decisions: http://{}/api/hooks/decisions", addr);
-    info!("   Shutdown: http://{}/api/shutdown", addr);
+    // Get the actual bound port (important when port 0 is used)
+    let actual_addr = listener.local_addr()
+        .map_err(|e| anyhow::anyhow!("Failed to get local address: {}", e))?;
+    let actual_port = actual_addr.port();
+
+    info!("✅ Daemon server listening on http://{}", actual_addr);
+    info!("   Actual Port: {}", actual_port);
+    info!("   Health: http://{}/health", actual_addr);
+    info!("   Classify: http://{}/api/classify", actual_addr);
+    info!("   Permission: http://{}/api/hooks/permission-request", actual_addr);
+    info!("   Decisions: http://{}/api/hooks/decisions", actual_addr);
+    info!("   Shutdown: http://{}/api/shutdown", actual_addr);
 
     if state.token_manager.is_some() {
-        info!("   Token Generation: http://{}/api/token/generate", addr);
+        info!("   Token Generation: http://{}/api/token/generate", actual_addr);
     }
 
     if state.knowledge_store.is_some() {
-        info!("   Knowledge API: http://{}/api/knowledge/*", addr);
+        info!("   Knowledge API: http://{}/api/knowledge/*", actual_addr);
         info!("     - POST /api/knowledge/store - Store knowledge item");
         info!("     - POST /api/knowledge/search - Search knowledge base");
         info!("     - GET  /api/knowledge/stats - Knowledge statistics");
@@ -680,7 +688,7 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<()> {
         .map_err(|e| anyhow::anyhow!("Server error: {}", e))?;
 
     info!("Daemon server shut down gracefully");
-    Ok(())
+    Ok(actual_port)
 }
 
 /// Wait for Ctrl+C or SIGTERM signal

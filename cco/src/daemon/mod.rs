@@ -18,7 +18,7 @@ pub mod temp_files;
 
 pub use config::{DaemonConfig, load_config, save_config};
 pub use hooks::{HookExecutor, HookRegistry, HookType, HookPayload, HooksConfig};
-pub use lifecycle::{DaemonManager, DaemonStatus};
+pub use lifecycle::{DaemonManager, DaemonStatus, read_daemon_port, update_daemon_port};
 pub use security::{TokenManager, CredentialDetector, RateLimiter, ValidatedMetadata};
 pub use server::{run_daemon_server, DaemonState};
 pub use service::{ServiceManager, PlatformService};

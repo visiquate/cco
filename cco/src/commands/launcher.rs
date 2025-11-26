@@ -325,7 +325,7 @@ fn set_sidecar_env_vars() {
 /// * `ORCHESTRATOR_AGENTS` - Path to sealed agents file in temp directory
 /// * `ORCHESTRATOR_RULES` - Path to sealed orchestrator rules in temp directory
 /// * `ORCHESTRATOR_HOOKS` - Path to sealed hooks config in temp directory
-/// * `ORCHESTRATOR_API_URL` - Daemon API endpoint (http://localhost:3000)
+/// * `ORCHESTRATOR_API_URL` - Daemon API endpoint (auto-discovered from PID file)
 /// * `ORCHESTRATOR_HOOKS_CONFIG` - JSON hooks configuration (from settings file)
 ///
 /// # Arguments
@@ -338,7 +338,16 @@ fn set_orchestrator_env_vars(settings_path: &PathBuf) {
     env::set_var("ORCHESTRATOR_AGENTS", temp_dir.join(".cco-agents-sealed").to_string_lossy().to_string());
     env::set_var("ORCHESTRATOR_RULES", temp_dir.join(".cco-rules-sealed").to_string_lossy().to_string());
     env::set_var("ORCHESTRATOR_HOOKS", temp_dir.join(".cco-hooks-sealed").to_string_lossy().to_string());
-    env::set_var("ORCHESTRATOR_API_URL", "http://localhost:3000");
+
+    // Auto-discover daemon port from PID file (fallback to localhost:3000 if discovery fails)
+    let api_url = match cco::daemon::read_daemon_port() {
+        Ok(port) => format!("http://localhost:{}", port),
+        Err(_) => {
+            eprintln!("⚠️  Warning: Could not discover daemon port, using default http://localhost:3000");
+            "http://localhost:3000".to_string()
+        }
+    };
+    env::set_var("ORCHESTRATOR_API_URL", api_url);
 
     // Read settings file and extract hooks configuration
     if let Ok(settings_content) = std::fs::read_to_string(settings_path) {

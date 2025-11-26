@@ -199,11 +199,15 @@ impl TempFileManager {
         let home_dir = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/tmp"));
         let model_path = home_dir.join(".cco/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf");
 
+        // Auto-discover daemon port (fallback to 3000 if not running)
+        let daemon_port = super::read_daemon_port().unwrap_or(3000);
+        let api_url = format!("http://localhost:{}", daemon_port);
+
         let settings = json!({
             "version": env!("CARGO_PKG_VERSION"),
             "orchestration": {
                 "enabled": true,
-                "api_url": "http://localhost:3000"
+                "api_url": api_url
             },
             "agents": {
                 "sealed_file": self.agents_path.to_string_lossy()

@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
-use super::github::{Platform, ReleaseInfo};
+use super::releases_api::{Platform, ReleaseInfo};
 
 // MEDIUM FIX #7: Maximum download size to prevent DoS attacks
 const MAX_BINARY_SIZE: u64 = 100 * 1024 * 1024; // 100 MB
@@ -107,10 +107,8 @@ pub async fn download_and_verify(release: &ReleaseInfo) -> Result<PathBuf> {
     download_file(&release.download_url, &temp_archive, release.size).await
         .context("Failed to download update")?;
 
-    // CRITICAL FIX #1: Checksum verification is MANDATORY
-    let expected_checksum = release.checksum.as_ref().ok_or_else(|| {
-        anyhow!("SECURITY: No checksum provided - this should never happen after GitHub API changes")
-    })?;
+    // CRITICAL: Checksum verification is MANDATORY
+    let expected_checksum = &release.checksum;
 
     tracing::info!("Verifying checksum...");
 

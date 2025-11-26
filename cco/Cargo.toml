@@ -52,6 +52,13 @@ ratatui = { version = "0.26", features = ["serde"] }
 crossterm = { version = "0.27", features = ["serde"] }
 which = "5.0"
 jsonwebtoken = "9.3"
+secrecy = "0.8"
+aes-gcm = "0.10"
+pbkdf2 = "0.12"
+base64 = "0.21"
+zeroize = "1.7"
+keyring = "2.3"
+getrandom = "0.2"
 
 # LLM inference engine (Phase 1B)
 llm = "0.1"

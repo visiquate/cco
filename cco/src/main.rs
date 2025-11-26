@@ -148,6 +148,9 @@ enum Commands {
     },
 
     /// Manage daemon lifecycle (start, stop, restart, status)
+    ///
+    /// The daemon binds to a random OS-assigned port for improved security.
+    /// Clients automatically discover the port via the PID file.
     Daemon {
         #[command(subcommand)]
         action: DaemonAction,
@@ -164,6 +167,12 @@ enum Commands {
         #[command(subcommand)]
         action: OrchestrationAction,
     },
+
+    /// Login to CCO releases API via OIDC device flow
+    Login,
+
+    /// Logout from CCO releases API (clear stored tokens)
+    Logout,
 }
 
 #[derive(Subcommand)]
@@ -249,9 +258,12 @@ enum OrchestrationAction {
 #[derive(Subcommand)]
 enum DaemonAction {
     /// Start the daemon
+    ///
+    /// Use port 0 for random OS-assigned port (recommended for security).
+    /// Clients auto-discover the port from the PID file.
     Start {
-        /// Port to listen on (default: 3000)
-        #[arg(short, long, default_value = "3000")]
+        /// Port to listen on (0 = random OS-assigned port, default: 0)
+        #[arg(short, long, default_value = "0")]
         port: u16,
 
         /// Host to bind to (default: 127.0.0.1)
@@ -271,9 +283,11 @@ enum DaemonAction {
     Stop,
 
     /// Restart the daemon
+    ///
+    /// Use port 0 for random OS-assigned port (recommended for security).
     Restart {
-        /// Port to listen on (default: 3000)
-        #[arg(short, long, default_value = "3000")]
+        /// Port to listen on (0 = random OS-assigned port, default: 0)
+        #[arg(short, long, default_value = "0")]
         port: u16,
 
         /// Host to bind to (default: 127.0.0.1)
@@ -797,7 +811,15 @@ async fn main() -> anyhow::Result<()> {
                         });
 
                     // Run the daemon HTTP server (with CRUD classifier and hooks)
-                    cco::daemon::run_daemon_server(config).await
+                    // Returns the actual port the server bound to
+                    let actual_port = cco::daemon::run_daemon_server(config).await?;
+
+                    // Update PID file with the actual port (critical for port 0 / random ports)
+                    if let Err(e) = cco::daemon::update_daemon_port(actual_port) {
+                        eprintln!("Warning: Failed to update PID file with actual port: {}", e);
+                    }
+
+                    Ok(())
                 }
             }
         }
@@ -819,6 +841,20 @@ async fn main() -> anyhow::Result<()> {
                     commands::server::uninstall().await
                 }
             }
+        }
+
+        Commands::Login => {
+            // Initialize tracing for auth commands
+            tracing_subscriber::fmt::init();
+
+            cco::auth::login().await
+        }
+
+        Commands::Logout => {
+            // Initialize tracing for auth commands
+            tracing_subscriber::fmt::init();
+
+            cco::auth::logout().await
         }
 
         Commands::Orchestration { action } => {

@@ -5,9 +5,11 @@
 pub mod agents_config;
 pub mod analytics;
 pub mod api_client;
+pub mod auth;
 pub mod auto_update;
 pub mod cache;
 pub mod claude_history;
+pub mod credentials;
 pub mod daemon;
 pub mod embedded_agents;
 pub mod metrics;

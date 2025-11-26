@@ -29,7 +29,26 @@ cargo build --release
 sudo ln -sf $(pwd)/target/release/cco /usr/local/bin/cco
 ```
 
-### 2. Configure API Keys
+### 2. Authenticate (Required)
+
+```bash
+# Login to CCO (first time only)
+cco login
+
+# Opens browser for secure OIDC authentication
+# Enter code shown in terminal
+# Complete authentication in browser
+
+# You're logged in! Tokens stored securely in ~/.config/cco/tokens.json
+```
+
+**Authentication Features**:
+- Secure OIDC device flow (no password in CLI)
+- Automatic token refresh (transparent)
+- Access control via groups
+- Session lasts 30 days
+
+### 3. Configure API Keys
 
 ```bash
 # Set your Anthropic API key (required)
@@ -43,7 +62,7 @@ export OPENAI_API_KEY="sk-..."
 ollama serve
 ```
 
-### 3. Launch Claude Code with Orchestration
+### 4. Launch Claude Code with Orchestration
 
 ```bash
 # Navigate to your project
@@ -57,6 +76,7 @@ cco tui
 ```
 
 That's it! CCO automatically:
+- Verifies your authentication status
 - Starts the daemon if not running
 - Creates encrypted settings in OS temp directory
 - Sets orchestration environment variables
@@ -152,6 +172,10 @@ User requests: "claude-opus-4"
 ### Basic Commands
 
 ```bash
+# Authentication
+cco login              # Login via OIDC device flow
+cco logout             # Logout and clear tokens
+
 # Launch Claude Code with orchestration
 cco                    # Launches in current directory
 
@@ -167,7 +191,7 @@ cco daemon logs        # View daemon logs
 
 # Version and updates
 cco version            # Show version
-cco update             # Check/install updates
+cco update             # Check/install updates (requires authentication)
 
 # Pass arguments to Claude Code
 cco --help             # Shows Claude Code help
@@ -506,10 +530,23 @@ This format provides clarity on when a version was released, with simple increme
 
 ## Documentation
 
+### User Documentation
 1. **[USAGE.md](./USAGE.md)** - Complete command reference and configuration
-2. **[COST_SAVINGS.md](./COST_SAVINGS.md)** - Understand savings calculations
-3. **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Common issues and solutions
-4. **[BUILDING.md](./BUILDING.md)** - Build from source instructions
+2. **[USER_GUIDE_AUTHENTICATION.md](../docs/USER_GUIDE_AUTHENTICATION.md)** - Authentication guide for end users
+3. **[COST_SAVINGS.md](./COST_SAVINGS.md)** - Understand savings calculations
+4. **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Common issues and solutions
+5. **[BUILDING.md](./BUILDING.md)** - Build from source instructions
+
+### Administrator Documentation
+1. **[DEPLOYMENT_PRIVATE_DISTRIBUTION.md](../docs/DEPLOYMENT_PRIVATE_DISTRIBUTION.md)** - Server deployment guide
+2. **[ADMIN_GUIDE_ACCESS_CONTROL.md](../docs/ADMIN_GUIDE_ACCESS_CONTROL.md)** - User and access management
+3. **[MIGRATION_FROM_GITHUB_RELEASES.md](../docs/MIGRATION_FROM_GITHUB_RELEASES.md)** - Migration guide
+4. **[ARCHITECTURE_PRIVATE_DISTRIBUTION.md](../docs/ARCHITECTURE_PRIVATE_DISTRIBUTION.md)** - Technical architecture
+
+### Developer Documentation
+1. **[AUTH_MODULE_SUMMARY.md](./AUTH_MODULE_SUMMARY.md)** - Authentication module overview
+2. **[AUTH_AND_RELEASES_API_IMPLEMENTATION.md](./AUTH_AND_RELEASES_API_IMPLEMENTATION.md)** - API implementation details
+3. **[TESTING_AUTH_FLOW.md](./TESTING_AUTH_FLOW.md)** - Testing procedures
 
 ## Support
 

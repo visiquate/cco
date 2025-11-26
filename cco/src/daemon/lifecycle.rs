@@ -27,11 +27,61 @@ pub struct DaemonStatus {
 
 /// PID file format
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct PidFileContent {
-    pid: u32,
-    started_at: DateTime<Utc>,
-    port: u16,
-    version: String,
+pub struct PidFileContent {
+    pub pid: u32,
+    pub started_at: DateTime<Utc>,
+    pub port: u16,
+    pub version: String,
+}
+
+/// Read the daemon port from the PID file
+///
+/// This function allows clients to discover which port the daemon is running on.
+/// Returns an error if the daemon is not running or the PID file is invalid.
+pub fn read_daemon_port() -> Result<u16> {
+    let pid_file = super::get_daemon_pid_file()?;
+
+    if !pid_file.exists() {
+        bail!("Daemon is not running (no PID file found)");
+    }
+
+    let contents = fs::read_to_string(&pid_file)
+        .context("Failed to read PID file")?;
+
+    let pid_content: PidFileContent = serde_json::from_str(&contents)
+        .context("Failed to parse PID file")?;
+
+    Ok(pid_content.port)
+}
+
+/// Update the daemon PID file with the actual bound port
+///
+/// This is called by the daemon process after binding to a socket to record
+/// the actual port (especially important when port 0 is used for random assignment).
+pub fn update_daemon_port(actual_port: u16) -> Result<()> {
+    let pid_file = super::get_daemon_pid_file()?;
+
+    if !pid_file.exists() {
+        bail!("PID file not found - cannot update port");
+    }
+
+    // Read existing PID file
+    let contents = fs::read_to_string(&pid_file)
+        .context("Failed to read PID file")?;
+
+    let mut pid_content: PidFileContent = serde_json::from_str(&contents)
+        .context("Failed to parse PID file")?;
+
+    // Update port with actual bound port
+    pid_content.port = actual_port;
+
+    // Write back to PID file
+    let pid_json = serde_json::to_string_pretty(&pid_content)?;
+    fs::write(&pid_file, pid_json).context("Failed to update PID file")?;
+
+    info!("Updated PID file with actual port: {}", actual_port);
+
+    Ok(())
 }
 
 /// Daemon manager for lifecycle operations
@@ -80,7 +130,7 @@ impl DaemonManager {
         // Check if already running
         if let Ok(status) = self.get_status().await {
             if status.is_running {
-                bail!("Daemon is already running on port {} (PID {})", self.config.port, status.pid);
+                bail!("Daemon is already running on port {} (PID {})", status.port, status.pid);
             }
         }
 
@@ -135,7 +185,7 @@ impl DaemonManager {
 
         let pid = child.id();
 
-        // Write PID file
+        // Write initial PID file with requested port (will be updated by daemon process with actual port)
         let pid_content = PidFileContent {
             pid,
             started_at: Utc::now(),
@@ -148,17 +198,30 @@ impl DaemonManager {
         fs::write(&pid_file, pid_json).context("Failed to write PID file")?;
 
         println!("✅ Daemon started successfully (PID: {})", pid);
-        println!("   Dashboard: http://{}:{}", self.config.host, self.config.port);
+        if self.config.port == 0 {
+            println!("   Port: OS will assign random port (checking...)");
+        } else {
+            println!("   Requested Port: {}", self.config.port);
+        }
         println!("   Log file: {}", log_file.display());
         println!("   Settings: {}", temp_manager.settings_path().display());
 
-        // CRITICAL FIX: Wait for daemon to fully initialize
+        // CRITICAL: Wait for daemon to fully initialize and update PID file with actual port
         // Daemon needs time to:
         // - Initialize Tokio runtime (~100-500ms)
         // - Load configuration and analytics (~500-2000ms)
         // - Bind to socket and register routes (~150-700ms)
+        // - Update PID file with actual port (~50-100ms)
         // Total typical startup: 1-3 seconds, add buffer for slower systems
         tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+
+        // Read the actual port from the updated PID file
+        if let Ok(actual_port) = read_daemon_port() {
+            println!("   Actual Port: {}", actual_port);
+            println!("   Dashboard: http://{}:{}", self.config.host, actual_port);
+        } else {
+            println!("   Dashboard: http://{}:{}", self.config.host, self.config.port);
+        }
 
         Ok(())
     }
@@ -336,7 +399,7 @@ mod tests {
     fn test_daemon_manager_creation() {
         let config = DaemonConfig::default();
         let manager = DaemonManager::new(config);
-        assert_eq!(manager.config.port, 3000);
+        assert_eq!(manager.config.port, 0); // Default is now random OS-assigned port
     }
 
     #[test]

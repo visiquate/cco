@@ -11,7 +11,7 @@ use super::hooks::HooksConfig;
 /// Daemon configuration structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonConfig {
-    /// Port to listen on (default: 3000)
+    /// Port to listen on (0 = random OS-assigned port, default: 0)
     pub port: u16,
 
     /// Host to bind to (default: 127.0.0.1)
@@ -52,7 +52,7 @@ pub struct DaemonConfig {
 impl Default for DaemonConfig {
     fn default() -> Self {
         Self {
-            port: 3000,
+            port: 0, // Use random OS-assigned port by default
             host: "127.0.0.1".to_string(),
             log_level: "info".to_string(),
             log_rotation_size: 10 * 1024 * 1024, // 10MB
@@ -71,9 +71,8 @@ impl Default for DaemonConfig {
 impl DaemonConfig {
     /// Validate configuration
     pub fn validate(&self) -> Result<()> {
-        if self.port == 0 {
-            anyhow::bail!("Invalid port: {} (must be 1-65535)", self.port);
-        }
+        // Port 0 is allowed (means OS assigns random port)
+        // Port range is inherently validated by u16 type (0-65535)
 
         if self.log_max_files == 0 {
             anyhow::bail!("log_max_files must be at least 1");
@@ -210,7 +209,7 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = DaemonConfig::default();
-        assert_eq!(config.port, 3000);
+        assert_eq!(config.port, 0); // Default is now random OS-assigned port
         assert_eq!(config.host, "127.0.0.1");
         assert_eq!(config.log_level, "info");
         assert!(config.auto_start);
@@ -221,8 +220,9 @@ mod tests {
         let mut config = DaemonConfig::default();
         assert!(config.validate().is_ok());
 
+        // Port 0 is now valid (OS assigns random port)
         config.port = 0;
-        assert!(config.validate().is_err());
+        assert!(config.validate().is_ok());
 
         config.port = 3000;
         config.log_level = "invalid".to_string();
@@ -272,7 +272,7 @@ mod tests {
     fn test_config_get_values() {
         let config = DaemonConfig::default();
 
-        assert_eq!(config.get("port").unwrap(), "3000");
+        assert_eq!(config.get("port").unwrap(), "0"); // Default is now random port
         assert_eq!(config.get("host").unwrap(), "127.0.0.1");
         assert_eq!(config.get("log_level").unwrap(), "info");
 
@@ -285,6 +285,6 @@ mod tests {
         let config_path = temp_dir.path().join("nonexistent.toml");
 
         let config = DaemonConfig::load(&config_path).unwrap();
-        assert_eq!(config.port, 3000);
+        assert_eq!(config.port, 0); // Default is now random port
     }
 }

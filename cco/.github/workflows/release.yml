@@ -36,7 +36,6 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       channel: ${{ steps.version.outputs.channel }}
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -69,41 +68,37 @@ jobs:
           # This is a placeholder - implement actual changelog extraction
           echo "changelog=See [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)" >> $GITHUB_OUTPUT
 
-      - name: Create GitHub Release Draft
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Create GitHub Release Tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ steps.version.outputs.version }}
-          release_name: CCO v${{ steps.version.outputs.version }}
-          body: |
-            ## CCO v${{ steps.version.outputs.version }}
+        run: |
+          # Create lightweight tag for version tracking (no artifacts uploaded to GitHub)
+          gh release create "v${{ steps.version.outputs.version }}" \
+            --repo ${{ github.repository }} \
+            --title "CCO v${{ steps.version.outputs.version }}" \
+            --notes "## CCO v${{ steps.version.outputs.version }}
 
-            Channel: ${{ steps.version.outputs.channel }}
+          Channel: ${{ steps.version.outputs.channel }}
 
-            ${{ steps.changelog.outputs.changelog }}
+          ${{ steps.changelog.outputs.changelog }}
 
-            ### Installation
+          ### Installation
 
-            #### One-line Install (Unix/Linux/macOS)
-            ```bash
-            curl -fsSL https://raw.githubusercontent.com/brentley/cco-releases/main/install.sh | bash
-            ```
+          Binaries are hosted on the CCO API. Use the automated installers:
 
-            #### Windows PowerShell
-            ```powershell
-            iwr -useb https://raw.githubusercontent.com/brentley/cco-releases/main/install.ps1 | iex
-            ```
+          #### One-line Install (Unix/Linux/macOS)
+          \`\`\`bash
+          curl -fsSL https://raw.githubusercontent.com/brentley/cco-releases/main/install.sh | bash
+          \`\`\`
 
-            #### Manual Download
-            Download the appropriate binary for your platform below.
+          #### Windows PowerShell
+          \`\`\`powershell
+          iwr -useb https://raw.githubusercontent.com/brentley/cco-releases/main/install.ps1 | iex
+          \`\`\`
 
-            ### Checksums
-            SHA256 checksums are available in `checksums.sha256`
-
-          draft: true
-          prerelease: ${{ steps.version.outputs.channel != 'stable' }}
+          ### Checksums
+          SHA256 checksums are available via the API." \
+            $([[ "${{ steps.version.outputs.channel }}" != "stable" ]] && echo "--prerelease")
 
   # Build binaries for all target platforms
   build-release:
@@ -259,75 +254,120 @@ jobs:
           $hash = Get-FileHash "${{ matrix.asset_name }}${{ matrix.asset_extension }}" -Algorithm SHA256
           "$($hash.Hash.ToLower())  ${{ matrix.asset_name }}${{ matrix.asset_extension }}" | Out-File -FilePath "${{ matrix.asset_name }}.sha256"
 
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload artifacts for API
+        uses: actions/upload-artifact@v4
         with:
-          upload_url: ${{ needs.prepare-release.outputs.upload_url }}
-          asset_path: cco/target/${{ matrix.target }}/release/${{ matrix.asset_name }}${{ matrix.asset_extension }}
-          asset_name: ${{ matrix.asset_name }}${{ matrix.asset_extension }}
-          asset_content_type: application/octet-stream
+          name: ${{ matrix.asset_name }}
+          path: |
+            cco/target/${{ matrix.target }}/release/${{ matrix.asset_name }}${{ matrix.asset_extension }}
+            cco/target/${{ matrix.target }}/release/${{ matrix.asset_name }}.sha256
+          retention-days: 1
 
-      - name: Upload Checksum
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.prepare-release.outputs.upload_url }}
-          asset_path: cco/target/${{ matrix.target }}/release/${{ matrix.asset_name }}.sha256
-          asset_name: ${{ matrix.asset_name }}.sha256
-          asset_content_type: text/plain
-
-  # Generate combined checksums file
-  generate-checksums:
-    name: Generate Combined Checksums
+  # Upload to CCO API
+  upload-to-api:
+    name: Upload to CCO API
     needs: [prepare-release, build-release]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download release assets
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare artifacts for API
         run: |
           VERSION="${{ needs.prepare-release.outputs.version }}"
-          mkdir -p checksums
+          mkdir -p release-files
 
-          # Download all SHA256 files
-          for platform in darwin-arm64 darwin-x86_64 linux-x86_64 linux-aarch64 windows-x86_64; do
-            asset_name="cco-v${VERSION}-${platform}"
-
-            if [[ "$platform" == windows-* ]]; then
-              ext=".zip"
-            else
-              ext=".tar.gz"
-            fi
-
-            # Try to download checksum file
-            curl -fsSL \
-              -H "Accept: application/vnd.github.v3+json" \
-              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              "https://api.github.com/repos/${{ github.repository }}/releases/tags/v${VERSION}" \
-              | jq -r ".assets[] | select(.name == \"${asset_name}.sha256\") | .browser_download_url" \
-              | xargs -I {} curl -fsSL {} -o "checksums/${asset_name}.sha256" || true
+          # Move all artifacts to release-files directory
+          for artifact_dir in artifacts/*/; do
+            cp -r "$artifact_dir"* release-files/ || true
           done
 
-          # Combine all checksums
-          cat checksums/*.sha256 > checksums.sha256
+          # Generate combined checksums
+          cd release-files
+          cat *.sha256 > checksums.sha256
 
-      - name: Upload Combined Checksums
-        uses: actions/upload-release-asset@v1
+          # List all files for verification
+          ls -lh
+
+      - name: Upload binaries to API
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.prepare-release.outputs.upload_url }}
-          asset_path: checksums.sha256
-          asset_name: checksums.sha256
-          asset_content_type: text/plain
+          API_KEY: ${{ secrets.CCO_RELEASES_API_KEY }}
+          API_URL: https://cco-api.visiquate.com
+        run: |
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+          CHANNEL="${{ needs.prepare-release.outputs.channel }}"
+
+          # Define platform mappings
+          declare -A platforms=(
+            ["cco-v${VERSION}-darwin-arm64.tar.gz"]="darwin-arm64"
+            ["cco-v${VERSION}-darwin-x86_64.tar.gz"]="darwin-x86_64"
+            ["cco-v${VERSION}-linux-x86_64.tar.gz"]="linux-x86_64"
+            ["cco-v${VERSION}-linux-aarch64.tar.gz"]="linux-aarch64"
+            ["cco-v${VERSION}-windows-x86_64.zip"]="windows-x86_64"
+          )
+
+          # Upload each binary
+          for filename in "${!platforms[@]}"; do
+            filepath="release-files/$filename"
+            platform="${platforms[$filename]}"
+
+            if [[ -f "$filepath" ]]; then
+              echo "Uploading $filename to $platform..."
+              curl -X POST \
+                -H "X-API-Key: $API_KEY" \
+                -F "file=@$filepath" \
+                "$API_URL/upload/$VERSION/$platform" \
+                || { echo "Failed to upload $filename"; exit 1; }
+            fi
+          done
+
+          echo "Binary uploads complete!"
+
+      - name: Upload metadata to API
+        env:
+          API_KEY: ${{ secrets.CCO_RELEASES_API_KEY }}
+          API_URL: https://cco-api.visiquate.com
+        run: |
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+          CHANNEL="${{ needs.prepare-release.outputs.channel }}"
+
+          # Create metadata JSON
+          cat > metadata.json << EOF
+          {
+            "version": "$VERSION",
+            "channel": "$CHANNEL",
+            "date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "git_commit": "${{ github.sha }}",
+            "platforms": {
+              "darwin-arm64": "cco-v${VERSION}-darwin-arm64.tar.gz",
+              "darwin-x86_64": "cco-v${VERSION}-darwin-x86_64.tar.gz",
+              "linux-x86_64": "cco-v${VERSION}-linux-x86_64.tar.gz",
+              "linux-aarch64": "cco-v${VERSION}-linux-aarch64.tar.gz",
+              "windows-x86_64": "cco-v${VERSION}-windows-x86_64.zip"
+            },
+            "release_notes": "https://github.com/${{ github.repository }}/releases/tag/v$VERSION"
+          }
+          EOF
+
+          echo "Uploading metadata..."
+          curl -X POST \
+            -H "X-API-Key: $API_KEY" \
+            -H "Content-Type: application/json" \
+            -d @metadata.json \
+            "$API_URL/releases/$VERSION/metadata" \
+            || { echo "Failed to upload metadata"; exit 1; }
+
+          echo "Metadata upload complete!"
+          echo "Release available at: $API_URL/releases/$VERSION/"
 
   # Publish to distribution repository
   publish-distribution:
     name: Publish to Distribution Repo
-    needs: [prepare-release, generate-checksums]
+    needs: [prepare-release, upload-to-api]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout distribution repository
@@ -349,10 +389,19 @@ jobs:
              --arg channel "$CHANNEL" \
              --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
              --arg url "https://github.com/${{ github.repository }}/releases/tag/v$VERSION" \
+             --arg api_url "https://cco-api.visiquate.com/releases/$VERSION/" \
              '.latest[$channel] = $version |
               .versions[$version] = {
                 "date": $date,
-                "platforms": {},
+                "download_base_url": $api_url,
+                "platforms": {
+                  "darwin-arm64": "cco-v" + $version + "-darwin-arm64.tar.gz",
+                  "darwin-x86_64": "cco-v" + $version + "-darwin-x86_64.tar.gz",
+                  "linux-x86_64": "cco-v" + $version + "-linux-x86_64.tar.gz",
+                  "linux-aarch64": "cco-v" + $version + "-linux-aarch64.tar.gz",
+                  "windows-x86_64": "cco-v" + $version + "-windows-x86_64.zip"
+                },
+                "checksums_url": $api_url + "checksums.sha256",
                 "release_notes": $url,
                 "minimum_rust": "1.75.0",
                 "breaking_changes": false
@@ -364,43 +413,54 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git add version-manifest.json
-          git commit -m "Update manifest for v$VERSION"
+          git commit -m "Update manifest for v$VERSION (API-hosted)"
           git push
 
-      - name: Create distribution release
-        env:
-          GITHUB_TOKEN: ${{ secrets.DISTRIBUTION_REPO_TOKEN }}
+      - name: Update distribution README
         run: |
+          cd cco-releases
           VERSION="${{ needs.prepare-release.outputs.version }}"
+          CHANNEL="${{ needs.prepare-release.outputs.channel }}"
 
-          # Create matching release in distribution repo
-          gh release create "v$VERSION" \
-            --repo brentley/cco-releases \
-            --title "CCO v$VERSION" \
-            --notes "See [source release](https://github.com/${{ github.repository }}/releases/tag/v$VERSION)" \
-            $([[ "${{ needs.prepare-release.outputs.channel }}" != "stable" ]] && echo "--prerelease")
+          # Update README to note API hosting
+          cat >> README.md << EOF
+
+          ## Latest Release: v$VERSION ($CHANNEL)
+          Binaries hosted on CCO API at: https://cco-api.visiquate.com/releases/$VERSION/
+          EOF
+
+          git add README.md
+          git commit -m "Update README for v$VERSION" || true
+          git push || true
 
   # Finalize release
   finalize-release:
     name: Finalize Release
-    needs: [prepare-release, build-release, generate-checksums, publish-distribution]
+    needs: [prepare-release, upload-to-api, publish-distribution]
     runs-on: ubuntu-latest
     steps:
-      - name: Publish release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION="${{ needs.prepare-release.outputs.version }}"
-
-          # Publish the draft release
-          gh release edit "v$VERSION" \
-            --repo ${{ github.repository }} \
-            --draft=false
-
       - name: Announce release
         run: |
-          echo "CCO v${{ needs.prepare-release.outputs.version }} has been released!"
-          echo "Channel: ${{ needs.prepare-release.outputs.channel }}"
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+          CHANNEL="${{ needs.prepare-release.outputs.channel }}"
+
+          echo "=========================================="
+          echo "CCO v$VERSION has been released!"
+          echo "Channel: $CHANNEL"
+          echo "=========================================="
+          echo ""
+          echo "Binaries hosted on CCO API:"
+          echo "  https://cco-api.visiquate.com/releases/$VERSION/"
           echo ""
           echo "Installation:"
           echo "  curl -fsSL https://raw.githubusercontent.com/brentley/cco-releases/main/install.sh | bash"
+          echo ""
+          echo "Platform files:"
+          echo "  - cco-v${VERSION}-darwin-arm64.tar.gz"
+          echo "  - cco-v${VERSION}-darwin-x86_64.tar.gz"
+          echo "  - cco-v${VERSION}-linux-x86_64.tar.gz"
+          echo "  - cco-v${VERSION}-linux-aarch64.tar.gz"
+          echo "  - cco-v${VERSION}-windows-x86_64.zip"
+          echo ""
+          echo "Checksums: https://cco-api.visiquate.com/releases/$VERSION/checksums.sha256"
+          echo "=========================================="

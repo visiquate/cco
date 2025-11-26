@@ -21,7 +21,8 @@
 //! manager.perform_update(true).await?;
 //! ```
 
-pub mod github;
+pub mod github; // Legacy - kept for backwards compatibility
+pub mod releases_api;
 pub mod updater;
 
 use anyhow::{Context, Result};
@@ -263,7 +264,7 @@ impl AutoUpdateManager {
     }
 
     /// Check for updates (returns release info if update available)
-    pub async fn check_for_updates(&mut self) -> Result<Option<github::ReleaseInfo>> {
+    pub async fn check_for_updates(&mut self) -> Result<Option<releases_api::ReleaseInfo>> {
         if !self.config.updates.enabled {
             log_update_event("Update checks are disabled");
             return Ok(None);
@@ -279,10 +280,18 @@ impl AutoUpdateManager {
             config.updates.last_check = Some(Utc::now());
         })?;
 
-        // Fetch latest release
-        let release = match github::fetch_latest_release(&self.config.updates.channel).await {
+        // Fetch latest release from authenticated API
+        let release = match releases_api::fetch_latest_release(&self.config.updates.channel).await {
             Ok(r) => r,
             Err(e) => {
+                // Check if it's an authentication error
+                let err_msg = format!("{}", e);
+                if err_msg.contains("Not authenticated") || err_msg.contains("Please run 'cco login'") {
+                    log_update_event("Update check requires authentication");
+                    println!("\n⚠️  Update check requires authentication.");
+                    println!("   Please run 'cco login' to access updates.");
+                    return Ok(None);
+                }
                 log_update_event(&format!("Failed to check for updates: {}", e));
                 return Err(e);
             }
@@ -305,7 +314,7 @@ impl AutoUpdateManager {
     }
 
     /// Download and verify a new binary
-    pub async fn download_binary(&self, release: &github::ReleaseInfo) -> Result<PathBuf> {
+    pub async fn download_binary(&self, release: &releases_api::ReleaseInfo) -> Result<PathBuf> {
         updater::download_and_verify(release).await
     }
 
