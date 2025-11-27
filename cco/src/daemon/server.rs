@@ -866,6 +866,18 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
             }
         }
 
+        // Perform initial full history scan on startup
+        info!("🔄 Performing initial full history scan...");
+        let initial_persistence = Arc::clone(&persistence_clone);
+        let initial_cache = Arc::clone(&state.metrics_cache);
+        parse_and_store_metrics(initial_persistence, initial_cache, "initial-scan").await;
+
+        // Log completion with metrics
+        if let Ok(metrics) = crate::claude_history::load_claude_metrics_from_home_dir().await {
+            info!("✅ Initial history scan complete: {} messages, ${:.2} total cost",
+                  metrics.messages_count, metrics.total_cost);
+        }
+
         // Spawn periodic fallback task (5s interval) to catch anything the watcher misses
         let metrics_cache_for_periodic = Arc::clone(&state.metrics_cache);
         tokio::spawn(async move {
