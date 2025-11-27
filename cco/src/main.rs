@@ -811,13 +811,8 @@ async fn main() -> anyhow::Result<()> {
                         });
 
                     // Run the daemon HTTP server (with CRUD classifier and hooks)
-                    // Returns the actual port the server bound to
-                    let actual_port = cco::daemon::run_daemon_server(config).await?;
-
-                    // Update PID file with the actual port (critical for port 0 / random ports)
-                    if let Err(e) = cco::daemon::update_daemon_port(actual_port) {
-                        eprintln!("Warning: Failed to update PID file with actual port: {}", e);
-                    }
+                    // Server internally updates PID file with actual port after binding
+                    cco::daemon::run_daemon_server(config).await?;
 
                     Ok(())
                 }

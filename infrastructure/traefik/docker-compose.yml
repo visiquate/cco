@@ -1,0 +1,174 @@
+services:
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik-cco-api
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - cco-network
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # Let's Encrypt Configuration
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-admin@example.com}
+
+      # Authentik Forward Auth Configuration
+      - AUTHENTIK_HOST=${AUTHENTIK_BASE_URL:-https://auth.visiquate.com}
+      - AUTHENTIK_OUTPOST_TOKEN=${AUTHENTIK_OUTPOST_TOKEN:?Error: AUTHENTIK_OUTPOST_TOKEN not set}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik.yml:/traefik.yml:ro
+      - ./dynamic:/dynamic:ro
+      - traefik-certs:/letsencrypt
+    labels:
+      # Enable Traefik dashboard (optional, should be behind auth in production)
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.visiquate.com`)"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.traefik.middlewares=authentik@docker"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Authentik Forward Auth Middleware
+  authentik-outpost:
+    image: ghcr.io/goauthentik/proxy:latest
+    container_name: authentik-outpost-cco
+    restart: unless-stopped
+    environment:
+      AUTHENTIK_HOST: ${AUTHENTIK_BASE_URL:-https://auth.visiquate.com}
+      AUTHENTIK_INSECURE: "false"
+      AUTHENTIK_TOKEN: ${AUTHENTIK_OUTPOST_TOKEN:?Error: AUTHENTIK_OUTPOST_TOKEN not set}
+    networks:
+      - cco-network
+    # Outpost runs on internal port only, not exposed
+    ports:
+      - "4180:4180"
+    labels:
+      - "traefik.enable=false"  # Outpost is not routed through Traefik
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # CCO Releases API Service
+  cco-releases-api:
+    image: ${CCO_API_IMAGE:-ghcr.io/visiquate/cco-releases-api:latest}
+    container_name: cco-releases-api
+    restart: unless-stopped
+    environment:
+      # API Configuration
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - PORT=8000
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+
+      # Release Storage Configuration
+      - RELEASES_DIR=${RELEASES_DIR:-/data/releases}
+      - UPLOAD_API_KEY=${UPLOAD_API_KEY:?Error: UPLOAD_API_KEY not set}
+
+      # Authentik Configuration (for JWT validation)
+      - AUTHENTIK_BASE_URL=${AUTHENTIK_BASE_URL:-https://auth.visiquate.com}
+      - AUTHENTIK_OIDC_JWKS_URL=${AUTHENTIK_BASE_URL:-https://auth.visiquate.com}/application/o/cco-cli/jwks/
+    networks:
+      - cco-network
+    volumes:
+      - cco-releases:/data/releases
+    expose:
+      - 8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      # Traefik routing configuration
+      - "traefik.enable=true"
+      - "traefik.http.routers.cco-api.rule=Host(`cco-api.visiquate.com`)"
+      - "traefik.http.routers.cco-api.entrypoints=websecure"
+      - "traefik.http.routers.cco-api.tls.certresolver=letsencrypt"
+
+      # Forward authentication middleware
+      # Requests are validated by Authentik before reaching the API
+      - "traefik.http.routers.cco-api.middlewares=authentik@docker"
+
+      # Service configuration
+      - "traefik.http.services.cco-api.loadbalancer.server.port=8000"
+      - "traefik.http.services.cco-api.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.cco-api.loadbalancer.healthcheck.interval=30s"
+    depends_on:
+      - authentik-outpost
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Optional: Watchtower for automatic updates
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower-cco
+    restart: unless-stopped
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_INCLUDE_STOPPED=false
+      - WATCHTOWER_POLL_INTERVAL=1800  # Check every 30 minutes
+      - WATCHTOWER_TIMEOUT=60s
+      - WATCHTOWER_SCOPE=cco  # Only update CCO containers
+      - LOG_LEVEL=info
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - cco-network
+    labels:
+      - "traefik.enable=false"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Only watch CCO containers
+    command: --label-enable --label com.centurylinklabs.watchtower.scope=cco
+
+  # Optional: Autoheal for container health monitoring
+  autoheal:
+    image: willfarrell/autoheal:latest
+    container_name: autoheal-cco
+    restart: unless-stopped
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=com.centurylinklabs.watchtower.scope
+      - AUTOHEAL_CONTAINER_LABEL_VALUE=cco
+      - AUTOHEAL_START_PERIOD=300
+      - AUTOHEAL_INTERVAL=30
+      - AUTOHEAL_DEFAULT_STOP_TIMEOUT=10
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - cco-network
+    labels:
+      - "traefik.enable=false"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  cco-network:
+    driver: bridge
+    name: cco-network
+
+volumes:
+  traefik-certs:
+    driver: local
+    name: traefik-certs-cco
+  cco-releases:
+    driver: local
+    name: cco-releases

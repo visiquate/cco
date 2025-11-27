@@ -339,12 +339,18 @@ fn set_orchestrator_env_vars(settings_path: &PathBuf) {
     env::set_var("ORCHESTRATOR_RULES", temp_dir.join(".cco-rules-sealed").to_string_lossy().to_string());
     env::set_var("ORCHESTRATOR_HOOKS", temp_dir.join(".cco-hooks-sealed").to_string_lossy().to_string());
 
-    // Auto-discover daemon port from PID file (fallback to localhost:3000 if discovery fails)
+    // Auto-discover daemon port from PID file (required - no fallback)
     let api_url = match cco::daemon::read_daemon_port() {
-        Ok(port) => format!("http://localhost:{}", port),
-        Err(_) => {
-            eprintln!("⚠️  Warning: Could not discover daemon port, using default http://localhost:3000");
-            "http://localhost:3000".to_string()
+        Ok(port) => {
+            let url = format!("http://localhost:{}", port);
+            println!("   Daemon URL: {}", url);
+            url
+        }
+        Err(e) => {
+            eprintln!("❌ Error: Could not discover daemon port: {}", e);
+            eprintln!("   The daemon must be running before launching Claude Code");
+            eprintln!("   Try: cco daemon restart");
+            std::process::exit(1);
         }
     };
     env::set_var("ORCHESTRATOR_API_URL", api_url);

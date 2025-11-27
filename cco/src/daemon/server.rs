@@ -315,11 +315,14 @@ async fn health(State(state): State<Arc<DaemonState>>) -> Json<HealthResponse> {
         (false, false, "none".to_string())
     };
 
+    // Get actual port from PID file (not config port which may be 0)
+    let actual_port = super::read_daemon_port().unwrap_or(state.config.port);
+
     Json(HealthResponse {
         status: "ok".to_string(),
         version: crate::version::DateVersion::current().to_string(),
         uptime_seconds: uptime,
-        port: state.config.port,
+        port: actual_port,
         hooks: HooksHealthStatus {
             enabled: state.config.hooks.is_enabled(),
             classifier_available,
@@ -652,6 +655,15 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
     let actual_addr = listener.local_addr()
         .map_err(|e| anyhow::anyhow!("Failed to get local address: {}", e))?;
     let actual_port = actual_addr.port();
+
+    // CRITICAL: Update PID file with actual port IMMEDIATELY after binding
+    // This must happen BEFORE starting the server so clients can discover the port
+    if let Err(e) = super::update_daemon_port(actual_port) {
+        warn!("Failed to update PID file with actual port: {}", e);
+        warn!("Clients may not be able to discover daemon port");
+    } else {
+        info!("✅ PID file updated with actual port: {}", actual_port);
+    }
 
     info!("✅ Daemon server listening on http://{}", actual_addr);
     info!("   Actual Port: {}", actual_port);

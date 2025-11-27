@@ -1,0 +1,118 @@
+version: 1
+metadata:
+  name: CCO CLI Application
+  labels:
+    app: cco-cli
+    type: application
+
+entries:
+  # Create the cco-users group
+  - model: authentik_core.group
+    id: cco-users-group
+    identifiers:
+      name: cco-users
+    attrs:
+      name: cco-users
+      is_superuser: false
+      parent: null
+      attributes: {}
+
+  # Create group membership policy
+  - model: authentik_policies_group_membership.groupmembershippolicy
+    id: cco-users-policy
+    identifiers:
+      name: CCO CLI - Require cco-users Group
+    attrs:
+      name: CCO CLI - Require cco-users Group
+      execution_logging: false
+      group: !KeyOf cco-users-group
+
+  # Create the application
+  - model: authentik_core.application
+    id: cco-cli-app
+    identifiers:
+      slug: cco-cli
+    attrs:
+      name: CCO CLI
+      slug: cco-cli
+
+      # Link to OAuth2 provider
+      # Note: Provider must exist before applying this blueprint
+      provider: !Find [authentik_providers_oauth2.oauth2provider, [client_id, cco-cli]]
+
+      # Policy engine mode
+      policy_engine_mode: any
+
+      # UI Settings
+      meta_launch_url: ""
+      meta_description: Command-line interface for Claude Code Orchestra
+      meta_publisher: VisiQuate
+
+      # Icon (optional - base64 encoded or URL)
+      meta_icon: ""
+
+      # Open in new tab
+      open_in_new_tab: false
+
+  # Bind policy to application
+  - model: authentik_policies.policybinding
+    id: cco-cli-policy-binding
+    identifiers:
+      target: !KeyOf cco-cli-app
+      policy: !KeyOf cco-users-policy
+    attrs:
+      target: !KeyOf cco-cli-app
+      policy: !KeyOf cco-users-policy
+      enabled: true
+      order: 0
+      timeout: 30
+
+context:
+  cco-users-group: !KeyOf cco-users-group
+  cco-users-policy: !KeyOf cco-users-policy
+  cco-cli-app: !KeyOf cco-cli-app
+  cco-cli-policy-binding: !KeyOf cco-cli-policy-binding
+
+# Usage Instructions:
+#
+# Prerequisites:
+# - OAuth2 provider must be created first (apply cco-oauth2-provider.yaml)
+#
+# 1. Save this file as cco-application.yaml
+#
+# 2. Apply via Authentik API:
+#    curl -X POST https://auth.visiquate.com/api/v3/managed/blueprints/apply/ \
+#      -H "Authorization: Bearer YOUR_API_TOKEN" \
+#      -H "Content-Type: application/yaml" \
+#      --data-binary @cco-application.yaml
+#
+# 3. Or via Authentik Web UI:
+#    - Navigate to Blueprints
+#    - Click "Import"
+#    - Upload this file
+#    - Click "Apply"
+#
+# 4. Verify application creation:
+#    curl https://auth.visiquate.com/api/v3/core/applications/?slug=cco-cli \
+#      -H "Authorization: Bearer YOUR_API_TOKEN"
+#
+# 5. Add users to cco-users group:
+#    # Get user UUID
+#    USER_UUID=$(curl -s "https://auth.visiquate.com/api/v3/core/users/?username=YOUR_USERNAME" \
+#      -H "Authorization: Bearer YOUR_API_TOKEN" | jq -r '.results[0].pk')
+#
+#    # Get group UUID
+#    GROUP_UUID=$(curl -s https://auth.visiquate.com/api/v3/core/groups/?name=cco-users \
+#      -H "Authorization: Bearer YOUR_API_TOKEN" | jq -r '.results[0].pk')
+#
+#    # Add user to group
+#    curl -X POST "https://auth.visiquate.com/api/v3/core/groups/$GROUP_UUID/add_user/" \
+#      -H "Authorization: Bearer YOUR_API_TOKEN" \
+#      -H "Content-Type: application/json" \
+#      -d "{\"pk\": \"$USER_UUID\"}"
+#
+# Notes:
+# - This blueprint creates the application, group, and policy in one step
+# - Users must be manually added to the cco-users group
+# - Policy binding ensures only group members can authenticate
+# - Consider creating additional policies for MFA or other requirements
