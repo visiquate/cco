@@ -21,9 +21,10 @@ use ratatui::{
     Frame, Terminal,
 };
 use std::io;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use std::path::PathBuf;
-use tokio::time::sleep;
+use tokio::time::{sleep, interval};
+use tokio::sync::mpsc;
 use tokio::fs;
 use tokio::io::{AsyncBufReadExt, BufReader};
 
@@ -130,6 +131,7 @@ pub enum AppState {
         is_active: bool,
         overall_summary: OverallSummary,
         project_summaries: Vec<ProjectSummary>,
+        last_updated: SystemTime,
     },
     /// Error state with message
     Error(String),
@@ -137,6 +139,17 @@ pub enum AppState {
     Shutting {
         message: String,
     },
+}
+
+/// Stats update message for background refresh
+#[derive(Debug, Clone)]
+struct StatsUpdate {
+    cost_by_tier: CostByTier,
+    recent_calls: Vec<RecentCall>,
+    health: HealthResponse,
+    is_active: bool,
+    overall_summary: OverallSummary,
+    project_summaries: Vec<ProjectSummary>,
 }
 
 /// Main TUI application
@@ -349,7 +362,28 @@ impl TuiApp {
         // 2. Load initial data from daemon
         self.load_agents_and_stats().await?;
 
-        // 3. Enter main event loop
+        // 3. Spawn background stats fetcher task
+        let (stats_tx, mut stats_rx) = mpsc::channel::<StatsUpdate>(10);
+        let client_clone = self.client.clone();
+
+        tokio::spawn(async move {
+            let mut interval = interval(Duration::from_secs(3));
+            loop {
+                interval.tick().await;
+
+                // Fetch stats from daemon
+                if let Ok(update) = Self::fetch_stats_update(&client_clone).await {
+                    // Send update (non-blocking)
+                    if stats_tx.send(update).await.is_err() {
+                        // Receiver dropped, exit task
+                        break;
+                    }
+                }
+                // If fetch fails, silently continue - will retry in 3 seconds
+            }
+        });
+
+        // 4. Enter main event loop
         loop {
             // Render current state
             self.render()?;
@@ -363,8 +397,10 @@ impl TuiApp {
                 }
             }
 
-            // Update from daemon periodically
-            self.update_state().await?;
+            // Check for stats updates from background task
+            if let Ok(update) = stats_rx.try_recv() {
+                self.update_state_from_stats(update);
+            }
 
             // Check if we should quit
             if self.should_quit {
@@ -372,7 +408,7 @@ impl TuiApp {
             }
         }
 
-        // 4. Cleanup on exit
+        // 5. Cleanup on exit
         self.shutdown().await?;
         Ok(())
     }
@@ -534,6 +570,7 @@ impl TuiApp {
                     is_active,
                     overall_summary,
                     project_summaries,
+                    last_updated: SystemTime::now(),
                 };
             }
             (Err(e), _) | (_, Err(e)) => {
@@ -543,8 +580,89 @@ impl TuiApp {
         Ok(())
     }
 
-    /// Parse cost breakdown by tier from stats JSON
-    fn parse_cost_by_tier(&self, stats: &serde_json::Value) -> CostByTier {
+    /// Fetch stats update from daemon (used by background task)
+    async fn fetch_stats_update(client: &ApiClient) -> Result<StatsUpdate> {
+        let health = client.health().await?;
+        let stats_url = format!("{}/api/stats", client.base_url);
+        let stats: serde_json::Value = client.get_with_retry(&stats_url).await?;
+
+        // Parse cost by tier
+        let cost_by_tier = Self::parse_cost_by_tier_static(&stats);
+
+        // Parse recent calls
+        let recent_calls = Self::parse_recent_calls_static(&stats);
+
+        // Determine if system is active
+        let is_active = !recent_calls.is_empty();
+
+        // Create overall summary
+        let overall_summary = OverallSummary {
+            total_cost: stats.get("project")
+                .and_then(|p| p.get("cost"))
+                .and_then(|c| c.as_f64())
+                .unwrap_or(0.0),
+            total_tokens: stats.get("project")
+                .and_then(|p| p.get("tokens"))
+                .and_then(|t| t.as_u64())
+                .unwrap_or(0),
+            total_input_tokens: (stats.get("project")
+                .and_then(|p| p.get("tokens"))
+                .and_then(|t| t.as_u64())
+                .unwrap_or(0) as f64 * 0.6) as u64,
+            total_output_tokens: (stats.get("project")
+                .and_then(|p| p.get("tokens"))
+                .and_then(|t| t.as_u64())
+                .unwrap_or(0) as f64 * 0.4) as u64,
+            total_calls: stats.get("project")
+                .and_then(|p| p.get("messages"))
+                .and_then(|m| m.as_u64())
+                .unwrap_or(0),
+            opus_cost: cost_by_tier.opus_cost,
+            sonnet_cost: cost_by_tier.sonnet_cost,
+            haiku_cost: cost_by_tier.haiku_cost,
+        };
+
+        // Create project summary
+        let project_name = stats.get("project")
+            .and_then(|p| p.get("name"))
+            .and_then(|n| n.as_str())
+            .unwrap_or("Claude Code")
+            .to_string();
+
+        let project_summaries = vec![ProjectSummary {
+            name: project_name,
+            cost: overall_summary.total_cost,
+            tokens: overall_summary.total_tokens,
+            calls: overall_summary.total_calls,
+        }];
+
+        Ok(StatsUpdate {
+            cost_by_tier,
+            recent_calls,
+            health,
+            is_active,
+            overall_summary,
+            project_summaries,
+        })
+    }
+
+    /// Update application state from stats update
+    fn update_state_from_stats(&mut self, update: StatsUpdate) {
+        if let AppState::Connected { .. } = self.state {
+            self.state = AppState::Connected {
+                cost_by_tier: update.cost_by_tier,
+                recent_calls: update.recent_calls,
+                health: update.health,
+                is_active: update.is_active,
+                overall_summary: update.overall_summary,
+                project_summaries: update.project_summaries,
+                last_updated: SystemTime::now(),
+            };
+        }
+    }
+
+    /// Parse cost breakdown by tier from stats JSON (static version)
+    fn parse_cost_by_tier_static(stats: &serde_json::Value) -> CostByTier {
         let mut cost_by_tier = CostByTier::default();
 
         // Get total cost and calls from stats.project
@@ -607,7 +725,7 @@ impl TuiApp {
 
                 // Extract token statistics per model from chart_data if available
                 let (sonnet_tokens, opus_tokens, haiku_tokens) =
-                    self.extract_token_stats_per_model(stats, total_tokens);
+                    Self::extract_token_stats_per_model_static(stats, total_tokens);
 
                 // Build total token stats
                 let total_token_stats = TokenStats {
@@ -640,8 +758,13 @@ impl TuiApp {
         cost_by_tier
     }
 
-    /// Extract token statistics per model from model_breakdown in chart_data
-    fn extract_token_stats_per_model(&self, stats: &serde_json::Value, total_tokens: u64) -> (TokenStats, TokenStats, TokenStats) {
+    /// Parse cost breakdown by tier from stats JSON
+    fn parse_cost_by_tier(&self, stats: &serde_json::Value) -> CostByTier {
+        Self::parse_cost_by_tier_static(stats)
+    }
+
+    /// Extract token statistics per model from model_breakdown in chart_data (static version)
+    fn extract_token_stats_per_model_static(stats: &serde_json::Value, total_tokens: u64) -> (TokenStats, TokenStats, TokenStats) {
         let mut sonnet_stats = TokenStats::default();
         let mut opus_stats = TokenStats::default();
         let mut haiku_stats = TokenStats::default();
@@ -675,8 +798,13 @@ impl TuiApp {
         (sonnet_stats, opus_stats, haiku_stats)
     }
 
-    /// Parse recent API calls from activity events
-    fn parse_recent_calls(&self, stats: &serde_json::Value) -> Vec<RecentCall> {
+    /// Extract token statistics per model from model_breakdown in chart_data
+    fn extract_token_stats_per_model(&self, stats: &serde_json::Value, total_tokens: u64) -> (TokenStats, TokenStats, TokenStats) {
+        Self::extract_token_stats_per_model_static(stats, total_tokens)
+    }
+
+    /// Parse recent API calls from activity events (static version)
+    fn parse_recent_calls_static(stats: &serde_json::Value) -> Vec<RecentCall> {
         let mut calls = Vec::new();
 
         if let Some(activity) = stats.get("activity").and_then(|a| a.as_array()) {
@@ -710,6 +838,11 @@ impl TuiApp {
         }
 
         calls
+    }
+
+    /// Parse recent API calls from activity events
+    fn parse_recent_calls(&self, stats: &serde_json::Value) -> Vec<RecentCall> {
+        Self::parse_recent_calls_static(stats)
     }
 
     /// Handle keyboard input
@@ -760,8 +893,9 @@ impl TuiApp {
                     is_active,
                     overall_summary,
                     project_summaries,
+                    last_updated,
                 } => {
-                    Self::render_connected(f, cost_by_tier, recent_calls, health, *is_active, overall_summary, project_summaries, &status_message);
+                    Self::render_connected(f, cost_by_tier, recent_calls, health, *is_active, overall_summary, project_summaries, &status_message, *last_updated);
                 }
                 AppState::Error(err) => {
                     Self::render_error(f, err);
@@ -836,6 +970,7 @@ impl TuiApp {
         overall_summary: &OverallSummary,
         project_summaries: &[ProjectSummary],
         status_message: &str,
+        last_updated: SystemTime,
     ) {
         let area = f.size();
 
@@ -881,7 +1016,7 @@ impl TuiApp {
         Self::render_recent_calls_dynamic(f, recent_calls, content_chunks[3]);
 
         // Footer
-        Self::render_footer(f, chunks[2], status_message);
+        Self::render_footer(f, chunks[2], status_message, last_updated);
     }
 
     /// Render header with title and status
@@ -1178,11 +1313,25 @@ impl TuiApp {
     }
 
     /// Render footer with controls
-    fn render_footer(f: &mut Frame, area: Rect, status_message: &str) {
-        let footer_text = if !status_message.is_empty() {
-            format!("{} | q: Quit | r: Restart", status_message)
+    fn render_footer(f: &mut Frame, area: Rect, status_message: &str, last_updated: SystemTime) {
+        // Calculate elapsed time since last update
+        let elapsed = last_updated
+            .elapsed()
+            .unwrap_or(Duration::from_secs(0));
+        let seconds_ago = elapsed.as_secs();
+
+        let update_text = if seconds_ago < 1 {
+            "Updated: just now".to_string()
+        } else if seconds_ago < 60 {
+            format!("Updated: {}s ago", seconds_ago)
         } else {
-            "q: Quit | r: Restart".to_string()
+            format!("Updated: {}m ago", seconds_ago / 60)
+        };
+
+        let footer_text = if !status_message.is_empty() {
+            format!("{} | {} | q: Quit | r: Restart", status_message, update_text)
+        } else {
+            format!("{} | q: Quit | r: Restart", update_text)
         };
 
         let footer = Paragraph::new(footer_text)
@@ -1239,17 +1388,6 @@ impl TuiApp {
 
         let para = Paragraph::new(text).alignment(Alignment::Center);
         f.render_widget(para, inner);
-    }
-
-    /// Update state from daemon (periodic refresh)
-    async fn update_state(&mut self) -> Result<()> {
-        // Only update if connected
-        if let AppState::Connected { .. } = self.state {
-            // Refresh data every few cycles
-            // For now, we'll do this on demand rather than every cycle
-            // to avoid overwhelming the daemon
-        }
-        Ok(())
     }
 
     /// Shutdown and cleanup
