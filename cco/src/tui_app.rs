@@ -486,15 +486,46 @@ impl TuiApp {
                 // Determine if system is active (has recent activity)
                 let is_active = !recent_calls.is_empty();
 
-                // Load overall metrics from ~/.claude/metrics.json
-                let overall_summary = load_overall_metrics()
-                    .await
-                    .unwrap_or_default();
+                // Create overall metrics from /api/stats data
+                let overall_summary = OverallSummary {
+                    total_cost: stats.get("project")
+                        .and_then(|p| p.get("cost"))
+                        .and_then(|c| c.as_f64())
+                        .unwrap_or(0.0),
+                    total_tokens: stats.get("project")
+                        .and_then(|p| p.get("tokens"))
+                        .and_then(|t| t.as_u64())
+                        .unwrap_or(0),
+                    total_input_tokens: (stats.get("project")
+                        .and_then(|p| p.get("tokens"))
+                        .and_then(|t| t.as_u64())
+                        .unwrap_or(0) as f64 * 0.6) as u64,
+                    total_output_tokens: (stats.get("project")
+                        .and_then(|p| p.get("tokens"))
+                        .and_then(|t| t.as_u64())
+                        .unwrap_or(0) as f64 * 0.4) as u64,
+                    total_calls: stats.get("project")
+                        .and_then(|p| p.get("messages"))
+                        .and_then(|m| m.as_u64())
+                        .unwrap_or(0),
+                    opus_cost: cost_by_tier.opus_cost,
+                    sonnet_cost: cost_by_tier.sonnet_cost,
+                    haiku_cost: cost_by_tier.haiku_cost,
+                };
 
-                // Load project summaries from ~/.claude/projects/*/claude.jsonl
-                let project_summaries = load_project_summaries()
-                    .await
-                    .unwrap_or_default();
+                // Create project summary from /api/stats data
+                let project_name = stats.get("project")
+                    .and_then(|p| p.get("name"))
+                    .and_then(|n| n.as_str())
+                    .unwrap_or("Claude Code")
+                    .to_string();
+
+                let project_summaries = vec![ProjectSummary {
+                    name: project_name,
+                    cost: overall_summary.total_cost,
+                    tokens: overall_summary.total_tokens,
+                    calls: overall_summary.total_calls,
+                }];
 
                 self.state = AppState::Connected {
                     cost_by_tier,
@@ -522,7 +553,7 @@ impl TuiApp {
             .and_then(|c| c.as_f64())
             .unwrap_or(0.0);
         let total_calls = stats.get("project")
-            .and_then(|p| p.get("calls"))
+            .and_then(|p| p.get("messages"))
             .and_then(|c| c.as_u64())
             .unwrap_or(0);
         let total_tokens = stats.get("project")
