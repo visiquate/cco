@@ -229,6 +229,8 @@ pub struct TuiApp {
     should_quit: bool,
     /// Status message
     status_message: String,
+    /// Channel to send time_range updates to background task
+    time_range_tx: Option<mpsc::Sender<TimeRange>>,
 }
 
 /// Load overall metrics from ~/.claude/metrics.json
@@ -414,6 +416,7 @@ impl TuiApp {
             terminal,
             should_quit: false,
             status_message: String::new(),
+            time_range_tx: None,
         })
     }
 
@@ -425,24 +428,41 @@ impl TuiApp {
         // 2. Load initial data from daemon
         self.load_agents_and_stats().await?;
 
-        // 3. Spawn background stats fetcher task
+        // 3. Spawn background stats fetcher task with time_range channel
         let (stats_tx, mut stats_rx) = mpsc::channel::<StatsUpdate>(10);
+        let (time_range_tx, mut time_range_rx) = mpsc::channel::<TimeRange>(10);
         let client_clone = self.client.clone();
 
-        tokio::spawn(async move {
-            let mut interval = interval(Duration::from_secs(3));
-            loop {
-                interval.tick().await;
+        // Store the time_range_tx in self for later use
+        self.time_range_tx = Some(time_range_tx);
 
-                // Fetch stats from daemon
-                if let Ok(update) = Self::fetch_stats_update(&client_clone).await {
-                    // Send update (non-blocking)
-                    if stats_tx.send(update).await.is_err() {
-                        // Receiver dropped, exit task
-                        break;
+        tokio::spawn(async move {
+            let mut current_time_range = TimeRange::AllTime;
+            let mut interval = interval(Duration::from_secs(3));
+
+            loop {
+                tokio::select! {
+                    _ = interval.tick() => {
+                        // Fetch stats with current time range
+                        if let Ok(update) = Self::fetch_stats_update(&client_clone, current_time_range).await {
+                            // Send update (non-blocking)
+                            if stats_tx.send(update).await.is_err() {
+                                // Receiver dropped, exit task
+                                break;
+                            }
+                        }
+                        // If fetch fails, silently continue - will retry in 3 seconds
+                    }
+                    Some(new_range) = time_range_rx.recv() => {
+                        // Update time range and fetch immediately
+                        current_time_range = new_range;
+                        if let Ok(update) = Self::fetch_stats_update(&client_clone, current_time_range).await {
+                            if stats_tx.send(update).await.is_err() {
+                                break;
+                            }
+                        }
                     }
                 }
-                // If fetch fails, silently continue - will retry in 3 seconds
             }
         });
 
@@ -672,12 +692,11 @@ impl TuiApp {
     }
 
     /// Fetch stats update from daemon (used by background task)
-    async fn fetch_stats_update(client: &ApiClient) -> Result<StatsUpdate> {
+    async fn fetch_stats_update(client: &ApiClient, time_range: TimeRange) -> Result<StatsUpdate> {
         let health = client.health().await?;
 
-        // TODO: Pass time_range parameter from AppState to background task
-        // For now, default to "all" until we wire up the parameter
-        let time_range_param = "all";
+        // Use provided time_range parameter
+        let time_range_param = time_range.as_query_param();
         let stats_url = format!("{}/api/stats?time_range={}", client.base_url, time_range_param);
         let stats: serde_json::Value = client.get_with_retry(&stats_url).await?;
 
@@ -1072,6 +1091,11 @@ impl TuiApp {
 
                     self.status_message = format!("Loading {} data...", new_time_range.display_name());
                     self.render()?;
+
+                    // Send new time_range to background task (non-blocking)
+                    if let Some(ref tx) = self.time_range_tx {
+                        let _ = tx.try_send(new_time_range);
+                    }
 
                     // Reload data from daemon with new time range filter
                     if let Err(e) = self.load_agents_and_stats().await {

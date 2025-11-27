@@ -816,9 +816,9 @@ async fn extract_recent_api_calls(metrics: &crate::claude_history::ClaudeMetrics
         }
     }
 
-    // Sort by timestamp descending (most recent first) and take last 10
+    // Sort by timestamp descending (most recent first)
+    // Let TUI dynamically limit based on available height
     all_calls.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
-    all_calls.truncate(10);
 
     all_calls
 }
