@@ -29,13 +29,11 @@ fn main() {
         );
     }
 
-    // Set version - use VERSION_DATE environment variable (required) with git hash
-    // VERSION_DATE must be in format: YYYY.MM.DD (e.g., 2025.11.18)
+    // Set version - auto-detect today's date in YYYY.MM.DD format
+    // Can be overridden with VERSION_DATE environment variable for special builds
     let base_version = env::var("VERSION_DATE").unwrap_or_else(|_| {
-        eprintln!("ERROR: VERSION_DATE environment variable is required!");
-        eprintln!("Usage: VERSION_DATE=2025.11.18 cargo build --release");
-        eprintln!("Format: YYYY.MM.DD (e.g., 2025.11.18)");
-        std::process::exit(1);
+        // Auto-detect today's date (e.g., 2025.11.26 for November 26, 2025)
+        chrono::Local::now().format("%Y.%m.%d").to_string()
     });
 
     // Validate VERSION_DATE format (basic check: should contain dots and be reasonably long)
