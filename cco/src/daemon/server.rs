@@ -833,7 +833,7 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
         let claude_history_dir = dirs::home_dir()
             .unwrap_or_else(|| std::path::PathBuf::from("."))
             .join(".claude")
-            .join("history");
+            .join("projects");
 
         let metrics_cache_for_watcher = Arc::clone(&state.metrics_cache);
         match LogWatcher::new(claude_history_dir.clone()) {

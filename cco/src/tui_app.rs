@@ -29,7 +29,6 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 
 use crate::api_client::{ApiClient, HealthResponse};
 use crate::daemon::{DaemonConfig, DaemonManager};
-use crate::tui::components::HooksPanel;
 
 /// Cost breakdown by tier
 #[derive(Debug, Clone)]
@@ -154,8 +153,6 @@ pub struct TuiApp {
     should_quit: bool,
     /// Status message
     status_message: String,
-    /// Hooks status panel
-    hooks_panel: HooksPanel,
 }
 
 /// Load overall metrics from ~/.claude/metrics.json
@@ -332,9 +329,6 @@ impl TuiApp {
         let base_url = format!("http://{}:{}", config.host, actual_port);
         let client = ApiClient::new(base_url);
 
-        // Create hooks panel
-        let hooks_panel = HooksPanel::new(client.clone());
-
         Ok(Self {
             state: AppState::Initializing {
                 message: "Checking daemon status...".to_string(),
@@ -344,7 +338,6 @@ impl TuiApp {
             terminal,
             should_quit: false,
             status_message: String::new(),
-            hooks_panel,
         })
     }
 
@@ -720,7 +713,6 @@ impl TuiApp {
     fn render(&mut self) -> Result<()> {
         let state = self.state.clone();
         let status_message = self.status_message.clone();
-        let hooks_panel = &self.hooks_panel;
 
         self.terminal.draw(|f| {
             match &state {
@@ -738,7 +730,7 @@ impl TuiApp {
                     overall_summary,
                     project_summaries,
                 } => {
-                    Self::render_connected(f, cost_by_tier, recent_calls, health, *is_active, overall_summary, project_summaries, &status_message, hooks_panel);
+                    Self::render_connected(f, cost_by_tier, recent_calls, health, *is_active, overall_summary, project_summaries, &status_message);
                 }
                 AppState::Error(err) => {
                     Self::render_error(f, err);
@@ -813,7 +805,6 @@ impl TuiApp {
         overall_summary: &OverallSummary,
         project_summaries: &[ProjectSummary],
         status_message: &str,
-        hooks_panel: &HooksPanel,
     ) {
         let area = f.size();
 
@@ -833,13 +824,12 @@ impl TuiApp {
         // Header with Status (server info, port, uptime)
         Self::render_header(f, health, chunks[0]);
 
-        // Main content area layout with Overall Summary and Project Summaries
+        // Main content area layout with Overall Summary and expanded Project Summaries
         let content_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(3),   // Overall Summary
-                Constraint::Length(3 + (project_summaries.len() as u16).min(5)), // Project Summaries (3 header lines + up to 5 projects)
-                Constraint::Length(13),  // Hooks panel (13 lines: 3+7+3)
+                Constraint::Length(3 + (project_summaries.len() as u16).min(10)), // Project Summaries (expanded to show up to 10 projects)
                 Constraint::Length(11),  // Cost summary table
                 Constraint::Min(2),      // Recent calls list (dynamic height)
             ].as_ref())
@@ -848,19 +838,16 @@ impl TuiApp {
         // Overall Summary (Section 1)
         Self::render_overall_summary(f, overall_summary, content_chunks[0]);
 
-        // Project Summaries (Section 2)
+        // Project Summaries (Section 2) - now with more space
         if !project_summaries.is_empty() {
             Self::render_project_summaries(f, project_summaries, content_chunks[1]);
         }
 
-        // Hooks Panel (Section 3)
-        hooks_panel.render(f, content_chunks[2]);
+        // Cost summary by tier (Section 3)
+        Self::render_cost_summary(f, cost_by_tier, content_chunks[2]);
 
-        // Cost summary by tier (Section 4)
-        Self::render_cost_summary(f, cost_by_tier, content_chunks[3]);
-
-        // Recent API calls with dynamic height (Section 5)
-        Self::render_recent_calls_dynamic(f, recent_calls, content_chunks[4]);
+        // Recent API calls with dynamic height (Section 4)
+        Self::render_recent_calls_dynamic(f, recent_calls, content_chunks[3]);
 
         // Footer
         Self::render_footer(f, chunks[2], status_message);
@@ -969,7 +956,8 @@ impl TuiApp {
             Span::styled("Calls", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
         ])];
 
-        for project in projects.iter().take(5) {
+        // Expanded to show up to 10 projects (was 5)
+        for project in projects.iter().take(10) {
             let name = if project.name.len() > 26 {
                 format!("{}...", &project.name[..23])
             } else {
@@ -997,7 +985,7 @@ impl TuiApp {
 
         let para = Paragraph::new(text).block(
             Block::default()
-                .title(format!("Project Summaries ({} total)", projects.len()))
+                .title(format!("Cost Summary by Project ({} total)", projects.len()))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Blue)),
         );
@@ -1226,9 +1214,6 @@ impl TuiApp {
     async fn update_state(&mut self) -> Result<()> {
         // Only update if connected
         if let AppState::Connected { .. } = self.state {
-            // Update hooks panel (it has its own throttling)
-            self.hooks_panel.update().await;
-
             // Refresh data every few cycles
             // For now, we'll do this on demand rather than every cycle
             // to avoid overwhelming the daemon
