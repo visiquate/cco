@@ -8,7 +8,7 @@
 //! - /api/shutdown - Graceful shutdown endpoint
 
 use axum::{
-    extract::{Json, State},
+    extract::{Json, Query, State},
     http::StatusCode,
     middleware,
     response::{IntoResponse, Response},
@@ -565,6 +565,12 @@ async fn shutdown_handler() -> Json<serde_json::Value> {
     }))
 }
 
+/// Stats request query parameters
+#[derive(Debug, Deserialize)]
+struct StatsQuery {
+    time_range: Option<String>,  // "today", "week", "month", "all"
+}
+
 /// Stats response for TUI
 #[derive(Debug, Serialize)]
 struct StatsResponse {
@@ -572,6 +578,7 @@ struct StatsResponse {
     activity: ActivitySummary,
     projects: Vec<ProjectSummary>,
     models: Vec<ModelSummary>,
+    history_start_date: Option<String>,  // ISO 8601 timestamp of oldest conversation
 }
 
 #[derive(Debug, Serialize)]
@@ -613,14 +620,29 @@ struct ModelSummary {
 }
 
 /// Get statistics from metrics cache
-async fn get_stats(State(_state): State<Arc<DaemonState>>) -> Result<Json<StatsResponse>, AppError> {
+async fn get_stats(
+    State(_state): State<Arc<DaemonState>>,
+    Query(params): Query<StatsQuery>,
+) -> Result<Json<StatsResponse>, AppError> {
     use tracing::info;
 
-    // Parse Claude metrics from all projects using parallel parser
-    info!("Starting to load Claude metrics from all projects (parallel)...");
+    // Parse time_range parameter with default to "all"
+    let time_range = params.time_range.as_deref().unwrap_or("all");
+    info!("Stats request with time_range: {}", time_range);
+
+    // Calculate date cutoff based on time range
+    let cutoff_date = match time_range {
+        "today" => Some(std::time::SystemTime::now() - std::time::Duration::from_secs(86400)),
+        "week" => Some(std::time::SystemTime::now() - std::time::Duration::from_secs(7 * 86400)),
+        "month" => Some(std::time::SystemTime::now() - std::time::Duration::from_secs(30 * 86400)),
+        _ => None,  // "all" = no filtering
+    };
+
+    // Parse Claude metrics from all projects using parallel parser with time filter
+    info!("Starting to load Claude metrics from all projects (parallel, time_range={})...", time_range);
     let start = std::time::Instant::now();
 
-    let metrics = crate::claude_history::load_claude_metrics_from_home_dir_parallel().await
+    let (metrics, history_start_date) = crate::claude_history::load_claude_metrics_with_time_filter(cutoff_date).await
         .map_err(|e| AppError::InternalError(format!("Failed to load Claude metrics: {}", e)))?;
 
     let elapsed = start.elapsed();
@@ -677,6 +699,16 @@ async fn get_stats(State(_state): State<Arc<DaemonState>>) -> Result<Json<StatsR
     // Extract recent API calls from project files (last 10 calls across all projects)
     let recent_calls = extract_recent_api_calls(&metrics).await;
 
+    // Convert history_start_date to ISO 8601 string if available
+    let history_start_date_str = history_start_date.and_then(|st| {
+        st.duration_since(std::time::UNIX_EPOCH)
+            .ok()
+            .and_then(|d| {
+                chrono::DateTime::<chrono::Utc>::from_timestamp(d.as_secs() as i64, 0)
+                    .map(|datetime| datetime.to_rfc3339())
+            })
+    });
+
     // Build response
     let response = StatsResponse {
         project: ProjectStats {
@@ -693,6 +725,7 @@ async fn get_stats(State(_state): State<Arc<DaemonState>>) -> Result<Json<StatsR
         },
         projects: project_summaries,
         models: model_summaries,
+        history_start_date: history_start_date_str,
     };
 
     Ok(Json(response))

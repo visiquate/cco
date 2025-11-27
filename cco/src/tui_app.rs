@@ -92,12 +92,60 @@ impl Default for CostByTier {
     }
 }
 
+/// Time range filter for metrics
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TimeRange {
+    Today,
+    Week,
+    Month,
+    AllTime,
+}
+
+impl TimeRange {
+    /// Get display name for the time range
+    pub fn display_name(&self) -> &str {
+        match self {
+            TimeRange::Today => "Today",
+            TimeRange::Week => "This Week",
+            TimeRange::Month => "This Month",
+            TimeRange::AllTime => "All Time",
+        }
+    }
+
+    /// Cycle to the next time range
+    pub fn next(&self) -> Self {
+        match self {
+            TimeRange::Today => TimeRange::Week,
+            TimeRange::Week => TimeRange::Month,
+            TimeRange::Month => TimeRange::AllTime,
+            TimeRange::AllTime => TimeRange::Today,
+        }
+    }
+
+    /// Get query parameter value for API calls
+    pub fn as_query_param(&self) -> &str {
+        match self {
+            TimeRange::Today => "today",
+            TimeRange::Week => "week",
+            TimeRange::Month => "month",
+            TimeRange::AllTime => "all",
+        }
+    }
+}
+
+impl Default for TimeRange {
+    fn default() -> Self {
+        TimeRange::AllTime
+    }
+}
+
 /// Recent API call information
 #[derive(Debug, Clone)]
 pub struct RecentCall {
-    pub tier: String,
+    pub timestamp: String,
+    pub model: String,
+    pub tokens: u64,
     pub cost: f64,
-    pub file: String,
 }
 
 /// Overall summary from metrics
@@ -143,6 +191,8 @@ pub enum AppState {
         project_summaries: Vec<ProjectSummary>,
         model_summaries: Vec<ModelSummary>,
         last_updated: SystemTime,
+        time_range: TimeRange,
+        history_start_date: Option<SystemTime>,
     },
     /// Error state with message
     Error(String),
@@ -162,6 +212,7 @@ struct StatsUpdate {
     overall_summary: OverallSummary,
     project_summaries: Vec<ProjectSummary>,
     model_summaries: Vec<ModelSummary>,
+    history_start_date: Option<SystemTime>,
 }
 
 /// Main TUI application
@@ -520,7 +571,16 @@ impl TuiApp {
     async fn load_agents_and_stats(&mut self) -> Result<()> {
         // Fetch data from daemon API
         let health = self.client.health().await;
-        let stats_url = format!("{}/api/stats", self.client.base_url);
+
+        // Extract current time range if in Connected state, default to AllTime
+        let time_range = if let AppState::Connected { time_range, .. } = self.state {
+            time_range
+        } else {
+            TimeRange::AllTime
+        };
+
+        let time_range_param = time_range.as_query_param();
+        let stats_url = format!("{}/api/stats?time_range={}", self.client.base_url, time_range_param);
         let stats_response: Result<serde_json::Value, _> = self.client.get_with_retry(&stats_url).await;
 
         match (health, stats_response) {
@@ -583,6 +643,14 @@ impl TuiApp {
                 // Parse project summaries from API response
                 let project_summaries = self.parse_project_summaries(&stats);
 
+                // Parse history_start_date from response
+                let history_start_date = stats.get("history_start_date")
+                    .and_then(|d| d.as_str())
+                    .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+                    .map(|dt| {
+                        std::time::UNIX_EPOCH + std::time::Duration::from_secs(dt.timestamp() as u64)
+                    });
+
                 self.state = AppState::Connected {
                     cost_by_tier,
                     recent_calls,
@@ -592,6 +660,8 @@ impl TuiApp {
                     project_summaries,
                     model_summaries,
                     last_updated: SystemTime::now(),
+                    time_range,
+                    history_start_date,
                 };
             }
             (Err(e), _) | (_, Err(e)) => {
@@ -604,7 +674,11 @@ impl TuiApp {
     /// Fetch stats update from daemon (used by background task)
     async fn fetch_stats_update(client: &ApiClient) -> Result<StatsUpdate> {
         let health = client.health().await?;
-        let stats_url = format!("{}/api/stats", client.base_url);
+
+        // TODO: Pass time_range parameter from AppState to background task
+        // For now, default to "all" until we wire up the parameter
+        let time_range_param = "all";
+        let stats_url = format!("{}/api/stats?time_range={}", client.base_url, time_range_param);
         let stats: serde_json::Value = client.get_with_retry(&stats_url).await?;
 
         // Parse cost by tier
@@ -665,6 +739,14 @@ impl TuiApp {
         // Parse project summaries
         let project_summaries = Self::parse_project_summaries_static(&stats);
 
+        // Parse history_start_date from response
+        let history_start_date = stats.get("history_start_date")
+            .and_then(|d| d.as_str())
+            .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+            .map(|dt| {
+                std::time::UNIX_EPOCH + std::time::Duration::from_secs(dt.timestamp() as u64)
+            });
+
         Ok(StatsUpdate {
             cost_by_tier,
             recent_calls,
@@ -673,12 +755,13 @@ impl TuiApp {
             overall_summary,
             project_summaries,
             model_summaries,
+            history_start_date,
         })
     }
 
     /// Update application state from stats update
     fn update_state_from_stats(&mut self, update: StatsUpdate) {
-        if let AppState::Connected { .. } = self.state {
+        if let AppState::Connected { time_range, .. } = self.state {
             self.state = AppState::Connected {
                 cost_by_tier: update.cost_by_tier,
                 recent_calls: update.recent_calls,
@@ -688,6 +771,8 @@ impl TuiApp {
                 project_summaries: update.project_summaries,
                 model_summaries: update.model_summaries,
                 last_updated: SystemTime::now(),
+                time_range, // Preserve user's time range selection
+                history_start_date: update.history_start_date,
             };
         }
     }
@@ -838,31 +923,22 @@ impl TuiApp {
     fn parse_recent_calls_static(stats: &serde_json::Value) -> Vec<RecentCall> {
         let mut calls = Vec::new();
 
-        if let Some(activity) = stats.get("activity").and_then(|a| a.as_array()) {
-            for event in activity.iter().take(20) {
-                if let (Some(model), Some(cost)) = (
-                    event.get("model").and_then(|m| m.as_str()),
-                    event.get("cost").and_then(|c| c.as_f64()),
+        if let Some(recent_calls) = stats.get("activity")
+            .and_then(|a| a.get("recent_calls"))
+            .and_then(|rc| rc.as_array())
+        {
+            for call in recent_calls.iter() {
+                if let (Some(timestamp), Some(model), Some(tokens), Some(cost)) = (
+                    call.get("timestamp").and_then(|t| t.as_str()),
+                    call.get("model").and_then(|m| m.as_str()),
+                    call.get("tokens").and_then(|t| t.as_u64()),
+                    call.get("cost").and_then(|c| c.as_f64()),
                 ) {
-                    let tier = if model.contains("opus") {
-                        "Opus"
-                    } else if model.contains("sonnet") {
-                        "Sonnet"
-                    } else if model.contains("haiku") {
-                        "Haiku"
-                    } else {
-                        "Unknown"
-                    };
-
-                    let file = event.get("file_source")
-                        .and_then(|f| f.as_str())
-                        .unwrap_or("unknown")
-                        .to_string();
-
                     calls.push(RecentCall {
-                        tier: tier.to_string(),
+                        timestamp: timestamp.to_string(),
+                        model: model.to_string(),
+                        tokens,
                         cost,
-                        file,
                     });
                 }
             }
@@ -961,6 +1037,50 @@ impl TuiApp {
                     self.status_message = "Daemon restarted successfully".to_string();
                 }
             }
+            KeyCode::Char('t') | KeyCode::Char('T') => {
+                // Cycle through time ranges
+                if let AppState::Connected { time_range, .. } = self.state {
+                    let new_time_range = time_range.next();
+
+                    // Update the state with new time range
+                    if let AppState::Connected {
+                        cost_by_tier,
+                        recent_calls,
+                        health,
+                        is_active,
+                        overall_summary,
+                        project_summaries,
+                        model_summaries,
+                        last_updated,
+                        history_start_date,
+                        ..
+                    } = self.state.clone()
+                    {
+                        self.state = AppState::Connected {
+                            cost_by_tier,
+                            recent_calls,
+                            health,
+                            is_active,
+                            overall_summary,
+                            project_summaries,
+                            model_summaries,
+                            last_updated,
+                            time_range: new_time_range,
+                            history_start_date,
+                        };
+                    }
+
+                    self.status_message = format!("Loading {} data...", new_time_range.display_name());
+                    self.render()?;
+
+                    // Reload data from daemon with new time range filter
+                    if let Err(e) = self.load_agents_and_stats().await {
+                        self.state = AppState::Error(format!("Failed to reload data: {}", e));
+                    } else {
+                        self.status_message = format!("Time range: {}", new_time_range.display_name());
+                    }
+                }
+            }
             _ => {}
         }
         Ok(false)
@@ -988,8 +1108,10 @@ impl TuiApp {
                     project_summaries,
                     model_summaries,
                     last_updated,
+                    time_range,
+                    history_start_date,
                 } => {
-                    Self::render_connected(f, cost_by_tier, recent_calls, health, *is_active, overall_summary, project_summaries, model_summaries, &status_message, *last_updated);
+                    Self::render_connected(f, cost_by_tier, recent_calls, health, *is_active, overall_summary, project_summaries, model_summaries, &status_message, *last_updated, *time_range, *history_start_date);
                 }
                 AppState::Error(err) => {
                     Self::render_error(f, err);
@@ -1066,6 +1188,8 @@ impl TuiApp {
         model_summaries: &[ModelSummary],
         status_message: &str,
         last_updated: SystemTime,
+        time_range: TimeRange,
+        history_start_date: Option<SystemTime>,
     ) {
         let area = f.size();
 
@@ -1082,8 +1206,8 @@ impl TuiApp {
             )
             .split(area);
 
-        // Header with Status (server info, port, uptime)
-        Self::render_header(f, health, chunks[0]);
+        // Header with Status (server info, port, uptime, time range)
+        Self::render_header(f, health, chunks[0], time_range, history_start_date);
 
         // Main content area layout with Overall Summary and expanded Project Summaries
         let content_chunks = Layout::default()
@@ -1111,11 +1235,11 @@ impl TuiApp {
         Self::render_recent_calls_dynamic(f, recent_calls, content_chunks[3]);
 
         // Footer
-        Self::render_footer(f, chunks[2], status_message, last_updated);
+        Self::render_footer(f, chunks[2], status_message, last_updated, time_range);
     }
 
     /// Render header with title and status
-    fn render_header(f: &mut Frame, health: &HealthResponse, area: Rect) {
+    fn render_header(f: &mut Frame, health: &HealthResponse, area: Rect, time_range: TimeRange, history_start_date: Option<SystemTime>) {
         let uptime = health.uptime_seconds;
         let hours = uptime / 3600;
         let minutes = (uptime % 3600) / 60;
@@ -1130,9 +1254,25 @@ impl TuiApp {
             health.port.to_string()
         };
 
+        // Format history start date
+        let history_str = if let Some(start_time) = history_start_date {
+            if let Ok(duration) = start_time.elapsed() {
+                let days = duration.as_secs() / 86400;
+                if days > 0 {
+                    format!(" | History: {} days", days)
+                } else {
+                    " | History: <1 day".to_string()
+                }
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
+
         let header_str = format!(
-            "v{} | Port: {} | Uptime: {:02}:{:02}:{:02}",
-            health.version, port_str, hours, minutes, seconds
+            "v{} | Port: {} | Uptime: {:02}:{:02}:{:02} | Filter: {}{}",
+            health.version, port_str, hours, minutes, seconds, time_range.display_name(), history_str
         );
 
         let header_text = vec![Line::from(vec![
@@ -1405,21 +1545,48 @@ impl TuiApp {
             .iter()
             .take(display_count)
             .map(|call| {
-                let tier_color = match call.tier.as_str() {
-                    "Opus" => Color::Magenta,
-                    "Sonnet" => Color::Cyan,
-                    "Haiku" => Color::Blue,
-                    _ => Color::White,
+                // Determine color based on model name
+                let model_color = if call.model.contains("opus") {
+                    Color::Magenta
+                } else if call.model.contains("sonnet") {
+                    Color::Cyan
+                } else if call.model.contains("haiku") {
+                    Color::Blue
+                } else {
+                    Color::White
                 };
 
+                // Parse timestamp and calculate relative time
+                let relative_time = if let Ok(timestamp) = chrono::DateTime::parse_from_rfc3339(&call.timestamp) {
+                    let now = chrono::Utc::now();
+                    let duration = now.signed_duration_since(timestamp);
+
+                    if duration.num_seconds() < 60 {
+                        format!("{}s ago", duration.num_seconds())
+                    } else if duration.num_minutes() < 60 {
+                        format!("{}m ago", duration.num_minutes())
+                    } else if duration.num_hours() < 24 {
+                        format!("{}h ago", duration.num_hours())
+                    } else {
+                        format!("{}d ago", duration.num_days())
+                    }
+                } else {
+                    "unknown".to_string()
+                };
+
+                // Format tokens (e.g., 3480 -> 3.5K)
+                let tokens_str = Self::format_tokens(call.tokens);
+
+                // Format: "5m ago  claude-sonnet-4-5  3.5K tokens  $0.0012"
                 let content = format!(
-                    "{:<8} ${:>7.4}  {}",
-                    call.tier,
-                    call.cost,
-                    call.file
+                    "{:<8}  {:<22}  {:>6} tokens  ${:>7.4}",
+                    relative_time,
+                    call.model,
+                    tokens_str,
+                    call.cost
                 );
 
-                ListItem::new(content).style(Style::default().fg(tier_color))
+                ListItem::new(content).style(Style::default().fg(model_color))
             })
             .collect();
 
@@ -1444,7 +1611,7 @@ impl TuiApp {
     }
 
     /// Render footer with controls
-    fn render_footer(f: &mut Frame, area: Rect, status_message: &str, last_updated: SystemTime) {
+    fn render_footer(f: &mut Frame, area: Rect, status_message: &str, last_updated: SystemTime, time_range: TimeRange) {
         // Calculate elapsed time since last update
         let elapsed = last_updated
             .elapsed()
@@ -1460,9 +1627,9 @@ impl TuiApp {
         };
 
         let footer_text = if !status_message.is_empty() {
-            format!("{} | {} | q: Quit | r: Restart", status_message, update_text)
+            format!("{} | {} | q: Quit | r: Restart | t: Time Range ({})", status_message, update_text, time_range.display_name())
         } else {
-            format!("{} | q: Quit | r: Restart", update_text)
+            format!("{} | q: Quit | r: Restart | t: Time Range ({})", update_text, time_range.display_name())
         };
 
         let footer = Paragraph::new(footer_text)

@@ -795,8 +795,6 @@ pub async fn load_claude_metrics_from_home_dir_parallel() -> Result<ClaudeMetric
             // Parse the file
             match parse_jsonl_file(&file_path).await {
                 Ok(messages) => {
-                    let message_count = messages.len();
-
                     // Process each message and update concurrent structures
                     for (model, usage, _timestamp) in messages {
                         let normalized_model = normalize_model_name(&model);
@@ -1023,6 +1021,347 @@ pub async fn load_claude_metrics_from_home_dir_parallel() -> Result<ClaudeMetric
     );
 
     Ok(metrics)
+}
+
+/// Load Claude metrics from home directory with time filtering
+///
+/// This is an optimized version that filters conversations by modification time
+/// and returns both filtered metrics and the oldest conversation timestamp.
+///
+/// # Arguments
+/// * `since` - Optional cutoff date. Only process files modified after this time.
+///             None = process all files (equivalent to "all")
+///
+/// # Returns
+/// Tuple of (ClaudeMetrics, Option<SystemTime>) where:
+/// - ClaudeMetrics: Aggregated metrics for conversations matching the filter
+/// - Option<SystemTime>: Timestamp of the oldest conversation in the filtered dataset
+///
+/// # Example
+/// ```no_run
+/// use cco::claude_history::load_claude_metrics_with_time_filter;
+/// use std::time::{SystemTime, Duration};
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     // Get metrics for last 7 days
+///     let cutoff = Some(SystemTime::now() - Duration::from_secs(7 * 86400));
+///     let (metrics, oldest) = load_claude_metrics_with_time_filter(cutoff).await?;
+///     println!("Total cost (last 7 days): ${:.2}", metrics.total_cost);
+///     Ok(())
+/// }
+/// ```
+pub async fn load_claude_metrics_with_time_filter(
+    since: Option<std::time::SystemTime>
+) -> Result<(ClaudeMetrics, Option<std::time::SystemTime>)> {
+    const CONCURRENCY_LIMIT: usize = 50;
+
+    let start_time = std::time::Instant::now();
+
+    // Get home directory
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
+    let projects_dir = format!("{}/.claude/projects", home);
+    let projects_path = Path::new(&projects_dir);
+
+    if !projects_path.exists() {
+        tracing::debug!("Claude projects directory does not exist: {}", projects_dir);
+        return Ok((ClaudeMetrics::default(), None));
+    }
+
+    // Step 1: Collect all JSONL files from all projects with metadata
+    info!("Discovering JSONL files in {} (with time filter)...", projects_dir);
+    let discovery_start = std::time::Instant::now();
+
+    let mut all_files: Vec<(PathBuf, String, std::time::SystemTime)> = Vec::with_capacity(2500);
+
+    let mut project_entries = fs::read_dir(projects_path).await?;
+    while let Some(project_entry) = project_entries.next_entry().await? {
+        let project_path = project_entry.path();
+
+        if !project_path.is_dir() {
+            continue;
+        }
+
+        let project_name = project_entry.file_name().to_string_lossy().to_string();
+
+        let mut file_entries = fs::read_dir(&project_path).await?;
+        while let Some(file_entry) = file_entries.next_entry().await? {
+            let file_path = file_entry.path();
+
+            if file_path.extension().and_then(|s| s.to_str()) == Some("jsonl") {
+                // Get file modification time
+                if let Ok(metadata) = std::fs::metadata(&file_path) {
+                    if let Ok(modified) = metadata.modified() {
+                        // Apply time filter if specified
+                        if let Some(cutoff) = since {
+                            if modified < cutoff {
+                                continue; // Skip files older than cutoff
+                            }
+                        }
+
+                        all_files.push((file_path, project_name.clone(), modified));
+                    }
+                }
+            }
+        }
+    }
+
+    let discovery_elapsed = discovery_start.elapsed();
+    info!(
+        "Discovered {} JSONL files in {:.2}s (after time filter)",
+        all_files.len(),
+        discovery_elapsed.as_secs_f64()
+    );
+
+    // Track oldest conversation timestamp
+    let oldest_file_time = all_files.iter()
+        .map(|(_, _, modified)| *modified)
+        .min();
+
+    // Step 2: Process files in parallel with semaphore-controlled concurrency
+    info!(
+        "Parsing {} files with {} concurrent workers...",
+        all_files.len(),
+        CONCURRENCY_LIMIT
+    );
+    let parse_start = std::time::Instant::now();
+
+    // Concurrent aggregation structures using DashMap (lock-free)
+    let model_breakdown: Arc<DashMap<String, ModelBreakdown>> = Arc::new(DashMap::with_capacity(10));
+    let project_breakdown: Arc<DashMap<String, ProjectBreakdown>> = Arc::new(DashMap::with_capacity(30));
+
+    // Global counters
+    let global_stats = Arc::new(DashMap::new());
+    global_stats.insert("total_input_tokens", 0u64);
+    global_stats.insert("total_output_tokens", 0u64);
+    global_stats.insert("total_cache_creation_tokens", 0u64);
+    global_stats.insert("total_cache_read_tokens", 0u64);
+    global_stats.insert("total_cost", 0u64);
+    global_stats.insert("messages_count", 0u64);
+    global_stats.insert("conversations_count", 0u64);
+    global_stats.insert("files_processed", 0u64);
+    global_stats.insert("files_failed", 0u64);
+
+    // Semaphore to limit concurrency
+    let semaphore = Arc::new(tokio::sync::Semaphore::new(CONCURRENCY_LIMIT));
+
+    // Spawn all file parsing tasks
+    let mut handles = Vec::with_capacity(all_files.len());
+
+    for (file_path, project_name, _modified) in all_files {
+        let semaphore = Arc::clone(&semaphore);
+        let model_breakdown = Arc::clone(&model_breakdown);
+        let project_breakdown = Arc::clone(&project_breakdown);
+        let global_stats = Arc::clone(&global_stats);
+
+        let handle = tokio::spawn(async move {
+            let _permit = semaphore.acquire().await.expect("Semaphore closed");
+
+            match parse_jsonl_file(&file_path).await {
+                Ok(messages) => {
+                    for (model, usage, _timestamp) in messages {
+                        let normalized_model = normalize_model_name(&model);
+                        let (input_price, output_price, cache_write_price, cache_read_price) =
+                            get_model_pricing(&normalized_model);
+
+                        let input_tokens = usage.input_tokens.unwrap_or(0);
+                        let output_tokens = usage.output_tokens.unwrap_or(0);
+                        let cache_creation = usage.cache_creation_input_tokens.unwrap_or(0);
+                        let cache_read = usage.cache_read_input_tokens.unwrap_or(0);
+
+                        let input_cost = calculate_cost(input_tokens, input_price);
+                        let output_cost = calculate_cost(output_tokens, output_price);
+                        let cache_write_cost = calculate_cost(cache_creation, cache_write_price);
+                        let cache_read_cost = calculate_cost(cache_read, cache_read_price);
+                        let total_message_cost = input_cost + output_cost + cache_write_cost + cache_read_cost;
+
+                        // Update global stats atomically
+                        global_stats.entry("total_input_tokens").and_modify(|v| *v += input_tokens);
+                        global_stats.entry("total_output_tokens").and_modify(|v| *v += output_tokens);
+                        global_stats.entry("total_cache_creation_tokens").and_modify(|v| *v += cache_creation);
+                        global_stats.entry("total_cache_read_tokens").and_modify(|v| *v += cache_read);
+                        global_stats.entry("total_cost").and_modify(|v| *v += (total_message_cost * 1_000_000_000.0) as u64);
+                        global_stats.entry("messages_count").and_modify(|v| *v += 1);
+
+                        // Update per-model breakdown
+                        model_breakdown
+                            .entry(normalized_model.clone())
+                            .and_modify(|breakdown| {
+                                breakdown.input_tokens += input_tokens;
+                                breakdown.output_tokens += output_tokens;
+                                breakdown.cache_creation_tokens += cache_creation;
+                                breakdown.cache_read_tokens += cache_read;
+                                breakdown.input_cost += input_cost;
+                                breakdown.output_cost += output_cost;
+                                breakdown.cache_write_cost += cache_write_cost;
+                                breakdown.cache_read_cost += cache_read_cost;
+                                breakdown.total_cost += total_message_cost;
+                                breakdown.message_count += 1;
+                            })
+                            .or_insert_with(|| ModelBreakdown {
+                                input_tokens,
+                                output_tokens,
+                                cache_creation_tokens: cache_creation,
+                                cache_read_tokens: cache_read,
+                                input_cost,
+                                output_cost,
+                                cache_write_cost,
+                                cache_read_cost,
+                                total_cost: total_message_cost,
+                                message_count: 1,
+                            });
+
+                        // Update per-project breakdown
+                        project_breakdown
+                            .entry(project_name.clone())
+                            .and_modify(|breakdown| {
+                                breakdown.total_input_tokens += input_tokens;
+                                breakdown.total_output_tokens += output_tokens;
+                                breakdown.total_cache_creation_tokens += cache_creation;
+                                breakdown.total_cache_read_tokens += cache_read;
+                                breakdown.total_cost += total_message_cost;
+                                breakdown.message_count += 1;
+
+                                breakdown
+                                    .models
+                                    .entry(normalized_model.clone())
+                                    .and_modify(|model_bd| {
+                                        model_bd.input_tokens += input_tokens;
+                                        model_bd.output_tokens += output_tokens;
+                                        model_bd.cache_creation_tokens += cache_creation;
+                                        model_bd.cache_read_tokens += cache_read;
+                                        model_bd.input_cost += input_cost;
+                                        model_bd.output_cost += output_cost;
+                                        model_bd.cache_write_cost += cache_write_cost;
+                                        model_bd.cache_read_cost += cache_read_cost;
+                                        model_bd.total_cost += total_message_cost;
+                                        model_bd.message_count += 1;
+                                    })
+                                    .or_insert_with(|| ModelBreakdown {
+                                        input_tokens,
+                                        output_tokens,
+                                        cache_creation_tokens: cache_creation,
+                                        cache_read_tokens: cache_read,
+                                        input_cost,
+                                        output_cost,
+                                        cache_write_cost,
+                                        cache_read_cost,
+                                        total_cost: total_message_cost,
+                                        message_count: 1,
+                                    });
+                            })
+                            .or_insert_with(|| {
+                                let mut models = HashMap::new();
+                                models.insert(
+                                    normalized_model.clone(),
+                                    ModelBreakdown {
+                                        input_tokens,
+                                        output_tokens,
+                                        cache_creation_tokens: cache_creation,
+                                        cache_read_tokens: cache_read,
+                                        input_cost,
+                                        output_cost,
+                                        cache_write_cost,
+                                        cache_read_cost,
+                                        total_cost: total_message_cost,
+                                        message_count: 1,
+                                    },
+                                );
+
+                                ProjectBreakdown {
+                                    name: project_name.clone(),
+                                    total_input_tokens: input_tokens,
+                                    total_output_tokens: output_tokens,
+                                    total_cache_creation_tokens: cache_creation,
+                                    total_cache_read_tokens: cache_read,
+                                    total_cost: total_message_cost,
+                                    message_count: 1,
+                                    conversation_count: 0,
+                                    models,
+                                }
+                            });
+                    }
+
+                    project_breakdown
+                        .entry(project_name.clone())
+                        .and_modify(|breakdown| {
+                            breakdown.conversation_count += 1;
+                        });
+                    global_stats.entry("conversations_count").and_modify(|v| *v += 1);
+                    global_stats.entry("files_processed").and_modify(|v| *v += 1);
+
+                    Ok::<(), anyhow::Error>(())
+                }
+                Err(e) => {
+                    debug!("Failed to parse file {:?}: {}", file_path, e);
+                    global_stats.entry("files_failed").and_modify(|v| *v += 1);
+                    Err(e)
+                }
+            }
+        });
+
+        handles.push(handle);
+    }
+
+    // Wait for all tasks to complete
+    for handle in handles {
+        let _ = handle.await;
+    }
+
+    let parse_elapsed = parse_start.elapsed();
+    info!(
+        "Parsed {} files in {:.2}s ({:.1} files/sec)",
+        global_stats.get("files_processed").map(|v| *v).unwrap_or(0),
+        parse_elapsed.as_secs_f64(),
+        global_stats.get("files_processed").map(|v| *v).unwrap_or(0) as f64 / parse_elapsed.as_secs_f64()
+    );
+
+    // Step 3: Convert DashMap to regular HashMap
+    let model_breakdown_map: HashMap<String, ModelBreakdown> = model_breakdown
+        .iter()
+        .map(|entry| (entry.key().clone(), entry.value().clone()))
+        .collect();
+
+    let project_breakdown_map: HashMap<String, ProjectBreakdown> = project_breakdown
+        .iter()
+        .map(|entry| (entry.key().clone(), entry.value().clone()))
+        .collect();
+
+    // Build final metrics struct
+    let metrics = ClaudeMetrics {
+        total_input_tokens: global_stats.get("total_input_tokens").map(|v| *v).unwrap_or(0),
+        total_output_tokens: global_stats.get("total_output_tokens").map(|v| *v).unwrap_or(0),
+        total_cache_creation_tokens: global_stats
+            .get("total_cache_creation_tokens")
+            .map(|v| *v)
+            .unwrap_or(0),
+        total_cache_read_tokens: global_stats
+            .get("total_cache_read_tokens")
+            .map(|v| *v)
+            .unwrap_or(0),
+        total_cost: global_stats.get("total_cost").map(|v| *v).unwrap_or(0) as f64 / 1_000_000_000.0,
+        messages_count: global_stats.get("messages_count").map(|v| *v).unwrap_or(0),
+        conversations_count: global_stats.get("conversations_count").map(|v| *v).unwrap_or(0),
+        model_breakdown: model_breakdown_map,
+        project_breakdown: project_breakdown_map,
+        last_updated: Utc::now(),
+    };
+
+    let total_elapsed = start_time.elapsed();
+    info!(
+        "Total filtered metrics load time: {:.2}s (discovery: {:.2}s, parse: {:.2}s)",
+        total_elapsed.as_secs_f64(),
+        discovery_elapsed.as_secs_f64(),
+        parse_elapsed.as_secs_f64()
+    );
+    info!(
+        "Performance: {:.1} files/sec, {} messages, ${:.2} total cost",
+        global_stats.get("files_processed").map(|v| *v).unwrap_or(0) as f64 / total_elapsed.as_secs_f64(),
+        metrics.messages_count,
+        metrics.total_cost
+    );
+
+    Ok((metrics, oldest_file_time))
 }
 
 /// Load Claude project metrics grouped by date for time-series analysis
