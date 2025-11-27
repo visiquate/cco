@@ -87,7 +87,14 @@ pub async fn launch_tui() -> Result<()> {
             eprintln!("   Troubleshooting:");
             eprintln!("   1. Check if daemon is running: cco daemon status");
             eprintln!("   2. Try restarting daemon: cco daemon restart");
-            eprintln!("   3. Use web dashboard instead: http://localhost:3000");
+
+            // Try to discover daemon port for helpful error message
+            if let Ok(port) = cco::daemon::read_daemon_port() {
+                eprintln!("   3. Use web dashboard instead: http://localhost:{}", port);
+            } else {
+                eprintln!("   3. Start the daemon first: cco daemon start");
+            }
+
             eprintln!();
             std::process::exit(1);
         }

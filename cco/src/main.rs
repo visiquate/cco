@@ -469,6 +469,17 @@ async fn main() -> anyhow::Result<()> {
             let version = DateVersion::current();
             println!("🚀 Starting Claude Code Orchestra {}...", version);
 
+            // Check if daemon is already running on a different port
+            if let Ok(daemon_port) = cco::daemon::read_daemon_port() {
+                if daemon_port != port {
+                    eprintln!("⚠️  Warning: Daemon already running on port {}", daemon_port);
+                    eprintln!("   Requested port: {}", port);
+                    eprintln!("   Stop daemon first with: cco daemon stop");
+                    eprintln!("   Or use the running daemon: cco tui");
+                    std::process::exit(1);
+                }
+            }
+
             // Background check for updates (non-blocking)
             tokio::spawn(async {
                 if let Ok(Some(latest)) = update::check_latest_version().await {
@@ -552,9 +563,28 @@ async fn main() -> anyhow::Result<()> {
             // Initialize tracing for other commands
             tracing_subscriber::fmt::init();
 
-            println!("Checking health of {}:{}", host, port);
+            // Auto-discover daemon port if using default values
+            let actual_port = if host == "127.0.0.1" && port == 3000 {
+                // User didn't specify custom host/port, try to discover daemon port
+                match cco::daemon::read_daemon_port() {
+                    Ok(discovered_port) => {
+                        println!("Discovered daemon on port {}", discovered_port);
+                        discovered_port
+                    }
+                    Err(_) => {
+                        eprintln!("❌ Daemon not running");
+                        eprintln!("   Start it with: cco daemon start");
+                        std::process::exit(1);
+                    }
+                }
+            } else {
+                // User specified custom host/port, use as-is
+                port
+            };
 
-            let url = format!("http://{}:{}/health", host, port);
+            println!("Checking health of {}:{}", host, actual_port);
+
+            let url = format!("http://{}:{}/health", host, actual_port);
             match reqwest::Client::new().get(&url).send().await {
                 Ok(response) => {
                     let status = response.status();
@@ -576,7 +606,7 @@ async fn main() -> anyhow::Result<()> {
                     }
                 }
                 Err(e) => {
-                    eprintln!("❌ Failed to connect to {}:{}: {}", host, port, e);
+                    eprintln!("❌ Failed to connect to {}:{}: {}", host, actual_port, e);
                     std::process::exit(1);
                 }
             }
@@ -635,7 +665,14 @@ async fn main() -> anyhow::Result<()> {
                 Ok(mut app) => app.run().await,
                 Err(e) => {
                     eprintln!("❌ Failed to start TUI dashboard: {}", e);
-                    eprintln!("   Please use the web-based dashboard instead at http://localhost:3000");
+
+                    // Try to discover daemon port for helpful error message
+                    if let Ok(port) = cco::daemon::read_daemon_port() {
+                        eprintln!("   Please use the web-based dashboard instead at http://localhost:{}", port);
+                    } else {
+                        eprintln!("   Start the daemon first: cco daemon start");
+                    }
+
                     std::process::exit(1);
                 }
             }

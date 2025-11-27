@@ -324,8 +324,12 @@ impl TuiApp {
         let config = DaemonConfig::default();
         let daemon_manager = DaemonManager::new(config.clone());
 
-        // Create API client
-        let base_url = format!("http://{}:{}", config.host, config.port);
+        // Auto-discover daemon port from PID file (if daemon is running)
+        // Otherwise fall back to default port (will trigger daemon start in ensure_daemon_running)
+        let actual_port = crate::daemon::read_daemon_port().unwrap_or(config.port);
+
+        // Create API client with discovered port
+        let base_url = format!("http://{}:{}", config.host, actual_port);
         let client = ApiClient::new(base_url);
 
         // Create hooks panel
@@ -871,7 +875,9 @@ impl TuiApp {
 
         // Section 1: Status (server info, port, uptime)
         let port_str = if health.port == 0 {
-            "3000".to_string() // Default port if not set
+            // Port not set in health response - should not happen in production
+            // but provide fallback for resilience
+            "unknown".to_string()
         } else {
             health.port.to_string()
         };
