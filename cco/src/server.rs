@@ -610,15 +610,15 @@ async fn dashboard_js() -> impl IntoResponse {
 
 /// Analytics stats endpoint - unified format for dashboard
 async fn stats(State(state): State<Arc<ServerState>>) -> Result<Json<StatsResponse>, ServerError> {
-    // Try loading from home directory metrics.json first (newer Claude Code format)
-    let claude_metrics = match crate::claude_history::load_claude_metrics_from_home_dir().await {
+    // Use high-performance parallel parser to scan ALL conversation files
+    let claude_metrics = match crate::claude_history::load_claude_metrics_from_home_dir_parallel().await {
         Ok(metrics) if metrics.total_cost > 0.0 || metrics.messages_count > 0 => {
-            trace!("✅ Loaded metrics from ~/.claude/metrics.json");
+            trace!("✅ Loaded metrics from ALL conversation files (parallel parser)");
             metrics
         }
         Ok(_) => {
             // Fall back to project-based JSONL files
-            trace!("No data in ~/.claude/metrics.json, trying project JSONL files");
+            trace!("No data found, trying single project JSONL files");
             let project_path = get_current_project_path()
                 .map_err(|e| ServerError::Internal(format!("Failed to determine project path: {}", e)))?;
 
@@ -627,8 +627,8 @@ async fn stats(State(state): State<Arc<ServerState>>) -> Result<Json<StatsRespon
                 .map_err(|e| ServerError::Internal(format!("Failed to load Claude metrics: {}", e)))?
         }
         Err(e) => {
-            // If home dir fails, try project path
-            trace!("Error loading from ~/.claude/metrics.json: {}, trying project JSONL files", e);
+            // If parallel scan fails, try project path
+            trace!("Error loading from parallel parser: {}, trying project JSONL files", e);
             let project_path = get_current_project_path()
                 .map_err(|e| ServerError::Internal(format!("Failed to determine project path: {}", e)))?;
 
@@ -1691,15 +1691,15 @@ fn load_model_overrides() -> HashMap<String, String> {
 /// Claude history metrics REST endpoint
 async fn claude_history_metrics(
 ) -> Result<Json<crate::claude_history::ClaudeMetrics>, ServerError> {
-    // Try loading from home directory metrics.json first (newer Claude Code format)
-    let metrics = match crate::claude_history::load_claude_metrics_from_home_dir().await {
+    // Use high-performance parallel parser to scan ALL conversation files
+    let metrics = match crate::claude_history::load_claude_metrics_from_home_dir_parallel().await {
         Ok(metrics) if metrics.total_cost > 0.0 || metrics.messages_count > 0 => {
-            trace!("✅ Loaded metrics from ~/.claude/metrics.json");
+            trace!("✅ Loaded metrics from ALL conversation files (parallel parser)");
             metrics
         }
         Ok(_) => {
             // Fall back to project-based JSONL files
-            trace!("No data in ~/.claude/metrics.json, trying project JSONL files");
+            trace!("No data found, trying single project JSONL files");
             let project_path = get_current_project_path()
                 .map_err(|e| ServerError::Internal(format!("Failed to determine project path: {}", e)))?;
 
@@ -1708,8 +1708,8 @@ async fn claude_history_metrics(
                 .map_err(|e| ServerError::Internal(format!("Failed to load Claude metrics: {}", e)))?
         }
         Err(e) => {
-            // If home dir fails, try project path
-            trace!("Error loading from ~/.claude/metrics.json: {}, trying project JSONL files", e);
+            // If parallel scan fails, try project path
+            trace!("Error loading from parallel parser: {}, trying project JSONL files", e);
             let project_path = get_current_project_path()
                 .map_err(|e| ServerError::Internal(format!("Failed to determine project path: {}", e)))?;
 

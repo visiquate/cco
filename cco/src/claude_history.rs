@@ -5,13 +5,15 @@
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
+use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::fs;
 use tokio::io::{AsyncBufReadExt, AsyncSeekExt, BufReader};
-use tracing::{debug, error, warn};
+use tracing::{debug, error, info, warn};
 
 /// Per-model breakdown of usage and costs
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -26,6 +28,36 @@ pub struct ModelBreakdown {
     pub cache_read_cost: f64,
     pub total_cost: f64,
     pub message_count: u64,
+}
+
+/// Per-project breakdown of usage and costs
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ProjectBreakdown {
+    pub name: String,
+    pub total_input_tokens: u64,
+    pub total_output_tokens: u64,
+    pub total_cache_creation_tokens: u64,
+    pub total_cache_read_tokens: u64,
+    pub total_cost: f64,
+    pub message_count: u64,
+    pub conversation_count: u64,
+    pub models: HashMap<String, ModelBreakdown>,
+}
+
+impl Default for ProjectBreakdown {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            total_input_tokens: 0,
+            total_output_tokens: 0,
+            total_cache_creation_tokens: 0,
+            total_cache_read_tokens: 0,
+            total_cost: 0.0,
+            message_count: 0,
+            conversation_count: 0,
+            models: HashMap::new(),
+        }
+    }
 }
 
 impl Default for ModelBreakdown {
@@ -56,6 +88,7 @@ pub struct ClaudeMetrics {
     pub messages_count: u64,
     pub conversations_count: u64,
     pub model_breakdown: HashMap<String, ModelBreakdown>,
+    pub project_breakdown: HashMap<String, ProjectBreakdown>,
     pub last_updated: DateTime<Utc>,
 }
 
@@ -70,6 +103,7 @@ impl Default for ClaudeMetrics {
             messages_count: 0,
             conversations_count: 0,
             model_breakdown: HashMap::new(),
+            project_breakdown: HashMap::new(),
             last_updated: Utc::now(),
         }
     }
@@ -284,6 +318,20 @@ async fn parse_jsonl_file(path: &Path) -> Result<Vec<(String, UsageData, Option<
 /// - Full file parse: ~100ms for large files
 /// - Incremental parse (no changes): <10ms
 /// - Incremental parse (few new lines): <20ms
+///
+/// # Example
+/// ```no_run
+/// use cco::claude_history::parse_jsonl_file_from_offset;
+/// use std::path::Path;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let path = Path::new("/path/to/file.jsonl");
+///     let (messages, new_offset, line_count) = parse_jsonl_file_from_offset(path, 0).await?;
+///     println!("Parsed {} messages from {} lines", messages.len(), line_count);
+///     Ok(())
+/// }
+/// ```
 pub async fn parse_jsonl_file_from_offset(
     path: &Path,
     byte_offset: u64,
@@ -321,12 +369,12 @@ pub async fn parse_jsonl_file_from_offset(
     Ok((messages, current_offset, line_count))
 }
 
-/// Load Claude metrics from home directory metrics.json file
+/// Load Claude metrics from all projects in ~/.claude/projects/
 ///
-/// This loads the newer Claude Code metrics format from ~/.claude/metrics.json
+/// Scans all project directories and aggregates metrics by project and model.
 ///
 /// # Returns
-/// ClaudeMetrics struct with aggregated usage and cost data
+/// ClaudeMetrics struct with aggregated usage, cost data, and breakdowns by project and model
 ///
 /// # Example
 /// ```no_run
@@ -341,6 +389,111 @@ pub async fn parse_jsonl_file_from_offset(
 /// }
 /// ```
 pub async fn load_claude_metrics_from_home_dir() -> Result<ClaudeMetrics> {
+    // Get home directory
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
+    let projects_dir = format!("{}/.claude/projects", home);
+    let projects_path = Path::new(&projects_dir);
+
+    if !projects_path.exists() {
+        tracing::debug!("Claude projects directory does not exist: {}", projects_dir);
+        return Ok(ClaudeMetrics::default());
+    }
+
+    let mut metrics = ClaudeMetrics::default();
+
+    // Read all project directories
+    let mut entries = fs::read_dir(projects_path).await?;
+
+    while let Some(entry) = entries.next_entry().await? {
+        let path = entry.path();
+
+        // Only process directories
+        if !path.is_dir() {
+            continue;
+        }
+
+        // Get project name from directory name
+        let project_name = entry.file_name().to_string_lossy().to_string();
+
+        // Parse project metrics
+        match load_claude_project_metrics(path.to_str().unwrap()).await {
+            Ok(project_metrics) => {
+                // Aggregate totals
+                metrics.total_input_tokens += project_metrics.total_input_tokens;
+                metrics.total_output_tokens += project_metrics.total_output_tokens;
+                metrics.total_cache_creation_tokens += project_metrics.total_cache_creation_tokens;
+                metrics.total_cache_read_tokens += project_metrics.total_cache_read_tokens;
+                metrics.total_cost += project_metrics.total_cost;
+                metrics.messages_count += project_metrics.messages_count;
+                metrics.conversations_count += project_metrics.conversations_count;
+
+                // Aggregate model breakdown
+                for (model, breakdown) in &project_metrics.model_breakdown {
+                    let entry = metrics.model_breakdown
+                        .entry(model.clone())
+                        .or_insert_with(ModelBreakdown::default);
+
+                    entry.input_tokens += breakdown.input_tokens;
+                    entry.output_tokens += breakdown.output_tokens;
+                    entry.cache_creation_tokens += breakdown.cache_creation_tokens;
+                    entry.cache_read_tokens += breakdown.cache_read_tokens;
+                    entry.input_cost += breakdown.input_cost;
+                    entry.output_cost += breakdown.output_cost;
+                    entry.cache_write_cost += breakdown.cache_write_cost;
+                    entry.cache_read_cost += breakdown.cache_read_cost;
+                    entry.total_cost += breakdown.total_cost;
+                    entry.message_count += breakdown.message_count;
+                }
+
+                // Add project breakdown (if there are any messages)
+                if project_metrics.messages_count > 0 {
+                    metrics.project_breakdown.insert(
+                        project_name.clone(),
+                        ProjectBreakdown {
+                            name: project_name,
+                            total_input_tokens: project_metrics.total_input_tokens,
+                            total_output_tokens: project_metrics.total_output_tokens,
+                            total_cache_creation_tokens: project_metrics.total_cache_creation_tokens,
+                            total_cache_read_tokens: project_metrics.total_cache_read_tokens,
+                            total_cost: project_metrics.total_cost,
+                            message_count: project_metrics.messages_count,
+                            conversation_count: project_metrics.conversations_count,
+                            models: project_metrics.model_breakdown.clone(),
+                        },
+                    );
+                }
+            }
+            Err(e) => {
+                tracing::debug!("Failed to load project metrics for {}: {}", project_name, e);
+                // Continue processing other projects
+            }
+        }
+    }
+
+    metrics.last_updated = Utc::now();
+    Ok(metrics)
+}
+
+/// Load Claude metrics from home directory metrics.json file (legacy format)
+///
+/// This loads the older Claude Code metrics format from ~/.claude/metrics.json
+///
+/// # Returns
+/// ClaudeMetrics struct with aggregated usage and cost data
+///
+/// # Example
+/// ```no_run
+/// use cco::claude_history::load_claude_metrics_from_metrics_json;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let metrics = load_claude_metrics_from_metrics_json().await?;
+///     println!("Total cost: ${:.2}", metrics.total_cost);
+///     println!("Total API calls: {}", metrics.messages_count);
+///     Ok(())
+/// }
+/// ```
+pub async fn load_claude_metrics_from_metrics_json() -> Result<ClaudeMetrics> {
     // Get home directory
     let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
     let metrics_path = format!("{}/.claude/metrics.json", home);
@@ -518,6 +671,356 @@ pub async fn load_claude_project_metrics(project_path: &str) -> Result<ClaudeMet
 
     metrics.conversations_count = conversation_count;
     metrics.last_updated = Utc::now();
+
+    Ok(metrics)
+}
+
+/// Load Claude metrics from home directory with parallel JSONL parsing
+///
+/// This is an optimized version that processes files in parallel for maximum throughput.
+/// Target: 2,339 files in under 60 seconds (>40 files/second).
+///
+/// # Performance Optimizations
+/// - **Parallel file processing**: 50 concurrent workers (configurable)
+/// - **DashMap aggregation**: Lock-free concurrent HashMap updates
+/// - **Batch file discovery**: Collect all files upfront, process in parallel
+/// - **Memory efficient**: Pre-allocated capacity hints, streaming line-by-line
+///
+/// # Returns
+/// ClaudeMetrics struct with aggregated usage, cost data, and breakdowns by project and model
+///
+/// # Example
+/// ```no_run
+/// use cco::claude_history::load_claude_metrics_from_home_dir_parallel;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let metrics = load_claude_metrics_from_home_dir_parallel().await?;
+///     println!("Total cost: ${:.2}", metrics.total_cost);
+///     println!("Total API calls: {}", metrics.messages_count);
+///     Ok(())
+/// }
+/// ```
+pub async fn load_claude_metrics_from_home_dir_parallel() -> Result<ClaudeMetrics> {
+    const CONCURRENCY_LIMIT: usize = 50; // Optimal balance between CPU/IO
+
+    let start_time = std::time::Instant::now();
+
+    // Get home directory
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
+    let projects_dir = format!("{}/.claude/projects", home);
+    let projects_path = Path::new(&projects_dir);
+
+    if !projects_path.exists() {
+        tracing::debug!("Claude projects directory does not exist: {}", projects_dir);
+        return Ok(ClaudeMetrics::default());
+    }
+
+    // Step 1: Collect all JSONL files from all projects (fast sequential scan)
+    info!("Discovering JSONL files in {}...", projects_dir);
+    let discovery_start = std::time::Instant::now();
+
+    let mut all_files: Vec<(PathBuf, String)> = Vec::with_capacity(2500); // Expect ~2,354 files
+
+    let mut project_entries = fs::read_dir(projects_path).await?;
+    while let Some(project_entry) = project_entries.next_entry().await? {
+        let project_path = project_entry.path();
+
+        // Only process directories
+        if !project_path.is_dir() {
+            continue;
+        }
+
+        let project_name = project_entry.file_name().to_string_lossy().to_string();
+
+        // Read all JSONL files in this project
+        let mut file_entries = fs::read_dir(&project_path).await?;
+        while let Some(file_entry) = file_entries.next_entry().await? {
+            let file_path = file_entry.path();
+
+            // Only process .jsonl files
+            if file_path.extension().and_then(|s| s.to_str()) == Some("jsonl") {
+                all_files.push((file_path, project_name.clone()));
+            }
+        }
+    }
+
+    let discovery_elapsed = discovery_start.elapsed();
+    info!(
+        "Discovered {} JSONL files in {:.2}s",
+        all_files.len(),
+        discovery_elapsed.as_secs_f64()
+    );
+
+    // Step 2: Process files in parallel with semaphore-controlled concurrency
+    info!(
+        "Parsing {} files with {} concurrent workers...",
+        all_files.len(),
+        CONCURRENCY_LIMIT
+    );
+    let parse_start = std::time::Instant::now();
+
+    // Concurrent aggregation structures using DashMap (lock-free)
+    let model_breakdown: Arc<DashMap<String, ModelBreakdown>> = Arc::new(DashMap::with_capacity(10));
+    let project_breakdown: Arc<DashMap<String, ProjectBreakdown>> = Arc::new(DashMap::with_capacity(30));
+
+    // Global counters (we'll use atomic operations via DashMap pattern)
+    let global_stats = Arc::new(DashMap::new());
+    global_stats.insert("total_input_tokens", 0u64);
+    global_stats.insert("total_output_tokens", 0u64);
+    global_stats.insert("total_cache_creation_tokens", 0u64);
+    global_stats.insert("total_cache_read_tokens", 0u64);
+    global_stats.insert("total_cost", 0u64); // Store as integer (cost * 1_000_000_000 for precision)
+    global_stats.insert("messages_count", 0u64);
+    global_stats.insert("conversations_count", 0u64);
+    global_stats.insert("files_processed", 0u64);
+    global_stats.insert("files_failed", 0u64);
+
+    // Semaphore to limit concurrency
+    let semaphore = Arc::new(tokio::sync::Semaphore::new(CONCURRENCY_LIMIT));
+
+    // Spawn all file parsing tasks
+    let mut handles = Vec::with_capacity(all_files.len());
+
+    for (file_path, project_name) in all_files {
+        let semaphore = Arc::clone(&semaphore);
+        let model_breakdown = Arc::clone(&model_breakdown);
+        let project_breakdown = Arc::clone(&project_breakdown);
+        let global_stats = Arc::clone(&global_stats);
+
+        let handle = tokio::spawn(async move {
+            // Acquire semaphore permit (blocks if at concurrency limit)
+            let _permit = semaphore.acquire().await.expect("Semaphore closed");
+
+            // Parse the file
+            match parse_jsonl_file(&file_path).await {
+                Ok(messages) => {
+                    let message_count = messages.len();
+
+                    // Process each message and update concurrent structures
+                    for (model, usage, _timestamp) in messages {
+                        let normalized_model = normalize_model_name(&model);
+                        let (input_price, output_price, cache_write_price, cache_read_price) =
+                            get_model_pricing(&normalized_model);
+
+                        let input_tokens = usage.input_tokens.unwrap_or(0);
+                        let output_tokens = usage.output_tokens.unwrap_or(0);
+                        let cache_creation = usage.cache_creation_input_tokens.unwrap_or(0);
+                        let cache_read = usage.cache_read_input_tokens.unwrap_or(0);
+
+                        // Calculate costs
+                        let input_cost = calculate_cost(input_tokens, input_price);
+                        let output_cost = calculate_cost(output_tokens, output_price);
+                        let cache_write_cost = calculate_cost(cache_creation, cache_write_price);
+                        let cache_read_cost = calculate_cost(cache_read, cache_read_price);
+                        let total_message_cost = input_cost + output_cost + cache_write_cost + cache_read_cost;
+
+                        // Update global stats atomically
+                        global_stats
+                            .entry("total_input_tokens")
+                            .and_modify(|v| *v += input_tokens);
+                        global_stats
+                            .entry("total_output_tokens")
+                            .and_modify(|v| *v += output_tokens);
+                        global_stats
+                            .entry("total_cache_creation_tokens")
+                            .and_modify(|v| *v += cache_creation);
+                        global_stats
+                            .entry("total_cache_read_tokens")
+                            .and_modify(|v| *v += cache_read);
+                        global_stats
+                            .entry("total_cost")
+                            .and_modify(|v| *v += (total_message_cost * 1_000_000_000.0) as u64);
+                        global_stats
+                            .entry("messages_count")
+                            .and_modify(|v| *v += 1);
+
+                        // Update per-model breakdown
+                        model_breakdown
+                            .entry(normalized_model.clone())
+                            .and_modify(|breakdown| {
+                                breakdown.input_tokens += input_tokens;
+                                breakdown.output_tokens += output_tokens;
+                                breakdown.cache_creation_tokens += cache_creation;
+                                breakdown.cache_read_tokens += cache_read;
+                                breakdown.input_cost += input_cost;
+                                breakdown.output_cost += output_cost;
+                                breakdown.cache_write_cost += cache_write_cost;
+                                breakdown.cache_read_cost += cache_read_cost;
+                                breakdown.total_cost += total_message_cost;
+                                breakdown.message_count += 1;
+                            })
+                            .or_insert_with(|| ModelBreakdown {
+                                input_tokens,
+                                output_tokens,
+                                cache_creation_tokens: cache_creation,
+                                cache_read_tokens: cache_read,
+                                input_cost,
+                                output_cost,
+                                cache_write_cost,
+                                cache_read_cost,
+                                total_cost: total_message_cost,
+                                message_count: 1,
+                            });
+
+                        // Update per-project breakdown
+                        project_breakdown
+                            .entry(project_name.clone())
+                            .and_modify(|breakdown| {
+                                breakdown.total_input_tokens += input_tokens;
+                                breakdown.total_output_tokens += output_tokens;
+                                breakdown.total_cache_creation_tokens += cache_creation;
+                                breakdown.total_cache_read_tokens += cache_read;
+                                breakdown.total_cost += total_message_cost;
+                                breakdown.message_count += 1;
+
+                                // Update project's model breakdown
+                                breakdown
+                                    .models
+                                    .entry(normalized_model.clone())
+                                    .and_modify(|model_bd| {
+                                        model_bd.input_tokens += input_tokens;
+                                        model_bd.output_tokens += output_tokens;
+                                        model_bd.cache_creation_tokens += cache_creation;
+                                        model_bd.cache_read_tokens += cache_read;
+                                        model_bd.input_cost += input_cost;
+                                        model_bd.output_cost += output_cost;
+                                        model_bd.cache_write_cost += cache_write_cost;
+                                        model_bd.cache_read_cost += cache_read_cost;
+                                        model_bd.total_cost += total_message_cost;
+                                        model_bd.message_count += 1;
+                                    })
+                                    .or_insert_with(|| ModelBreakdown {
+                                        input_tokens,
+                                        output_tokens,
+                                        cache_creation_tokens: cache_creation,
+                                        cache_read_tokens: cache_read,
+                                        input_cost,
+                                        output_cost,
+                                        cache_write_cost,
+                                        cache_read_cost,
+                                        total_cost: total_message_cost,
+                                        message_count: 1,
+                                    });
+                            })
+                            .or_insert_with(|| {
+                                let mut models = HashMap::new();
+                                models.insert(
+                                    normalized_model.clone(),
+                                    ModelBreakdown {
+                                        input_tokens,
+                                        output_tokens,
+                                        cache_creation_tokens: cache_creation,
+                                        cache_read_tokens: cache_read,
+                                        input_cost,
+                                        output_cost,
+                                        cache_write_cost,
+                                        cache_read_cost,
+                                        total_cost: total_message_cost,
+                                        message_count: 1,
+                                    },
+                                );
+
+                                ProjectBreakdown {
+                                    name: project_name.clone(),
+                                    total_input_tokens: input_tokens,
+                                    total_output_tokens: output_tokens,
+                                    total_cache_creation_tokens: cache_creation,
+                                    total_cache_read_tokens: cache_read,
+                                    total_cost: total_message_cost,
+                                    message_count: 1,
+                                    conversation_count: 0, // Will be set after
+                                    models,
+                                }
+                            });
+                    }
+
+                    // Increment conversations count (even for files with no messages, to match sequential behavior)
+                    project_breakdown
+                        .entry(project_name.clone())
+                        .and_modify(|breakdown| {
+                            breakdown.conversation_count += 1;
+                        });
+                    global_stats
+                        .entry("conversations_count")
+                        .and_modify(|v| *v += 1);
+
+                    global_stats
+                        .entry("files_processed")
+                        .and_modify(|v| *v += 1);
+
+                    Ok::<(), anyhow::Error>(())
+                }
+                Err(e) => {
+                    debug!("Failed to parse file {:?}: {}", file_path, e);
+                    global_stats
+                        .entry("files_failed")
+                        .and_modify(|v| *v += 1);
+                    Err(e)
+                }
+            }
+        });
+
+        handles.push(handle);
+    }
+
+    // Wait for all tasks to complete
+    for handle in handles {
+        let _ = handle.await; // Ignore individual file errors (logged above)
+    }
+
+    let parse_elapsed = parse_start.elapsed();
+    info!(
+        "Parsed {} files in {:.2}s ({:.1} files/sec)",
+        global_stats.get("files_processed").map(|v| *v).unwrap_or(0),
+        parse_elapsed.as_secs_f64(),
+        global_stats.get("files_processed").map(|v| *v).unwrap_or(0) as f64 / parse_elapsed.as_secs_f64()
+    );
+
+    // Step 3: Convert DashMap to regular HashMap for ClaudeMetrics
+    let model_breakdown_map: HashMap<String, ModelBreakdown> = model_breakdown
+        .iter()
+        .map(|entry| (entry.key().clone(), entry.value().clone()))
+        .collect();
+
+    let project_breakdown_map: HashMap<String, ProjectBreakdown> = project_breakdown
+        .iter()
+        .map(|entry| (entry.key().clone(), entry.value().clone()))
+        .collect();
+
+    // Build final metrics struct
+    let metrics = ClaudeMetrics {
+        total_input_tokens: global_stats.get("total_input_tokens").map(|v| *v).unwrap_or(0),
+        total_output_tokens: global_stats.get("total_output_tokens").map(|v| *v).unwrap_or(0),
+        total_cache_creation_tokens: global_stats
+            .get("total_cache_creation_tokens")
+            .map(|v| *v)
+            .unwrap_or(0),
+        total_cache_read_tokens: global_stats
+            .get("total_cache_read_tokens")
+            .map(|v| *v)
+            .unwrap_or(0),
+        total_cost: global_stats.get("total_cost").map(|v| *v).unwrap_or(0) as f64 / 1_000_000_000.0,
+        messages_count: global_stats.get("messages_count").map(|v| *v).unwrap_or(0),
+        conversations_count: global_stats.get("conversations_count").map(|v| *v).unwrap_or(0),
+        model_breakdown: model_breakdown_map,
+        project_breakdown: project_breakdown_map,
+        last_updated: Utc::now(),
+    };
+
+    let total_elapsed = start_time.elapsed();
+    info!(
+        "Total metrics load time: {:.2}s (discovery: {:.2}s, parse: {:.2}s)",
+        total_elapsed.as_secs_f64(),
+        discovery_elapsed.as_secs_f64(),
+        parse_elapsed.as_secs_f64()
+    );
+    info!(
+        "Performance: {:.1} files/sec, {} messages, ${:.2} total cost",
+        global_stats.get("files_processed").map(|v| *v).unwrap_or(0) as f64 / total_elapsed.as_secs_f64(),
+        metrics.messages_count,
+        metrics.total_cost
+    );
 
     Ok(metrics)
 }

@@ -570,6 +570,8 @@ async fn shutdown_handler() -> Json<serde_json::Value> {
 struct StatsResponse {
     project: ProjectStats,
     activity: ActivitySummary,
+    projects: Vec<ProjectSummary>,
+    models: Vec<ModelSummary>,
 }
 
 #[derive(Debug, Serialize)]
@@ -593,26 +595,199 @@ struct RecentCall {
     cost: f64,
 }
 
-/// Get statistics from metrics cache
-async fn get_stats(State(state): State<Arc<DaemonState>>) -> Result<Json<StatsResponse>, AppError> {
-    // Get latest snapshot from cache
-    let snapshot = state.metrics_cache.get_latest()
-        .ok_or_else(|| AppError::InternalError("No metrics available yet".to_string()))?;
+#[derive(Debug, Serialize)]
+struct ProjectSummary {
+    name: String,
+    cost: f64,
+    tokens: u64,
+    messages: u64,
+}
 
-    // Convert to TUI-expected format
+#[derive(Debug, Serialize)]
+struct ModelSummary {
+    model: String,
+    cost: f64,
+    tokens: u64,
+    messages: u64,
+    percentage: f64,
+}
+
+/// Get statistics from metrics cache
+async fn get_stats(State(_state): State<Arc<DaemonState>>) -> Result<Json<StatsResponse>, AppError> {
+    use tracing::info;
+
+    // Parse Claude metrics from all projects using parallel parser
+    info!("Starting to load Claude metrics from all projects (parallel)...");
+    let start = std::time::Instant::now();
+
+    let metrics = crate::claude_history::load_claude_metrics_from_home_dir_parallel().await
+        .map_err(|e| AppError::InternalError(format!("Failed to load Claude metrics: {}", e)))?;
+
+    let elapsed = start.elapsed();
+    info!("Loaded metrics in {:?} ({} projects, {} models)",
+        elapsed, metrics.project_breakdown.len(), metrics.model_breakdown.len());
+
+    // Build project summaries (sorted by cost descending, top 20)
+    let mut project_summaries: Vec<ProjectSummary> = metrics.project_breakdown
+        .values()
+        .map(|p| {
+            let total_tokens = p.total_input_tokens
+                + p.total_output_tokens
+                + p.total_cache_creation_tokens
+                + p.total_cache_read_tokens;
+
+            ProjectSummary {
+                name: p.name.clone(),
+                cost: p.total_cost,
+                tokens: total_tokens,
+                messages: p.message_count,
+            }
+        })
+        .collect();
+
+    project_summaries.sort_by(|a, b| b.cost.partial_cmp(&a.cost).unwrap_or(std::cmp::Ordering::Equal));
+    project_summaries.truncate(20);
+
+    // Build model summaries (all models, sorted by cost descending)
+    let mut model_summaries: Vec<ModelSummary> = metrics.model_breakdown
+        .iter()
+        .map(|(name, breakdown)| {
+            let total_tokens = breakdown.input_tokens
+                + breakdown.output_tokens
+                + breakdown.cache_creation_tokens
+                + breakdown.cache_read_tokens;
+
+            ModelSummary {
+                model: name.clone(),
+                cost: breakdown.total_cost,
+                tokens: total_tokens,
+                messages: breakdown.message_count,
+                percentage: if metrics.total_cost > 0.0 {
+                    (breakdown.total_cost / metrics.total_cost) * 100.0
+                } else {
+                    0.0
+                },
+            }
+        })
+        .collect();
+
+    // Sort by cost descending for stable ordering across refreshes
+    model_summaries.sort_by(|a, b| b.cost.partial_cmp(&a.cost).unwrap_or(std::cmp::Ordering::Equal));
+
+    // Extract recent API calls from project files (last 10 calls across all projects)
+    let recent_calls = extract_recent_api_calls(&metrics).await;
+
+    // Build response
     let response = StatsResponse {
         project: ProjectStats {
-            name: "Claude Code".to_string(),
-            tokens: snapshot.total_tokens,
-            cost: snapshot.total_cost,
-            messages: snapshot.messages_count,
+            name: "All Projects".to_string(),
+            tokens: metrics.total_input_tokens
+                + metrics.total_output_tokens
+                + metrics.total_cache_creation_tokens
+                + metrics.total_cache_read_tokens,
+            cost: metrics.total_cost,
+            messages: metrics.messages_count,
         },
         activity: ActivitySummary {
-            recent_calls: vec![], // TODO: Populate from cache if needed
+            recent_calls,
         },
+        projects: project_summaries,
+        models: model_summaries,
     };
 
     Ok(Json(response))
+}
+
+/// Extract recent API calls from all projects
+async fn extract_recent_api_calls(metrics: &crate::claude_history::ClaudeMetrics) -> Vec<RecentCall> {
+    use std::path::PathBuf;
+    use tokio::fs;
+
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
+    let projects_dir = PathBuf::from(&home).join(".claude").join("projects");
+
+    if !projects_dir.exists() {
+        return vec![];
+    }
+
+    let mut all_calls: Vec<RecentCall> = Vec::new();
+
+    // Iterate through all projects and collect recent messages
+    for (project_name, _project_breakdown) in &metrics.project_breakdown {
+        let project_path = projects_dir.join(project_name);
+
+        if !project_path.exists() {
+            continue;
+        }
+
+        // Read the most recent JSONL file in the project
+        if let Ok(mut entries) = fs::read_dir(&project_path).await {
+            let mut jsonl_files: Vec<PathBuf> = Vec::new();
+
+            while let Ok(Some(entry)) = entries.next_entry().await {
+                let path = entry.path();
+                if path.extension().and_then(|s| s.to_str()) == Some("jsonl") {
+                    jsonl_files.push(path);
+                }
+            }
+
+            // Sort by modification time (most recent first)
+            jsonl_files.sort_by_cached_key(|path| {
+                std::fs::metadata(path)
+                    .and_then(|m| m.modified())
+                    .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+            });
+            jsonl_files.reverse();
+
+            // Parse the most recent file (limit to 3 most recent files per project for efficiency)
+            for file_path in jsonl_files.iter().take(3) {
+                if let Ok((messages, _, _)) = crate::claude_history::parse_jsonl_file_from_offset(file_path, 0).await {
+                    for (model, usage, timestamp) in messages {
+                        let total_tokens = usage.input_tokens.unwrap_or(0)
+                            + usage.output_tokens.unwrap_or(0)
+                            + usage.cache_creation_input_tokens.unwrap_or(0)
+                            + usage.cache_read_input_tokens.unwrap_or(0);
+
+                        // Calculate cost for this call
+                        let (input_price, output_price, cache_write_price, cache_read_price) =
+                            crate::claude_history::get_model_pricing(&model);
+
+                        let input_cost = crate::claude_history::calculate_cost(
+                            usage.input_tokens.unwrap_or(0),
+                            input_price
+                        );
+                        let output_cost = crate::claude_history::calculate_cost(
+                            usage.output_tokens.unwrap_or(0),
+                            output_price
+                        );
+                        let cache_write_cost = crate::claude_history::calculate_cost(
+                            usage.cache_creation_input_tokens.unwrap_or(0),
+                            cache_write_price
+                        );
+                        let cache_read_cost = crate::claude_history::calculate_cost(
+                            usage.cache_read_input_tokens.unwrap_or(0),
+                            cache_read_price
+                        );
+
+                        let total_cost = input_cost + output_cost + cache_write_cost + cache_read_cost;
+
+                        all_calls.push(RecentCall {
+                            timestamp: timestamp.unwrap_or_else(|| Utc::now().to_rfc3339()),
+                            model: crate::claude_history::normalize_model_name(&model),
+                            tokens: total_tokens,
+                            cost: total_cost,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // Sort by timestamp descending (most recent first) and take last 10
+    all_calls.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    all_calls.truncate(10);
+
+    all_calls
 }
 
 /// Token generation request
@@ -784,7 +959,7 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
             metrics_cache: Arc<super::metrics_cache::MetricsCache>,
             trigger: &str,
         ) {
-            match crate::claude_history::load_claude_metrics_from_home_dir().await {
+            match crate::claude_history::load_claude_metrics_from_home_dir_parallel().await {
                 Ok(metrics) => {
                     debug!("Parsed Claude metrics ({}): {} messages, ${:.4} total cost",
                            trigger, metrics.messages_count, metrics.total_cost);
@@ -873,7 +1048,7 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
         parse_and_store_metrics(initial_persistence, initial_cache, "initial-scan").await;
 
         // Log completion with metrics
-        if let Ok(metrics) = crate::claude_history::load_claude_metrics_from_home_dir().await {
+        if let Ok(metrics) = crate::claude_history::load_claude_metrics_from_home_dir_parallel().await {
             info!("✅ Initial history scan complete: {} messages, ${:.2} total cost",
                   metrics.messages_count, metrics.total_cost);
         }

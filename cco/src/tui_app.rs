@@ -51,6 +51,16 @@ pub struct CostByTier {
     pub total_tokens: TokenStats,
 }
 
+/// Model summary from API
+#[derive(Debug, Clone)]
+pub struct ModelSummary {
+    pub model: String,
+    pub cost: f64,
+    pub tokens: u64,
+    pub messages: u64,
+    pub percentage: f64,
+}
+
 /// Token statistics per tier
 #[derive(Debug, Clone, Default)]
 pub struct TokenStats {
@@ -131,6 +141,7 @@ pub enum AppState {
         is_active: bool,
         overall_summary: OverallSummary,
         project_summaries: Vec<ProjectSummary>,
+        model_summaries: Vec<ModelSummary>,
         last_updated: SystemTime,
     },
     /// Error state with message
@@ -150,6 +161,7 @@ struct StatsUpdate {
     is_active: bool,
     overall_summary: OverallSummary,
     project_summaries: Vec<ProjectSummary>,
+    model_summaries: Vec<ModelSummary>,
 }
 
 /// Main TUI application
@@ -522,6 +534,25 @@ impl TuiApp {
                 // Determine if system is active (has recent activity)
                 let is_active = !recent_calls.is_empty();
 
+                // Parse model summaries from API response (needed for tier calculations)
+                let model_summaries = self.parse_model_summaries(&stats);
+
+                // Calculate tier costs from model summaries
+                let mut opus_cost = 0.0;
+                let mut sonnet_cost = 0.0;
+                let mut haiku_cost = 0.0;
+
+                for model in &model_summaries {
+                    let model_lower = model.model.to_lowercase();
+                    if model_lower.contains("opus") {
+                        opus_cost += model.cost;
+                    } else if model_lower.contains("sonnet") {
+                        sonnet_cost += model.cost;
+                    } else if model_lower.contains("haiku") {
+                        haiku_cost += model.cost;
+                    }
+                }
+
                 // Create overall metrics from /api/stats data
                 let overall_summary = OverallSummary {
                     total_cost: stats.get("project")
@@ -544,24 +575,13 @@ impl TuiApp {
                         .and_then(|p| p.get("messages"))
                         .and_then(|m| m.as_u64())
                         .unwrap_or(0),
-                    opus_cost: cost_by_tier.opus_cost,
-                    sonnet_cost: cost_by_tier.sonnet_cost,
-                    haiku_cost: cost_by_tier.haiku_cost,
+                    opus_cost,
+                    sonnet_cost,
+                    haiku_cost,
                 };
 
-                // Create project summary from /api/stats data
-                let project_name = stats.get("project")
-                    .and_then(|p| p.get("name"))
-                    .and_then(|n| n.as_str())
-                    .unwrap_or("Claude Code")
-                    .to_string();
-
-                let project_summaries = vec![ProjectSummary {
-                    name: project_name,
-                    cost: overall_summary.total_cost,
-                    tokens: overall_summary.total_tokens,
-                    calls: overall_summary.total_calls,
-                }];
+                // Parse project summaries from API response
+                let project_summaries = self.parse_project_summaries(&stats);
 
                 self.state = AppState::Connected {
                     cost_by_tier,
@@ -570,6 +590,7 @@ impl TuiApp {
                     is_active,
                     overall_summary,
                     project_summaries,
+                    model_summaries,
                     last_updated: SystemTime::now(),
                 };
             }
@@ -595,7 +616,26 @@ impl TuiApp {
         // Determine if system is active
         let is_active = !recent_calls.is_empty();
 
-        // Create overall summary
+        // Parse model summaries first (needed for tier calculations)
+        let model_summaries = Self::parse_model_summaries_static(&stats);
+
+        // Calculate tier costs from model summaries
+        let mut opus_cost = 0.0;
+        let mut sonnet_cost = 0.0;
+        let mut haiku_cost = 0.0;
+
+        for model in &model_summaries {
+            let model_lower = model.model.to_lowercase();
+            if model_lower.contains("opus") {
+                opus_cost += model.cost;
+            } else if model_lower.contains("sonnet") {
+                sonnet_cost += model.cost;
+            } else if model_lower.contains("haiku") {
+                haiku_cost += model.cost;
+            }
+        }
+
+        // Create overall summary with calculated tier costs
         let overall_summary = OverallSummary {
             total_cost: stats.get("project")
                 .and_then(|p| p.get("cost"))
@@ -617,24 +657,13 @@ impl TuiApp {
                 .and_then(|p| p.get("messages"))
                 .and_then(|m| m.as_u64())
                 .unwrap_or(0),
-            opus_cost: cost_by_tier.opus_cost,
-            sonnet_cost: cost_by_tier.sonnet_cost,
-            haiku_cost: cost_by_tier.haiku_cost,
+            opus_cost,
+            sonnet_cost,
+            haiku_cost,
         };
 
-        // Create project summary
-        let project_name = stats.get("project")
-            .and_then(|p| p.get("name"))
-            .and_then(|n| n.as_str())
-            .unwrap_or("Claude Code")
-            .to_string();
-
-        let project_summaries = vec![ProjectSummary {
-            name: project_name,
-            cost: overall_summary.total_cost,
-            tokens: overall_summary.total_tokens,
-            calls: overall_summary.total_calls,
-        }];
+        // Parse project summaries
+        let project_summaries = Self::parse_project_summaries_static(&stats);
 
         Ok(StatsUpdate {
             cost_by_tier,
@@ -643,6 +672,7 @@ impl TuiApp {
             is_active,
             overall_summary,
             project_summaries,
+            model_summaries,
         })
     }
 
@@ -656,6 +686,7 @@ impl TuiApp {
                 is_active: update.is_active,
                 overall_summary: update.overall_summary,
                 project_summaries: update.project_summaries,
+                model_summaries: update.model_summaries,
                 last_updated: SystemTime::now(),
             };
         }
@@ -845,6 +876,68 @@ impl TuiApp {
         Self::parse_recent_calls_static(stats)
     }
 
+    /// Parse project summaries from stats JSON (static version)
+    fn parse_project_summaries_static(stats: &serde_json::Value) -> Vec<ProjectSummary> {
+        let mut projects = Vec::new();
+
+        if let Some(projects_array) = stats.get("projects").and_then(|p| p.as_array()) {
+            for project in projects_array {
+                if let (Some(name), Some(cost), Some(tokens), Some(messages)) = (
+                    project.get("name").and_then(|n| n.as_str()),
+                    project.get("cost").and_then(|c| c.as_f64()),
+                    project.get("tokens").and_then(|t| t.as_u64()),
+                    project.get("messages").and_then(|m| m.as_u64()),
+                ) {
+                    projects.push(ProjectSummary {
+                        name: name.to_string(),
+                        cost,
+                        tokens,
+                        calls: messages,
+                    });
+                }
+            }
+        }
+
+        projects
+    }
+
+    /// Parse project summaries from stats JSON
+    fn parse_project_summaries(&self, stats: &serde_json::Value) -> Vec<ProjectSummary> {
+        Self::parse_project_summaries_static(stats)
+    }
+
+    /// Parse model summaries from stats JSON (static version)
+    fn parse_model_summaries_static(stats: &serde_json::Value) -> Vec<ModelSummary> {
+        let mut models = Vec::new();
+
+        if let Some(models_array) = stats.get("models").and_then(|m| m.as_array()) {
+            for model in models_array {
+                if let (Some(name), Some(cost), Some(tokens), Some(messages), Some(percentage)) = (
+                    model.get("model").and_then(|n| n.as_str()),
+                    model.get("cost").and_then(|c| c.as_f64()),
+                    model.get("tokens").and_then(|t| t.as_u64()),
+                    model.get("messages").and_then(|m| m.as_u64()),
+                    model.get("percentage").and_then(|p| p.as_f64()),
+                ) {
+                    models.push(ModelSummary {
+                        model: name.to_string(),
+                        cost,
+                        tokens,
+                        messages,
+                        percentage,
+                    });
+                }
+            }
+        }
+
+        models
+    }
+
+    /// Parse model summaries from stats JSON
+    fn parse_model_summaries(&self, stats: &serde_json::Value) -> Vec<ModelSummary> {
+        Self::parse_model_summaries_static(stats)
+    }
+
     /// Handle keyboard input
     async fn handle_input(&mut self, key: KeyEvent) -> Result<bool> {
         match key.code {
@@ -893,9 +986,10 @@ impl TuiApp {
                     is_active,
                     overall_summary,
                     project_summaries,
+                    model_summaries,
                     last_updated,
                 } => {
-                    Self::render_connected(f, cost_by_tier, recent_calls, health, *is_active, overall_summary, project_summaries, &status_message, *last_updated);
+                    Self::render_connected(f, cost_by_tier, recent_calls, health, *is_active, overall_summary, project_summaries, model_summaries, &status_message, *last_updated);
                 }
                 AppState::Error(err) => {
                     Self::render_error(f, err);
@@ -969,6 +1063,7 @@ impl TuiApp {
         _is_active: bool,
         overall_summary: &OverallSummary,
         project_summaries: &[ProjectSummary],
+        model_summaries: &[ModelSummary],
         status_message: &str,
         last_updated: SystemTime,
     ) {
@@ -1010,7 +1105,7 @@ impl TuiApp {
         }
 
         // Cost summary by tier (Section 3)
-        Self::render_cost_summary(f, cost_by_tier, content_chunks[2]);
+        Self::render_cost_summary(f, cost_by_tier, model_summaries, content_chunks[2]);
 
         // Recent API calls with dynamic height (Section 4)
         Self::render_recent_calls_dynamic(f, recent_calls, content_chunks[3]);
@@ -1070,6 +1165,7 @@ impl TuiApp {
             format!("{}", summary.total_tokens)
         };
 
+        // Calculate percentages from the cost values
         let opus_pct = if summary.total_cost > 0.0 {
             (summary.opus_cost / summary.total_cost) * 100.0
         } else {
@@ -1115,8 +1211,21 @@ impl TuiApp {
 
     /// Render project summaries
     fn render_project_summaries(f: &mut Frame, projects: &[ProjectSummary], area: Rect) {
+        // Calculate available width dynamically
+        // Formula: total_width - borders(2) - cost_col(14) - tokens_col(11) - calls_col(6) - spacing(4)
+        let total_width = area.width as usize;
+        let fixed_width = 2 + 14 + 11 + 6 + 4; // borders + cost + tokens + calls + spacing
+        let available_name_width = if total_width > fixed_width {
+            total_width - fixed_width
+        } else {
+            26 // fallback to old minimum
+        };
+
         let mut text = vec![Line::from(vec![
-            Span::styled("Project Name               ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                format!("{:<width$}", "Project Name", width = available_name_width),
+                Style::default().fg(Color::White).add_modifier(Modifier::BOLD)
+            ),
             Span::styled("Cost         ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
             Span::styled("Tokens    ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
             Span::styled("Calls", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
@@ -1124,10 +1233,10 @@ impl TuiApp {
 
         // Expanded to show up to 10 projects (was 5)
         for project in projects.iter().take(10) {
-            let name = if project.name.len() > 26 {
-                format!("{}...", &project.name[..23])
+            let name = if project.name.len() > available_name_width {
+                format!("{}...", &project.name[..(available_name_width.saturating_sub(3))])
             } else {
-                format!("{:<26}", project.name)
+                format!("{:<width$}", project.name, width = available_name_width)
             };
 
             let tokens_formatted = if project.tokens >= 1_000_000 {
@@ -1159,88 +1268,110 @@ impl TuiApp {
         f.render_widget(para, area);
     }
 
-    /// Render cost summary by tier
-    fn render_cost_summary(f: &mut Frame, cost: &CostByTier, area: Rect) {
-        let text = vec![
-            Line::from(vec![
-                Span::styled("Tier      ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-                Span::styled("Cost       ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-                Span::styled("%     ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-                Span::styled("Calls  ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-                Span::styled("Tokens (I/O/CW/CR)", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-            ]),
-            Line::from(vec![
-                Span::styled("Sonnet    ", Style::default().fg(Color::Cyan)),
-                Span::styled(format!("${:>8.2} ", cost.sonnet_cost), Style::default().fg(Color::Green)),
-                Span::styled(format!("{:>4.1}% ", cost.sonnet_pct), Style::default().fg(Color::Yellow)),
-                Span::styled(format!("{:>6}  ", cost.sonnet_calls), Style::default().fg(Color::White)),
-                Span::styled(format!("I:{} O:{} CW:{}",
-                    Self::format_tokens(cost.sonnet_tokens.input),
-                    Self::format_tokens(cost.sonnet_tokens.output),
-                    Self::format_tokens(cost.sonnet_tokens.cache_write)
-                ), Style::default().fg(Color::DarkGray)),
-            ]),
-            Line::from(vec![
-                Span::raw("          "),
-                Span::raw("           "),
-                Span::raw("      "),
-                Span::raw("        "),
-                Span::styled(format!("CR:{}", Self::format_tokens(cost.sonnet_tokens.cache_read)), Style::default().fg(Color::DarkGray)),
-            ]),
-            Line::from(vec![
-                Span::styled("Opus      ", Style::default().fg(Color::Magenta)),
-                Span::styled(format!("${:>8.2} ", cost.opus_cost), Style::default().fg(Color::Green)),
-                Span::styled(format!("{:>4.1}% ", cost.opus_pct), Style::default().fg(Color::Yellow)),
-                Span::styled(format!("{:>6}  ", cost.opus_calls), Style::default().fg(Color::White)),
-                Span::styled(format!("I:{} O:{} CW:{}",
-                    Self::format_tokens(cost.opus_tokens.input),
-                    Self::format_tokens(cost.opus_tokens.output),
-                    Self::format_tokens(cost.opus_tokens.cache_write)
-                ), Style::default().fg(Color::DarkGray)),
-            ]),
-            Line::from(vec![
-                Span::raw("          "),
-                Span::raw("           "),
-                Span::raw("      "),
-                Span::raw("        "),
-                Span::styled(format!("CR:{}", Self::format_tokens(cost.opus_tokens.cache_read)), Style::default().fg(Color::DarkGray)),
-            ]),
-            Line::from(vec![
-                Span::styled("Haiku     ", Style::default().fg(Color::Blue)),
-                Span::styled(format!("${:>8.2} ", cost.haiku_cost), Style::default().fg(Color::Green)),
-                Span::styled(format!("{:>4.1}% ", cost.haiku_pct), Style::default().fg(Color::Yellow)),
-                Span::styled(format!("{:>6}  ", cost.haiku_calls), Style::default().fg(Color::White)),
-                Span::styled(format!("I:{} O:{} CW:{}",
-                    Self::format_tokens(cost.haiku_tokens.input),
-                    Self::format_tokens(cost.haiku_tokens.output),
-                    Self::format_tokens(cost.haiku_tokens.cache_write)
-                ), Style::default().fg(Color::DarkGray)),
-            ]),
-            Line::from(vec![
-                Span::raw("          "),
-                Span::raw("           "),
-                Span::raw("      "),
-                Span::raw("        "),
-                Span::styled(format!("CR:{}", Self::format_tokens(cost.haiku_tokens.cache_read)), Style::default().fg(Color::DarkGray)),
-            ]),
-            Line::from("─".repeat(80)),
-            Line::from(vec![
-                Span::styled("TOTAL     ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-                Span::styled(format!("${:>8.2} ", cost.total_cost), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
-                Span::styled("100.0%", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-                Span::styled(format!("{:>6}  ", cost.total_calls), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-                Span::styled(format!("I:{} O:{} CW:{} CR:{}",
-                    Self::format_tokens(cost.total_tokens.input),
-                    Self::format_tokens(cost.total_tokens.output),
-                    Self::format_tokens(cost.total_tokens.cache_write),
-                    Self::format_tokens(cost.total_tokens.cache_read)
-                ), Style::default().fg(Color::DarkGray)),
-            ]),
-        ];
+    /// Render cost summary by tier/model
+    fn render_cost_summary(f: &mut Frame, _cost: &CostByTier, models: &[ModelSummary], area: Rect) {
+        let mut text = vec![Line::from(vec![
+            Span::styled("Model                     ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled("Cost       ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled("%     ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled("Tokens    ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled("Calls", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+        ])];
+
+        // Calculate totals
+        let total_cost: f64 = models.iter().map(|m| m.cost).sum();
+        let total_tokens: u64 = models.iter().map(|m| m.tokens).sum();
+        let total_messages: u64 = models.iter().map(|m| m.messages).sum();
+
+        // Sort models by cost descending for consistent display order
+        let mut sorted_models = models.to_vec();
+        sorted_models.sort_by(|a, b| b.cost.partial_cmp(&a.cost).unwrap_or(std::cmp::Ordering::Equal));
+
+        // Display all models
+        for model in &sorted_models {
+            // Determine color based on model name
+            let model_color = if model.model.contains("opus") {
+                Color::Magenta
+            } else if model.model.contains("sonnet") {
+                Color::Cyan
+            } else if model.model.contains("haiku") {
+                Color::Blue
+            } else {
+                Color::White
+            };
+
+            // Truncate model name if too long
+            let model_name = if model.model.len() > 25 {
+                format!("{}...", &model.model[..22])
+            } else {
+                format!("{:<25}", model.model)
+            };
+
+            text.push(Line::from(vec![
+                Span::styled(model_name, Style::default().fg(model_color)),
+                Span::styled(
+                    format!("${:>8.2} ", model.cost),
+                    Style::default().fg(Color::Green),
+                ),
+                Span::styled(
+                    format!("{:>4.1}% ", model.percentage),
+                    Style::default().fg(Color::Yellow),
+                ),
+                Span::styled(
+                    format!("{:>9}  ", Self::format_tokens(model.tokens)),
+                    Style::default().fg(Color::White),
+                ),
+                Span::styled(
+                    format!("{}", model.messages),
+                    Style::default().fg(Color::White),
+                ),
+            ]));
+        }
+
+        // Add separator and total
+        text.push(Line::from("─".repeat(80)));
+        text.push(Line::from(vec![
+            Span::styled(
+                "TOTAL                    ",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                format!("${:>8.2} ", total_cost),
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                "100.0%",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                format!("{:>9}  ", Self::format_tokens(total_tokens)),
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                format!("{}", total_messages),
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        ]));
+
+        let title = if models.is_empty() {
+            "Cost Summary by Model (No data)".to_string()
+        } else {
+            format!("Cost Summary by Model ({} models)", models.len())
+        };
 
         let para = Paragraph::new(text).block(
             Block::default()
-                .title("Cost Summary by Tier (Haiku, Sonnet, Opus)")
+                .title(title)
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Green)),
         );
