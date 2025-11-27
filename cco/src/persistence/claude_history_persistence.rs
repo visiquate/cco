@@ -331,6 +331,34 @@ impl ClaudeHistoryPersistence {
 
         Ok(status)
     }
+
+    /// Store aggregated metrics from ClaudeMetrics (used by background parser)
+    pub async fn store_aggregated_metrics(&self, metrics: &crate::claude_history::ClaudeMetrics) -> Result<(), PersistenceError> {
+        // Get current date for metrics storage
+        let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+
+        debug!("Storing aggregated metrics for {}: {} models", today, metrics.model_breakdown.len());
+
+        // Store each model's breakdown as daily metrics
+        for (model_name, breakdown) in &metrics.model_breakdown {
+            let daily_metrics = DailyModelMetrics {
+                date: today.clone(),
+                model: model_name.clone(),
+                input_tokens: breakdown.input_tokens as i64,
+                output_tokens: breakdown.output_tokens as i64,
+                cache_creation_tokens: breakdown.cache_creation_tokens as i64,
+                cache_read_tokens: breakdown.cache_read_tokens as i64,
+                cost: breakdown.total_cost,
+                conversation_count: 1, // Aggregated data doesn't track individual conversations
+                message_count: breakdown.message_count as i64,
+            };
+
+            self.upsert_daily_metrics(&daily_metrics).await?;
+        }
+
+        debug!("Successfully stored metrics for {} models", metrics.model_breakdown.len());
+        Ok(())
+    }
 }
 
 #[cfg(test)]

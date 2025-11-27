@@ -132,8 +132,8 @@ mod tests {
 
     #[test]
     fn test_schema_has_unique_constraints() {
-        // api_metrics request_id should be unique
-        assert!(SCHEMA.contains("UNIQUE(hour_start, model_tier)"));
+        // hourly_aggregations uses composite PRIMARY KEY which enforces uniqueness
+        assert!(SCHEMA.contains("PRIMARY KEY(hour_start, model_tier)"));
     }
 
     #[test]

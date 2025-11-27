@@ -32,6 +32,7 @@ use super::hooks::{
     SqliteAuditDatabase,
 };
 use super::knowledge::{knowledge_router_without_state, KnowledgeState, KnowledgeStore};
+use super::log_watcher::LogWatcher;
 use super::security::{TokenManager, CredentialDetector};
 
 /// Classification decision tracking
@@ -70,6 +71,8 @@ pub struct DaemonState {
     pub knowledge_store: Option<KnowledgeState>,
     pub token_manager: Option<Arc<TokenManager>>,
     pub credential_detector: Arc<CredentialDetector>,
+    pub persistence: Option<Arc<crate::persistence::PersistenceLayer>>,
+    pub metrics_cache: Arc<super::metrics_cache::MetricsCache>,
 }
 
 impl DaemonState {
@@ -196,6 +199,30 @@ impl DaemonState {
             }
         };
 
+        // Initialize persistence layer for metrics storage
+        let persistence = {
+            let db_path = dirs::home_dir()
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .join(".cco")
+                .join("metrics.db");
+
+            match crate::persistence::PersistenceLayer::new(&db_path).await {
+                Ok(p) => {
+                    info!("✅ Metrics persistence layer initialized: {:?}", db_path);
+                    Some(Arc::new(p))
+                }
+                Err(e) => {
+                    warn!("Failed to initialize metrics persistence: {}", e);
+                    warn!("Claude metrics will not be persisted to database");
+                    None
+                }
+            }
+        };
+
+        // Initialize metrics cache (1 hour of 1-second samples)
+        let metrics_cache = Arc::new(super::metrics_cache::MetricsCache::new(3600));
+        info!("✅ Metrics cache initialized (capacity: 3600 samples)");
+
         Ok(Self {
             config,
             hooks_registry,
@@ -210,6 +237,8 @@ impl DaemonState {
             knowledge_store,
             token_manager,
             credential_detector,
+            persistence,
+            metrics_cache,
         })
     }
 }
@@ -536,6 +565,56 @@ async fn shutdown_handler() -> Json<serde_json::Value> {
     }))
 }
 
+/// Stats response for TUI
+#[derive(Debug, Serialize)]
+struct StatsResponse {
+    project: ProjectStats,
+    activity: ActivitySummary,
+}
+
+#[derive(Debug, Serialize)]
+struct ProjectStats {
+    name: String,
+    tokens: u64,
+    cost: f64,
+    messages: u64,
+}
+
+#[derive(Debug, Serialize)]
+struct ActivitySummary {
+    recent_calls: Vec<RecentCall>,
+}
+
+#[derive(Debug, Serialize)]
+struct RecentCall {
+    timestamp: String,
+    model: String,
+    tokens: u64,
+    cost: f64,
+}
+
+/// Get statistics from metrics cache
+async fn get_stats(State(state): State<Arc<DaemonState>>) -> Result<Json<StatsResponse>, AppError> {
+    // Get latest snapshot from cache
+    let snapshot = state.metrics_cache.get_latest()
+        .ok_or_else(|| AppError::InternalError("No metrics available yet".to_string()))?;
+
+    // Convert to TUI-expected format
+    let response = StatsResponse {
+        project: ProjectStats {
+            name: "Claude Code".to_string(),
+            tokens: snapshot.total_tokens,
+            cost: snapshot.total_cost,
+            messages: snapshot.messages_count,
+        },
+        activity: ActivitySummary {
+            recent_calls: vec![], // TODO: Populate from cache if needed
+        },
+    };
+
+    Ok(Json(response))
+}
+
 /// Token generation request
 #[derive(Debug, Deserialize)]
 struct GenerateTokenRequest {
@@ -584,6 +663,7 @@ fn create_router(state: Arc<DaemonState>) -> Router {
         .route("/api/classify", post(classify_command))
         .route("/api/hooks/permission-request", post(permission_request))
         .route("/api/hooks/decisions", get(get_hooks_decisions))
+        .route("/api/stats", get(get_stats))
         .route("/api/shutdown", post(shutdown_handler));
 
     // Add token generation endpoint if token manager is available
@@ -671,6 +751,7 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
     info!("   Classify: http://{}/api/classify", actual_addr);
     info!("   Permission: http://{}/api/hooks/permission-request", actual_addr);
     info!("   Decisions: http://{}/api/hooks/decisions", actual_addr);
+    info!("   Stats: http://{}/api/stats", actual_addr);
     info!("   Shutdown: http://{}/api/shutdown", actual_addr);
 
     if state.token_manager.is_some() {
@@ -692,6 +773,117 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
 
     info!("");
     info!("Press Ctrl+C to stop");
+
+    // Spawn background task to parse Claude logs with filesystem watching + periodic fallback
+    if let Some(ref persistence) = state.persistence {
+        let persistence_clone = Arc::clone(persistence);
+
+        // Helper async function to parse and store metrics
+        async fn parse_and_store_metrics(
+            persistence: Arc<crate::persistence::PersistenceLayer>,
+            metrics_cache: Arc<super::metrics_cache::MetricsCache>,
+            trigger: &str,
+        ) {
+            match crate::claude_history::load_claude_metrics_from_home_dir().await {
+                Ok(metrics) => {
+                    debug!("Parsed Claude metrics ({}): {} messages, ${:.4} total cost",
+                           trigger, metrics.messages_count, metrics.total_cost);
+
+                    // Calculate total tokens
+                    let total_tokens = metrics.total_input_tokens
+                        + metrics.total_output_tokens
+                        + metrics.total_cache_creation_tokens
+                        + metrics.total_cache_read_tokens;
+
+                    // Update metrics cache (for /api/stats endpoint)
+                    let snapshot = super::metrics_cache::StatsSnapshot {
+                        timestamp: std::time::SystemTime::now(),
+                        total_requests: metrics.messages_count,
+                        successful_requests: metrics.messages_count, // Assume all successful for now
+                        failed_requests: 0,
+                        avg_response_time: 0.0, // Not tracked yet
+                        uptime: std::time::Duration::from_secs(0), // Will be calculated by endpoint
+                        port: 0, // Will be set by endpoint
+                        total_cost: metrics.total_cost,
+                        total_tokens,
+                        messages_count: metrics.messages_count,
+                    };
+
+                    metrics_cache.update(snapshot);
+                    debug!("Updated metrics cache with latest stats");
+
+                    // Get Claude history persistence interface
+                    let claude_history = persistence.claude_history();
+
+                    // Store aggregated metrics in database
+                    if let Err(e) = claude_history.store_aggregated_metrics(&metrics).await {
+                        warn!("Failed to store Claude metrics in database: {}", e);
+                    } else {
+                        debug!("Successfully persisted Claude metrics to database");
+                    }
+                }
+                Err(e) => {
+                    // Log at debug level to avoid spam - missing metrics file is expected
+                    debug!("Failed to parse Claude metrics ({}): {}", trigger, e);
+                }
+            }
+        }
+
+        // Initialize filesystem watcher for immediate parsing on file changes
+        let claude_history_dir = dirs::home_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join(".claude")
+            .join("history");
+
+        let metrics_cache_for_watcher = Arc::clone(&state.metrics_cache);
+        match LogWatcher::new(claude_history_dir.clone()) {
+            Ok((mut log_watcher, mut file_event_rx)) => {
+                // Start watching
+                if let Err(e) = log_watcher.start() {
+                    warn!("Failed to start log watcher: {}", e);
+                    warn!("Falling back to periodic polling only");
+                } else {
+                    info!("✅ Log watcher started for: {}", claude_history_dir.display());
+
+                    // Spawn task to handle file change events
+                    let persistence_for_watcher = Arc::clone(&persistence_clone);
+                    let cache_for_watcher = Arc::clone(&metrics_cache_for_watcher);
+                    tokio::spawn(async move {
+                        while let Some(changed_path) = file_event_rx.recv().await {
+                            info!("📝 Detected change in log file: {:?}", changed_path);
+
+                            // Parse immediately on file change
+                            let persistence = Arc::clone(&persistence_for_watcher);
+                            let cache = Arc::clone(&cache_for_watcher);
+                            parse_and_store_metrics(persistence, cache, "file-change").await;
+                        }
+                    });
+                }
+            }
+            Err(e) => {
+                warn!("Failed to initialize log watcher: {}", e);
+                warn!("Falling back to periodic polling only");
+            }
+        }
+
+        // Spawn periodic fallback task (5s interval) to catch anything the watcher misses
+        let metrics_cache_for_periodic = Arc::clone(&state.metrics_cache);
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
+
+            loop {
+                interval.tick().await;
+
+                let persistence = Arc::clone(&persistence_clone);
+                let cache = Arc::clone(&metrics_cache_for_periodic);
+                parse_and_store_metrics(persistence, cache, "periodic").await;
+            }
+        });
+
+        info!("✅ Background Claude log parser started (filesystem watcher + 5s fallback)");
+    } else {
+        warn!("Persistence layer not available - Claude log parsing disabled");
+    }
 
     // Run server with graceful shutdown
     axum::serve(listener, app)

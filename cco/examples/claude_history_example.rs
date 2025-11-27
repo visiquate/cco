@@ -44,7 +44,7 @@ async fn main() -> anyhow::Result<()> {
                 println!();
 
                 let mut models: Vec<_> = metrics.model_breakdown.iter().collect();
-                models.sort_by(|a, b| b.1.cost.partial_cmp(&a.1.cost).unwrap());
+                models.sort_by(|a, b| b.1.total_cost.partial_cmp(&a.1.total_cost).unwrap());
 
                 for (model, breakdown) in models {
                     println!("{}:", model);
@@ -57,7 +57,7 @@ async fn main() -> anyhow::Result<()> {
                     if breakdown.cache_read_tokens > 0 {
                         println!("  Cache reads:    {:>12}", breakdown.cache_read_tokens);
                     }
-                    println!("  Cost:           ${:>11.4}", breakdown.cost);
+                    println!("  Cost:           ${:>11.4}", breakdown.total_cost);
                     println!();
                 }
             }
