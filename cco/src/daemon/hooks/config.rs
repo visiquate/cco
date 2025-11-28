@@ -238,7 +238,7 @@ impl Default for HooksPermissions {
             allow_execution_blocking: default_false(),
             allow_external_calls: default_false(),
             allow_env_access: default_false(),
-            allow_file_read: default_false(),
+            allow_file_read: true, // Auto-approve READ operations by default
             allow_file_write: default_false(),
         }
     }
@@ -370,7 +370,7 @@ mod tests {
         assert!(!perms.allow_execution_blocking);
         assert!(!perms.allow_external_calls);
         assert!(!perms.allow_env_access);
-        assert!(!perms.allow_file_read);
+        assert!(perms.allow_file_read); // READ operations auto-approved by default
         assert!(!perms.allow_file_write);
     }
 
