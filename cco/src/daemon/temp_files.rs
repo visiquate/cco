@@ -246,6 +246,31 @@ impl TempFileManager {
         &self.hooks_path
     }
 
+    /// Get the knowledge database base directory
+    ///
+    /// Returns: ~/.cco/knowledge/
+    pub fn knowledge_db_base(&self) -> PathBuf {
+        let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/tmp"));
+        home.join(".cco").join("knowledge")
+    }
+
+    /// Get the knowledge database path for a specific repository
+    ///
+    /// Returns: ~/.cco/knowledge/{repo_name}/
+    pub fn knowledge_db_path(&self, repo_name: &str) -> PathBuf {
+        self.knowledge_db_base().join(repo_name)
+    }
+
+    /// Clean up knowledge database for a specific repository
+    pub async fn cleanup_knowledge_db(&self, repo_name: &str) -> Result<()> {
+        let db_path = self.knowledge_db_path(repo_name);
+        if db_path.exists() {
+            tokio::fs::remove_dir_all(db_path).await?;
+            tracing::info!("Cleaned up knowledge database for: {}", repo_name);
+        }
+        Ok(())
+    }
+
     /// Generate system prompt with XOR deobfuscation
     ///
     /// Deobfuscates the embedded binary using XOR key 0xA7 and returns

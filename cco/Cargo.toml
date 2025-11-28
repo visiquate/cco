@@ -68,9 +68,10 @@ indicatif = "0.17"
 rand = "0.8"
 
 # LanceDB for embedded vector database (Issue #32)
+# Note: Arrow versions must match LanceDB's dependencies (v56.2.0)
 lancedb = "0.22"
-arrow-array = "53.0"
-arrow-schema = "53.0"
+arrow-array = "56.2"
+arrow-schema = "56.2"
 
 [target.'cfg(unix)'.dependencies]
 nix = { version = "0.27", features = ["signal"] }
