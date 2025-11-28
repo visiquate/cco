@@ -220,7 +220,7 @@ impl SseClient {
         let tokens = event.tokens?;
 
         // Create token breakdown (assume no cache tokens from SSE stream for now)
-        // In Phase 1b, we'll enhance this with actual cache token data
+        // Future enhancement: extract actual cache token data from SSE stream if available
         let token_breakdown = TokenBreakdown {
             input_tokens: tokens / 2, // Approximate split
             output_tokens: tokens / 2,

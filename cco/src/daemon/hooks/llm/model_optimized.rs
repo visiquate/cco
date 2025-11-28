@@ -21,7 +21,7 @@ use tracing::{debug, info, warn};
 
 /// Loaded LLM model wrapper
 ///
-/// Note: This is a placeholder structure for Phase 1B implementation.
+/// Note: This is a placeholder structure pending full LLM integration.
 /// The actual LLM integration will be completed once the llm crate API is properly documented.
 pub struct LlmModel {
     /// Placeholder for the loaded model instance

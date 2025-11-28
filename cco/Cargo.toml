@@ -1,6 +1,6 @@
 [package]
 name = "cco"
-version = "0.0.0"  # Placeholder - actual version is date-based (see CCO_VERSION)
+version = "2025.11.28.1"  # Date-based version: YYYY.MM.DD.N (N=release counter)
 edition = "2021"
 
 [package.metadata]

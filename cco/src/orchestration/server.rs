@@ -15,8 +15,10 @@ use chrono::{DateTime, Utc};
 // JWT imports removed - not needed for current implementation
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
+use sysinfo::{Pid, System};
 use tower_http::cors::CorsLayer;
 use uuid::Uuid;
 
@@ -62,12 +64,12 @@ struct Claims {
     iat: usize, // issued at
 }
 
-/// Orchestration server
+/// Orchestration server with metrics tracking
 pub struct OrchestrationServer {
     state: Arc<OrchestrationState>,
     config: ServerConfig,
-    #[allow(dead_code)]
     start_time: Instant,
+    active_agents: Arc<AtomicUsize>,
 }
 
 impl OrchestrationServer {
@@ -77,6 +79,7 @@ impl OrchestrationServer {
             state,
             config,
             start_time: Instant::now(),
+            active_agents: Arc::new(AtomicUsize::new(0)),
         }
     }
 
@@ -104,7 +107,13 @@ impl OrchestrationServer {
 
     /// Create the router with all endpoints
     fn create_router(self) -> Router {
-        let state = self.state;
+        let handler_state = HandlerState {
+            orchestration: self.state,
+            metrics: ServerMetrics {
+                start_time: self.start_time,
+                active_agents: self.active_agents,
+            },
+        };
 
         Router::new()
             // Health and status endpoints
@@ -127,8 +136,22 @@ impl OrchestrationServer {
                 delete(clear_context_cache_handler),
             )
             .layer(CorsLayer::permissive())
-            .with_state(state)
+            .with_state(handler_state)
     }
+}
+
+/// Server metrics state shared with handlers
+#[derive(Clone)]
+struct ServerMetrics {
+    start_time: Instant,
+    active_agents: Arc<AtomicUsize>,
+}
+
+/// Combined state for handlers
+#[derive(Clone)]
+struct HandlerState {
+    orchestration: Arc<OrchestrationState>,
+    metrics: ServerMetrics,
 }
 
 // ===== REQUEST/RESPONSE TYPES =====
@@ -289,23 +312,48 @@ pub struct ClearCacheResponse {
 
 // ===== HANDLER FUNCTIONS =====
 
-async fn health_handler(State(_state): State<Arc<OrchestrationState>>) -> Json<HealthResponse> {
+async fn health_handler(State(state): State<HandlerState>) -> Json<HealthResponse> {
+    // Calculate uptime
+    let uptime_seconds = state.metrics.start_time.elapsed().as_secs();
+
+    // Get current process memory usage
+    let memory_usage_mb = get_process_memory_mb();
+
+    // Get active agents count
+    let active_agents = state.metrics.active_agents.load(Ordering::Relaxed);
+
     Json(HealthResponse {
         status: "healthy".to_string(),
         service: "orchestration-sidecar".to_string(),
         version: env!("CCO_VERSION").to_string(),
-        uptime_seconds: 0, // TODO: track uptime
+        uptime_seconds,
         checks: HealthChecks {
             storage: "healthy".to_string(),
             event_bus: "healthy".to_string(),
-            memory_usage_mb: 150, // TODO: real memory usage
-            active_agents: 0,     // TODO: track active agents
+            memory_usage_mb,
+            active_agents,
             event_queue_size: 0,  // TODO: event queue size
         },
     })
 }
 
-async fn status_handler(State(_state): State<Arc<OrchestrationState>>) -> Json<StatusResponse> {
+/// Get current process memory usage in MB using sysinfo
+fn get_process_memory_mb() -> usize {
+    let mut system = System::new();
+    let pid = Pid::from_u32(std::process::id());
+
+    // Refresh only the specific process
+    system.refresh_process(pid);
+
+    if let Some(process) = system.process(pid) {
+        // Get memory usage in bytes and convert to MB
+        (process.memory() / 1_048_576) as usize
+    } else {
+        0
+    }
+}
+
+async fn status_handler(State(_state): State<HandlerState>) -> Json<StatusResponse> {
     Json(StatusResponse {
         agents: AgentStatus {
             active: 0,
@@ -332,11 +380,12 @@ async fn status_handler(State(_state): State<Arc<OrchestrationState>>) -> Json<S
 }
 
 async fn get_context_handler(
-    State(state): State<Arc<OrchestrationState>>,
+    State(state): State<HandlerState>,
     Path((issue_id, agent_type)): Path<(String, String)>,
 ) -> Result<Json<ContextResponse>, AppError> {
     // Gather context using context injector
     let context = state
+        .orchestration
         .context_injector
         .gather_context(&agent_type, &issue_id)
         .await
@@ -354,12 +403,13 @@ async fn get_context_handler(
 }
 
 async fn store_results_handler(
-    State(state): State<Arc<OrchestrationState>>,
+    State(state): State<HandlerState>,
     Json(request): Json<ResultRequest>,
 ) -> Result<Json<ResultResponse>, AppError> {
     // Store result
     let result_id = Uuid::new_v4().to_string();
     state
+        .orchestration
         .result_storage
         .store_result(&request.issue_id, &request.agent_type, &request.result)
         .await
@@ -367,6 +417,7 @@ async fn store_results_handler(
 
     // Publish event
     let _event_id = state
+        .orchestration
         .event_bus
         .publish(
             "agent_completed",
@@ -386,7 +437,7 @@ async fn store_results_handler(
         stored: true,
         storage_path: format!(
             "{}/results/{}/{}.json",
-            state.config.storage_path, request.issue_id, request.agent_type
+            state.orchestration.config.storage_path, request.issue_id, request.agent_type
         ),
         next_agents: vec![], // TODO: determine next agents
         event_published: true,
@@ -394,11 +445,12 @@ async fn store_results_handler(
 }
 
 async fn publish_event_handler(
-    State(state): State<Arc<OrchestrationState>>,
+    State(state): State<HandlerState>,
     Path(event_type): Path<String>,
     Json(request): Json<EventRequest>,
 ) -> Result<Json<EventResponse>, AppError> {
     let event_id = state
+        .orchestration
         .event_bus
         .publish(&event_type, &request.publisher, &request.topic, request.data)
         .await
@@ -413,13 +465,14 @@ async fn publish_event_handler(
 }
 
 async fn subscribe_event_handler(
-    State(state): State<Arc<OrchestrationState>>,
+    State(state): State<HandlerState>,
     Path(event_type): Path<String>,
     Query(query): Query<EventSubscriptionQuery>,
 ) -> Result<Json<EventSubscriptionResponse>, AppError> {
     let timeout = query.timeout.unwrap_or(30000);
 
     let events = state
+        .orchestration
         .event_bus
         .wait_for_event(&event_type, timeout)
         .await
@@ -433,7 +486,7 @@ async fn subscribe_event_handler(
 }
 
 async fn spawn_agent_handler(
-    State(_state): State<Arc<OrchestrationState>>,
+    State(_state): State<HandlerState>,
     Json(_request): Json<SpawnAgentRequest>,
 ) -> Result<Json<SpawnAgentResponse>, AppError> {
     let agent_id = Uuid::new_v4().to_string();
@@ -449,10 +502,11 @@ async fn spawn_agent_handler(
 }
 
 async fn clear_context_cache_handler(
-    State(state): State<Arc<OrchestrationState>>,
+    State(state): State<HandlerState>,
     Path(issue_id): Path<String>,
 ) -> Result<Json<ClearCacheResponse>, AppError> {
     let removed = state
+        .orchestration
         .context_injector
         .clear_cache(&issue_id)
         .await

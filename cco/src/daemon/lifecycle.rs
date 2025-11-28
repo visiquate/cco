@@ -144,18 +144,10 @@ impl DaemonManager {
         let temp_manager = super::TempFileManager::new();
 
         // Write orchestrator settings with full daemon config (includes hooks)
-        temp_manager.write_orchestrator_settings(&self.config).await
+        temp_manager
+            .write_orchestrator_settings(&self.config)
+            .await
             .context("Failed to write orchestrator settings")?;
-
-        // Create sealed files (agents, rules, hooks)
-        let agents = temp_manager.generate_agents()?;
-        fs::write(temp_manager.agents_path(), agents)?;
-
-        let rules = temp_manager.generate_rules()?;
-        fs::write(temp_manager.rules_path(), rules)?;
-
-        let hooks = temp_manager.generate_hooks()?;
-        fs::write(temp_manager.hooks_path(), hooks)?;
 
         // Generate and write system prompt with XOR deobfuscation
         let system_prompt = temp_manager.generate_system_prompt()?;
@@ -167,18 +159,11 @@ impl DaemonManager {
         let agents_json_path = temp_manager.agents_json_path();
         fs::write(agents_json_path, agents_json)?;
 
-        // Set Unix permissions for sealed files
+        // Set Unix permissions for temp files
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            for path in [
-                temp_manager.agents_path(),
-                temp_manager.rules_path(),
-                temp_manager.hooks_path(),
-            ] {
-                fs::set_permissions(path, fs::Permissions::from_mode(0o644))?;
-            }
-            // System prompt gets more restrictive permissions (owner read/write only)
+            // System prompt gets restrictive permissions (owner read/write only)
             fs::set_permissions(&prompt_path, fs::Permissions::from_mode(0o600))?;
             // Agents JSON gets read permissions for Claude Code
             fs::set_permissions(agents_json_path, fs::Permissions::from_mode(0o644))?;
@@ -477,20 +462,14 @@ mod tests {
         // Create files
         temp_manager.create_files().await.unwrap();
 
-        // Verify they exist
+        // Verify settings file exists
         let temp_dir = env::temp_dir();
         assert!(temp_dir.join(".cco-orchestrator-settings").exists());
-        assert!(temp_dir.join(".cco-agents-sealed").exists());
-        assert!(temp_dir.join(".cco-rules-sealed").exists());
-        assert!(temp_dir.join(".cco-hooks-sealed").exists());
 
         // Cleanup
         temp_manager.cleanup_files().await.unwrap();
 
         // Verify cleanup
         assert!(!temp_dir.join(".cco-orchestrator-settings").exists());
-        assert!(!temp_dir.join(".cco-agents-sealed").exists());
-        assert!(!temp_dir.join(".cco-rules-sealed").exists());
-        assert!(!temp_dir.join(".cco-hooks-sealed").exists());
     }
 }

@@ -7,7 +7,7 @@
 //! - Write batching: Accumulate writes in memory, flush every 30s or when buffer full
 //! - Reduces database I/O overhead from 50ms per write to 50ms per 100 writes
 //!
-//! ## Phase 2: Atomic Metrics Aggregation
+//! ## Atomic Metrics Aggregation
 //! - `AggregatedMetricsCache`: Atomic counters for thread-safe stats aggregation
 //! - Integrates with `crate::metrics::MetricsEngine` for real-time API call tracking
 //! - O(1) snapshot reads with <50ms target latency for /api/stats endpoint
@@ -407,7 +407,7 @@ mod tests {
 }
 
 // ============================================================================
-// Phase 2: Aggregated Metrics Cache with Atomic Counters
+// Aggregated Metrics Cache with Atomic Counters
 // ============================================================================
 
 /// Token counts by type (for aggregated cache)

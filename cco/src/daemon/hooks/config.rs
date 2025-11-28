@@ -51,7 +51,7 @@ pub struct HooksConfig {
     #[serde(default = "default_max_retries")]
     pub max_retries: u32,
 
-    /// LLM configuration for Phase 2
+    /// LLM configuration for embedded CRUD classification
     #[serde(default)]
     pub llm: HookLlmConfig,
 
@@ -66,7 +66,7 @@ pub struct HooksConfig {
 
 /// LLM configuration for embedded CRUD classification
 ///
-/// Phase 1A: Uses embedded TinyLLaMA (1.1B) for CRUD classification.
+/// Uses embedded TinyLLaMA (1.1B) for CRUD classification.
 /// The model is downloaded on first run and cached locally.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HookLlmConfig {
@@ -138,8 +138,8 @@ pub struct HooksPermissions {
 /// Hook callback configurations
 ///
 /// Defines which callbacks are enabled for each hook type.
-/// Phase 1: Empty (hooks registered programmatically)
-/// Phase 2: Will support configuration-based hook registration
+/// Currently: Hooks registered programmatically
+/// Future enhancement: Configuration-based hook registration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HooksCallbacks {
     /// Pre-command hook configurations

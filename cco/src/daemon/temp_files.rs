@@ -2,11 +2,14 @@
 //!
 //! Creates and manages temporary files in the system temp directory for:
 //! - Orchestrator settings (JSON)
-//! - Agent definitions (sealed/encrypted)
-//! - Orchestration rules (sealed/encrypted)
-//! - Coordination hooks (sealed/encrypted)
+//! - Agent definitions (JSON via --agents flag)
+//! - System prompt (XOR obfuscated)
 //!
 //! Files are created on daemon start and cleaned up on daemon stop.
+//!
+//! Note: The sealed file system (agents/rules/hooks sealed files) has been removed
+//! as it was dead code - files were written but never read. The --agents flag
+//! provides the actual agent data used by the system.
 
 use anyhow::Result;
 use serde_json::json;
@@ -19,9 +22,6 @@ use super::config::DaemonConfig;
 /// Temp file manager for orchestrator resources
 pub struct TempFileManager {
     settings_path: PathBuf,
-    agents_path: PathBuf,
-    rules_path: PathBuf,
-    hooks_path: PathBuf,
     system_prompt_path: PathBuf,
     agents_json_path: PathBuf,
 }
@@ -32,9 +32,6 @@ impl TempFileManager {
         let temp_dir = env::temp_dir();
         Self {
             settings_path: temp_dir.join(".cco-orchestrator-settings"),
-            agents_path: temp_dir.join(".cco-agents-sealed"),
-            rules_path: temp_dir.join(".cco-rules-sealed"),
-            hooks_path: temp_dir.join(".cco-hooks-sealed"),
             system_prompt_path: temp_dir.join(".cco-system-prompt"),
             agents_json_path: temp_dir.join(".cco-agents-json"),
         }
@@ -67,30 +64,11 @@ impl TempFileManager {
         let settings = self.generate_settings()?;
         fs::write(&self.settings_path, settings)?;
 
-        // Generate encrypted agents (placeholder for now)
-        let agents = self.generate_agents()?;
-        fs::write(&self.agents_path, agents)?;
-
-        // Generate encrypted rules (placeholder for now)
-        let rules = self.generate_rules()?;
-        fs::write(&self.rules_path, rules)?;
-
-        // Generate encrypted hooks (placeholder for now)
-        let hooks = self.generate_hooks()?;
-        fs::write(&self.hooks_path, hooks)?;
-
         // Set Unix permissions (read for all)
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            for path in [
-                &self.settings_path,
-                &self.agents_path,
-                &self.rules_path,
-                &self.hooks_path,
-            ] {
-                fs::set_permissions(path, fs::Permissions::from_mode(0o644))?;
-            }
+            fs::set_permissions(&self.settings_path, fs::Permissions::from_mode(0o644))?;
         }
 
         tracing::info!(
@@ -145,21 +123,6 @@ impl TempFileManager {
                 }
             },
 
-            "agents": {
-                "sealed_file": self.agents_path.to_string_lossy()
-            },
-            "rules": {
-                "sealed_file": self.rules_path.to_string_lossy()
-            },
-            "hooks_file": {
-                "sealed_file": self.hooks_path.to_string_lossy()
-            },
-
-            "environment": {
-                "orchestrator_enabled": std::env::var("ORCHESTRATOR_ENABLED").ok(),
-                "orchestrator_settings": std::env::var("ORCHESTRATOR_SETTINGS").ok(),
-            },
-
             "temp_dir": env::temp_dir().to_string_lossy()
         });
 
@@ -209,14 +172,7 @@ impl TempFileManager {
 
     /// Clean up all temporary files
     pub async fn cleanup_files(&self) -> Result<()> {
-        for path in [
-            &self.settings_path,
-            &self.agents_path,
-            &self.rules_path,
-            &self.hooks_path,
-            &self.system_prompt_path,
-            &self.agents_json_path,
-        ] {
+        for path in [&self.settings_path, &self.system_prompt_path, &self.agents_json_path] {
             if path.exists() {
                 fs::remove_file(path).ok();
             }
@@ -229,21 +185,6 @@ impl TempFileManager {
     /// Get the settings file path
     pub fn settings_path(&self) -> &PathBuf {
         &self.settings_path
-    }
-
-    /// Get the agents file path
-    pub fn agents_path(&self) -> &PathBuf {
-        &self.agents_path
-    }
-
-    /// Get the rules file path
-    pub fn rules_path(&self) -> &PathBuf {
-        &self.rules_path
-    }
-
-    /// Get the hooks file path
-    pub fn hooks_path(&self) -> &PathBuf {
-        &self.hooks_path
     }
 
     /// Get the knowledge database base directory
@@ -311,14 +252,7 @@ impl TempFileManager {
                 "enabled": true,
                 "api_url": api_url
             },
-            "agents": {
-                "sealed_file": self.agents_path.to_string_lossy()
-            },
-            "rules": {
-                "sealed_file": self.rules_path.to_string_lossy()
-            },
             "hooks": {
-                "sealed_file": self.hooks_path.to_string_lossy(),
                 "enabled": true,
                 "timeout_ms": 5000,
                 "max_retries": 2,
@@ -346,73 +280,6 @@ impl TempFileManager {
 
         Ok(serde_json::to_vec_pretty(&settings)?)
     }
-
-    /// Generate agent definitions (placeholder - will be encrypted in Phase 2)
-    pub fn generate_agents(&self) -> Result<Vec<u8>> {
-        // Phase 1: Return plaintext JSON stub
-        // Phase 2+: Use encryption pipeline with SBF v1 format
-        let agents = json!({
-            "version": "2025.11.17",
-            "format": "plaintext",
-            "agents": [
-                {
-                    "name": "Chief Architect",
-                    "type": "system-architect",
-                    "model": "opus-4.1",
-                    "role": "Strategic decision-making and coordination"
-                },
-                {
-                    "name": "Python Specialist",
-                    "type": "python-specialist",
-                    "model": "haiku-4.5",
-                    "role": "Python/FastAPI/Django development"
-                }
-            ],
-            "note": "Phase 1: Plaintext stub - will be encrypted in Phase 2"
-        });
-
-        Ok(serde_json::to_vec_pretty(&agents)?)
-    }
-
-    /// Generate orchestration rules (placeholder - will be encrypted in Phase 2)
-    pub fn generate_rules(&self) -> Result<Vec<u8>> {
-        // Phase 1: Return plaintext JSON stub
-        // Phase 2+: Use encryption pipeline
-        let rules = json!({
-            "version": "2025.11.17",
-            "format": "plaintext",
-            "rules": {
-                "always_read_files_fully": true,
-                "spawn_all_agents_in_parallel": true,
-                "use_knowledge_manager": true,
-                "tdd_first": true
-            },
-            "note": "Phase 1: Stub rules - will be encrypted in Phase 2"
-        });
-
-        Ok(serde_json::to_vec_pretty(&rules)?)
-    }
-
-    /// Generate coordination hooks (placeholder - will be encrypted in Phase 2)
-    pub fn generate_hooks(&self) -> Result<Vec<u8>> {
-        // Phase 1: Return plaintext JSON stub
-        // Phase 2+: Use encryption pipeline
-        let hooks = json!({
-            "version": "2025.11.17",
-            "format": "plaintext",
-            "pre_compaction": {
-                "enabled": true,
-                "script": "knowledge-manager.js export"
-            },
-            "post_compaction": {
-                "enabled": true,
-                "script": "knowledge-manager.js restore"
-            },
-            "note": "Phase 1: Stub hooks - will be encrypted in Phase 2"
-        });
-
-        Ok(serde_json::to_vec_pretty(&hooks)?)
-    }
 }
 
 impl Default for TempFileManager {
@@ -428,8 +295,10 @@ mod tests {
     #[tokio::test]
     async fn test_temp_file_manager_creation() {
         let manager = TempFileManager::new();
-        assert!(manager.settings_path().to_string_lossy().contains(".cco-orchestrator-settings"));
-        assert!(manager.agents_path().to_string_lossy().contains(".cco-agents-sealed"));
+        assert!(manager
+            .settings_path()
+            .to_string_lossy()
+            .contains(".cco-orchestrator-settings"));
     }
 
     #[tokio::test]
@@ -441,9 +310,6 @@ mod tests {
 
         // Verify they exist
         assert!(manager.settings_path().exists());
-        assert!(manager.agents_path().exists());
-        assert!(manager.rules_path().exists());
-        assert!(manager.hooks_path().exists());
 
         // Verify settings content is valid JSON
         let settings_content = fs::read_to_string(manager.settings_path()).unwrap();
@@ -454,9 +320,6 @@ mod tests {
 
         // Verify they're gone
         assert!(!manager.settings_path().exists());
-        assert!(!manager.agents_path().exists());
-        assert!(!manager.rules_path().exists());
-        assert!(!manager.hooks_path().exists());
     }
 
     #[tokio::test]
@@ -468,20 +331,7 @@ mod tests {
         assert!(json.get("version").is_some());
         assert!(json.get("orchestration").is_some());
         assert!(json["orchestration"]["enabled"].as_bool().unwrap());
-        assert!(json.get("agents").is_some());
-        assert!(json.get("rules").is_some());
         assert!(json.get("hooks").is_some());
-    }
-
-    #[tokio::test]
-    async fn test_agents_json_structure() {
-        let manager = TempFileManager::new();
-        let agents = manager.generate_agents().unwrap();
-        let json: serde_json::Value = serde_json::from_slice(&agents).unwrap();
-
-        assert_eq!(json["format"], "plaintext");
-        assert!(json.get("agents").is_some());
-        assert!(json["agents"].is_array());
     }
 
     #[cfg(unix)]

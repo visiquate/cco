@@ -1,7 +1,7 @@
 //! CCO Monitoring Service
 //!
 //! Background daemon service for monitoring Claude API usage via SSE stream.
-//! Phase 1a: Core daemon skeleton with signal handling and graceful shutdown.
+//! Core daemon with signal handling and graceful shutdown.
 
 use crate::metrics::{MetricsEngine, MetricsSummary};
 use crate::sse::SseClient;

@@ -1457,51 +1457,5 @@ mod edge_case_tests {
 // 8. Integration Tests (HTTP API)
 // ============================================================================
 
-#[cfg(test)]
-mod integration_tests {
-    // Note: These tests would require the full daemon server to be running
-    // They're marked as ignored by default and should be run separately
-    // with integration test infrastructure
-
-    #[tokio::test]
-    #[ignore = "Requires full daemon server"]
-    async fn test_store_endpoint() {
-        // Test POST /api/knowledge/store endpoint
-        // Would use reqwest to call the actual HTTP endpoint
-        todo!("Implement when HTTP server is available in tests");
-    }
-
-    #[tokio::test]
-    #[ignore = "Requires full daemon server"]
-    async fn test_search_endpoint() {
-        // Test POST /api/knowledge/search endpoint
-        todo!("Implement when HTTP server is available in tests");
-    }
-
-    #[tokio::test]
-    #[ignore = "Requires full daemon server"]
-    async fn test_stats_endpoint() {
-        // Test GET /api/knowledge/stats endpoint
-        todo!("Implement when HTTP server is available in tests");
-    }
-
-    #[tokio::test]
-    #[ignore = "Requires full daemon server"]
-    async fn test_store_search_stats_workflow() {
-        // Test complete workflow:
-        // 1. Store knowledge via API
-        // 2. Search for it via API
-        // 3. Verify stats via API
-        todo!("Implement when HTTP server is available in tests");
-    }
-
-    #[tokio::test]
-    #[ignore = "Requires full daemon server"]
-    async fn test_compaction_resilience() {
-        // Test that knowledge survives daemon restart
-        // 1. Store knowledge
-        // 2. Restart daemon
-        // 3. Verify knowledge still accessible
-        todo!("Implement when HTTP server is available in tests");
-    }
-}
+// Note: Integration tests for HTTP endpoints would go in a separate test file
+// that uses a full daemon server setup with axum TestServer

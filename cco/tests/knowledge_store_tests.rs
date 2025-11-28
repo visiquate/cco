@@ -133,7 +133,7 @@ mod store_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "architect".to_string(),
-            metadata: serde_json::json!({"priority": "high"}),
+            metadata: serde_json::json!({"priority": "high"}).to_string(),
         };
 
         let id = store.store(item.clone()).await.unwrap();
@@ -162,7 +162,7 @@ mod store_tests {
                 project_id: "test-project".to_string(),
                 session_id: "session-001".to_string(),
                 agent: "architect".to_string(),
-                metadata: serde_json::json!({}),
+                metadata: serde_json::json!({}).to_string(),
             },
             KnowledgeItem {
                 text: "Implementation of REST endpoints".to_string(),
@@ -170,7 +170,7 @@ mod store_tests {
                 project_id: "test-project".to_string(),
                 session_id: "session-001".to_string(),
                 agent: "python".to_string(),
-                metadata: serde_json::json!({}),
+                metadata: serde_json::json!({}).to_string(),
             },
             KnowledgeItem {
                 text: "Security audit findings".to_string(),
@@ -178,7 +178,7 @@ mod store_tests {
                 project_id: "test-project".to_string(),
                 session_id: "session-001".to_string(),
                 agent: "security".to_string(),
-                metadata: serde_json::json!({}),
+                metadata: serde_json::json!({}).to_string(),
             },
         ];
 
@@ -205,7 +205,7 @@ mod store_tests {
             project_id: "project-a".to_string(),
             session_id: "session-001".to_string(),
             agent: "architect".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         };
 
         let item2 = KnowledgeItem {
@@ -214,7 +214,7 @@ mod store_tests {
             project_id: "project-b".to_string(),
             session_id: "session-002".to_string(),
             agent: "architect".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         };
 
         store.store(item1).await.unwrap();
@@ -262,7 +262,7 @@ mod store_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "architect".to_string(),
-            metadata: metadata.clone(),
+            metadata: metadata.to_string(),
         };
 
         store.store(item).await.unwrap();
@@ -270,7 +270,9 @@ mod store_tests {
         let results = store.search("complex metadata", Default::default()).await.unwrap();
 
         assert!(!results.is_empty());
-        assert_eq!(results[0].metadata, metadata, "Metadata should match exactly");
+        // Parse the stored metadata string back to JSON for comparison
+        let stored_metadata: serde_json::Value = serde_json::from_str(&results[0].metadata).unwrap();
+        assert_eq!(stored_metadata, metadata, "Metadata should match exactly");
     }
 
     #[tokio::test]
@@ -288,7 +290,7 @@ mod store_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "test".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         };
 
         store.store(item).await.unwrap();
@@ -326,7 +328,7 @@ mod search_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "architect".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         store.store(KnowledgeItem {
@@ -335,7 +337,7 @@ mod search_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "python".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         store.store(KnowledgeItem {
@@ -344,7 +346,7 @@ mod search_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "architect".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         // Search for authentication-related knowledge
@@ -376,7 +378,7 @@ mod search_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "architect".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         store.store(KnowledgeItem {
@@ -385,7 +387,7 @@ mod search_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "python".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         // Search with type filter
@@ -416,7 +418,7 @@ mod search_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "architect".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         store.store(KnowledgeItem {
@@ -425,7 +427,7 @@ mod search_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "security".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         // Filter by architect agent
@@ -456,7 +458,7 @@ mod search_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "test".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         // Search with date range (last hour)
@@ -486,7 +488,7 @@ mod search_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "python".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         store.store(KnowledgeItem {
@@ -495,7 +497,7 @@ mod search_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "devops".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         let results = store.search("JWT authentication", SearchOptions {
@@ -528,7 +530,7 @@ mod search_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "python".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         // Search for completely unrelated term
@@ -556,7 +558,7 @@ mod search_tests {
                 project_id: "test-project".to_string(),
                 session_id: "session-001".to_string(),
                 agent: "test".to_string(),
-                metadata: serde_json::json!({}),
+                metadata: serde_json::json!({}).to_string(),
             }).await.unwrap();
         }
 
@@ -590,7 +592,7 @@ mod project_knowledge_tests {
                 project_id: "test-project".to_string(),
                 session_id: "session-001".to_string(),
                 agent: "test".to_string(),
-                metadata: serde_json::json!({}),
+                metadata: serde_json::json!({}).to_string(),
             }).await.unwrap();
         }
 
@@ -615,7 +617,7 @@ mod project_knowledge_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "architect".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         store.store(KnowledgeItem {
@@ -624,7 +626,7 @@ mod project_knowledge_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "python".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         // Filter by type
@@ -654,7 +656,7 @@ mod project_knowledge_tests {
             project_id: "project-a".to_string(),
             session_id: "session-001".to_string(),
             agent: "test".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         // Store for project B
@@ -664,7 +666,7 @@ mod project_knowledge_tests {
             project_id: "project-b".to_string(),
             session_id: "session-002".to_string(),
             agent: "test".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         let results_a = store.get_project_knowledge(
@@ -693,7 +695,7 @@ mod project_knowledge_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "test".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
@@ -704,7 +706,7 @@ mod project_knowledge_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "test".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         let results = store.get_project_knowledge(
@@ -772,7 +774,7 @@ mod compaction_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "architect".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         // Post-compaction retrieval
@@ -844,7 +846,7 @@ mod compaction_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "architect".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         store.store(KnowledgeItem {
@@ -853,7 +855,7 @@ mod compaction_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "security".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         let result = store.post_compaction(
@@ -887,7 +889,7 @@ mod cleanup_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "test".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         // Clean up items older than 90 days (default)
@@ -918,7 +920,7 @@ mod cleanup_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "test".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         // Clean with very short retention (0 days - everything is old)
@@ -945,7 +947,7 @@ mod cleanup_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "test".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         // Cleanup with 90 day retention
@@ -973,7 +975,7 @@ mod cleanup_tests {
             project_id: "project-a".to_string(),
             session_id: "session-001".to_string(),
             agent: "test".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         store.store(KnowledgeItem {
@@ -982,7 +984,7 @@ mod cleanup_tests {
             project_id: "project-b".to_string(),
             session_id: "session-002".to_string(),
             agent: "test".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         // Cleanup only project A
@@ -1034,7 +1036,7 @@ mod statistics_tests {
                 project_id: "test-project".to_string(),
                 session_id: "session-001".to_string(),
                 agent: "test".to_string(),
-                metadata: serde_json::json!({}),
+                metadata: serde_json::json!({}).to_string(),
             }).await.unwrap();
         }
 
@@ -1057,7 +1059,7 @@ mod statistics_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "architect".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         store.store(KnowledgeItem {
@@ -1066,7 +1068,7 @@ mod statistics_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "architect".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         store.store(KnowledgeItem {
@@ -1075,7 +1077,7 @@ mod statistics_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "security".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         let stats = store.get_stats().await.unwrap();
@@ -1098,7 +1100,7 @@ mod statistics_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "architect".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         store.store(KnowledgeItem {
@@ -1107,7 +1109,7 @@ mod statistics_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "python".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         let stats = store.get_stats().await.unwrap();
@@ -1129,7 +1131,7 @@ mod statistics_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "test".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
@@ -1140,7 +1142,7 @@ mod statistics_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "test".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await.unwrap();
 
         let stats = store.get_stats().await.unwrap();
@@ -1159,77 +1161,6 @@ mod statistics_tests {
 
 // Note: API endpoint tests would go in a separate integration test file
 // that tests the actual HTTP endpoints using the axum TestServer
-// These are placeholders showing the test structure
-
-#[cfg(test)]
-mod api_endpoint_tests {
-    // These tests require axum TestServer or similar integration test framework
-    // They test the actual HTTP API endpoints
-
-    #[tokio::test]
-    #[ignore] // Requires full server setup
-    async fn test_post_store_endpoint() {
-        // POST /api/knowledge/store
-        // Test storing single knowledge item via API
-        todo!("Implement with axum TestServer");
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn test_batch_store_endpoint() {
-        // POST /api/knowledge/store-batch
-        // Test batch storage via API
-        todo!("Implement with axum TestServer");
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn test_search_endpoint() {
-        // POST /api/knowledge/search
-        // Test search via API
-        todo!("Implement with axum TestServer");
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn test_get_project_endpoint() {
-        // GET /api/knowledge/project/:id
-        // Test project retrieval via API
-        todo!("Implement with axum TestServer");
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn test_pre_compaction_endpoint() {
-        // POST /api/knowledge/pre-compaction
-        // Test pre-compaction hook via API
-        todo!("Implement with axum TestServer");
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn test_post_compaction_endpoint() {
-        // POST /api/knowledge/post-compaction
-        // Test post-compaction hook via API
-        todo!("Implement with axum TestServer");
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn test_stats_endpoint() {
-        // GET /api/knowledge/stats
-        // Test statistics endpoint
-        todo!("Implement with axum TestServer");
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn test_cleanup_endpoint() {
-        // POST /api/knowledge/cleanup
-        // Test cleanup endpoint
-        todo!("Implement with axum TestServer");
-    }
-}
 
 #[cfg(test)]
 mod error_handling_tests {
@@ -1250,7 +1181,7 @@ mod error_handling_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "test".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await;
 
         assert!(result.is_err(), "Empty text should be rejected");
@@ -1293,7 +1224,7 @@ mod error_handling_tests {
                     project_id: "test-project".to_string(),
                     session_id: "session-001".to_string(),
                     agent: "test".to_string(),
-                    metadata: serde_json::json!({}),
+                    metadata: serde_json::json!({}).to_string(),
                 }).await
             });
             handles.push(handle);
@@ -1355,7 +1286,7 @@ mod data_integrity_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "test".to_string(),
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({}).to_string(),
         }).await;
 
         assert!(result.is_err(), "Empty text should be rejected");
@@ -1386,7 +1317,7 @@ mod data_integrity_tests {
                 project_id: "test-project".to_string(),
                 session_id: "session-001".to_string(),
                 agent: "test".to_string(),
-                metadata: serde_json::json!({}),
+                metadata: serde_json::json!({}).to_string(),
             }).await;
 
             assert!(result.is_ok(), "Valid knowledge type should be accepted");
@@ -1408,7 +1339,7 @@ mod data_integrity_tests {
                 project_id: "test-project".to_string(),
                 session_id: "session-001".to_string(),
                 agent: "test".to_string(),
-                metadata: serde_json::json!({"index": i}),
+                metadata: serde_json::json!({"index": i}).to_string(),
             });
         }
 
@@ -1442,7 +1373,7 @@ mod data_integrity_tests {
                 project_id: "test-project".to_string(),
                 session_id: "session-001".to_string(),
                 agent: "test".to_string(),
-                metadata: serde_json::json!({}),
+                metadata: serde_json::json!({}).to_string(),
             }).await;
 
             assert!(result.is_ok(), "Should handle special characters: {}", text);
@@ -1480,13 +1411,15 @@ mod data_integrity_tests {
             project_id: "test-project".to_string(),
             session_id: "session-001".to_string(),
             agent: "test".to_string(),
-            metadata: complex_metadata.clone(),
+            metadata: complex_metadata.to_string(),
         }).await;
 
         assert!(result.is_ok(), "Should handle complex metadata");
 
         // Verify metadata roundtrip
         let results = store.search("Complex metadata", Default::default()).await.unwrap();
-        assert_eq!(results[0].metadata, complex_metadata, "Metadata should roundtrip exactly");
+        // Verify metadata roundtrip by parsing the stored JSON string
+        let stored_metadata: serde_json::Value = serde_json::from_str(&results[0].metadata).unwrap();
+        assert_eq!(stored_metadata, complex_metadata, "Metadata should roundtrip exactly");
     }
 }
