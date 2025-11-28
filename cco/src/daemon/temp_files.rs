@@ -22,6 +22,8 @@ pub struct TempFileManager {
     agents_path: PathBuf,
     rules_path: PathBuf,
     hooks_path: PathBuf,
+    system_prompt_path: PathBuf,
+    agents_json_path: PathBuf,
 }
 
 impl TempFileManager {
@@ -33,7 +35,27 @@ impl TempFileManager {
             agents_path: temp_dir.join(".cco-agents-sealed"),
             rules_path: temp_dir.join(".cco-rules-sealed"),
             hooks_path: temp_dir.join(".cco-hooks-sealed"),
+            system_prompt_path: temp_dir.join(".cco-system-prompt"),
+            agents_json_path: temp_dir.join(".cco-agents-json"),
         }
+    }
+
+    /// Get the system prompt file path (internal use only)
+    ///
+    /// Note: This method is public for daemon lifecycle management but should
+    /// not be considered part of the stable public API. The system prompt path
+    /// is intentionally not exposed to end users for security.
+    ///
+    /// # Internal Use Only
+    /// This method is used by the daemon lifecycle and CCO wrapper to manage
+    /// the system prompt file. End users should not need to access this directly.
+    pub fn system_prompt_path(&self) -> PathBuf {
+        self.system_prompt_path.clone()
+    }
+
+    /// Get the agents JSON file path
+    pub fn agents_json_path(&self) -> &PathBuf {
+        &self.agents_json_path
     }
 
     /// Create all temporary files with content
@@ -156,6 +178,35 @@ impl TempFileManager {
         Ok(())
     }
 
+    /// Generate Claude-formatted agents JSON from orchestra config
+    ///
+    /// Parses orchestra-config.json and converts all 119 agents to Claude Code's format.
+    /// Uses embedded prompts from JSON (falls back to role description if prompts not yet added).
+    ///
+    /// # Returns
+    /// JSON bytes ready to be written to VFS or passed to Claude via --agents flag
+    pub fn generate_agents_json(&self) -> Result<Vec<u8>> {
+        use crate::orchestra::OrchestraConfig;
+
+        // Load orchestra config from parent repo
+        let config_path = "/Users/brent/git/cc-orchestra/config/orchestra-config.json";
+        let config = OrchestraConfig::load(config_path)?;
+
+        // Convert to Claude format
+        let claude_agents = config.to_claude_format()?;
+
+        // Serialize to JSON
+        let json = serde_json::to_string_pretty(&claude_agents)?;
+
+        tracing::info!(
+            "Generated agents JSON: {} agents, {} bytes",
+            claude_agents.len(),
+            json.len()
+        );
+
+        Ok(json.into_bytes())
+    }
+
     /// Clean up all temporary files
     pub async fn cleanup_files(&self) -> Result<()> {
         for path in [
@@ -163,6 +214,8 @@ impl TempFileManager {
             &self.agents_path,
             &self.rules_path,
             &self.hooks_path,
+            &self.system_prompt_path,
+            &self.agents_json_path,
         ] {
             if path.exists() {
                 fs::remove_file(path).ok();
@@ -191,6 +244,30 @@ impl TempFileManager {
     /// Get the hooks file path
     pub fn hooks_path(&self) -> &PathBuf {
         &self.hooks_path
+    }
+
+    /// Generate system prompt with XOR deobfuscation
+    ///
+    /// Deobfuscates the embedded binary using XOR key 0xA7 and returns
+    /// a JSON structure containing the prompt content.
+    pub fn generate_system_prompt(&self) -> Result<Vec<u8>> {
+        // Deobfuscate embedded binary
+        const OBFUSCATED: &[u8] = include_bytes!("../../config/orchestrator-prompt.bin");
+        const XOR_KEY: u8 = 0xA7;
+
+        let content: Vec<u8> = OBFUSCATED
+            .iter()
+            .map(|b| b ^ XOR_KEY)
+            .collect();
+
+        let content_str = String::from_utf8(content)?;
+
+        let data = json!({
+            "version": env!("CARGO_PKG_VERSION"),
+            "format": "sealed",
+            "content": content_str,
+        });
+        Ok(serde_json::to_vec_pretty(&data)?)
     }
 
     /// Generate orchestrator settings JSON
@@ -478,7 +555,9 @@ mod tests {
         assert_eq!(settings["hooks"]["enabled"].as_bool().unwrap(), true);
         assert_eq!(settings["hooks"]["timeout_ms"].as_u64().unwrap(), 7500);
         assert_eq!(settings["hooks"]["max_retries"].as_u64().unwrap(), 5);
-        assert_eq!(settings["hooks"]["llm"]["temperature"].as_f64().unwrap(), 0.2);
+        // Use approximate comparison for floating point
+        let temp = settings["hooks"]["llm"]["temperature"].as_f64().unwrap();
+        assert!((temp - 0.2).abs() < 0.01, "Temperature should be approximately 0.2, got {}", temp);
         assert_eq!(settings["hooks"]["permissions"]["allow_file_read"].as_bool().unwrap(), true);
 
         // Cleanup

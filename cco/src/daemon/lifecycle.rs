@@ -157,6 +157,16 @@ impl DaemonManager {
         let hooks = temp_manager.generate_hooks()?;
         fs::write(temp_manager.hooks_path(), hooks)?;
 
+        // Generate and write system prompt with XOR deobfuscation
+        let system_prompt = temp_manager.generate_system_prompt()?;
+        let prompt_path = temp_manager.system_prompt_path();
+        fs::write(&prompt_path, system_prompt)?;
+
+        // Generate and write agents JSON (119 agents from orchestra-config.json)
+        let agents_json = temp_manager.generate_agents_json()?;
+        let agents_json_path = temp_manager.agents_json_path();
+        fs::write(agents_json_path, agents_json)?;
+
         // Set Unix permissions for sealed files
         #[cfg(unix)]
         {
@@ -168,7 +178,13 @@ impl DaemonManager {
             ] {
                 fs::set_permissions(path, fs::Permissions::from_mode(0o644))?;
             }
+            // System prompt gets more restrictive permissions (owner read/write only)
+            fs::set_permissions(&prompt_path, fs::Permissions::from_mode(0o600))?;
+            // Agents JSON gets read permissions for Claude Code
+            fs::set_permissions(agents_json_path, fs::Permissions::from_mode(0o644))?;
         }
+
+        tracing::info!("Generated agents JSON at: {}", agents_json_path.display());
 
         // Get the binary path (the cco binary itself)
         let exe_path = std::env::current_exe()

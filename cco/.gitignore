@@ -46,3 +46,6 @@ Thumbs.db
 credentials.json
 secrets.json
 /config/credential-inventory.json
+
+# Build artifacts
+config/orchestrator-prompt.bin

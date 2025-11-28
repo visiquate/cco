@@ -14,6 +14,7 @@ pub mod daemon;
 pub mod embedded_agents;
 pub mod metrics;
 pub mod monitor;
+pub mod orchestra;
 pub mod orchestration;
 pub mod persistence;
 pub mod proxy;

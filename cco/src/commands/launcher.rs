@@ -6,6 +6,7 @@
 
 use anyhow::{Context, Result};
 use std::env;
+use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::Arc;
@@ -421,6 +422,7 @@ fn find_claude_code_executable() -> Result<PathBuf> {
 ///
 /// Spawns the Claude Code process with:
 /// * --settings flag pointing to orchestrator settings
+/// * --append-system-prompt flag with orchestrator rules
 /// * -allow-dangerously-skip-permissions flag for agent autonomy
 /// * All pass-through arguments from user
 /// * Current working directory preserved
@@ -434,14 +436,29 @@ fn find_claude_code_executable() -> Result<PathBuf> {
 /// * `Ok(())` - Claude Code exited successfully
 /// * `Err` - Claude Code failed to start or exited with error
 async fn launch_claude_code_process(settings_path: &PathBuf, args: Vec<String>) -> Result<()> {
+    use cco::daemon::TempFileManager;
+
     let claude_code_path = find_claude_code_executable()?;
     let cwd = env::current_dir().context("Failed to get current working directory")?;
+
+    // Regenerate system prompt on every invocation
+    let temp_manager = TempFileManager::new();
+    let system_prompt_json = temp_manager.generate_system_prompt()?;
+    let prompt_path = temp_manager.system_prompt_path();
+    fs::write(&prompt_path, &system_prompt_json)?;
+
+    // Read and parse JSON to extract content
+    let prompt_data: serde_json::Value = serde_json::from_slice(&system_prompt_json)?;
+    let system_prompt = prompt_data["content"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("Missing content field in system prompt"))?;
 
     println!("🚀 Launching Claude Code with orchestration support...");
     println!("   Working directory: {}", cwd.display());
     println!("   Settings: {}", settings_path.display());
     println!("   Executable: {}", claude_code_path.display());
     println!("   Agent autonomy: enabled");
+    println!("   Orchestrator prompt: injected");
 
     if !args.is_empty() {
         println!("   Arguments: {}", args.join(" "));
@@ -463,6 +480,25 @@ async fn launch_claude_code_process(settings_path: &PathBuf, args: Vec<String>) 
 
     // Add permission bypass flag to allow agents to run without confirmation
     cmd.arg("--allow-dangerously-skip-permissions");
+
+    // Add system prompt with orchestrator rules
+    cmd.arg("--append-system-prompt");
+    cmd.arg(system_prompt);
+
+    // Read agents JSON from VFS and pass to Claude Code
+    let agents_json_path = temp_manager.agents_json_path();
+    if agents_json_path.exists() {
+        let agents_json = fs::read_to_string(agents_json_path)
+            .context("Failed to read agents JSON from VFS")?;
+
+        // Add --agents flag with JSON content
+        cmd.arg("--agents");
+        cmd.arg(&agents_json);
+
+        tracing::info!("Passing {} bytes of agent definitions to Claude Code", agents_json.len());
+    } else {
+        tracing::warn!("Agents JSON not found at: {}", agents_json_path.display());
+    }
 
     // Add user-provided arguments
     cmd.args(&args);

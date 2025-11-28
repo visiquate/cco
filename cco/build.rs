@@ -11,6 +11,11 @@ fn main() {
     println!("cargo:rerun-if-changed=../config/");
     println!("cargo:rerun-if-changed=../config/orchestra-config.json");
     println!("cargo:rerun-if-changed=config/agents");
+    println!("cargo:rerun-if-changed=config/orchestrator-prompt.txt");
+    println!("cargo:rerun-if-changed=config/obfuscate.sh");
+
+    // Run obfuscation script for orchestrator prompt
+    obfuscate_orchestrator_prompt();
 
     // Get git commit hash
     let git_hash = get_git_hash();
@@ -60,6 +65,36 @@ fn main() {
 
     // Generate embedded agents code
     generate_embedded_agents();
+}
+
+/// Obfuscate orchestrator prompt at build time
+fn obfuscate_orchestrator_prompt() {
+    let script_path = Path::new("config/obfuscate.sh");
+    let input_path = Path::new("config/orchestrator-prompt.txt");
+
+    // Check if source files exist
+    if !script_path.exists() {
+        println!("cargo:warning=⚠ Obfuscation script not found: {:?}", script_path);
+        return;
+    }
+
+    if !input_path.exists() {
+        println!("cargo:warning=⚠ Orchestrator prompt not found: {:?}", input_path);
+        return;
+    }
+
+    // Run obfuscation script
+    let status = Command::new("bash")
+        .arg(script_path)
+        .status()
+        .expect("Failed to run obfuscation script");
+
+    if !status.success() {
+        eprintln!("ERROR: Obfuscation script failed");
+        std::process::exit(1);
+    }
+
+    println!("cargo:warning=✓ Orchestrator prompt obfuscated");
 }
 
 fn get_git_hash() -> String {

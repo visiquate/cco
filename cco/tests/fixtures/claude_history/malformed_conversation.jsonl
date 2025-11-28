@@ -1,0 +1,7 @@
+{"type":"assistant","message":{"model":"claude-sonnet-4-5-20250929","usage":{"input_tokens":100,"output_tokens":50}},"timestamp":"2025-11-26T10:00:00Z"}
+{"invalid json line without closing brace
+not even json at all
+{"type":"assistant","message":{"model":"claude-haiku-4-5-20251001","usage":{"input_tokens":200,"output_tokens":100}},"timestamp":"2025-11-26T11:00:00Z"}
+{"missing":"usage","field":"here"}
+{"type":"assistant"}
+{"type":"assistant","message":{}}
