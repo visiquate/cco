@@ -1,6 +1,6 @@
 [package]
 name = "cco"
-version = "2025.11.28"  # Date-based version: YYYY.MM.DD (git commit hash used for multi-release disambiguation)
+version = "2025.11.28.1"  # Date-based version: YYYY.MM.N (git commit hash used for multi-release disambiguation)
 edition = "2021"
 
 [package.metadata]
