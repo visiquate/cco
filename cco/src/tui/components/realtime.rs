@@ -14,13 +14,7 @@ impl Component for RealtimeComponent {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .margin(1)
-            .constraints(
-                [
-                    Constraint::Length(3),
-                    Constraint::Min(0),
-                ]
-                .as_ref(),
-            )
+            .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
             .split(area);
 
         // Header with current timestamp
@@ -62,11 +56,19 @@ impl Component for RealtimeComponent {
 
         let list = if items.is_empty() {
             List::new([ListItem::new("No API calls recorded yet...")].to_vec())
-                .block(Block::default().title("Recent API Calls").borders(Borders::ALL))
+                .block(
+                    Block::default()
+                        .title("Recent API Calls")
+                        .borders(Borders::ALL),
+                )
                 .style(Style::default().fg(Color::DarkGray))
         } else {
             List::new(items)
-                .block(Block::default().title("Recent API Calls").borders(Borders::ALL))
+                .block(
+                    Block::default()
+                        .title("Recent API Calls")
+                        .borders(Borders::ALL),
+                )
                 .style(Style::default().fg(Color::White))
         };
 

@@ -162,7 +162,11 @@ impl HooksPanel {
 
         // Fetch decisions from API
         let url = format!("{}/api/hooks/decisions", self.api_client.base_url);
-        match self.api_client.get_with_retry::<DecisionsResponse>(&url).await {
+        match self
+            .api_client
+            .get_with_retry::<DecisionsResponse>(&url)
+            .await
+        {
             Ok(response) => {
                 if !response.enabled {
                     self.state = HooksPanelState::Disabled;
@@ -267,10 +271,10 @@ impl HooksPanel {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(3),  // Status line
-                Constraint::Length(7),  // Recent decisions (5 + 2 for borders)
-                Constraint::Length(3),  // Statistics
-                Constraint::Min(0),     // Spacer
+                Constraint::Length(3), // Status line
+                Constraint::Length(7), // Recent decisions (5 + 2 for borders)
+                Constraint::Length(3), // Statistics
+                Constraint::Min(0),    // Spacer
             ])
             .split(area);
 
@@ -415,7 +419,9 @@ impl HooksPanel {
             Span::raw(" | "),
             Span::styled(
                 format!("Total: {}", data.stats.total_requests),
-                Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
             ),
         ])];
 

@@ -50,7 +50,11 @@ impl Component for CostAnalysisComponent {
             0.0
         };
         let output_gauge = Gauge::default()
-            .block(Block::default().title("Output Tokens").borders(Borders::ALL))
+            .block(
+                Block::default()
+                    .title("Output Tokens")
+                    .borders(Borders::ALL),
+            )
             .gauge_style(Style::default().fg(Color::Yellow))
             .ratio(output_ratio)
             .label(format!("{} ({:.1}%)", tokens.output, output_ratio * 100.0));
@@ -106,7 +110,10 @@ impl Component for CostAnalysisComponent {
                         ),
                         Span::raw(format!(
                             ": ${:>8.4} ({:>5.1}%) | {} calls | {} tokens",
-                            metrics.total_cost_usd, percentage, metrics.call_count, metrics.total_tokens
+                            metrics.total_cost_usd,
+                            percentage,
+                            metrics.call_count,
+                            metrics.total_tokens
                         )),
                     ]));
                 }

@@ -47,10 +47,10 @@ async fn test_terminal_unicode_multibyte_chars() {
     let session = TerminalSession::spawn_shell().unwrap();
 
     let unicode_tests = vec![
-        "echo \"日本語 テスト\"\n",           // Japanese
-        "echo \"Привет мир\"\n",              // Russian
-        "echo \"مرحبا بك\"\n",                // Arabic
-        "echo \"你好世界\"\n",                 // Chinese
+        "echo \"日本語 テスト\"\n", // Japanese
+        "echo \"Привет мир\"\n",    // Russian
+        "echo \"مرحبا بك\"\n",      // Arabic
+        "echo \"你好世界\"\n",      // Chinese
     ];
 
     for test_input in unicode_tests {
@@ -567,10 +567,7 @@ async fn test_terminal_tab_completion_signal() {
     let n = session.read_output(&mut buffer).await.unwrap();
 
     // Just verify Tab was processed (actual completion depends on shell)
-    assert!(
-        n >= 0,
-        "Tab completion signal should be processed by shell"
-    );
+    assert!(n >= 0, "Tab completion signal should be processed by shell");
 
     let _ = session.close_session().await;
 }
@@ -594,7 +591,10 @@ async fn test_terminal_unix_signal_handling() {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     // Shell should handle signal
-    assert!(session.is_running().await.unwrap(), "Shell should still be running after Ctrl+Z");
+    assert!(
+        session.is_running().await.unwrap(),
+        "Shell should still be running after Ctrl+Z"
+    );
 
     let _ = session.close_session().await;
 }

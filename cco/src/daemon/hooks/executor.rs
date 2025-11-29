@@ -175,7 +175,10 @@ impl HookExecutor {
         let mut first_error = None;
 
         for (idx, hook) in hooks.iter().enumerate() {
-            match self.execute_single_hook(hook_type, hook.clone(), &payload).await {
+            match self
+                .execute_single_hook(hook_type, hook.clone(), &payload)
+                .await
+            {
                 Ok(_) => {
                     debug!(
                         hook_type = %hook_type,
@@ -219,7 +222,10 @@ impl HookExecutor {
         while attempts <= self.max_retries {
             attempts += 1;
 
-            match self.execute_with_timeout(hook_type, hook.clone(), payload).await {
+            match self
+                .execute_with_timeout(hook_type, hook.clone(), payload)
+                .await
+            {
                 Ok(_) => {
                     if attempts > 1 {
                         info!(
@@ -256,7 +262,10 @@ impl HookExecutor {
 
         // All retries exhausted
         if attempts > self.max_retries {
-            Err(HookError::max_retries_exceeded(hook_type.to_string(), self.max_retries))
+            Err(HookError::max_retries_exceeded(
+                hook_type.to_string(),
+                self.max_retries,
+            ))
         } else {
             Err(last_error.unwrap())
         }
@@ -275,9 +284,7 @@ impl HookExecutor {
         // Spawn blocking task for hook execution to prevent blocking async runtime
         let task = tokio::task::spawn_blocking(move || {
             // Catch panics to prevent daemon crash
-            std::panic::catch_unwind(AssertUnwindSafe(|| {
-                hook.execute(&payload_clone)
-            }))
+            std::panic::catch_unwind(AssertUnwindSafe(|| hook.execute(&payload_clone)))
         });
 
         // Apply timeout
@@ -294,12 +301,11 @@ impl HookExecutor {
 
                 Err(HookError::panic_recovery(hook_type_str, panic_msg))
             }
-            Ok(Err(join_err)) => {
-                Err(HookError::execution_failed(hook_type_str, format!("Task join error: {}", join_err)))
-            }
-            Err(_) => {
-                Err(HookError::timeout(hook_type_str, self.timeout))
-            }
+            Ok(Err(join_err)) => Err(HookError::execution_failed(
+                hook_type_str,
+                format!("Task join error: {}", join_err),
+            )),
+            Err(_) => Err(HookError::timeout(hook_type_str, self.timeout)),
         }
     }
 
@@ -316,8 +322,8 @@ impl HookExecutor {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::error::HookResult;
+    use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     fn create_executor() -> (Arc<HookRegistry>, HookExecutor) {
@@ -349,16 +355,21 @@ mod tests {
         let counter = Arc::new(AtomicUsize::new(0));
         let counter_clone = counter.clone();
 
-        registry.register(
-            HookType::PreCommand,
-            Box::new(move |_: &super::HookPayload| -> HookResult<()> {
-                counter_clone.fetch_add(1, Ordering::SeqCst);
-                Ok(())
-            })
-        ).unwrap();
+        registry
+            .register(
+                HookType::PreCommand,
+                Box::new(move |_: &super::HookPayload| -> HookResult<()> {
+                    counter_clone.fetch_add(1, Ordering::SeqCst);
+                    Ok(())
+                }),
+            )
+            .unwrap();
 
         let payload = HookPayload::new("test");
-        executor.execute_hook(HookType::PreCommand, payload).await.unwrap();
+        executor
+            .execute_hook(HookType::PreCommand, payload)
+            .await
+            .unwrap();
 
         assert_eq!(counter.load(Ordering::SeqCst), 1);
     }
@@ -371,17 +382,22 @@ mod tests {
 
         for _ in 0..3 {
             let counter_clone = counter.clone();
-            registry.register(
-                HookType::PreCommand,
-                Box::new(move |_: &super::HookPayload| -> HookResult<()> {
-                    counter_clone.fetch_add(1, Ordering::SeqCst);
-                    Ok(())
-                })
-            ).unwrap();
+            registry
+                .register(
+                    HookType::PreCommand,
+                    Box::new(move |_: &super::HookPayload| -> HookResult<()> {
+                        counter_clone.fetch_add(1, Ordering::SeqCst);
+                        Ok(())
+                    }),
+                )
+                .unwrap();
         }
 
         let payload = HookPayload::new("test");
-        executor.execute_hook(HookType::PreCommand, payload).await.unwrap();
+        executor
+            .execute_hook(HookType::PreCommand, payload)
+            .await
+            .unwrap();
 
         assert_eq!(counter.load(Ordering::SeqCst), 3);
     }
@@ -390,12 +406,14 @@ mod tests {
     async fn test_hook_failure() {
         let (registry, executor) = create_executor();
 
-        registry.register(
-            HookType::PreCommand,
-            Box::new(|_: &super::HookPayload| -> HookResult<()> {
-                Err(HookError::execution_failed("test", "test error"))
-            })
-        ).unwrap();
+        registry
+            .register(
+                HookType::PreCommand,
+                Box::new(|_: &super::HookPayload| -> HookResult<()> {
+                    Err(HookError::execution_failed("test", "test error"))
+                }),
+            )
+            .unwrap();
 
         let payload = HookPayload::new("test");
         let result = executor.execute_hook(HookType::PreCommand, payload).await;
@@ -408,13 +426,15 @@ mod tests {
         let (registry, executor) = create_executor();
 
         // Register a hook that takes too long
-        registry.register(
-            HookType::PreCommand,
-            Box::new(|_: &super::HookPayload| -> HookResult<()> {
-                std::thread::sleep(Duration::from_secs(10));
-                Ok(())
-            })
-        ).unwrap();
+        registry
+            .register(
+                HookType::PreCommand,
+                Box::new(|_: &super::HookPayload| -> HookResult<()> {
+                    std::thread::sleep(Duration::from_secs(10));
+                    Ok(())
+                }),
+            )
+            .unwrap();
 
         let payload = HookPayload::new("test");
         let result = executor.execute_hook(HookType::PreCommand, payload).await;
@@ -430,12 +450,14 @@ mod tests {
         let (registry, executor) = create_executor();
 
         // Register a hook that panics
-        registry.register(
-            HookType::PreCommand,
-            Box::new(|_: &super::HookPayload| -> HookResult<()> {
-                panic!("Test panic");
-            })
-        ).unwrap();
+        registry
+            .register(
+                HookType::PreCommand,
+                Box::new(|_: &super::HookPayload| -> HookResult<()> {
+                    panic!("Test panic");
+                }),
+            )
+            .unwrap();
 
         let payload = HookPayload::new("test");
         let result = executor.execute_hook(HookType::PreCommand, payload).await;
@@ -452,17 +474,19 @@ mod tests {
         let counter_clone = counter.clone();
 
         // Hook that fails once then succeeds
-        registry.register(
-            HookType::PreCommand,
-            Box::new(move |_: &super::HookPayload| -> HookResult<()> {
-                let count = counter_clone.fetch_add(1, Ordering::SeqCst);
-                if count == 0 {
-                    Err(HookError::execution_failed("test", "first attempt"))
-                } else {
-                    Ok(())
-                }
-            })
-        ).unwrap();
+        registry
+            .register(
+                HookType::PreCommand,
+                Box::new(move |_: &super::HookPayload| -> HookResult<()> {
+                    let count = counter_clone.fetch_add(1, Ordering::SeqCst);
+                    if count == 0 {
+                        Err(HookError::execution_failed("test", "first attempt"))
+                    } else {
+                        Ok(())
+                    }
+                }),
+            )
+            .unwrap();
 
         let payload = HookPayload::new("test");
         let result = executor.execute_hook(HookType::PreCommand, payload).await;
@@ -482,11 +506,7 @@ mod tests {
     #[tokio::test]
     async fn test_custom_config() {
         let registry = Arc::new(HookRegistry::new());
-        let executor = HookExecutor::with_config(
-            registry,
-            Duration::from_secs(10),
-            5
-        );
+        let executor = HookExecutor::with_config(registry, Duration::from_secs(10), 5);
 
         assert_eq!(executor.timeout(), Duration::from_secs(10));
         assert_eq!(executor.max_retries(), 5);
@@ -499,22 +519,26 @@ mod tests {
         let counter = Arc::new(AtomicUsize::new(0));
 
         // First hook fails
-        registry.register(
-            HookType::PreCommand,
-            Box::new(|_: &super::HookPayload| -> HookResult<()> {
-                Err(HookError::execution_failed("test", "error"))
-            })
-        ).unwrap();
+        registry
+            .register(
+                HookType::PreCommand,
+                Box::new(|_: &super::HookPayload| -> HookResult<()> {
+                    Err(HookError::execution_failed("test", "error"))
+                }),
+            )
+            .unwrap();
 
         // Second hook succeeds
         let counter_clone = counter.clone();
-        registry.register(
-            HookType::PreCommand,
-            Box::new(move |_: &super::HookPayload| -> HookResult<()> {
-                counter_clone.fetch_add(1, Ordering::SeqCst);
-                Ok(())
-            })
-        ).unwrap();
+        registry
+            .register(
+                HookType::PreCommand,
+                Box::new(move |_: &super::HookPayload| -> HookResult<()> {
+                    counter_clone.fetch_add(1, Ordering::SeqCst);
+                    Ok(())
+                }),
+            )
+            .unwrap();
 
         let payload = HookPayload::new("test");
         let result = executor.execute_hook(HookType::PreCommand, payload).await;

@@ -90,9 +90,10 @@ impl HookRegistry {
     /// })).unwrap();
     /// ```
     pub fn register(&self, hook_type: HookType, callback: Box<dyn Hook>) -> HookResult<()> {
-        let mut hooks = self.hooks.write().map_err(|e| {
-            HookError::registration_failed(format!("Lock poisoned: {}", e))
-        })?;
+        let mut hooks = self
+            .hooks
+            .write()
+            .map_err(|e| HookError::registration_failed(format!("Lock poisoned: {}", e)))?;
 
         let hook_list = hooks.entry(hook_type).or_insert_with(Vec::new);
         hook_list.push(Arc::from(callback));
@@ -173,9 +174,10 @@ impl HookRegistry {
     ///
     /// Returns `HookError::RegistrationFailed` if the registry lock is poisoned.
     pub fn clear(&self, hook_type: HookType) -> HookResult<()> {
-        let mut hooks = self.hooks.write().map_err(|e| {
-            HookError::registration_failed(format!("Lock poisoned: {}", e))
-        })?;
+        let mut hooks = self
+            .hooks
+            .write()
+            .map_err(|e| HookError::registration_failed(format!("Lock poisoned: {}", e)))?;
 
         if let Some(removed) = hooks.remove(&hook_type) {
             info!(
@@ -194,9 +196,10 @@ impl HookRegistry {
     ///
     /// Returns `HookError::RegistrationFailed` if the registry lock is poisoned.
     pub fn clear_all(&self) -> HookResult<()> {
-        let mut hooks = self.hooks.write().map_err(|e| {
-            HookError::registration_failed(format!("Lock poisoned: {}", e))
-        })?;
+        let mut hooks = self
+            .hooks
+            .write()
+            .map_err(|e| HookError::registration_failed(format!("Lock poisoned: {}", e)))?;
 
         let total: usize = hooks.values().map(|v| v.len()).sum();
         hooks.clear();
@@ -253,7 +256,8 @@ mod tests {
 
         // Register multiple hooks
         for _ in 0..3 {
-            let hook: Box<dyn Hook> = Box::new(|_payload: &HookPayload| -> HookResult<()> { Ok(()) });
+            let hook: Box<dyn Hook> =
+                Box::new(|_payload: &HookPayload| -> HookResult<()> { Ok(()) });
             registry.register(HookType::PreCommand, hook).unwrap();
         }
 
@@ -283,7 +287,8 @@ mod tests {
 
         // Register hooks
         for _ in 0..3 {
-            let hook: Box<dyn Hook> = Box::new(|_payload: &HookPayload| -> HookResult<()> { Ok(()) });
+            let hook: Box<dyn Hook> =
+                Box::new(|_payload: &HookPayload| -> HookResult<()> { Ok(()) });
             registry.register(HookType::PreCommand, hook).unwrap();
         }
 
@@ -299,9 +304,14 @@ mod tests {
         let registry = HookRegistry::new();
 
         // Register hooks for multiple types
-        for hook_type in [HookType::PreCommand, HookType::PostCommand, HookType::PostExecution] {
+        for hook_type in [
+            HookType::PreCommand,
+            HookType::PostCommand,
+            HookType::PostExecution,
+        ] {
             for _ in 0..2 {
-                let hook: Box<dyn Hook> = Box::new(|_payload: &HookPayload| -> HookResult<()> { Ok(()) });
+                let hook: Box<dyn Hook> =
+                    Box::new(|_payload: &HookPayload| -> HookResult<()> { Ok(()) });
                 registry.register(hook_type, hook).unwrap();
             }
         }

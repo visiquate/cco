@@ -13,7 +13,9 @@
 use super::embedding::{generate_embedding, EMBEDDING_DIM};
 use super::models::*;
 use anyhow::{Context, Result};
-use arrow_array::{self as arrow, Array, FixedSizeListArray, Float32Array, RecordBatch, StringArray};
+use arrow_array::{
+    self as arrow, Array, FixedSizeListArray, Float32Array, RecordBatch, StringArray,
+};
 use arrow_schema::{self as schema, DataType, Field, Schema, SchemaRef};
 use chrono::Utc;
 use futures::stream::StreamExt;
@@ -156,7 +158,10 @@ impl KnowledgeStore {
             }
         }
 
-        trace!("Set file protection on knowledge database: {:?}", self.db_path);
+        trace!(
+            "Set file protection on knowledge database: {:?}",
+            self.db_path
+        );
         Ok(())
     }
 
@@ -292,19 +297,10 @@ impl KnowledgeStore {
             .iter()
             .map(|i| Some(i.knowledge_type.as_str()))
             .collect();
-        let project_ids: StringArray = items
-            .iter()
-            .map(|i| Some(i.project_id.as_str()))
-            .collect();
-        let session_ids: StringArray = items
-            .iter()
-            .map(|i| Some(i.session_id.as_str()))
-            .collect();
+        let project_ids: StringArray = items.iter().map(|i| Some(i.project_id.as_str())).collect();
+        let session_ids: StringArray = items.iter().map(|i| Some(i.session_id.as_str())).collect();
         let agents: StringArray = items.iter().map(|i| Some(i.agent.as_str())).collect();
-        let timestamps: StringArray = items
-            .iter()
-            .map(|i| Some(i.timestamp.as_str()))
-            .collect();
+        let timestamps: StringArray = items.iter().map(|i| Some(i.timestamp.as_str())).collect();
         let metadata: StringArray = items.iter().map(|i| Some(i.metadata.as_str())).collect();
 
         // Build FixedSizeListArray for vectors (384 dimensions)
@@ -339,7 +335,10 @@ impl KnowledgeStore {
     }
 
     /// Store a single knowledge item
-    pub async fn store(&mut self, request: StoreKnowledgeRequest) -> Result<StoreKnowledgeResponse> {
+    pub async fn store(
+        &mut self,
+        request: StoreKnowledgeRequest,
+    ) -> Result<StoreKnowledgeResponse> {
         // Validate text
         if request.text.is_empty() {
             anyhow::bail!("Knowledge text is required");
@@ -612,6 +611,151 @@ impl KnowledgeStore {
         Ok(results)
     }
 
+    /// Session start hook: Load recent knowledge from previous sessions
+    pub async fn session_start(
+        &mut self,
+        request: SessionStartRequest,
+    ) -> Result<SessionStartResponse> {
+        info!(
+            "Session start: Loading recent knowledge (limit={})",
+            request.limit
+        );
+
+        // Get recent knowledge (last 24 hours by default)
+        let table = self
+            .table
+            .as_ref()
+            .context("Knowledge store not initialized")?;
+
+        // Query recent knowledge sorted by timestamp
+        let mut stream = table
+            .query()
+            .limit(request.limit)
+            .execute()
+            .await
+            .context("Failed to query recent knowledge")?;
+
+        let mut recent_knowledge = Vec::new();
+        while let Some(batch_result) = stream.next().await {
+            let batch = batch_result?;
+            for row in 0..batch.num_rows() {
+                // Extract fields from batch
+                let id = batch
+                    .column(0)
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .context("Failed to downcast id column")?
+                    .value(row)
+                    .to_string();
+
+                let text = batch
+                    .column(2)
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .context("Failed to downcast text column")?
+                    .value(row)
+                    .to_string();
+
+                let knowledge_type = batch
+                    .column(3)
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .context("Failed to downcast type column")?
+                    .value(row)
+                    .to_string();
+
+                // Skip system initialization records
+                if knowledge_type == "system" {
+                    continue;
+                }
+
+                let project_id = batch
+                    .column(4)
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .context("Failed to downcast project_id column")?
+                    .value(row)
+                    .to_string();
+
+                let session_id = batch
+                    .column(5)
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .context("Failed to downcast session_id column")?
+                    .value(row)
+                    .to_string();
+
+                let agent = batch
+                    .column(6)
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .context("Failed to downcast agent column")?
+                    .value(row)
+                    .to_string();
+
+                let timestamp = batch
+                    .column(7)
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .context("Failed to downcast timestamp column")?
+                    .value(row)
+                    .to_string();
+
+                let metadata_str = batch
+                    .column(8)
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .context("Failed to downcast metadata column")?
+                    .value(row)
+                    .to_string();
+
+                // Extract vector
+                let vector_array = batch
+                    .column(1)
+                    .as_any()
+                    .downcast_ref::<FixedSizeListArray>()
+                    .context("Failed to downcast vector column")?;
+                let vector_values = vector_array.value(row);
+                let float_array = vector_values
+                    .as_any()
+                    .downcast_ref::<Float32Array>()
+                    .context("Failed to downcast vector values")?;
+                let vector: Vec<f32> = (0..float_array.len())
+                    .map(|i| float_array.value(i))
+                    .collect();
+
+                recent_knowledge.push(KnowledgeItem {
+                    id,
+                    vector,
+                    text,
+                    knowledge_type,
+                    project_id,
+                    session_id,
+                    agent,
+                    timestamp,
+                    metadata: metadata_str,
+                });
+            }
+        }
+
+        let summary = if recent_knowledge.is_empty() {
+            "No previous knowledge found. Starting fresh session.".to_string()
+        } else {
+            format!(
+                "Loaded {} knowledge items from previous sessions",
+                recent_knowledge.len()
+            )
+        };
+
+        info!("{}", summary);
+
+        Ok(SessionStartResponse {
+            success: true,
+            recent_knowledge,
+            summary,
+        })
+    }
+
     /// Pre-compaction hook: Extract and store critical knowledge
     pub async fn pre_compaction(
         &mut self,
@@ -620,14 +764,16 @@ impl KnowledgeStore {
         info!("Running pre-compaction knowledge capture...");
 
         let project_id = request.project_id.unwrap_or_else(|| "default".to_string());
-        let session_id = request
-            .session_id
-            .unwrap_or_else(|| "unknown".to_string());
+        let session_id = request.session_id.unwrap_or_else(|| "unknown".to_string());
 
-        let knowledge_items = self.extract_critical_knowledge(&request.conversation, &project_id, &session_id);
+        let knowledge_items =
+            self.extract_critical_knowledge(&request.conversation, &project_id, &session_id);
         let ids = self.store_batch(knowledge_items).await?;
 
-        info!("Pre-compaction complete: Captured {} knowledge items", ids.len());
+        info!(
+            "Pre-compaction complete: Captured {} knowledge items",
+            ids.len()
+        );
         Ok(PreCompactionResponse {
             success: true,
             count: ids.len(),
@@ -646,12 +792,30 @@ impl KnowledgeStore {
 
         // Pattern matching for knowledge types
         let patterns: HashMap<&str, regex::Regex> = [
-            ("architecture", regex::Regex::new(r"(?i)architecture|design pattern|system design").unwrap()),
-            ("decision", regex::Regex::new(r"(?i)decided|chose|selected|will use").unwrap()),
-            ("implementation", regex::Regex::new(r"(?i)implemented|built|created|added").unwrap()),
-            ("configuration", regex::Regex::new(r"(?i)configured|setup|initialized").unwrap()),
-            ("credential", regex::Regex::new(r"(?i)api key|secret|token|password|credential").unwrap()),
-            ("issue", regex::Regex::new(r"(?i)bug|issue|problem|error|fix").unwrap()),
+            (
+                "architecture",
+                regex::Regex::new(r"(?i)architecture|design pattern|system design").unwrap(),
+            ),
+            (
+                "decision",
+                regex::Regex::new(r"(?i)decided|chose|selected|will use").unwrap(),
+            ),
+            (
+                "implementation",
+                regex::Regex::new(r"(?i)implemented|built|created|added").unwrap(),
+            ),
+            (
+                "configuration",
+                regex::Regex::new(r"(?i)configured|setup|initialized").unwrap(),
+            ),
+            (
+                "credential",
+                regex::Regex::new(r"(?i)api key|secret|token|password|credential").unwrap(),
+            ),
+            (
+                "issue",
+                regex::Regex::new(r"(?i)bug|issue|problem|error|fix").unwrap(),
+            ),
         ]
         .iter()
         .map(|(k, v)| (*k, v.clone()))
@@ -676,7 +840,10 @@ impl KnowledgeStore {
             }
 
             // Extract agent if mentioned
-            let agent_regex = regex::Regex::new(r"\b(architect|python|swift|go|rust|flutter|qa|security|devops)\b").unwrap();
+            let agent_regex = regex::Regex::new(
+                r"\b(architect|python|swift|go|rust|flutter|qa|security|devops)\b",
+            )
+            .unwrap();
             let agent = agent_regex
                 .find(message)
                 .map(|m| m.as_str().to_lowercase())
@@ -731,9 +898,7 @@ impl KnowledgeStore {
         let search_results = self.search(search_request).await?;
 
         // Get recent project knowledge
-        let recent_knowledge = self
-            .get_project_knowledge(&project_id, None, 5)
-            .await?;
+        let recent_knowledge = self.get_project_knowledge(&project_id, None, 5).await?;
 
         // Generate summary
         let summary = self.generate_context_summary(&search_results, &recent_knowledge);
@@ -919,7 +1084,10 @@ mod tests {
             KnowledgeStore::extract_repo_name("/path/to/cc-orchestra"),
             "cc-orchestra"
         );
-        assert_eq!(KnowledgeStore::extract_repo_name("my-project"), "my-project");
+        assert_eq!(
+            KnowledgeStore::extract_repo_name("my-project"),
+            "my-project"
+        );
     }
 
     #[tokio::test]
@@ -943,17 +1111,17 @@ mod tests {
     fn test_extract_critical_knowledge() {
         let temp_dir = tempdir().unwrap();
         let base_dir = temp_dir.path().to_path_buf();
-        let store = KnowledgeStore::new(
-            &base_dir,
-            Some(&base_dir),
-            None,
-        );
+        let store = KnowledgeStore::new(&base_dir, Some(&base_dir), None);
 
-        let conversation = "We decided to use FastAPI for the API.\n\nImplemented JWT authentication with RS256.";
+        let conversation =
+            "We decided to use FastAPI for the API.\n\nImplemented JWT authentication with RS256.";
         let knowledge = store.extract_critical_knowledge(conversation, "test-project", "session-1");
 
         assert_eq!(knowledge.len(), 2);
         assert_eq!(knowledge[0].knowledge_type, Some("decision".to_string()));
-        assert_eq!(knowledge[1].knowledge_type, Some("implementation".to_string()));
+        assert_eq!(
+            knowledge[1].knowledge_type,
+            Some("implementation".to_string())
+        );
     }
 }

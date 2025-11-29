@@ -7,27 +7,41 @@
 //! and a comprehensive hooks system for lifecycle events.
 
 pub mod config;
+pub mod credentials;
 pub mod hooks;
 pub mod knowledge;
 pub mod lifecycle;
+pub mod llm_router;
 pub mod log_watcher;
 pub mod metrics_cache;
 pub mod model_cache;
+pub mod orchestra;
 pub mod parse_tracker;
 pub mod security;
 pub mod server;
 pub mod service;
 pub mod temp_files;
 
-pub use config::{DaemonConfig, load_config, save_config};
-pub use hooks::{HookExecutor, HookRegistry, HookType, HookPayload, HooksConfig};
-pub use lifecycle::{DaemonManager, DaemonStatus, read_daemon_port, update_daemon_port};
+pub use config::{load_config, save_config, DaemonConfig};
+pub use hooks::{HookExecutor, HookPayload, HookRegistry, HookType, HooksConfig};
+pub use lifecycle::{read_daemon_port, update_daemon_port, DaemonManager, DaemonStatus};
+pub use llm_router::{
+    llm_router_routes, EndpointConfig, EndpointType, LlmClient, LlmOptions, LlmResponse,
+    LlmRouter, RoutingDecision,
+};
+pub use llm_router::api::LlmRouterState;
 pub use log_watcher::LogWatcher;
-pub use metrics_cache::{AggregatedMetricsCache, AggregatedSnapshot, MetricsCache, MetricEvent, StatsSnapshot};
-pub use parse_tracker::{ParseTracker, FilePosition, ParseTrackerStats};
-pub use security::{TokenManager, CredentialDetector, RateLimiter, ValidatedMetadata};
+pub use metrics_cache::{
+    AggregatedMetricsCache, AggregatedSnapshot, MetricEvent, MetricsCache, StatsSnapshot,
+};
+pub use orchestra::{
+    api::OrchestraState, conductor::OrchestraConductor, instructions::AgentInstructions,
+    workflow::Workflow,
+};
+pub use parse_tracker::{FilePosition, ParseTracker, ParseTrackerStats};
+pub use security::{CredentialDetector, RateLimiter, TokenManager, ValidatedMetadata};
 pub use server::{run_daemon_server, DaemonState};
-pub use service::{ServiceManager, PlatformService};
+pub use service::{PlatformService, ServiceManager};
 pub use temp_files::TempFileManager;
 
 use anyhow::Result;
@@ -35,7 +49,8 @@ use std::path::PathBuf;
 
 /// Get daemon configuration directory
 pub fn get_daemon_dir() -> Result<PathBuf> {
-    let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))?;
+    let home =
+        dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))?;
     let daemon_dir = home.join(".cco");
     std::fs::create_dir_all(&daemon_dir)?;
     Ok(daemon_dir)

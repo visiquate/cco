@@ -255,7 +255,11 @@ async fn test_pre_command_hook_executes() {
         .await
         .unwrap();
 
-    assert_eq!(executed.load(Ordering::SeqCst), 1, "Hook should execute once");
+    assert_eq!(
+        executed.load(Ordering::SeqCst),
+        1,
+        "Hook should execute once"
+    );
 }
 
 #[tokio::test]
@@ -597,8 +601,7 @@ async fn test_one_hook_fails_others_execute() {
 async fn test_hook_timeout_enforcement() {
     let registry = Arc::new(HookRegistry::new());
     // Use custom config with 0 retries to test pure timeout behavior
-    let executor =
-        HookExecutor::with_config(registry.clone(), Duration::from_secs(2), 0);
+    let executor = HookExecutor::with_config(registry.clone(), Duration::from_secs(2), 0);
 
     // Register a hook that takes too long
     let hook = SleepingHook::new(Duration::from_secs(10));

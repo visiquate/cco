@@ -45,11 +45,10 @@ pub fn read_daemon_port() -> Result<u16> {
         bail!("Daemon is not running (no PID file found)");
     }
 
-    let contents = fs::read_to_string(&pid_file)
-        .context("Failed to read PID file")?;
+    let contents = fs::read_to_string(&pid_file).context("Failed to read PID file")?;
 
-    let pid_content: PidFileContent = serde_json::from_str(&contents)
-        .context("Failed to parse PID file")?;
+    let pid_content: PidFileContent =
+        serde_json::from_str(&contents).context("Failed to parse PID file")?;
 
     Ok(pid_content.port)
 }
@@ -66,11 +65,10 @@ pub fn update_daemon_port(actual_port: u16) -> Result<()> {
     }
 
     // Read existing PID file
-    let contents = fs::read_to_string(&pid_file)
-        .context("Failed to read PID file")?;
+    let contents = fs::read_to_string(&pid_file).context("Failed to read PID file")?;
 
-    let mut pid_content: PidFileContent = serde_json::from_str(&contents)
-        .context("Failed to parse PID file")?;
+    let mut pid_content: PidFileContent =
+        serde_json::from_str(&contents).context("Failed to parse PID file")?;
 
     // Update port with actual bound port
     pid_content.port = actual_port;
@@ -130,7 +128,11 @@ impl DaemonManager {
         // Check if already running
         if let Ok(status) = self.get_status().await {
             if status.is_running {
-                bail!("Daemon is already running on port {} (PID {})", status.port, status.pid);
+                bail!(
+                    "Daemon is already running on port {} (PID {})",
+                    status.port,
+                    status.pid
+                );
             }
         }
 
@@ -172,8 +174,7 @@ impl DaemonManager {
         tracing::info!("Generated agents JSON at: {}", agents_json_path.display());
 
         // Get the binary path (the cco binary itself)
-        let exe_path = std::env::current_exe()
-            .context("Failed to get current executable path")?;
+        let exe_path = std::env::current_exe().context("Failed to get current executable path")?;
 
         // Start the daemon with 'daemon run' command (runs HTTP server in foreground)
         let child = Command::new(&exe_path)
@@ -221,7 +222,10 @@ impl DaemonManager {
             println!("   Actual Port: {}", actual_port);
             println!("   Dashboard: http://{}:{}", self.config.host, actual_port);
         } else {
-            println!("   Dashboard: http://{}:{}", self.config.host, self.config.port);
+            println!(
+                "   Dashboard: http://{}:{}",
+                self.config.host, self.config.port
+            );
         }
 
         Ok(())
@@ -260,7 +264,9 @@ impl DaemonManager {
 
                 // Clean up temp files
                 let temp_manager = super::TempFileManager::new();
-                temp_manager.cleanup_files().await
+                temp_manager
+                    .cleanup_files()
+                    .await
                     .context("Failed to cleanup orchestrator temp files")?;
 
                 return Ok(());
@@ -281,7 +287,9 @@ impl DaemonManager {
 
             // Clean up temp files
             let temp_manager = super::TempFileManager::new();
-            temp_manager.cleanup_files().await
+            temp_manager
+                .cleanup_files()
+                .await
                 .context("Failed to cleanup orchestrator temp files")?;
 
             Ok(())
@@ -314,11 +322,10 @@ impl DaemonManager {
             bail!("Daemon is not running (no PID file found)");
         }
 
-        let contents = fs::read_to_string(&pid_file)
-            .context("Failed to read PID file")?;
+        let contents = fs::read_to_string(&pid_file).context("Failed to read PID file")?;
 
-        let pid_content: PidFileContent = serde_json::from_str(&contents)
-            .context("Failed to parse PID file")?;
+        let pid_content: PidFileContent =
+            serde_json::from_str(&contents).context("Failed to parse PID file")?;
 
         let is_running = self.is_process_running(pid_content.pid);
 

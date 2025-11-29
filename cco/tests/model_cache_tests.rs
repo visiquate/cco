@@ -56,8 +56,13 @@ fn test_checksum_validation_success() {
     let expected_hash = "dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f";
 
     // Verify existing model with correct checksum
-    let result = cache.verify_existing_model(&test_file, Some(expected_hash)).unwrap();
-    assert!(result, "Checksum validation should succeed with correct hash");
+    let result = cache
+        .verify_existing_model(&test_file, Some(expected_hash))
+        .unwrap();
+    assert!(
+        result,
+        "Checksum validation should succeed with correct hash"
+    );
 }
 
 #[test]
@@ -74,8 +79,13 @@ fn test_checksum_validation_failure() {
     let wrong_hash = "0000000000000000000000000000000000000000000000000000000000000000";
 
     // Verify should fail with incorrect checksum
-    let result = cache.verify_existing_model(&test_file, Some(wrong_hash)).unwrap();
-    assert!(!result, "Checksum validation should fail with incorrect hash");
+    let result = cache
+        .verify_existing_model(&test_file, Some(wrong_hash))
+        .unwrap();
+    assert!(
+        !result,
+        "Checksum validation should fail with incorrect hash"
+    );
 }
 
 #[test]
@@ -89,7 +99,10 @@ fn test_checksum_validation_no_hash() {
 
     // Verify without checksum (should pass if file exists)
     let result = cache.verify_existing_model(&test_file, None).unwrap();
-    assert!(result, "Validation should succeed when no checksum is provided");
+    assert!(
+        result,
+        "Validation should succeed when no checksum is provided"
+    );
 }
 
 #[test]
@@ -121,9 +134,7 @@ async fn test_concurrent_access_prevention() {
     let config1 = config.clone();
 
     // Start first download
-    let handle1 = tokio::spawn(async move {
-        cache1.ensure_model_available(&config1).await
-    });
+    let handle1 = tokio::spawn(async move { cache1.ensure_model_available(&config1).await });
 
     // Give first download time to acquire lock
     sleep(Duration::from_millis(100)).await;
@@ -132,9 +143,7 @@ async fn test_concurrent_access_prevention() {
     let config2 = config.clone();
 
     // Start second download (should wait for lock)
-    let handle2 = tokio::spawn(async move {
-        cache2.ensure_model_available(&config2).await
-    });
+    let handle2 = tokio::spawn(async move { cache2.ensure_model_available(&config2).await });
 
     let result1 = handle1.await.unwrap();
     let result2 = handle2.await.unwrap();
@@ -209,7 +218,10 @@ async fn test_error_recovery_with_retries() {
 
     // Temp file should be cleaned up
     let temp_path = cache.get_temp_path(&config.target_path);
-    assert!(!temp_path.exists(), "Temp file should be cleaned up on error");
+    assert!(
+        !temp_path.exists(),
+        "Temp file should be cleaned up on error"
+    );
 }
 
 #[tokio::test]
@@ -269,7 +281,10 @@ fn test_compute_file_checksum_buffered() {
     assert_eq!(checksum.len(), 64, "SHA256 should be 64 hex chars");
 
     // Verify it's actually computing the hash (not empty)
-    assert_ne!(checksum, "0000000000000000000000000000000000000000000000000000000000000000");
+    assert_ne!(
+        checksum,
+        "0000000000000000000000000000000000000000000000000000000000000000"
+    );
 }
 
 #[tokio::test]
@@ -318,9 +333,8 @@ async fn test_double_check_locking_pattern() {
         let cache_clone = cache.clone();
         let config_clone = config.clone();
 
-        let handle = tokio::spawn(async move {
-            cache_clone.ensure_model_available(&config_clone).await
-        });
+        let handle =
+            tokio::spawn(async move { cache_clone.ensure_model_available(&config_clone).await });
 
         handles.push(handle);
     }
@@ -329,14 +343,18 @@ async fn test_double_check_locking_pattern() {
     let results: Vec<_> = futures::future::join_all(handles).await;
 
     // At most one should have actually downloaded
-    let download_count = results.iter()
+    let download_count = results
+        .iter()
         .filter_map(|r| r.as_ref().ok())
         .filter_map(|r| r.as_ref().ok())
         .filter(|downloaded| **downloaded)
         .count();
 
     // Should be 0 (all failed) or 1 (one succeeded)
-    assert!(download_count <= 1, "Only one concurrent download should succeed");
+    assert!(
+        download_count <= 1,
+        "Only one concurrent download should succeed"
+    );
 }
 
 #[test]

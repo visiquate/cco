@@ -5,13 +5,13 @@
 //! environment variable injection, and orchestration sidecar auto-start.
 
 use anyhow::{Context, Result};
+use cco::version::DateVersion;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use cco::version::DateVersion;
 
 /// Type alias for sidecar lifecycle wrapper
 type SidecarHandle = Arc<RwLock<Option<cco::orchestration::SidecarLifecycle>>>;
@@ -101,7 +101,10 @@ pub async fn launch_claude_code(args: Vec<String>) -> Result<()> {
 /// * `true` - Daemon version is older than CCO version
 /// * `false` - Daemon version is same or newer, or parsing failed
 fn is_daemon_version_older(cco_version: &str, daemon_version: &str) -> bool {
-    match (DateVersion::parse(cco_version), DateVersion::parse(daemon_version)) {
+    match (
+        DateVersion::parse(cco_version),
+        DateVersion::parse(daemon_version),
+    ) {
         (Ok(cco_v), Ok(daemon_v)) => daemon_v < cco_v,
         _ => false, // If parsing fails, assume versions are compatible
     }
@@ -137,7 +140,10 @@ async fn ensure_daemon_running() -> Result<()> {
                 println!("   Daemon version: {}", status.version);
 
                 // Restart daemon to pick up new version
-                manager.restart().await.context("Failed to restart daemon for update")?;
+                manager
+                    .restart()
+                    .await
+                    .context("Failed to restart daemon for update")?;
 
                 println!("✅ Daemon updated to {}", cco_version);
                 Ok(())
@@ -210,7 +216,9 @@ async fn verify_temp_files_exist(settings_path: &PathBuf) -> Result<()> {
     }
 
     // Verify it's readable
-    let metadata = settings_path.metadata().context("Cannot read orchestrator settings")?;
+    let metadata = settings_path
+        .metadata()
+        .context("Cannot read orchestrator settings")?;
 
     if !metadata.is_file() {
         anyhow::bail!(
@@ -236,7 +244,7 @@ async fn verify_temp_files_exist(settings_path: &PathBuf) -> Result<()> {
 /// * `Ok(SidecarHandle)` - Handle to the running sidecar task
 /// * `Err` - Failed to initialize or start sidecar
 async fn start_orchestration_sidecar() -> Result<SidecarHandle> {
-    use cco::orchestration::{initialize, SidecarLifecycle, ServerConfig};
+    use cco::orchestration::{initialize, ServerConfig, SidecarLifecycle};
 
     // Create default sidecar configuration
     let config = ServerConfig::default();
@@ -277,9 +285,7 @@ async fn start_orchestration_sidecar() -> Result<SidecarHandle> {
         }
     }
 
-    Err(anyhow::anyhow!(
-        "Sidecar startup timeout exceeded"
-    ))
+    Err(anyhow::anyhow!("Sidecar startup timeout exceeded"))
 }
 
 /// Gracefully shutdown the orchestration sidecar
@@ -335,10 +341,31 @@ fn set_orchestrator_env_vars(settings_path: &PathBuf) {
     let temp_dir = env::temp_dir();
 
     env::set_var("ORCHESTRATOR_ENABLED", "true");
-    env::set_var("ORCHESTRATOR_SETTINGS", settings_path.to_string_lossy().to_string());
-    env::set_var("ORCHESTRATOR_AGENTS", temp_dir.join(".cco-agents-sealed").to_string_lossy().to_string());
-    env::set_var("ORCHESTRATOR_RULES", temp_dir.join(".cco-rules-sealed").to_string_lossy().to_string());
-    env::set_var("ORCHESTRATOR_HOOKS", temp_dir.join(".cco-hooks-sealed").to_string_lossy().to_string());
+    env::set_var(
+        "ORCHESTRATOR_SETTINGS",
+        settings_path.to_string_lossy().to_string(),
+    );
+    env::set_var(
+        "ORCHESTRATOR_AGENTS",
+        temp_dir
+            .join(".cco-agents-sealed")
+            .to_string_lossy()
+            .to_string(),
+    );
+    env::set_var(
+        "ORCHESTRATOR_RULES",
+        temp_dir
+            .join(".cco-rules-sealed")
+            .to_string_lossy()
+            .to_string(),
+    );
+    env::set_var(
+        "ORCHESTRATOR_HOOKS",
+        temp_dir
+            .join(".cco-hooks-sealed")
+            .to_string_lossy()
+            .to_string(),
+    );
 
     // Auto-discover daemon port from PID file (required - no fallback)
     let api_url = match cco::daemon::read_daemon_port() {
@@ -367,11 +394,19 @@ fn set_orchestrator_env_vars(settings_path: &PathBuf) {
 
                 // Set specific permission flags for quick access
                 if let Some(perms) = hooks.get("permissions") {
-                    if let Some(auto_allow_read) = perms.get("allow_file_read").and_then(|v| v.as_bool()) {
+                    if let Some(auto_allow_read) =
+                        perms.get("allow_file_read").and_then(|v| v.as_bool())
+                    {
                         env::set_var("ORCHESTRATOR_AUTO_ALLOW_READ", auto_allow_read.to_string());
                     }
-                    if let Some(require_cud) = perms.get("allow_command_modification").and_then(|v| v.as_bool()) {
-                        env::set_var("ORCHESTRATOR_REQUIRE_CUD_CONFIRMATION", (!require_cud).to_string());
+                    if let Some(require_cud) = perms
+                        .get("allow_command_modification")
+                        .and_then(|v| v.as_bool())
+                    {
+                        env::set_var(
+                            "ORCHESTRATOR_REQUIRE_CUD_CONFIRMATION",
+                            (!require_cud).to_string(),
+                        );
                     }
                 }
 
@@ -488,14 +523,17 @@ async fn launch_claude_code_process(settings_path: &PathBuf, args: Vec<String>) 
     // Read agents JSON from VFS and pass to Claude Code
     let agents_json_path = temp_manager.agents_json_path();
     if agents_json_path.exists() {
-        let agents_json = fs::read_to_string(agents_json_path)
-            .context("Failed to read agents JSON from VFS")?;
+        let agents_json =
+            fs::read_to_string(agents_json_path).context("Failed to read agents JSON from VFS")?;
 
         // Add --agents flag with JSON content
         cmd.arg("--agents");
         cmd.arg(&agents_json);
 
-        tracing::info!("Passing {} bytes of agent definitions to Claude Code", agents_json.len());
+        tracing::info!(
+            "Passing {} bytes of agent definitions to Claude Code",
+            agents_json.len()
+        );
     } else {
         tracing::warn!("Agents JSON not found at: {}", agents_json_path.display());
     }
@@ -533,7 +571,10 @@ mod tests {
         assert!(settings_path.starts_with(env::temp_dir()));
 
         // Should end with settings filename
-        assert_eq!(settings_path.file_name().unwrap(), ".cco-orchestrator-settings");
+        assert_eq!(
+            settings_path.file_name().unwrap(),
+            ".cco-orchestrator-settings"
+        );
     }
 
     #[tokio::test]
@@ -571,7 +612,10 @@ mod tests {
 
         // We can't test the full function without a running daemon,
         // so just verify the path logic works
-        assert_eq!(settings_path.file_name().unwrap(), ".cco-orchestrator-settings");
+        assert_eq!(
+            settings_path.file_name().unwrap(),
+            ".cco-orchestrator-settings"
+        );
     }
 
     #[test]
@@ -604,8 +648,14 @@ mod tests {
         assert!(!is_daemon_version_older("2025.12.1", "2026.1.1")); // Older year
 
         // Test with git hashes (should be ignored in comparison)
-        assert!(!is_daemon_version_older("2025.11.1+abc123", "2025.11.1+def456"));
-        assert!(is_daemon_version_older("2025.11.2+abc123", "2025.11.1+def456"));
+        assert!(!is_daemon_version_older(
+            "2025.11.1+abc123",
+            "2025.11.1+def456"
+        ));
+        assert!(is_daemon_version_older(
+            "2025.11.2+abc123",
+            "2025.11.1+def456"
+        ));
 
         // Test with one version having hash
         assert!(is_daemon_version_older("2025.11.2+abc123", "2025.11.1"));

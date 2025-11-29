@@ -800,20 +800,22 @@ Total: ~70 minutes for complex full-stack app
 **Usage:**
 ```bash
 # Store credential
-npm run credentials store db_password "secret123" database
+cco credentials store db_password "secret123" --credential-type database
 
 # Retrieve credential
-npm run credentials retrieve db_password
+cco credentials retrieve db_password
 
 # List all credentials
-npm run credentials list
+cco credentials list
 
 # Check rotation status
-npm run credentials check-rotation
+cco credentials check-rotation
 ```
 
-**Storage Location:** `/tmp/credentials.json` (development)
-**Production:** Environment variables only
+**Storage:** OS-native keyring (macOS Keychain, Linux Secret Service, Windows DPAPI)
+**Encryption:** AES-256-GCM (FIPS 140-2 compliant)
+**Security Features:** Audit logging, rate limiting, memory zeroization
+**See:** [CREDENTIAL_MIGRATION.md](CREDENTIAL_MIGRATION.md) for detailed documentation
 
 ### Security Auditor Integration
 
@@ -990,13 +992,13 @@ Claude Code:
 
 ```bash
 # Test Knowledge Manager
-node src/knowledge-manager.js test
+cco knowledge test
 
 # View statistics
-node src/knowledge-manager.js stats
+cco knowledge stats
 
 # Search knowledge
-node src/knowledge-manager.js search "authentication"
+cco knowledge search "authentication"
 ```
 
 ### Project Customization

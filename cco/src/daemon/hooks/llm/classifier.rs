@@ -127,12 +127,7 @@ impl CrudClassifier {
         // Run inference with timeout
         let response = timeout(self.timeout, self.run_inference(&prompt))
             .await
-            .map_err(|_| {
-                HookError::timeout(
-                    "crud_classifier",
-                    self.timeout,
-                )
-            })??;
+            .map_err(|_| HookError::timeout("crud_classifier", self.timeout))??;
 
         // Parse response
         let classification = parse_classification(&response)?;
@@ -266,8 +261,7 @@ mod tests {
         assert!(confidence < 0.9);
 
         // With hedging
-        let confidence =
-            classifier.calculate_confidence("maybe READ", &CrudClassification::Read);
+        let confidence = classifier.calculate_confidence("maybe READ", &CrudClassification::Read);
         assert!(confidence < 0.8);
     }
 

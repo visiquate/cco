@@ -442,13 +442,13 @@ async search(query, options = {}) {
 **Search Patterns:**
 ```bash
 # Search by topic
-node src/knowledge-manager.js search "API authentication"
+cco knowledge search "API authentication"
 
 # Search by type
-node src/knowledge-manager.js search "security audit" --type decision
+cco knowledge search "security audit" --type decision
 
 # Search by agent
-node src/knowledge-manager.js search "implementation" --agent python-specialist
+cco knowledge search "implementation" --agent python-specialist
 ```
 
 ### 3.6 Pre/Post-Compaction Hooks
@@ -1329,8 +1329,8 @@ cc-orchestra/
 ├── src/
 │   ├── orchestra-conductor.js         # Main orchestration (510 lines)
 │   ├── knowledge-manager.js           # LanceDB integration (637 lines)
-│   ├── credential-manager.js          # Secure credentials (305 lines)
-│   └── llm-router.js                  # Model routing logic
+│   ├── llm-router.js                  # Model routing logic
+│   └── (credentials managed via 'cco credentials' CLI + daemon HTTP API)
 ├── docs/
 │   ├── DEEP_DIVE.md                   # This document
 │   ├── TDD_AWARE_PIPELINE.md          # TDD methodology (956 lines)
@@ -1408,68 +1408,59 @@ From `config/orchestra-config.json`:
 
 ### 9.3 Credential Management Internals
 
-From `src/credential-manager.js`:
+Credentials are now managed via the CCO daemon with OS keyring integration. See [CREDENTIAL_MIGRATION.md](CREDENTIAL_MIGRATION.md) for full technical details.
 
-**Encryption** (lines 39-50):
-```javascript
-encrypt(text) {
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-cbc', this.encryptionKey, iv);
+**Encryption** (Rust implementation - `cco/src/credentials/keyring/`):
+- Algorithm: AES-256-GCM (FIPS 140-2 compliant)
+- Storage: OS-native keyring (macOS Keychain, Linux Secret Service, Windows DPAPI)
+- Key Derivation: PBKDF2
+- Memory Security: SecretString with zeroization
+- Audit Logging: Full operation logging
 
-  let encrypted = cipher.update(text, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-
-  return { iv: iv.toString('hex'), data: encrypted };
-}
+**API Access** (HTTP via daemon):
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:7835/api/v1/credentials/store \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d '{
+    "key": "db_password",
+    "value": "secret123",
+    "credential_type": "database",
+    "service": "production"
+  }'
 ```
 
-**Decryption** (lines 55-63):
-```javascript
-decrypt(encrypted) {
-  const iv = Buffer.from(encrypted.iv, 'hex');
-  const decipher = crypto.createDecipheriv('aes-256-cbc', this.encryptionKey, iv);
-
-  let decrypted = decipher.update(encrypted.data, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
-
-  return decrypted;
-}
+**CLI Access**:
+```bash
+cco credentials store <key> <value> [options]
+cco credentials retrieve <key>
+cco credentials list
+cco credentials check-rotation
+cco credentials delete <key>
 ```
 
-**Storage** (lines 68-96):
-```javascript
-async storeCredential(key, value, metadata = {}) {
-  let credentials = {};
+**Implementation** (Rust - `cco/src/credentials/keyring/`):
+- Keyring backend abstraction for platform compatibility
+- Secure credential storage via OS APIs
+- Audit logging with full traceability
+- Rate limiting and rotation tracking
+- HTTP API endpoints for remote access via daemon
 
-  if (fs.existsSync(this.credentialPath)) {
-    const content = fs.readFileSync(this.credentialPath, 'utf8');
-    credentials = JSON.parse(content);
-  }
+**Storage Characteristics**:
+- macOS: Keychain integration
+- Linux: Secret Service (systemd-user-secrets or KDE Wallet)
+- Windows: DPAPI (Data Protection API)
+- Credentials: Never stored in files
+- No temporary JSON files or encryption overhead
 
-  credentials[key] = {
-    encrypted: this.encrypt(value),
-    metadata: {
-      ...metadata,
-      created: new Date().toISOString(),
-      lastAccessed: new Date().toISOString()
-    }
-  };
-
-  // Write securely (mode 0o600)
-  fs.writeFileSync(this.credentialPath, JSON.stringify(credentials, null, 2), {
-    mode: 0o600  // Only owner can read/write
-  });
-
-  await this.updateInventory(key, metadata);
-}
-```
-
-**Security Features:**
-- AES-256-CBC encryption
-- Secure file permissions (600)
-- Rotation tracking
-- Expiration monitoring
-- Inventory management
+**Security Features** (Rust implementation):
+- AES-256-GCM encryption (FIPS 140-2 compliant)
+- SecretString memory zeroization
+- Comprehensive audit logging
+- Rate limiting (10 attempts/60s)
+- Automatic rotation tracking
+- Platform-native keyring integration
 - Never committed to git
 
 ### 9.4 Integration Patterns
@@ -1727,103 +1718,104 @@ const results = await knowledgeManager.search(
 
 ### 11.1 Knowledge Manager CLI
 
-**Usage**: `node ~/git/cc-orchestra/src/knowledge-manager.js <command> [args]`
+**Usage**: `cco knowledge <command> [args]`
 
 **Commands:**
 
 **store** - Store knowledge
 ```bash
-node src/knowledge-manager.js store "<text>" [type] --agent <name>
+cco knowledge store "<text>" --type <type> --agent <name>
 
 # Example
-node src/knowledge-manager.js store "API implementation complete" implementation --agent python-specialist
+cco knowledge store "API implementation complete" --type implementation --agent python-specialist
 ```
 
 **search** - Search knowledge
 ```bash
-node src/knowledge-manager.js search "<query>" [limit]
+cco knowledge search "<query>" --limit <limit>
 
 # Example
-node src/knowledge-manager.js search "authentication" 10
+cco knowledge search "authentication" --limit 10
 ```
 
 **list** - List recent knowledge
 ```bash
-node src/knowledge-manager.js list --limit 20
+cco knowledge list --limit 20
 ```
 
 **stats** - Show statistics
 ```bash
-node src/knowledge-manager.js stats
+cco knowledge stats
 ```
 
 **test** - Run test suite
 ```bash
-node src/knowledge-manager.js test
+cco knowledge test
 ```
 
 ### 11.2 Credential Manager CLI
 
-**Usage**: `node ~/git/cc-orchestra/src/credential-manager.js <command> [args]`
+**Usage**: `cco credentials <command> [args]`
 
 **Commands:**
 
 **store** - Store credential
 ```bash
-node src/credential-manager.js store <key> <value> [type]
+cco credentials store <key> <value> [--credential-type type] [--service service] [--description desc]
 
 # Example
-node src/credential-manager.js store db_password "secret123" database
+cco credentials store db_password "secret123" --credential-type database --service production
 ```
 
 **retrieve** - Retrieve credential
 ```bash
-node src/credential-manager.js retrieve <key>
+cco credentials retrieve <key>
 
 # Example
-node src/credential-manager.js retrieve db_password
+cco credentials retrieve db_password
 ```
 
 **list** - List all credential keys
 ```bash
-node src/credential-manager.js list
-```
-
-**inventory** - Show credential inventory
-```bash
-node src/credential-manager.js inventory
+cco credentials list
 ```
 
 **check-rotation** - Check rotation status
 ```bash
-node src/credential-manager.js check-rotation
+cco credentials check-rotation
 ```
+
+**delete** - Delete a credential
+```bash
+cco credentials delete <key>
+```
+
+**Note**: See [CREDENTIAL_MIGRATION.md](CREDENTIAL_MIGRATION.md) for full documentation and security features (OS keyring integration, FIPS 140-2 encryption, audit logging).
 
 ### 11.3 Orchestra Conductor API
 
-**Usage**: `node ~/git/cc-orchestra/src/orchestra-conductor.js "<requirement>"`
+**Usage**: `cco orchestra conduct "<requirement>"`
 
 **Example:**
 ```bash
-node src/orchestra-conductor.js "Build a REST API with authentication"
+cco orchestra conduct "Build a REST API with authentication"
 ```
 
-**Output**: Complete workflow JSON with agent assignments.
+**Output**: Complete workflow with agent assignments and coordination details.
 
-**Programmatic Usage:**
-```javascript
-const ClaudeOrchestra = require('./src/orchestra-conductor');
+**CLI Commands:**
+```bash
+# View orchestra status
+cco orchestra
 
-const orchestra = new ClaudeOrchestra({ repoPath: process.cwd() });
+# Conduct a workflow
+cco orchestra conduct "Your requirement"
 
-// Initialize
-await orchestra.initializeCoordination();
+# View available agents
+cco agents list
 
-// Generate workflow
-const workflow = orchestra.generateWorkflow("Build REST API");
-
-// Generate spawn instructions
-const instructions = orchestra.generateAgentSpawnInstructions("Build REST API");
+# View agent details
+cco agents info <agent-type>
 ```
 
 ### 11.4 Configuration Options
@@ -1871,14 +1863,20 @@ const instructions = orchestra.generateAgentSpawnInstructions("Build REST API");
 
 ### 12.1 Common Issues
 
-**Issue: "Knowledge Manager initialization failed"**
+**Issue: "Knowledge Manager daemon not running"**
 
-**Cause**: Missing `data/knowledge/` directory
+**Cause**: CCO daemon not started
 
 **Solution**:
 ```bash
-mkdir -p ~/git/cc-orchestra/data/knowledge
-node src/knowledge-manager.js test
+# Start the daemon
+cco daemon start
+
+# Test knowledge manager
+cco knowledge test
+
+# View daemon status
+cco daemon status
 ```
 
 ---
@@ -1909,16 +1907,14 @@ tail -100 ~/git/cc-orchestra/logs/agents.log
 **Cause**: Pre-compaction hook not running
 
 **Solution**:
-Manually trigger pre-compaction:
+Manually trigger checkpoint:
 ```bash
-node ~/git/cc-orchestra/src/knowledge-manager.js store \
-  "Manual checkpoint: $(date)" \
-  --type system --agent compaction
+cco knowledge store "Manual checkpoint: $(date)" --type system --agent compaction
 ```
 
 Verify storage:
 ```bash
-node ~/git/cc-orchestra/src/knowledge-manager.js stats
+cco knowledge stats
 ```
 
 ---
@@ -1930,10 +1926,10 @@ node ~/git/cc-orchestra/src/knowledge-manager.js stats
 **Solution**:
 ```bash
 # List all credentials
-node src/credential-manager.js list
+cco credentials list
 
 # Store credential
-node src/credential-manager.js store API_KEY "value" api
+cco credentials store API_KEY "value" --credential-type api-token
 ```
 
 ---
@@ -1946,7 +1942,7 @@ Enable verbose logging:
 export DEBUG=cc-orchestra:*
 
 # Run with debug
-node src/orchestra-conductor.js "requirement"
+cco orchestra conduct "requirement"
 ```
 
 ### 12.3 Health Checks
@@ -1954,19 +1950,26 @@ node src/orchestra-conductor.js "requirement"
 **Check Orchestra Health:**
 ```bash
 # Knowledge Manager
-node src/knowledge-manager.js stats
+cco knowledge stats
 
 # Credential Manager
-node src/credential-manager.js inventory
+cco credentials list
+cco credentials check-rotation
 
-# ccproxy
+# Daemon health
+cco daemon status
+
+# ccproxy (if deployed)
 curl http://localhost:8081/health
 ```
 
 **Check Agent Status:**
 ```bash
 # Search for recent agent activity
-node src/knowledge-manager.js search "agent activity" --limit 20
+cco knowledge search "agent activity" --limit 20
+
+# View recent orchestrations
+cco knowledge search "orchestration"
 ```
 
 ### 12.4 Performance Monitoring
@@ -2004,13 +2007,16 @@ node src/knowledge-manager.js test
 **Reset Credentials:**
 ```bash
 # Backup
-cp /tmp/credentials.json /tmp/credentials.backup.json
+# Credentials are now managed by daemon - no backup file needed
+# (stored in OS keyring, not file-based)
 
 # Reset
-rm /tmp/credentials.json
+# Credentials now managed via daemon
+cco daemon start
 
 # Test
-node src/credential-manager.js list
+cco credentials list
+cco credentials check-rotation
 ```
 
 ---
@@ -2025,11 +2031,12 @@ node src/credential-manager.js list
 **Implementation:**
 - `/Users/brent/git/cc-orchestra/src/orchestra-conductor.js` - Main orchestrator
 - `/Users/brent/git/cc-orchestra/src/knowledge-manager.js` - Knowledge Manager
-- `/Users/brent/git/cc-orchestra/src/credential-manager.js` - Credential Manager
+- `cco/src/credentials/keyring/` - Credential management (Rust, no JS file)
 
 **Data:**
 - `/Users/brent/git/cc-orchestra/data/knowledge/` - Knowledge bases (per repo)
-- `/tmp/credentials.json` - Encrypted credentials (development)
+- OS Keyring - Secure credential storage (macOS Keychain, Linux Secret Service, Windows DPAPI)
+- See [CREDENTIAL_MIGRATION.md](CREDENTIAL_MIGRATION.md) for details
 
 **Documentation:**
 - `/Users/brent/git/cc-orchestra/docs/DEEP_DIVE.md` - This document

@@ -16,11 +16,11 @@
 //!
 //! Run with: cargo test hooks_integration --test hooks_integration_tests
 
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use std::collections::HashMap;
-use tokio::time::sleep;
 use tempfile::TempDir;
+use tokio::time::sleep;
 
 // Note: These imports will work once hooks module is implemented
 // use cco::daemon::hooks::types::{HookPayload, HookType, HookConfig};
@@ -97,7 +97,8 @@ impl MockDaemonManager {
         self.execute_hooks(HookType::PreStart).await?;
 
         // Start daemon
-        self.running.store(true, std::sync::atomic::Ordering::SeqCst);
+        self.running
+            .store(true, std::sync::atomic::Ordering::SeqCst);
 
         // Execute PostStart hooks
         self.execute_hooks(HookType::PostStart).await?;
@@ -110,7 +111,8 @@ impl MockDaemonManager {
         self.execute_hooks(HookType::PreStop).await?;
 
         // Stop daemon
-        self.running.store(false, std::sync::atomic::Ordering::SeqCst);
+        self.running
+            .store(false, std::sync::atomic::Ordering::SeqCst);
 
         // Execute PostStop hooks
         self.execute_hooks(HookType::PostStop).await?;
@@ -131,10 +133,7 @@ impl MockDaemonManager {
 
     fn get_hook_count(&self, hook_type: HookType) -> usize {
         let key = format!("{:?}", hook_type);
-        self.hook_registry
-            .get(&key)
-            .map(|v| v.len())
-            .unwrap_or(0)
+        self.hook_registry.get(&key).map(|v| v.len()).unwrap_or(0)
     }
 
     fn is_running(&self) -> bool {
@@ -162,10 +161,9 @@ async fn test_hooks_config_loaded_from_daemon_config() {
         "PreStart".to_string(),
         vec!["setup_logging".to_string(), "init_metrics".to_string()],
     );
-    config.hooks.insert(
-        "PostStop".to_string(),
-        vec!["cleanup".to_string()],
-    );
+    config
+        .hooks
+        .insert("PostStop".to_string(), vec!["cleanup".to_string()]);
 
     let daemon = MockDaemonManager::new(config);
 
@@ -193,10 +191,9 @@ async fn test_missing_hooks_config_graceful() {
 #[tokio::test]
 async fn test_hooks_available_during_lifecycle() {
     let mut config = MockDaemonConfig::default();
-    config.hooks.insert(
-        "PreStart".to_string(),
-        vec!["test_hook".to_string()],
-    );
+    config
+        .hooks
+        .insert("PreStart".to_string(), vec!["test_hook".to_string()]);
 
     let daemon = MockDaemonManager::new(config);
 
@@ -217,8 +214,12 @@ async fn test_pre_start_post_start_hooks_fire() {
     let execution_order = Arc::new(tokio::sync::Mutex::new(Vec::new()));
 
     let mut config = MockDaemonConfig::default();
-    config.hooks.insert("PreStart".to_string(), vec!["pre_hook".to_string()]);
-    config.hooks.insert("PostStart".to_string(), vec!["post_hook".to_string()]);
+    config
+        .hooks
+        .insert("PreStart".to_string(), vec!["pre_hook".to_string()]);
+    config
+        .hooks
+        .insert("PostStart".to_string(), vec!["post_hook".to_string()]);
 
     let daemon = MockDaemonManager::new(config);
 
@@ -249,8 +250,12 @@ async fn test_pre_start_post_start_hooks_fire() {
 #[tokio::test]
 async fn test_pre_stop_post_stop_hooks_fire() {
     let mut config = MockDaemonConfig::default();
-    config.hooks.insert("PreStop".to_string(), vec!["pre_stop_hook".to_string()]);
-    config.hooks.insert("PostStop".to_string(), vec!["post_stop_hook".to_string()]);
+    config
+        .hooks
+        .insert("PreStop".to_string(), vec!["pre_stop_hook".to_string()]);
+    config
+        .hooks
+        .insert("PostStop".to_string(), vec!["post_stop_hook".to_string()]);
 
     let daemon = MockDaemonManager::new(config);
 
@@ -288,7 +293,9 @@ async fn test_custom_hook_registration() {
 async fn test_hook_failure_doesnt_block_daemon() {
     // Simulate failing hook
     let mut config = MockDaemonConfig::default();
-    config.hooks.insert("PreStart".to_string(), vec!["failing_hook".to_string()]);
+    config
+        .hooks
+        .insert("PreStart".to_string(), vec!["failing_hook".to_string()]);
 
     let daemon = MockDaemonManager::new(config);
 
@@ -303,7 +310,9 @@ async fn test_hook_failure_doesnt_block_daemon() {
 #[tokio::test]
 async fn test_hook_execution_logged() {
     let mut config = MockDaemonConfig::default();
-    config.hooks.insert("PreStart".to_string(), vec!["logged_hook".to_string()]);
+    config
+        .hooks
+        .insert("PreStart".to_string(), vec!["logged_hook".to_string()]);
 
     let daemon = MockDaemonManager::new(config);
 
@@ -322,7 +331,9 @@ async fn test_hook_execution_logged() {
 #[tokio::test]
 async fn test_hook_metrics_tracked() {
     let mut config = MockDaemonConfig::default();
-    config.hooks.insert("PreStart".to_string(), vec!["metered_hook".to_string()]);
+    config
+        .hooks
+        .insert("PreStart".to_string(), vec!["metered_hook".to_string()]);
 
     let daemon = MockDaemonManager::new(config);
 
@@ -345,7 +356,9 @@ async fn test_hook_metrics_tracked() {
 async fn test_hook_timeout_during_daemon_start() {
     // Simulate hook that times out
     let mut config = MockDaemonConfig::default();
-    config.hooks.insert("PreStart".to_string(), vec!["timeout_hook".to_string()]);
+    config
+        .hooks
+        .insert("PreStart".to_string(), vec!["timeout_hook".to_string()]);
 
     let daemon = MockDaemonManager::new(config);
 
@@ -362,7 +375,9 @@ async fn test_hook_timeout_during_daemon_start() {
 async fn test_hook_panic_during_daemon_stop() {
     // Simulate hook that panics
     let mut config = MockDaemonConfig::default();
-    config.hooks.insert("PreStop".to_string(), vec!["panic_hook".to_string()]);
+    config
+        .hooks
+        .insert("PreStop".to_string(), vec!["panic_hook".to_string()]);
 
     let daemon = MockDaemonManager::new(config);
 
@@ -537,7 +552,9 @@ async fn test_hook_unregistration() {
     // Test removing hooks at runtime
 
     let mut config = MockDaemonConfig::default();
-    config.hooks.insert("PreStart".to_string(), vec!["removable_hook".to_string()]);
+    config
+        .hooks
+        .insert("PreStart".to_string(), vec!["removable_hook".to_string()]);
 
     let daemon = MockDaemonManager::new(config);
     assert_eq!(daemon.get_hook_count(HookType::PreStart), 1);
@@ -565,10 +582,9 @@ fn create_daemon_with_hooks(hook_configs: Vec<(HookType, Vec<&str>)>) -> MockDae
 
     for (hook_type, hook_names) in hook_configs {
         let key = format!("{:?}", hook_type);
-        config.hooks.insert(
-            key,
-            hook_names.iter().map(|s| s.to_string()).collect(),
-        );
+        config
+            .hooks
+            .insert(key, hook_names.iter().map(|s| s.to_string()).collect());
     }
 
     MockDaemonManager::new(config)
@@ -595,7 +611,8 @@ async fn test_hook_execution_performance() {
 
     let mut config = MockDaemonConfig::default();
     for i in 0..10 {
-        config.hooks
+        config
+            .hooks
             .entry("PreStart".to_string())
             .or_insert_with(Vec::new)
             .push(format!("perf_hook_{}", i));
@@ -608,7 +625,11 @@ async fn test_hook_execution_performance() {
     let elapsed = start.elapsed();
 
     // 10 hooks @ 10ms each should take ~100ms (with some overhead)
-    assert!(elapsed < Duration::from_millis(500), "Hook execution too slow: {:?}", elapsed);
+    assert!(
+        elapsed < Duration::from_millis(500),
+        "Hook execution too slow: {:?}",
+        elapsed
+    );
 }
 
 #[tokio::test]
@@ -627,5 +648,9 @@ async fn test_many_hooks_registration_performance() {
     let elapsed = start.elapsed();
 
     assert_eq!(daemon.get_hook_count(HookType::PreStart), 1000);
-    assert!(elapsed < Duration::from_millis(100), "Hook registration too slow: {:?}", elapsed);
+    assert!(
+        elapsed < Duration::from_millis(100),
+        "Hook registration too slow: {:?}",
+        elapsed
+    );
 }

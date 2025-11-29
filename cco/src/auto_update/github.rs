@@ -103,7 +103,12 @@ impl Platform {
 
     /// Generate expected asset name for a version
     pub fn asset_name(&self, version: &str) -> String {
-        format!("cco-v{}-{}.{}", version, self.as_str(), self.archive_extension())
+        format!(
+            "cco-v{}-{}.{}",
+            version,
+            self.as_str(),
+            self.archive_extension()
+        )
     }
 }
 
@@ -161,10 +166,9 @@ fn validate_release_tag(tag: &str) -> Result<String> {
     let date_version_pattern = r"^v(\d{4}\.\d{1,2}\.\d+)$";
     let semver_pattern = r"^v(\d+\.\d+\.\d+(-[a-z0-9]+)?)$";
 
-    let date_re = regex::Regex::new(date_version_pattern)
-        .context("Invalid date version pattern")?;
-    let semver_re = regex::Regex::new(semver_pattern)
-        .context("Invalid semver pattern")?;
+    let date_re =
+        regex::Regex::new(date_version_pattern).context("Invalid date version pattern")?;
+    let semver_re = regex::Regex::new(semver_pattern).context("Invalid semver pattern")?;
 
     if !date_re.is_match(tag) && !semver_re.is_match(tag) {
         return Err(anyhow!(
@@ -198,8 +202,8 @@ fn validate_asset_name(name: &str) -> Result<()> {
     // Must match expected pattern for CCO release assets
     let valid_patterns = [
         r"^cco-v[\d.]+-[a-z0-9_-]+\.(tar\.gz|zip)$", // Binary archives
-        r"^checksums\.sha256$",                        // Checksum file
-        r"^SHA256SUMS$",                               // Alternative checksum name
+        r"^checksums\.sha256$",                      // Checksum file
+        r"^SHA256SUMS$",                             // Alternative checksum name
     ];
 
     let is_valid = valid_patterns.iter().any(|pattern| {
@@ -221,8 +225,7 @@ fn validate_asset_name(name: &str) -> Result<()> {
 /// Validate download URL to prevent SSRF attacks
 /// SECURITY: Ensures downloads only come from GitHub domains
 fn validate_download_url(url: &str) -> Result<()> {
-    let parsed = reqwest::Url::parse(url)
-        .context("Invalid download URL format")?;
+    let parsed = reqwest::Url::parse(url).context("Invalid download URL format")?;
 
     // MUST be HTTPS
     if parsed.scheme() != "https" {
@@ -235,9 +238,9 @@ fn validate_download_url(url: &str) -> Result<()> {
     // MUST be GitHub domain
     if let Some(host) = parsed.host_str() {
         let allowed_hosts = ["github.com", "githubusercontent.com", "github.io"];
-        let is_github = allowed_hosts.iter().any(|&allowed| {
-            host == allowed || host.ends_with(&format!(".{}", allowed))
-        });
+        let is_github = allowed_hosts
+            .iter()
+            .any(|&allowed| host == allowed || host.ends_with(&format!(".{}", allowed)));
 
         if !is_github {
             return Err(anyhow!(
@@ -359,13 +362,19 @@ async fn find_checksum(assets: &[GitHubAsset], asset_name: &str) -> Option<Strin
 
     // HIGH FIX #5: Validate checksum asset name
     if validate_asset_name(&checksum_asset.name).is_err() {
-        tracing::error!("Checksum asset name validation failed: {}", checksum_asset.name);
+        tracing::error!(
+            "Checksum asset name validation failed: {}",
+            checksum_asset.name
+        );
         return None;
     }
 
     // HIGH FIX #5: Validate checksum download URL
     if validate_download_url(&checksum_asset.browser_download_url).is_err() {
-        tracing::error!("Checksum URL validation failed: {}", checksum_asset.browser_download_url);
+        tracing::error!(
+            "Checksum URL validation failed: {}",
+            checksum_asset.browser_download_url
+        );
         return None;
     }
 
@@ -454,12 +463,7 @@ pub async fn fetch_release_by_version(version: &str) -> Result<ReleaseInfo> {
         .assets
         .iter()
         .find(|a| a.name == asset_name)
-        .ok_or_else(|| {
-            anyhow!(
-                "No release asset found for platform: {}",
-                platform.as_str()
-            )
-        })?;
+        .ok_or_else(|| anyhow!("No release asset found for platform: {}", platform.as_str()))?;
 
     // HIGH FIX #5: Validate download URL
     validate_download_url(&asset.browser_download_url)?;

@@ -36,15 +36,19 @@ async fn test_parse_log_file_basic() {
     let log_file = temp_dir.path().join("test.jsonl");
 
     // Create test conversation with known metrics
-    create_test_conversation_file(&log_file, &[
-        ("claude-sonnet-4-5-20250929", 1000, 500),
-        ("claude-haiku-4-5-20251001", 2000, 1000),
-    ]);
+    create_test_conversation_file(
+        &log_file,
+        &[
+            ("claude-sonnet-4-5-20250929", 1000, 500),
+            ("claude-haiku-4-5-20251001", 2000, 1000),
+        ],
+    );
 
     // Parse the file
-    let metrics = cco::claude_history::load_claude_project_metrics(
-        temp_dir.path().to_str().unwrap()
-    ).await.unwrap();
+    let metrics =
+        cco::claude_history::load_claude_project_metrics(temp_dir.path().to_str().unwrap())
+            .await
+            .unwrap();
 
     // Verify metrics
     assert_eq!(metrics.messages_count, 2);
@@ -75,9 +79,10 @@ async fn test_parse_corrupted_jsonl() {
     drop(file);
 
     // Parse file - should succeed and skip invalid lines
-    let metrics = cco::claude_history::load_claude_project_metrics(
-        temp_dir.path().to_str().unwrap()
-    ).await.unwrap();
+    let metrics =
+        cco::claude_history::load_claude_project_metrics(temp_dir.path().to_str().unwrap())
+            .await
+            .unwrap();
 
     // Should have parsed 2 valid messages
     assert_eq!(metrics.messages_count, 2);
@@ -124,18 +129,16 @@ async fn test_incremental_parsing_performance() {
 
     // Full parse (first time)
     let start = std::time::Instant::now();
-    let metrics1 = cco::claude_history::load_claude_project_metrics(
-        temp_dir.path().to_str().unwrap()
-    ).await.unwrap();
+    let metrics1 =
+        cco::claude_history::load_claude_project_metrics(temp_dir.path().to_str().unwrap())
+            .await
+            .unwrap();
     let full_parse_time = start.elapsed();
 
     assert_eq!(metrics1.messages_count, 1000);
 
     // Add 1 new line
-    let mut file = fs::OpenOptions::new()
-        .append(true)
-        .open(&log_file)
-        .unwrap();
+    let mut file = fs::OpenOptions::new().append(true).open(&log_file).unwrap();
     writeln!(
         file,
         r#"{{"type":"assistant","message":{{"model":"claude-sonnet-4-5","usage":{{"input_tokens":100000,"output_tokens":50000}}}}}}"#
@@ -145,9 +148,10 @@ async fn test_incremental_parsing_performance() {
 
     // Incremental parse (should be faster)
     let start = std::time::Instant::now();
-    let metrics2 = cco::claude_history::load_claude_project_metrics(
-        temp_dir.path().to_str().unwrap()
-    ).await.unwrap();
+    let metrics2 =
+        cco::claude_history::load_claude_project_metrics(temp_dir.path().to_str().unwrap())
+            .await
+            .unwrap();
     let incremental_parse_time = start.elapsed();
 
     assert_eq!(metrics2.messages_count, 1001);
@@ -167,15 +171,17 @@ async fn test_multiple_conversation_files() {
     // Create 5 conversation files
     for i in 0..5 {
         let file = temp_dir.path().join(format!("conversation_{}.jsonl", i));
-        create_test_conversation_file(&file, &[
-            ("claude-sonnet-4-5-20250929", 1000 * (i + 1), 500 * (i + 1)),
-        ]);
+        create_test_conversation_file(
+            &file,
+            &[("claude-sonnet-4-5-20250929", 1000 * (i + 1), 500 * (i + 1))],
+        );
     }
 
     // Parse all files
-    let metrics = cco::claude_history::load_claude_project_metrics(
-        temp_dir.path().to_str().unwrap()
-    ).await.unwrap();
+    let metrics =
+        cco::claude_history::load_claude_project_metrics(temp_dir.path().to_str().unwrap())
+            .await
+            .unwrap();
 
     // Should have 5 messages (one per file)
     assert_eq!(metrics.messages_count, 5);
@@ -195,9 +201,10 @@ async fn test_empty_directory() {
     // Test parsing empty directory
     let temp_dir = TempDir::new().unwrap();
 
-    let metrics = cco::claude_history::load_claude_project_metrics(
-        temp_dir.path().to_str().unwrap()
-    ).await.unwrap();
+    let metrics =
+        cco::claude_history::load_claude_project_metrics(temp_dir.path().to_str().unwrap())
+            .await
+            .unwrap();
 
     assert_eq!(metrics.messages_count, 0);
     assert_eq!(metrics.conversations_count, 0);
@@ -212,17 +219,21 @@ async fn test_mixed_model_aggregation() {
     let temp_dir = TempDir::new().unwrap();
     let log_file = temp_dir.path().join("mixed.jsonl");
 
-    create_test_conversation_file(&log_file, &[
-        ("claude-opus-4-20250514", 10000, 5000),
-        ("claude-sonnet-4-5-20250929", 20000, 10000),
-        ("claude-haiku-4-5-20251001", 30000, 15000),
-        ("claude-opus-4-20250514", 10000, 5000),  // Duplicate model
-        ("claude-sonnet-4-5-20250929", 20000, 10000),  // Duplicate model
-    ]);
+    create_test_conversation_file(
+        &log_file,
+        &[
+            ("claude-opus-4-20250514", 10000, 5000),
+            ("claude-sonnet-4-5-20250929", 20000, 10000),
+            ("claude-haiku-4-5-20251001", 30000, 15000),
+            ("claude-opus-4-20250514", 10000, 5000), // Duplicate model
+            ("claude-sonnet-4-5-20250929", 20000, 10000), // Duplicate model
+        ],
+    );
 
-    let metrics = cco::claude_history::load_claude_project_metrics(
-        temp_dir.path().to_str().unwrap()
-    ).await.unwrap();
+    let metrics =
+        cco::claude_history::load_claude_project_metrics(temp_dir.path().to_str().unwrap())
+            .await
+            .unwrap();
 
     assert_eq!(metrics.messages_count, 5);
     assert_eq!(metrics.model_breakdown.len(), 3); // 3 unique models
@@ -261,9 +272,10 @@ async fn test_cache_tokens_cost_calculation() {
     file.flush().unwrap();
     drop(file);
 
-    let metrics = cco::claude_history::load_claude_project_metrics(
-        temp_dir.path().to_str().unwrap()
-    ).await.unwrap();
+    let metrics =
+        cco::claude_history::load_claude_project_metrics(temp_dir.path().to_str().unwrap())
+            .await
+            .unwrap();
 
     assert_eq!(metrics.total_cache_creation_tokens, 5000);
     assert_eq!(metrics.total_cache_read_tokens, 10000);
@@ -306,16 +318,20 @@ async fn test_large_conversation_file() {
 
     // Parse large file
     let start = std::time::Instant::now();
-    let metrics = cco::claude_history::load_claude_project_metrics(
-        temp_dir.path().to_str().unwrap()
-    ).await.unwrap();
+    let metrics =
+        cco::claude_history::load_claude_project_metrics(temp_dir.path().to_str().unwrap())
+            .await
+            .unwrap();
     let parse_time = start.elapsed();
 
     assert_eq!(metrics.messages_count, 10000);
     assert_eq!(metrics.total_input_tokens, 1_000_000); // 100 * 10000
     assert_eq!(metrics.total_output_tokens, 500_000); // 50 * 10000
 
-    println!("✅ Large conversation file test passed (parse time: {:?})", parse_time);
+    println!(
+        "✅ Large conversation file test passed (parse time: {:?})",
+        parse_time
+    );
 }
 
 #[tokio::test]
@@ -326,18 +342,17 @@ async fn test_concurrent_file_parsing() {
     // Create 10 files
     for i in 0..10 {
         let file = temp_dir.path().join(format!("conv_{}.jsonl", i));
-        create_test_conversation_file(&file, &[
-            ("claude-sonnet-4-5-20250929", 1000, 500),
-        ]);
+        create_test_conversation_file(&file, &[("claude-sonnet-4-5-20250929", 1000, 500)]);
     }
 
     // Parse concurrently (spawn 5 concurrent parse tasks)
     let mut handles = vec![];
     for _ in 0..5 {
         let path = temp_dir.path().to_str().unwrap().to_string();
-        let handle = tokio::spawn(async move {
-            cco::claude_history::load_claude_project_metrics(&path).await
-        });
+        let handle =
+            tokio::spawn(
+                async move { cco::claude_history::load_claude_project_metrics(&path).await },
+            );
         handles.push(handle);
     }
 
@@ -363,16 +378,21 @@ async fn test_non_assistant_messages_ignored() {
     // Write various message types
     writeln!(file, r#"{{"type":"user","content":"Hello"}}"#).unwrap();
     writeln!(file, r#"{{"type":"assistant","message":{{"model":"claude-sonnet-4-5","usage":{{"input_tokens":100,"output_tokens":50}}}}}}"#).unwrap();
-    writeln!(file, r#"{{"type":"summary","summary":"Conversation summary"}}"#).unwrap();
+    writeln!(
+        file,
+        r#"{{"type":"summary","summary":"Conversation summary"}}"#
+    )
+    .unwrap();
     writeln!(file, r#"{{"type":"assistant","message":{{"model":"claude-haiku-4-5","usage":{{"input_tokens":200,"output_tokens":100}}}}}}"#).unwrap();
     writeln!(file, r#"{{"type":"error","error":"Some error"}}"#).unwrap();
 
     file.flush().unwrap();
     drop(file);
 
-    let metrics = cco::claude_history::load_claude_project_metrics(
-        temp_dir.path().to_str().unwrap()
-    ).await.unwrap();
+    let metrics =
+        cco::claude_history::load_claude_project_metrics(temp_dir.path().to_str().unwrap())
+            .await
+            .unwrap();
 
     // Should only count 2 assistant messages
     assert_eq!(metrics.messages_count, 2);
@@ -388,15 +408,19 @@ async fn test_zero_token_messages() {
     let temp_dir = TempDir::new().unwrap();
     let log_file = temp_dir.path().join("zero_tokens.jsonl");
 
-    create_test_conversation_file(&log_file, &[
-        ("claude-sonnet-4-5-20250929", 0, 0),
-        ("claude-sonnet-4-5-20250929", 100, 50),
-        ("claude-sonnet-4-5-20250929", 0, 0),
-    ]);
+    create_test_conversation_file(
+        &log_file,
+        &[
+            ("claude-sonnet-4-5-20250929", 0, 0),
+            ("claude-sonnet-4-5-20250929", 100, 50),
+            ("claude-sonnet-4-5-20250929", 0, 0),
+        ],
+    );
 
-    let metrics = cco::claude_history::load_claude_project_metrics(
-        temp_dir.path().to_str().unwrap()
-    ).await.unwrap();
+    let metrics =
+        cco::claude_history::load_claude_project_metrics(temp_dir.path().to_str().unwrap())
+            .await
+            .unwrap();
 
     assert_eq!(metrics.messages_count, 3);
     assert_eq!(metrics.total_input_tokens, 100);
@@ -412,15 +436,19 @@ async fn test_model_name_normalization() {
     let log_file = temp_dir.path().join("normalized.jsonl");
 
     // Use different date suffixes for same model
-    create_test_conversation_file(&log_file, &[
-        ("claude-sonnet-4-5-20250929", 1000, 500),
-        ("claude-sonnet-4-5-20251015", 2000, 1000),
-        ("claude-sonnet-4-5-20251101", 3000, 1500),
-    ]);
+    create_test_conversation_file(
+        &log_file,
+        &[
+            ("claude-sonnet-4-5-20250929", 1000, 500),
+            ("claude-sonnet-4-5-20251015", 2000, 1000),
+            ("claude-sonnet-4-5-20251101", 3000, 1500),
+        ],
+    );
 
-    let metrics = cco::claude_history::load_claude_project_metrics(
-        temp_dir.path().to_str().unwrap()
-    ).await.unwrap();
+    let metrics =
+        cco::claude_history::load_claude_project_metrics(temp_dir.path().to_str().unwrap())
+            .await
+            .unwrap();
 
     // All should be aggregated under "claude-sonnet-4-5"
     assert_eq!(metrics.model_breakdown.len(), 1);

@@ -161,12 +161,12 @@ After updating, verify the models are correct:
 
 ```bash
 # Check rust-specialist model
-node src/agent-spawner.js get-model rust-specialist
-# Output should be: haiku
+jq '.codingAgents[] | select(.type=="rust-specialist") | .model' config/orchestra-config.json
+# Output should be: "haiku"
 
-# Validate a Task call
-node src/agent-spawner.js validate rust-specialist haiku
-# Output should be: ✅ (exit code 0)
+# Validate configuration
+jq '.codingAgents[] | select(.type=="rust-specialist")' config/orchestra-config.json
+# Should display the agent configuration
 ```
 
 ---
@@ -205,5 +205,5 @@ Monthly (50 runs):      ~$9.55
 
 1. **Find** where you call Task with these agents
 2. **Replace** the model from `"sonnet"` to `"haiku"`
-3. **Verify** using `node src/agent-spawner.js validate <agent-type> haiku`
+3. **Verify** using `jq '.codingAgents[] | select(.type=="<agent-type>")' config/orchestra-config.json`
 4. **Enjoy** significant cost savings! 💰

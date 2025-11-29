@@ -188,11 +188,7 @@ impl DeviceFlowClient {
                 ));
             }
 
-            return Err(anyhow!(
-                "Token refresh failed (HTTP {}): {}",
-                status,
-                body
-            ));
+            return Err(anyhow!("Token refresh failed (HTTP {}): {}", status, body));
         }
 
         let tokens: TokenResponse = response

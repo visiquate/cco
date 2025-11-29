@@ -124,7 +124,8 @@ impl AnalyticsEngine {
             latency_ms: None,
             status: Some("success".to_string()),
             cost: None,
-        }).await;
+        })
+        .await;
     }
 
     /// Get override statistics

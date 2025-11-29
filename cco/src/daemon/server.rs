@@ -27,13 +27,12 @@ use tracing::{debug, info, warn};
 
 use super::config::DaemonConfig;
 use super::hooks::{
-    CrudClassification, CrudClassifier, Decision, DecisionDatabase, HookExecutor,
-    HookRegistry, PermissionHandler, PermissionResponse,
-    SqliteAuditDatabase,
+    CrudClassification, CrudClassifier, Decision, DecisionDatabase, HookExecutor, HookRegistry,
+    PermissionHandler, PermissionResponse, SqliteAuditDatabase,
 };
 use super::knowledge::{knowledge_router_without_state, KnowledgeState, KnowledgeStore};
 use super::log_watcher::LogWatcher;
-use super::security::{TokenManager, CredentialDetector};
+use super::security::{CredentialDetector, TokenManager};
 
 /// Classification decision tracking
 #[derive(Debug, Clone, Serialize)]
@@ -73,6 +72,7 @@ pub struct DaemonState {
     pub credential_detector: Arc<CredentialDetector>,
     pub persistence: Option<Arc<crate::persistence::PersistenceLayer>>,
     pub metrics_cache: Arc<super::metrics_cache::MetricsCache>,
+    pub llm_router_state: Option<super::llm_router::api::LlmRouterState>,
 }
 
 impl DaemonState {
@@ -223,6 +223,19 @@ impl DaemonState {
         let metrics_cache = Arc::new(super::metrics_cache::MetricsCache::new(3600));
         info!("✅ Metrics cache initialized (capacity: 3600 samples)");
 
+        // Initialize LLM router
+        let llm_router_state = match super::llm_router::LlmRouter::from_orchestra_config(None) {
+            Ok(router) => {
+                info!("✅ LLM router initialized successfully");
+                Some(super::llm_router::api::LlmRouterState::new(router))
+            }
+            Err(e) => {
+                info!("ℹ️  LLM router not available: {}", e);
+                info!("   LLM routing API endpoints will not be available");
+                None
+            }
+        };
+
         Ok(Self {
             config,
             hooks_registry,
@@ -239,6 +252,7 @@ impl DaemonState {
             credential_detector,
             persistence,
             metrics_cache,
+            llm_router_state,
         })
     }
 }
@@ -337,12 +351,13 @@ async fn health(State(state): State<Arc<DaemonState>>) -> Json<HealthResponse> {
     let uptime = state.start_time.elapsed().as_secs();
 
     // Check classifier status
-    let (classifier_available, model_loaded, model_name) = if let Some(ref classifier) = state.crud_classifier {
-        let loaded = classifier.is_model_loaded().await;
-        (true, loaded, state.config.hooks.llm.model_name.clone())
-    } else {
-        (false, false, "none".to_string())
-    };
+    let (classifier_available, model_loaded, model_name) =
+        if let Some(ref classifier) = state.crud_classifier {
+            let loaded = classifier.is_model_loaded().await;
+            (true, loaded, state.config.hooks.llm.model_name.clone())
+        } else {
+            (false, false, "none".to_string())
+        };
 
     // Get actual port from PID file (not config port which may be 0)
     let actual_port = super::read_daemon_port().unwrap_or(state.config.port);
@@ -421,7 +436,9 @@ async fn classify_command(
     Ok(Json(ClassifyResponse {
         classification: classification_str,
         confidence: result.confidence,
-        reasoning: result.reasoning.unwrap_or_else(|| "No reasoning provided".to_string()),
+        reasoning: result
+            .reasoning
+            .unwrap_or_else(|| "No reasoning provided".to_string()),
         timestamp: Utc::now().to_rfc3339(),
     }))
 }
@@ -443,9 +460,10 @@ async fn permission_request(
     );
 
     // Parse classification
-    let classification: CrudClassification = payload.classification.parse().map_err(|e| {
-        AppError::ClassificationFailed(format!("Invalid classification: {}", e))
-    })?;
+    let classification: CrudClassification = payload
+        .classification
+        .parse()
+        .map_err(|e| AppError::ClassificationFailed(format!("Invalid classification: {}", e)))?;
 
     // Get classifier to get confidence score
     let classifier = state
@@ -568,7 +586,7 @@ async fn shutdown_handler() -> Json<serde_json::Value> {
 /// Stats request query parameters
 #[derive(Debug, Deserialize)]
 struct StatsQuery {
-    time_range: Option<String>,  // "today", "week", "month", "all"
+    time_range: Option<String>, // "today", "week", "month", "all"
 }
 
 /// Stats response for TUI
@@ -578,7 +596,7 @@ struct StatsResponse {
     activity: ActivitySummary,
     projects: Vec<ProjectSummary>,
     models: Vec<ModelSummary>,
-    history_start_date: Option<String>,  // ISO 8601 timestamp of oldest conversation
+    history_start_date: Option<String>, // ISO 8601 timestamp of oldest conversation
 }
 
 #[derive(Debug, Serialize)]
@@ -635,22 +653,34 @@ async fn get_stats(
         "today" => Some(std::time::SystemTime::now() - std::time::Duration::from_secs(86400)),
         "week" => Some(std::time::SystemTime::now() - std::time::Duration::from_secs(7 * 86400)),
         "month" => Some(std::time::SystemTime::now() - std::time::Duration::from_secs(30 * 86400)),
-        _ => None,  // "all" = no filtering
+        _ => None, // "all" = no filtering
     };
 
     // Parse Claude metrics from all projects using parallel parser with time filter
-    info!("Starting to load Claude metrics from all projects (parallel, time_range={})...", time_range);
+    info!(
+        "Starting to load Claude metrics from all projects (parallel, time_range={})...",
+        time_range
+    );
     let start = std::time::Instant::now();
 
-    let (metrics, history_start_date) = crate::claude_history::load_claude_metrics_with_time_filter(cutoff_date).await
-        .map_err(|e| AppError::InternalError(format!("Failed to load Claude metrics: {}", e)))?;
+    let (metrics, history_start_date) =
+        crate::claude_history::load_claude_metrics_with_time_filter(cutoff_date)
+            .await
+            .map_err(|e| {
+                AppError::InternalError(format!("Failed to load Claude metrics: {}", e))
+            })?;
 
     let elapsed = start.elapsed();
-    info!("Loaded metrics in {:?} ({} projects, {} models)",
-        elapsed, metrics.project_breakdown.len(), metrics.model_breakdown.len());
+    info!(
+        "Loaded metrics in {:?} ({} projects, {} models)",
+        elapsed,
+        metrics.project_breakdown.len(),
+        metrics.model_breakdown.len()
+    );
 
     // Build project summaries (sorted by cost descending, top 20)
-    let mut project_summaries: Vec<ProjectSummary> = metrics.project_breakdown
+    let mut project_summaries: Vec<ProjectSummary> = metrics
+        .project_breakdown
         .values()
         .map(|p| {
             let total_tokens = p.total_input_tokens
@@ -667,11 +697,16 @@ async fn get_stats(
         })
         .collect();
 
-    project_summaries.sort_by(|a, b| b.cost.partial_cmp(&a.cost).unwrap_or(std::cmp::Ordering::Equal));
+    project_summaries.sort_by(|a, b| {
+        b.cost
+            .partial_cmp(&a.cost)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     project_summaries.truncate(20);
 
     // Build model summaries (all models, sorted by cost descending)
-    let mut model_summaries: Vec<ModelSummary> = metrics.model_breakdown
+    let mut model_summaries: Vec<ModelSummary> = metrics
+        .model_breakdown
         .iter()
         .map(|(name, breakdown)| {
             let total_tokens = breakdown.input_tokens
@@ -694,19 +729,21 @@ async fn get_stats(
         .collect();
 
     // Sort by cost descending for stable ordering across refreshes
-    model_summaries.sort_by(|a, b| b.cost.partial_cmp(&a.cost).unwrap_or(std::cmp::Ordering::Equal));
+    model_summaries.sort_by(|a, b| {
+        b.cost
+            .partial_cmp(&a.cost)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     // Extract recent API calls from project files (last 10 calls across all projects)
     let recent_calls = extract_recent_api_calls(&metrics).await;
 
     // Convert history_start_date to ISO 8601 string if available
     let history_start_date_str = history_start_date.and_then(|st| {
-        st.duration_since(std::time::UNIX_EPOCH)
-            .ok()
-            .and_then(|d| {
-                chrono::DateTime::<chrono::Utc>::from_timestamp(d.as_secs() as i64, 0)
-                    .map(|datetime| datetime.to_rfc3339())
-            })
+        st.duration_since(std::time::UNIX_EPOCH).ok().and_then(|d| {
+            chrono::DateTime::<chrono::Utc>::from_timestamp(d.as_secs() as i64, 0)
+                .map(|datetime| datetime.to_rfc3339())
+        })
     });
 
     // Build response
@@ -720,9 +757,7 @@ async fn get_stats(
             cost: metrics.total_cost,
             messages: metrics.messages_count,
         },
-        activity: ActivitySummary {
-            recent_calls,
-        },
+        activity: ActivitySummary { recent_calls },
         projects: project_summaries,
         models: model_summaries,
         history_start_date: history_start_date_str,
@@ -732,7 +767,9 @@ async fn get_stats(
 }
 
 /// Extract recent API calls from all projects
-async fn extract_recent_api_calls(metrics: &crate::claude_history::ClaudeMetrics) -> Vec<RecentCall> {
+async fn extract_recent_api_calls(
+    metrics: &crate::claude_history::ClaudeMetrics,
+) -> Vec<RecentCall> {
     use std::path::PathBuf;
     use tokio::fs;
 
@@ -774,7 +811,9 @@ async fn extract_recent_api_calls(metrics: &crate::claude_history::ClaudeMetrics
 
             // Parse the most recent file (limit to 3 most recent files per project for efficiency)
             for file_path in jsonl_files.iter().take(3) {
-                if let Ok((messages, _, _)) = crate::claude_history::parse_jsonl_file_from_offset(file_path, 0).await {
+                if let Ok((messages, _, _)) =
+                    crate::claude_history::parse_jsonl_file_from_offset(file_path, 0).await
+                {
                     for (model, usage, timestamp) in messages {
                         let total_tokens = usage.input_tokens.unwrap_or(0)
                             + usage.output_tokens.unwrap_or(0)
@@ -787,22 +826,23 @@ async fn extract_recent_api_calls(metrics: &crate::claude_history::ClaudeMetrics
 
                         let input_cost = crate::claude_history::calculate_cost(
                             usage.input_tokens.unwrap_or(0),
-                            input_price
+                            input_price,
                         );
                         let output_cost = crate::claude_history::calculate_cost(
                             usage.output_tokens.unwrap_or(0),
-                            output_price
+                            output_price,
                         );
                         let cache_write_cost = crate::claude_history::calculate_cost(
                             usage.cache_creation_input_tokens.unwrap_or(0),
-                            cache_write_price
+                            cache_write_price,
                         );
                         let cache_read_cost = crate::claude_history::calculate_cost(
                             usage.cache_read_input_tokens.unwrap_or(0),
-                            cache_read_price
+                            cache_read_price,
                         );
 
-                        let total_cost = input_cost + output_cost + cache_write_cost + cache_read_cost;
+                        let total_cost =
+                            input_cost + output_cost + cache_write_cost + cache_read_cost;
 
                         all_calls.push(RecentCall {
                             timestamp: timestamp.unwrap_or_else(|| Utc::now().to_rfc3339()),
@@ -842,10 +882,9 @@ async fn generate_token(
     State(state): State<Arc<DaemonState>>,
     Json(request): Json<GenerateTokenRequest>,
 ) -> Result<Json<GenerateTokenResponse>, AppError> {
-    let token_manager = state
-        .token_manager
-        .as_ref()
-        .ok_or(AppError::InternalError("Token manager not available".to_string()))?;
+    let token_manager = state.token_manager.as_ref().ok_or(AppError::InternalError(
+        "Token manager not available".to_string(),
+    ))?;
 
     let token = token_manager
         .generate_token(request.project_id.clone())
@@ -894,7 +933,8 @@ fn create_router(state: Arc<DaemonState>) -> Router {
                 move |req, next| {
                     let token_manager = Arc::clone(&token_manager);
                     async move {
-                        super::security::AuthMiddleware::authenticate(token_manager, req, next).await
+                        super::security::AuthMiddleware::authenticate(token_manager, req, next)
+                            .await
                     }
                 }
             });
@@ -911,6 +951,38 @@ fn create_router(state: Arc<DaemonState>) -> Router {
         info!("Knowledge store not available - skipping knowledge API routes");
     }
 
+    // Mount LLM router routes if available
+    if let Some(ref llm_router_state) = state.llm_router_state {
+        info!("Mounting LLM router API routes at /api/llm/*");
+
+        // Create LLM router routes
+        let mut llm_routes = super::llm_router::llm_router_routes();
+
+        if let Some(ref token_manager) = state.token_manager {
+            // Apply authentication middleware to all LLM routes
+            let auth_layer = middleware::from_fn({
+                let token_manager = Arc::clone(token_manager);
+                move |req, next| {
+                    let token_manager = Arc::clone(&token_manager);
+                    async move {
+                        super::security::AuthMiddleware::authenticate(token_manager, req, next)
+                            .await
+                    }
+                }
+            });
+
+            llm_routes = llm_routes.layer(auth_layer);
+        } else {
+            warn!("Token manager not available - LLM routes will NOT be authenticated");
+        }
+
+        // Apply LLM router state and nest under main router
+        let llm_routes_with_state = llm_routes.with_state(llm_router_state.clone());
+        router = router.nest("/", llm_routes_with_state);
+    } else {
+        info!("LLM router not available - skipping LLM routing API routes");
+    }
+
     router.with_state(state)
 }
 
@@ -920,7 +992,10 @@ fn create_router(state: Arc<DaemonState>) -> Router {
 pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
     info!("🚀 Starting CCO Daemon Server");
     info!("   Version: {}", crate::version::DateVersion::current());
-    info!("   Requested Port: {} (0 = random OS-assigned port)", config.port);
+    info!(
+        "   Requested Port: {} (0 = random OS-assigned port)",
+        config.port
+    );
     info!("   Host: {}", config.host);
     info!("   Hooks enabled: {}", config.hooks.is_enabled());
 
@@ -940,7 +1015,8 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
         .map_err(|e| anyhow::anyhow!("Failed to bind to {}: {}", addr, e))?;
 
     // Get the actual bound port (important when port 0 is used)
-    let actual_addr = listener.local_addr()
+    let actual_addr = listener
+        .local_addr()
         .map_err(|e| anyhow::anyhow!("Failed to get local address: {}", e))?;
     let actual_port = actual_addr.port();
 
@@ -957,13 +1033,19 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
     info!("   Actual Port: {}", actual_port);
     info!("   Health: http://{}/health", actual_addr);
     info!("   Classify: http://{}/api/classify", actual_addr);
-    info!("   Permission: http://{}/api/hooks/permission-request", actual_addr);
+    info!(
+        "   Permission: http://{}/api/hooks/permission-request",
+        actual_addr
+    );
     info!("   Decisions: http://{}/api/hooks/decisions", actual_addr);
     info!("   Stats: http://{}/api/stats", actual_addr);
     info!("   Shutdown: http://{}/api/shutdown", actual_addr);
 
     if state.token_manager.is_some() {
-        info!("   Token Generation: http://{}/api/token/generate", actual_addr);
+        info!(
+            "   Token Generation: http://{}/api/token/generate",
+            actual_addr
+        );
     }
 
     if state.knowledge_store.is_some() {
@@ -994,8 +1076,10 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
         ) {
             match crate::claude_history::load_claude_metrics_from_home_dir_parallel().await {
                 Ok(metrics) => {
-                    debug!("Parsed Claude metrics ({}): {} messages, ${:.4} total cost",
-                           trigger, metrics.messages_count, metrics.total_cost);
+                    debug!(
+                        "Parsed Claude metrics ({}): {} messages, ${:.4} total cost",
+                        trigger, metrics.messages_count, metrics.total_cost
+                    );
 
                     // Calculate total tokens
                     let total_tokens = metrics.total_input_tokens
@@ -1011,7 +1095,7 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
                         failed_requests: 0,
                         avg_response_time: 0.0, // Not tracked yet
                         uptime: std::time::Duration::from_secs(0), // Will be calculated by endpoint
-                        port: 0, // Will be set by endpoint
+                        port: 0,                // Will be set by endpoint
                         total_cost: metrics.total_cost,
                         total_tokens,
                         messages_count: metrics.messages_count,
@@ -1051,7 +1135,10 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
                     warn!("Failed to start log watcher: {}", e);
                     warn!("Falling back to periodic polling only");
                 } else {
-                    info!("✅ Log watcher started for: {}", claude_history_dir.display());
+                    info!(
+                        "✅ Log watcher started for: {}",
+                        claude_history_dir.display()
+                    );
 
                     // Spawn task to handle file change events
                     let persistence_for_watcher = Arc::clone(&persistence_clone);
@@ -1081,9 +1168,13 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
         parse_and_store_metrics(initial_persistence, initial_cache, "initial-scan").await;
 
         // Log completion with metrics
-        if let Ok(metrics) = crate::claude_history::load_claude_metrics_from_home_dir_parallel().await {
-            info!("✅ Initial history scan complete: {} messages, ${:.2} total cost",
-                  metrics.messages_count, metrics.total_cost);
+        if let Ok(metrics) =
+            crate::claude_history::load_claude_metrics_from_home_dir_parallel().await
+        {
+            info!(
+                "✅ Initial history scan complete: {} messages, ${:.2} total cost",
+                metrics.messages_count, metrics.total_cost
+            );
         }
 
         // Spawn periodic fallback task (5s interval) to catch anything the watcher misses

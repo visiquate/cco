@@ -32,9 +32,18 @@ async fn main() -> anyhow::Result<()> {
             println!();
             println!("Token Usage:");
             println!("  Input tokens:         {:>12}", metrics.total_input_tokens);
-            println!("  Output tokens:        {:>12}", metrics.total_output_tokens);
-            println!("  Cache creation:       {:>12}", metrics.total_cache_creation_tokens);
-            println!("  Cache reads:          {:>12}", metrics.total_cache_read_tokens);
+            println!(
+                "  Output tokens:        {:>12}",
+                metrics.total_output_tokens
+            );
+            println!(
+                "  Cache creation:       {:>12}",
+                metrics.total_cache_creation_tokens
+            );
+            println!(
+                "  Cache reads:          {:>12}",
+                metrics.total_cache_read_tokens
+            );
             println!();
             println!("Total Cost: ${:.4}", metrics.total_cost);
             println!();

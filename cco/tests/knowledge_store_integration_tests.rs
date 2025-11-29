@@ -5,8 +5,8 @@
 //! is correctly replicated in Rust.
 
 use cco::daemon::knowledge::{
-    KnowledgeStore, StoreKnowledgeRequest, SearchRequest, PreCompactionRequest,
-    PostCompactionRequest, CleanupRequest,
+    CleanupRequest, KnowledgeStore, PostCompactionRequest, PreCompactionRequest, SearchRequest,
+    StoreKnowledgeRequest,
 };
 use std::collections::HashMap;
 use tempfile::tempdir;
@@ -21,7 +21,10 @@ async fn create_test_store() -> KnowledgeStore {
         Some(&base_dir),
         Some("test_knowledge".to_string()),
     );
-    store.initialize().await.expect("Failed to initialize store");
+    store
+        .initialize()
+        .await
+        .expect("Failed to initialize store");
     store
 }
 
@@ -38,7 +41,10 @@ async fn test_store_single_item() {
         metadata: None,
     };
 
-    let response = store.store(request).await.expect("Failed to store knowledge");
+    let response = store
+        .store(request)
+        .await
+        .expect("Failed to store knowledge");
     assert!(response.stored);
     assert!(response.id.starts_with("decision-"));
 }
@@ -60,7 +66,10 @@ async fn test_store_with_metadata() {
         metadata: Some(metadata),
     };
 
-    let response = store.store(request).await.expect("Failed to store knowledge");
+    let response = store
+        .store(request)
+        .await
+        .expect("Failed to store knowledge");
     assert!(response.stored);
     assert!(response.id.starts_with("issue-"));
 }
@@ -96,7 +105,10 @@ async fn test_store_batch() {
         },
     ];
 
-    let ids = store.store_batch(requests).await.expect("Failed to store batch");
+    let ids = store
+        .store_batch(requests)
+        .await
+        .expect("Failed to store batch");
     assert_eq!(ids.len(), 3);
 }
 
@@ -142,7 +154,10 @@ async fn test_search_basic() {
         agent: None,
     };
 
-    let results = store.search(search_request).await.expect("Failed to search");
+    let results = store
+        .search(search_request)
+        .await
+        .expect("Failed to search");
     // Search functionality may not return results yet (placeholder implementation)
     // This test validates the API works without panicking
 }
@@ -191,7 +206,10 @@ Security audit found no critical vulnerabilities. Recommended adding rate limiti
         session_id: Some("session-1".to_string()),
     };
 
-    let response = store.pre_compaction(request).await.expect("Failed to run pre-compaction");
+    let response = store
+        .pre_compaction(request)
+        .await
+        .expect("Failed to run pre-compaction");
     assert!(response.success);
     assert!(response.count > 0);
     assert_eq!(response.ids.len(), response.count);
@@ -219,7 +237,10 @@ async fn test_post_compaction() {
         limit: 10,
     };
 
-    let response = store.post_compaction(request).await.expect("Failed to run post-compaction");
+    let response = store
+        .post_compaction(request)
+        .await
+        .expect("Failed to run post-compaction");
     assert!(response.summary.total_items >= 0); // May be 0 with placeholder implementation
 }
 

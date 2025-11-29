@@ -2,9 +2,9 @@
 
 use anyhow::Result;
 use crossterm::event::{self, KeyCode, KeyEvent, KeyModifiers};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 
@@ -91,7 +91,11 @@ impl Drop for EventHandler {
 /// Check if a key event is the quit command
 pub fn is_quit_key(key: KeyEvent) -> bool {
     match key.code {
-        KeyCode::Char('c') | KeyCode::Char('C') if key.modifiers.contains(KeyModifiers::CONTROL) => true,
+        KeyCode::Char('c') | KeyCode::Char('C')
+            if key.modifiers.contains(KeyModifiers::CONTROL) =>
+        {
+            true
+        }
         KeyCode::Char('q') | KeyCode::Char('Q') => true,
         KeyCode::Esc => true,
         _ => false,

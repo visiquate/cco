@@ -115,7 +115,7 @@ impl ParseTracker {
             None => true, // Never parsed
             Some(pos) => {
                 match pos.last_modified {
-                    None => true, // No modification time recorded
+                    None => true,                                  // No modification time recorded
                     Some(last_mod) => current_modified > last_mod, // File was modified
                 }
             }

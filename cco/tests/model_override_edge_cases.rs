@@ -141,7 +141,9 @@ mod model_override_edge_cases {
         let mut config = OverrideConfig::new();
         config.add_rule("model with spaces", "target").unwrap();
         config.add_rule("model\twith\ttabs", "target-tabs").unwrap();
-        config.add_rule("model\nwith\nnewlines", "target-newlines").unwrap();
+        config
+            .add_rule("model\nwith\nnewlines", "target-newlines")
+            .unwrap();
 
         // When: apply overrides
         let result1 = config.apply_override("model with spaces");
@@ -238,9 +240,7 @@ mod model_override_edge_cases {
         // When: try to add more than limit
         for i in 0..10 {
             assert!(
-                config
-                    .add_rule(&format!("model-{}", i), "target")
-                    .is_ok(),
+                config.add_rule(&format!("model-{}", i), "target").is_ok(),
                 "Should accept rules up to limit"
             );
         }
@@ -276,11 +276,7 @@ mod model_override_edge_cases {
         // Then: all should complete successfully
         for (i, handle) in handles.into_iter().enumerate() {
             let result = handle.await.expect("Task should complete");
-            let expected = if i % 2 == 0 {
-                "target-a"
-            } else {
-                "target-b"
-            };
+            let expected = if i % 2 == 0 { "target-a" } else { "target-b" };
             assert_eq!(result, expected);
         }
     }

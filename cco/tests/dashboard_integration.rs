@@ -11,48 +11,65 @@ mod dashboard_tests {
     const TEST_PORT: u16 = 3333;
     const TIMEOUT: Duration = Duration::from_secs(5);
 
-    fn send_http_request(method: &str, path: &str, headers: &[(&str, &str)]) -> Result<String, String> {
+    fn send_http_request(
+        method: &str,
+        path: &str,
+        headers: &[(&str, &str)],
+    ) -> Result<String, String> {
         let addr = format!("{}:{}", TEST_HOST, TEST_PORT);
         let mut stream = TcpStream::connect(&addr)
             .map_err(|e| format!("Failed to connect to {}:{}: {}", TEST_HOST, TEST_PORT, e))?;
 
-        stream.set_read_timeout(Some(TIMEOUT))
+        stream
+            .set_read_timeout(Some(TIMEOUT))
             .map_err(|e| format!("Failed to set read timeout: {}", e))?;
-        stream.set_write_timeout(Some(TIMEOUT))
+        stream
+            .set_write_timeout(Some(TIMEOUT))
             .map_err(|e| format!("Failed to set write timeout: {}", e))?;
 
         // Build request
-        let mut request = format!("{} {} HTTP/1.1\r\nHost: {}:{}\r\n", method, path, TEST_HOST, TEST_PORT);
+        let mut request = format!(
+            "{} {} HTTP/1.1\r\nHost: {}:{}\r\n",
+            method, path, TEST_HOST, TEST_PORT
+        );
         request.push_str("Connection: close\r\n");
         for (key, value) in headers {
             request.push_str(&format!("{}: {}\r\n", key, value));
         }
         request.push_str("\r\n");
 
-        stream.write_all(request.as_bytes())
+        stream
+            .write_all(request.as_bytes())
             .map_err(|e| format!("Failed to write request: {}", e))?;
 
         let mut response = String::new();
-        stream.read_to_string(&mut response)
+        stream
+            .read_to_string(&mut response)
             .map_err(|e| format!("Failed to read response: {}", e))?;
 
         Ok(response)
     }
 
     fn extract_status_code(response: &str) -> Result<u16, String> {
-        let first_line = response.lines().next()
+        let first_line = response
+            .lines()
+            .next()
             .ok_or("Empty response".to_string())?;
         let parts: Vec<&str> = first_line.split_whitespace().collect();
         if parts.len() < 2 {
             return Err("Invalid status line".to_string());
         }
-        parts[1].parse::<u16>()
+        parts[1]
+            .parse::<u16>()
             .map_err(|e| format!("Failed to parse status code: {}", e))
     }
 
     fn extract_header(response: &str, header_name: &str) -> Option<String> {
         for line in response.lines() {
-            if line.to_lowercase().starts_with(&format!("{}:", header_name.to_lowercase())) {
+            if line
+                .to_lowercase()
+                .starts_with(&format!("{}:", header_name.to_lowercase()))
+            {
                 return Some(line.split(':').nth(1).unwrap_or("").trim().to_string());
             }
         }
@@ -75,14 +92,16 @@ mod dashboard_tests {
     fn test_dashboard_html_endpoint_returns_200() {
         let response = send_http_request("GET", "/", &[]).expect("Request failed");
         let status = extract_status_code(&response).expect("Failed to extract status");
-        assert_eq!(status, 200, "Dashboard HTML endpoint should return HTTP 200");
+        assert_eq!(
+            status, 200,
+            "Dashboard HTML endpoint should return HTTP 200"
+        );
     }
 
     #[test]
     fn test_dashboard_html_has_correct_content_type() {
         let response = send_http_request("GET", "/", &[]).expect("Request failed");
-        let content_type = extract_header(&response, "content-type")
-            .unwrap_or_default();
+        let content_type = extract_header(&response, "content-type").unwrap_or_default();
         assert!(
             content_type.contains("text/html"),
             "Dashboard should return text/html content type, got: {}",
@@ -157,8 +176,7 @@ mod dashboard_tests {
     #[test]
     fn test_dashboard_css_has_correct_content_type() {
         let response = send_http_request("GET", "/dashboard.css", &[]).expect("Request failed");
-        let content_type = extract_header(&response, "content-type")
-            .unwrap_or_default();
+        let content_type = extract_header(&response, "content-type").unwrap_or_default();
         assert!(
             content_type.contains("css") || content_type.contains("text"),
             "CSS should return text/css or similar content type, got: {}",
@@ -208,8 +226,7 @@ mod dashboard_tests {
     #[test]
     fn test_dashboard_js_has_correct_content_type() {
         let response = send_http_request("GET", "/dashboard.js", &[]).expect("Request failed");
-        let content_type = extract_header(&response, "content-type")
-            .unwrap_or_default();
+        let content_type = extract_header(&response, "content-type").unwrap_or_default();
         assert!(
             content_type.contains("javascript") || content_type.contains("text"),
             "JavaScript should return application/javascript or similar, got: {}",
@@ -306,7 +323,8 @@ mod dashboard_tests {
 
     #[test]
     fn test_metrics_endpoint_returns_200() {
-        let response = send_http_request("GET", "/api/metrics/projects", &[]).expect("Request failed");
+        let response =
+            send_http_request("GET", "/api/metrics/projects", &[]).expect("Request failed");
         let status = extract_status_code(&response).expect("Failed to extract status");
         assert_eq!(status, 200, "Metrics endpoint should return HTTP 200");
     }
@@ -364,7 +382,11 @@ mod dashboard_tests {
 
         assert_eq!(status, 200, "Dashboard should load successfully");
         assert!(!body.is_empty(), "Dashboard HTML should have content");
-        assert!(body.len() > 1000, "Dashboard HTML should be substantial (got {} bytes)", body.len());
+        assert!(
+            body.len() > 1000,
+            "Dashboard HTML should be substantial (got {} bytes)",
+            body.len()
+        );
     }
 
     // ===== TERMINAL INTEGRATION TESTS =====
@@ -414,15 +436,17 @@ mod dashboard_tests {
         let has_cache_control = extract_header(&response, "cache-control").is_some();
         let has_content_type = extract_header(&response, "content-type").is_some();
 
-        assert!(has_content_type, "Response should include content-type header");
+        assert!(
+            has_content_type,
+            "Response should include content-type header"
+        );
         // Cache control is recommended but not required for functionality
     }
 
     #[test]
     fn test_api_endpoints_return_json_content_type() {
         let response = send_http_request("GET", "/api/agents", &[]).expect("Request failed");
-        let content_type = extract_header(&response, "content-type")
-            .unwrap_or_default();
+        let content_type = extract_header(&response, "content-type").unwrap_or_default();
 
         assert!(
             content_type.contains("json"),

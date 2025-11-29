@@ -28,7 +28,7 @@ use tokio::sync::{Barrier, RwLock};
 use tokio::time::{sleep, timeout};
 
 mod common;
-use common::{wait_for_port, wait_for_port_closed, temp_test_dir};
+use common::{temp_test_dir, wait_for_port, wait_for_port_closed};
 
 /// Sidecar configuration for testing
 const SIDECAR_PORT: u16 = 3001;
@@ -364,15 +364,18 @@ async fn test_multi_round_agent_coordination() -> Result<()> {
         "correlation_id": "session-multi-round",
         "ttl_seconds": 86400
     });
-    let pub_resp = agent_a.publish_event("implementation_complete", event_a).await?;
+    let pub_resp = agent_a
+        .publish_event("implementation_complete", event_a)
+        .await?;
     assert!(pub_resp["published"].as_bool().unwrap());
 
     // Agent B subscribes and receives event
     let agent_b = fixture.with_jwt("test-engineer");
     let events = timeout(
         EVENT_TIMEOUT * 2,
-        agent_b.wait_for_event("implementation_complete", 100, Some("issue_id:issue-300"))
-    ).await??;
+        agent_b.wait_for_event("implementation_complete", 100, Some("issue_id:issue-300")),
+    )
+    .await??;
 
     assert!(events["events"].is_array());
     assert!(events["events"].as_array().unwrap().len() > 0);
@@ -410,8 +413,9 @@ async fn test_multi_round_agent_coordination() -> Result<()> {
     let agent_c = fixture.with_jwt("security-auditor");
     let events_c = timeout(
         EVENT_TIMEOUT * 2,
-        agent_c.wait_for_event("testing_complete", 100, Some("issue_id:issue-300"))
-    ).await??;
+        agent_c.wait_for_event("testing_complete", 100, Some("issue_id:issue-300")),
+    )
+    .await??;
 
     assert!(events_c["events"].is_array());
 
@@ -460,8 +464,12 @@ async fn test_project_level_isolation() -> Result<()> {
 
     // Verify project isolation via context
     // Context for project A should not include project B data
-    let context_a = client_a.get_context("issue-400", "python-specialist").await?;
-    let context_b = client_b.get_context("issue-400", "python-specialist").await?;
+    let context_a = client_a
+        .get_context("issue-400", "python-specialist")
+        .await?;
+    let context_b = client_b
+        .get_context("issue-400", "python-specialist")
+        .await?;
 
     // Both should have different project context
     // (In real implementation, this would check previous_agent_outputs)
@@ -627,11 +635,7 @@ async fn test_no_data_corruption_under_load() -> Result<()> {
     let map = results.read().await;
     let unique_ids: std::collections::HashSet<_> = map.values().collect();
 
-    assert_eq!(
-        unique_ids.len(),
-        map.len(),
-        "Result ID collision detected"
-    );
+    assert_eq!(unique_ids.len(), map.len(), "Result ID collision detected");
 
     Ok(())
 }
@@ -702,23 +706,17 @@ async fn test_multiple_subscribers_receive_event() -> Result<()> {
     // All subscribers start waiting
     let sub1_handle = {
         let s = subscriber1.clone();
-        tokio::spawn(async move {
-            s.wait_for_event("architecture_defined", 5000, None).await
-        })
+        tokio::spawn(async move { s.wait_for_event("architecture_defined", 5000, None).await })
     };
 
     let sub2_handle = {
         let s = subscriber2.clone();
-        tokio::spawn(async move {
-            s.wait_for_event("architecture_defined", 5000, None).await
-        })
+        tokio::spawn(async move { s.wait_for_event("architecture_defined", 5000, None).await })
     };
 
     let sub3_handle = {
         let s = subscriber3.clone();
-        tokio::spawn(async move {
-            s.wait_for_event("architecture_defined", 5000, None).await
-        })
+        tokio::spawn(async move { s.wait_for_event("architecture_defined", 5000, None).await })
     };
 
     sleep(Duration::from_millis(100)).await;
@@ -736,7 +734,9 @@ async fn test_multiple_subscribers_receive_event() -> Result<()> {
         "ttl_seconds": 86400
     });
 
-    publisher.publish_event("architecture_defined", event).await?;
+    publisher
+        .publish_event("architecture_defined", event)
+        .await?;
 
     // All subscribers should receive
     let results = futures::future::join_all(vec![sub1_handle, sub2_handle, sub3_handle]).await;
@@ -763,10 +763,9 @@ async fn test_rate_limiting_enforcement() -> Result<()> {
     let mut rate_limited = false;
 
     for i in 0..100 {
-        let result = client.get_context(
-            &format!("issue-rate-{}", i),
-            "python-specialist"
-        ).await;
+        let result = client
+            .get_context(&format!("issue-rate-{}", i), "python-specialist")
+            .await;
 
         match result {
             Ok(_) => continue,
@@ -820,7 +819,9 @@ async fn test_context_truncation_for_large_projects() -> Result<()> {
     let client = fixture.with_jwt("python-specialist");
 
     // Request context
-    let context = client.get_context("issue-1000", "python-specialist").await?;
+    let context = client
+        .get_context("issue-1000", "python-specialist")
+        .await?;
 
     // Check if truncation was applied
     if let Some(truncated) = context.get("truncated") {
@@ -880,15 +881,17 @@ async fn test_graceful_degradation_when_sidecar_unavailable() -> Result<()> {
         .with_token("mock-token".to_string());
 
     // Requests should fail gracefully
-    let result = bad_client.get_context("issue-1200", "python-specialist").await;
+    let result = bad_client
+        .get_context("issue-1200", "python-specialist")
+        .await;
     assert!(result.is_err());
 
     // Error should be a connection error, not a panic
     let err = result.unwrap_err();
     assert!(
-        err.to_string().contains("connection") ||
-        err.to_string().contains("network") ||
-        err.to_string().contains("refused")
+        err.to_string().contains("connection")
+            || err.to_string().contains("network")
+            || err.to_string().contains("refused")
     );
 
     Ok(())
@@ -907,10 +910,9 @@ async fn benchmark_context_injection_latency() -> Result<()> {
 
     for i in 0..100 {
         let start = Instant::now();
-        let _context = client.get_context(
-            &format!("issue-bench-{}", i),
-            "python-specialist"
-        ).await?;
+        let _context = client
+            .get_context(&format!("issue-bench-{}", i), "python-specialist")
+            .await?;
         latencies.push(start.elapsed());
     }
 
@@ -1034,7 +1036,10 @@ async fn load_test_119_concurrent_agents() -> Result<()> {
     let elapsed = start.elapsed();
 
     // Count successes
-    let successes = results.iter().filter(|r| r.is_ok() && r.as_ref().unwrap().is_ok()).count();
+    let successes = results
+        .iter()
+        .filter(|r| r.is_ok() && r.as_ref().unwrap().is_ok())
+        .count();
     let success_rate = (successes as f64) / (CONCURRENT_AGENTS as f64);
 
     println!("Load Test Results:");
@@ -1042,10 +1047,17 @@ async fn load_test_119_concurrent_agents() -> Result<()> {
     println!("  Successful: {}", successes);
     println!("  Success rate: {:.2}%", success_rate * 100.0);
     println!("  Total time: {:?}", elapsed);
-    println!("  Avg time per agent: {:?}", elapsed / CONCURRENT_AGENTS as u32);
+    println!(
+        "  Avg time per agent: {:?}",
+        elapsed / CONCURRENT_AGENTS as u32
+    );
 
     // Should support 119 concurrent agents with >95% success
-    assert!(success_rate >= 0.95, "Success rate too low: {:.2}%", success_rate * 100.0);
+    assert!(
+        success_rate >= 0.95,
+        "Success rate too low: {:.2}%",
+        success_rate * 100.0
+    );
 
     Ok(())
 }

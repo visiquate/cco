@@ -34,3 +34,44 @@ Task('Security Auditor', 'Review security', 'security-auditor', 'sonnet')
 - Am I running tests? → DELEGATE
 
 YOU ARE AN ORCHESTRATOR, NOT AN IMPLEMENTER
+
+## Knowledge Manager Integration
+
+The CCO daemon provides persistent knowledge storage via LanceDB vector database.
+
+### Automatic Hook Integration
+
+**Session Start**: Knowledge from previous sessions is automatically loaded when Claude Code starts
+**Pre-Compaction**: Critical information is automatically captured before context loss
+
+### Manual Knowledge Operations
+
+Store important decisions, architecture changes, and implementation notes:
+
+```bash
+# Store knowledge
+cco knowledge store "We decided to use Rust for performance" --type decision --agent architect
+
+# Search knowledge
+cco knowledge search "authentication design" --limit 5
+
+# View statistics
+cco knowledge stats
+```
+
+### When to Store Knowledge
+
+- Architecture decisions
+- Implementation patterns discovered
+- Critical bugs and their solutions
+- API design choices
+- Performance optimization insights
+
+### Knowledge Types
+
+- `decision` - Architecture or implementation decisions
+- `architecture` - System design and structure
+- `implementation` - Code patterns and solutions
+- `bug` - Bug discoveries and fixes
+- `optimization` - Performance improvements
+- `integration` - API and service integration details

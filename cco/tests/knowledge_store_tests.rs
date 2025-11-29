@@ -16,7 +16,7 @@
 
 #[cfg(test)]
 mod embedding_tests {
-    use cco::daemon::knowledge::{KnowledgeStore, KnowledgeItem, KnowledgeType};
+    use cco::daemon::knowledge::{KnowledgeItem, KnowledgeStore, KnowledgeType};
 
     #[test]
     fn test_sha256_embedding_generation() {
@@ -32,8 +32,11 @@ mod embedding_tests {
 
         // All values should be normalized to [-1, 1]
         for &value in &embedding {
-            assert!(value >= -1.0 && value <= 1.0,
-                "Embedding values must be normalized to [-1, 1], got {}", value);
+            assert!(
+                value >= -1.0 && value <= 1.0,
+                "Embedding values must be normalized to [-1, 1], got {}",
+                value
+            );
         }
     }
 
@@ -61,8 +64,10 @@ mod embedding_tests {
         let embedding1 = store.generate_embedding(text);
         let embedding2 = store.generate_embedding(text);
 
-        assert_eq!(embedding1, embedding2,
-            "Same input text must produce identical embeddings");
+        assert_eq!(
+            embedding1, embedding2,
+            "Same input text must produce identical embeddings"
+        );
     }
 
     #[test]
@@ -73,8 +78,10 @@ mod embedding_tests {
         let embedding1 = store.generate_embedding("First text");
         let embedding2 = store.generate_embedding("Second text");
 
-        assert_ne!(embedding1, embedding2,
-            "Different input text must produce different embeddings");
+        assert_ne!(
+            embedding1, embedding2,
+            "Different input text must produce different embeddings"
+        );
     }
 
     #[test]
@@ -84,7 +91,11 @@ mod embedding_tests {
 
         let embedding = store.generate_embedding("");
 
-        assert_eq!(embedding.len(), 384, "Empty text should still produce 384-dim embedding");
+        assert_eq!(
+            embedding.len(),
+            384,
+            "Empty text should still produce 384-dim embedding"
+        );
     }
 
     #[test]
@@ -95,13 +106,17 @@ mod embedding_tests {
 
         let embedding = store.generate_embedding(&long_text);
 
-        assert_eq!(embedding.len(), 384, "Long text should produce 384-dim embedding");
+        assert_eq!(
+            embedding.len(),
+            384,
+            "Long text should produce 384-dim embedding"
+        );
     }
 }
 
 #[cfg(test)]
 mod store_tests {
-    use cco::daemon::knowledge::{KnowledgeStore, KnowledgeItem, KnowledgeType};
+    use cco::daemon::knowledge::{KnowledgeItem, KnowledgeStore, KnowledgeType};
     use tempfile::TempDir;
 
     #[tokio::test]
@@ -117,7 +132,10 @@ mod store_tests {
 
         // Verify table was created
         let stats = store.get_stats().await.unwrap();
-        assert!(stats.total_records >= 0, "Stats should be accessible after initialization");
+        assert!(
+            stats.total_records >= 0,
+            "Stats should be accessible after initialization"
+        );
     }
 
     #[tokio::test]
@@ -141,7 +159,10 @@ mod store_tests {
         assert!(!id.is_empty(), "Store should return non-empty ID");
 
         // Retrieve by searching for similar text
-        let results = store.search("JWT authentication", Default::default()).await.unwrap();
+        let results = store
+            .search("JWT authentication", Default::default())
+            .await
+            .unwrap();
 
         assert!(!results.is_empty(), "Should find stored item");
         assert_eq!(results[0].text, item.text);
@@ -221,19 +242,19 @@ mod store_tests {
         store.store(item2).await.unwrap();
 
         // Query only project A
-        let results_a = store.get_project_knowledge(
-            "project-a",
-            Default::default()
-        ).await.unwrap();
+        let results_a = store
+            .get_project_knowledge("project-a", Default::default())
+            .await
+            .unwrap();
 
         assert_eq!(results_a.len(), 1, "Should find only 1 item for project-a");
         assert_eq!(results_a[0].project_id, "project-a");
 
         // Query only project B
-        let results_b = store.get_project_knowledge(
-            "project-b",
-            Default::default()
-        ).await.unwrap();
+        let results_b = store
+            .get_project_knowledge("project-b", Default::default())
+            .await
+            .unwrap();
 
         assert_eq!(results_b.len(), 1, "Should find only 1 item for project-b");
         assert_eq!(results_b[0].project_id, "project-b");
@@ -267,11 +288,15 @@ mod store_tests {
 
         store.store(item).await.unwrap();
 
-        let results = store.search("complex metadata", Default::default()).await.unwrap();
+        let results = store
+            .search("complex metadata", Default::default())
+            .await
+            .unwrap();
 
         assert!(!results.is_empty());
         // Parse the stored metadata string back to JSON for comparison
-        let stored_metadata: serde_json::Value = serde_json::from_str(&results[0].metadata).unwrap();
+        let stored_metadata: serde_json::Value =
+            serde_json::from_str(&results[0].metadata).unwrap();
         assert_eq!(stored_metadata, metadata, "Metadata should match exactly");
     }
 
@@ -297,21 +322,26 @@ mod store_tests {
 
         let after = chrono::Utc::now();
 
-        let results = store.search("Timestamp test", Default::default()).await.unwrap();
+        let results = store
+            .search("Timestamp test", Default::default())
+            .await
+            .unwrap();
 
         assert!(!results.is_empty());
 
         let timestamp = chrono::DateTime::parse_from_rfc3339(&results[0].timestamp).unwrap();
         let timestamp_utc = timestamp.with_timezone(&chrono::Utc);
 
-        assert!(timestamp_utc >= before && timestamp_utc <= after,
-            "Timestamp should be between before and after store operation");
+        assert!(
+            timestamp_utc >= before && timestamp_utc <= after,
+            "Timestamp should be between before and after store operation"
+        );
     }
 }
 
 #[cfg(test)]
 mod search_tests {
-    use cco::daemon::knowledge::{KnowledgeStore, KnowledgeItem, KnowledgeType, SearchOptions};
+    use cco::daemon::knowledge::{KnowledgeItem, KnowledgeStore, KnowledgeType, SearchOptions};
     use tempfile::TempDir;
 
     #[tokio::test]
@@ -322,40 +352,58 @@ mod search_tests {
         store.initialize().await.unwrap();
 
         // Store items with related content
-        store.store(KnowledgeItem {
-            text: "We decided to use JWT for authentication".to_string(),
-            knowledge_type: KnowledgeType::Decision,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "architect".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "We decided to use JWT for authentication".to_string(),
+                knowledge_type: KnowledgeType::Decision,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "architect".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
-        store.store(KnowledgeItem {
-            text: "OAuth2 implementation with tokens".to_string(),
-            knowledge_type: KnowledgeType::Implementation,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "python".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "OAuth2 implementation with tokens".to_string(),
+                knowledge_type: KnowledgeType::Implementation,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "python".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
-        store.store(KnowledgeItem {
-            text: "Database schema design for users".to_string(),
-            knowledge_type: KnowledgeType::Architecture,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "architect".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Database schema design for users".to_string(),
+                knowledge_type: KnowledgeType::Architecture,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "architect".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
         // Search for authentication-related knowledge
-        let results = store.search("authentication tokens", SearchOptions {
-            limit: 10,
-            ..Default::default()
-        }).await.unwrap();
+        let results = store
+            .search(
+                "authentication tokens",
+                SearchOptions {
+                    limit: 10,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
 
-        assert!(!results.is_empty(), "Should find authentication-related items");
+        assert!(
+            !results.is_empty(),
+            "Should find authentication-related items"
+        );
 
         // First result should be most relevant (JWT or OAuth2)
         assert!(
@@ -372,29 +420,41 @@ mod search_tests {
         store.initialize().await.unwrap();
 
         // Store different types
-        store.store(KnowledgeItem {
-            text: "Decision about API design".to_string(),
-            knowledge_type: KnowledgeType::Decision,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "architect".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Decision about API design".to_string(),
+                knowledge_type: KnowledgeType::Decision,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "architect".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
-        store.store(KnowledgeItem {
-            text: "Implementation of API endpoints".to_string(),
-            knowledge_type: KnowledgeType::Implementation,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "python".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Implementation of API endpoints".to_string(),
+                knowledge_type: KnowledgeType::Implementation,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "python".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
         // Search with type filter
-        let results = store.search("API", SearchOptions {
-            knowledge_type: Some(KnowledgeType::Decision),
-            ..Default::default()
-        }).await.unwrap();
+        let results = store
+            .search(
+                "API",
+                SearchOptions {
+                    knowledge_type: Some(KnowledgeType::Decision),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
 
         assert!(!results.is_empty());
 
@@ -412,29 +472,41 @@ mod search_tests {
         store.initialize().await.unwrap();
 
         // Store items from different agents
-        store.store(KnowledgeItem {
-            text: "Architecture decision by architect".to_string(),
-            knowledge_type: KnowledgeType::Decision,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "architect".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Architecture decision by architect".to_string(),
+                knowledge_type: KnowledgeType::Decision,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "architect".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
-        store.store(KnowledgeItem {
-            text: "Security review by security auditor".to_string(),
-            knowledge_type: KnowledgeType::Issue,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "security".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Security review by security auditor".to_string(),
+                knowledge_type: KnowledgeType::Issue,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "security".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
         // Filter by architect agent
-        let results = store.search("decision", SearchOptions {
-            agent: Some("architect".to_string()),
-            ..Default::default()
-        }).await.unwrap();
+        let results = store
+            .search(
+                "decision",
+                SearchOptions {
+                    agent: Some("architect".to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
 
         assert!(!results.is_empty());
 
@@ -452,24 +524,33 @@ mod search_tests {
 
         let now = chrono::Utc::now();
 
-        store.store(KnowledgeItem {
-            text: "Recent knowledge".to_string(),
-            knowledge_type: KnowledgeType::General,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "test".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Recent knowledge".to_string(),
+                knowledge_type: KnowledgeType::General,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "test".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
         // Search with date range (last hour)
         let one_hour_ago = now - chrono::Duration::hours(1);
         let one_hour_future = now + chrono::Duration::hours(1);
 
-        let results = store.search("knowledge", SearchOptions {
-            start_date: Some(one_hour_ago),
-            end_date: Some(one_hour_future),
-            ..Default::default()
-        }).await.unwrap();
+        let results = store
+            .search(
+                "knowledge",
+                SearchOptions {
+                    start_date: Some(one_hour_ago),
+                    end_date: Some(one_hour_future),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
 
         assert!(!results.is_empty(), "Should find recent knowledge");
     }
@@ -482,28 +563,40 @@ mod search_tests {
         store.initialize().await.unwrap();
 
         // Store items with varying relevance
-        store.store(KnowledgeItem {
-            text: "JWT authentication implementation details".to_string(),
-            knowledge_type: KnowledgeType::Implementation,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "python".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "JWT authentication implementation details".to_string(),
+                knowledge_type: KnowledgeType::Implementation,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "python".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
-        store.store(KnowledgeItem {
-            text: "Database configuration".to_string(),
-            knowledge_type: KnowledgeType::Configuration,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "devops".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Database configuration".to_string(),
+                knowledge_type: KnowledgeType::Configuration,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "devops".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
-        let results = store.search("JWT authentication", SearchOptions {
-            limit: 10,
-            ..Default::default()
-        }).await.unwrap();
+        let results = store
+            .search(
+                "JWT authentication",
+                SearchOptions {
+                    limit: 10,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
 
         assert!(!results.is_empty());
 
@@ -524,23 +617,35 @@ mod search_tests {
         let store = KnowledgeStore::with_path("test-repo", temp_dir.path()).unwrap();
         store.initialize().await.unwrap();
 
-        store.store(KnowledgeItem {
-            text: "Python implementation".to_string(),
-            knowledge_type: KnowledgeType::Implementation,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "python".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Python implementation".to_string(),
+                knowledge_type: KnowledgeType::Implementation,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "python".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
         // Search for completely unrelated term
-        let results = store.search("quantum physics", SearchOptions {
-            limit: 10,
-            ..Default::default()
-        }).await.unwrap();
+        let results = store
+            .search(
+                "quantum physics",
+                SearchOptions {
+                    limit: 10,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
 
         // Should return empty vec, not error
-        assert!(results.is_empty() || results.len() > 0, "Should handle no matches gracefully");
+        assert!(
+            results.is_empty() || results.len() > 0,
+            "Should handle no matches gracefully"
+        );
     }
 
     #[tokio::test]
@@ -552,21 +657,30 @@ mod search_tests {
 
         // Store 10 items
         for i in 0..10 {
-            store.store(KnowledgeItem {
-                text: format!("Knowledge item number {}", i),
-                knowledge_type: KnowledgeType::General,
-                project_id: "test-project".to_string(),
-                session_id: "session-001".to_string(),
-                agent: "test".to_string(),
-                metadata: serde_json::json!({}).to_string(),
-            }).await.unwrap();
+            store
+                .store(KnowledgeItem {
+                    text: format!("Knowledge item number {}", i),
+                    knowledge_type: KnowledgeType::General,
+                    project_id: "test-project".to_string(),
+                    session_id: "session-001".to_string(),
+                    agent: "test".to_string(),
+                    metadata: serde_json::json!({}).to_string(),
+                })
+                .await
+                .unwrap();
         }
 
         // Search with limit of 5
-        let results = store.search("Knowledge", SearchOptions {
-            limit: 5,
-            ..Default::default()
-        }).await.unwrap();
+        let results = store
+            .search(
+                "Knowledge",
+                SearchOptions {
+                    limit: 5,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
 
         assert!(results.len() <= 5, "Results should respect limit");
     }
@@ -574,7 +688,7 @@ mod search_tests {
 
 #[cfg(test)]
 mod project_knowledge_tests {
-    use cco::daemon::knowledge::{KnowledgeStore, KnowledgeItem, KnowledgeType, GetProjectOptions};
+    use cco::daemon::knowledge::{GetProjectOptions, KnowledgeItem, KnowledgeStore, KnowledgeType};
     use tempfile::TempDir;
 
     #[tokio::test]
@@ -586,20 +700,23 @@ mod project_knowledge_tests {
 
         // Store items for test project
         for i in 0..5 {
-            store.store(KnowledgeItem {
-                text: format!("Project knowledge {}", i),
-                knowledge_type: KnowledgeType::General,
-                project_id: "test-project".to_string(),
-                session_id: "session-001".to_string(),
-                agent: "test".to_string(),
-                metadata: serde_json::json!({}).to_string(),
-            }).await.unwrap();
+            store
+                .store(KnowledgeItem {
+                    text: format!("Project knowledge {}", i),
+                    knowledge_type: KnowledgeType::General,
+                    project_id: "test-project".to_string(),
+                    session_id: "session-001".to_string(),
+                    agent: "test".to_string(),
+                    metadata: serde_json::json!({}).to_string(),
+                })
+                .await
+                .unwrap();
         }
 
-        let results = store.get_project_knowledge(
-            "test-project",
-            Default::default()
-        ).await.unwrap();
+        let results = store
+            .get_project_knowledge("test-project", Default::default())
+            .await
+            .unwrap();
 
         assert_eq!(results.len(), 5, "Should retrieve all 5 project items");
     }
@@ -611,32 +728,41 @@ mod project_knowledge_tests {
         let store = KnowledgeStore::with_path("test-repo", temp_dir.path()).unwrap();
         store.initialize().await.unwrap();
 
-        store.store(KnowledgeItem {
-            text: "Decision by architect".to_string(),
-            knowledge_type: KnowledgeType::Decision,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "architect".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Decision by architect".to_string(),
+                knowledge_type: KnowledgeType::Decision,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "architect".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
-        store.store(KnowledgeItem {
-            text: "Implementation by python".to_string(),
-            knowledge_type: KnowledgeType::Implementation,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "python".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Implementation by python".to_string(),
+                knowledge_type: KnowledgeType::Implementation,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "python".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
         // Filter by type
-        let results = store.get_project_knowledge(
-            "test-project",
-            GetProjectOptions {
-                knowledge_type: Some(KnowledgeType::Decision),
-                ..Default::default()
-            }
-        ).await.unwrap();
+        let results = store
+            .get_project_knowledge(
+                "test-project",
+                GetProjectOptions {
+                    knowledge_type: Some(KnowledgeType::Decision),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].knowledge_type, KnowledgeType::Decision);
@@ -650,29 +776,35 @@ mod project_knowledge_tests {
         store.initialize().await.unwrap();
 
         // Store for project A
-        store.store(KnowledgeItem {
-            text: "Project A data".to_string(),
-            knowledge_type: KnowledgeType::General,
-            project_id: "project-a".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "test".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Project A data".to_string(),
+                knowledge_type: KnowledgeType::General,
+                project_id: "project-a".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "test".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
         // Store for project B
-        store.store(KnowledgeItem {
-            text: "Project B data".to_string(),
-            knowledge_type: KnowledgeType::General,
-            project_id: "project-b".to_string(),
-            session_id: "session-002".to_string(),
-            agent: "test".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Project B data".to_string(),
+                knowledge_type: KnowledgeType::General,
+                project_id: "project-b".to_string(),
+                session_id: "session-002".to_string(),
+                agent: "test".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
-        let results_a = store.get_project_knowledge(
-            "project-a",
-            Default::default()
-        ).await.unwrap();
+        let results_a = store
+            .get_project_knowledge("project-a", Default::default())
+            .await
+            .unwrap();
 
         assert_eq!(results_a.len(), 1);
         assert_eq!(results_a[0].project_id, "project-a");
@@ -689,30 +821,36 @@ mod project_knowledge_tests {
         store.initialize().await.unwrap();
 
         // Store items with delays to ensure different timestamps
-        store.store(KnowledgeItem {
-            text: "First item".to_string(),
-            knowledge_type: KnowledgeType::General,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "test".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "First item".to_string(),
+                knowledge_type: KnowledgeType::General,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "test".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 
-        store.store(KnowledgeItem {
-            text: "Second item".to_string(),
-            knowledge_type: KnowledgeType::General,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "test".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Second item".to_string(),
+                knowledge_type: KnowledgeType::General,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "test".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
-        let results = store.get_project_knowledge(
-            "test-project",
-            Default::default()
-        ).await.unwrap();
+        let results = store
+            .get_project_knowledge("test-project", Default::default())
+            .await
+            .unwrap();
 
         assert_eq!(results.len(), 2);
 
@@ -724,7 +862,7 @@ mod project_knowledge_tests {
 
 #[cfg(test)]
 mod compaction_tests {
-    use cco::daemon::knowledge::{KnowledgeStore, KnowledgeItem, KnowledgeType};
+    use cco::daemon::knowledge::{KnowledgeItem, KnowledgeStore, KnowledgeType};
     use tempfile::TempDir;
 
     #[tokio::test]
@@ -742,22 +880,24 @@ mod compaction_tests {
         Security: Found vulnerability in rate limiting. Need to add exponential backoff.
         "#;
 
-        let result = store.pre_compaction(
-            conversation,
-            "test-project",
-            "session-001"
-        ).await.unwrap();
+        let result = store
+            .pre_compaction(conversation, "test-project", "session-001")
+            .await
+            .unwrap();
 
         assert!(result.count > 0, "Should extract knowledge items");
         assert!(!result.ids.is_empty(), "Should return IDs of stored items");
 
         // Verify items were stored
-        let project_knowledge = store.get_project_knowledge(
-            "test-project",
-            Default::default()
-        ).await.unwrap();
+        let project_knowledge = store
+            .get_project_knowledge("test-project", Default::default())
+            .await
+            .unwrap();
 
-        assert!(!project_knowledge.is_empty(), "Extracted knowledge should be stored");
+        assert!(
+            !project_knowledge.is_empty(),
+            "Extracted knowledge should be stored"
+        );
     }
 
     #[tokio::test]
@@ -768,22 +908,28 @@ mod compaction_tests {
         store.initialize().await.unwrap();
 
         // Store some knowledge
-        store.store(KnowledgeItem {
-            text: "We use JWT for API authentication".to_string(),
-            knowledge_type: KnowledgeType::Decision,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "architect".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "We use JWT for API authentication".to_string(),
+                knowledge_type: KnowledgeType::Decision,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "architect".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
         // Post-compaction retrieval
-        let result = store.post_compaction(
-            "How do we handle authentication?",
-            "test-project"
-        ).await.unwrap();
+        let result = store
+            .post_compaction("How do we handle authentication?", "test-project")
+            .await
+            .unwrap();
 
-        assert!(!result.search_results.is_empty(), "Should find relevant knowledge");
+        assert!(
+            !result.search_results.is_empty(),
+            "Should find relevant knowledge"
+        );
         assert!(
             result.search_results[0].text.contains("JWT"),
             "Should retrieve authentication-related knowledge"
@@ -811,25 +957,32 @@ mod compaction_tests {
         Security audit found SQL injection vulnerability in user input.
         "#;
 
-        let result = store.pre_compaction(
-            conversation,
-            "test-project",
-            "session-001"
-        ).await.unwrap();
+        let result = store
+            .pre_compaction(conversation, "test-project", "session-001")
+            .await
+            .unwrap();
 
-        let knowledge = store.get_project_knowledge(
-            "test-project",
-            Default::default()
-        ).await.unwrap();
+        let knowledge = store
+            .get_project_knowledge("test-project", Default::default())
+            .await
+            .unwrap();
 
         // Should extract decisions, implementations, and issues
         // Should skip trivial messages
-        let has_decision = knowledge.iter().any(|k| k.knowledge_type == KnowledgeType::Decision);
-        let has_implementation = knowledge.iter().any(|k| k.knowledge_type == KnowledgeType::Implementation);
-        let has_issue = knowledge.iter().any(|k| k.knowledge_type == KnowledgeType::Issue);
+        let has_decision = knowledge
+            .iter()
+            .any(|k| k.knowledge_type == KnowledgeType::Decision);
+        let has_implementation = knowledge
+            .iter()
+            .any(|k| k.knowledge_type == KnowledgeType::Implementation);
+        let has_issue = knowledge
+            .iter()
+            .any(|k| k.knowledge_type == KnowledgeType::Issue);
 
-        assert!(has_decision || has_implementation || has_issue,
-            "Should identify critical knowledge types");
+        assert!(
+            has_decision || has_implementation || has_issue,
+            "Should identify critical knowledge types"
+        );
     }
 
     #[tokio::test]
@@ -840,39 +993,51 @@ mod compaction_tests {
         store.initialize().await.unwrap();
 
         // Store varied knowledge
-        store.store(KnowledgeItem {
-            text: "Architecture decision 1".to_string(),
-            knowledge_type: KnowledgeType::Architecture,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "architect".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Architecture decision 1".to_string(),
+                knowledge_type: KnowledgeType::Architecture,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "architect".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
-        store.store(KnowledgeItem {
-            text: "Security issue 1".to_string(),
-            knowledge_type: KnowledgeType::Issue,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "security".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Security issue 1".to_string(),
+                knowledge_type: KnowledgeType::Issue,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "security".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
-        let result = store.post_compaction(
-            "Current project status",
-            "test-project"
-        ).await.unwrap();
+        let result = store
+            .post_compaction("Current project status", "test-project")
+            .await
+            .unwrap();
 
         // Summary should have stats
         assert!(result.summary.total_items > 0);
-        assert!(!result.summary.by_type.is_empty(), "Should have type breakdown");
-        assert!(!result.summary.by_agent.is_empty(), "Should have agent breakdown");
+        assert!(
+            !result.summary.by_type.is_empty(),
+            "Should have type breakdown"
+        );
+        assert!(
+            !result.summary.by_agent.is_empty(),
+            "Should have agent breakdown"
+        );
     }
 }
 
 #[cfg(test)]
 mod cleanup_tests {
-    use cco::daemon::knowledge::{KnowledgeStore, KnowledgeItem, KnowledgeType, CleanupOptions};
+    use cco::daemon::knowledge::{CleanupOptions, KnowledgeItem, KnowledgeStore, KnowledgeType};
     use tempfile::TempDir;
 
     #[tokio::test]
@@ -883,28 +1048,37 @@ mod cleanup_tests {
         store.initialize().await.unwrap();
 
         // Store an item (will have recent timestamp)
-        store.store(KnowledgeItem {
-            text: "Recent knowledge".to_string(),
-            knowledge_type: KnowledgeType::General,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "test".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Recent knowledge".to_string(),
+                knowledge_type: KnowledgeType::General,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "test".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
         // Clean up items older than 90 days (default)
-        let result = store.cleanup(CleanupOptions {
-            older_than_days: 90,
-            ..Default::default()
-        }).await.unwrap();
+        let result = store
+            .cleanup(CleanupOptions {
+                older_than_days: 90,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
 
         // Recent item should not be deleted
-        let remaining = store.get_project_knowledge(
-            "test-project",
-            Default::default()
-        ).await.unwrap();
+        let remaining = store
+            .get_project_knowledge("test-project", Default::default())
+            .await
+            .unwrap();
 
-        assert!(!remaining.is_empty(), "Recent knowledge should not be deleted");
+        assert!(
+            !remaining.is_empty(),
+            "Recent knowledge should not be deleted"
+        );
     }
 
     #[tokio::test]
@@ -914,20 +1088,26 @@ mod cleanup_tests {
         let store = KnowledgeStore::with_path("test-repo", temp_dir.path()).unwrap();
         store.initialize().await.unwrap();
 
-        store.store(KnowledgeItem {
-            text: "Test knowledge".to_string(),
-            knowledge_type: KnowledgeType::General,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "test".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Test knowledge".to_string(),
+                knowledge_type: KnowledgeType::General,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "test".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
         // Clean with very short retention (0 days - everything is old)
-        let result = store.cleanup(CleanupOptions {
-            older_than_days: 0,
-            ..Default::default()
-        }).await.unwrap();
+        let result = store
+            .cleanup(CleanupOptions {
+                older_than_days: 0,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
 
         // Should identify items for cleanup
         assert!(result.count >= 0, "Should return cleanup count");
@@ -941,23 +1121,32 @@ mod cleanup_tests {
         store.initialize().await.unwrap();
 
         // Store recent item
-        let id = store.store(KnowledgeItem {
-            text: "Very recent knowledge".to_string(),
-            knowledge_type: KnowledgeType::General,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "test".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        let id = store
+            .store(KnowledgeItem {
+                text: "Very recent knowledge".to_string(),
+                knowledge_type: KnowledgeType::General,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "test".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
         // Cleanup with 90 day retention
-        store.cleanup(CleanupOptions {
-            older_than_days: 90,
-            ..Default::default()
-        }).await.unwrap();
+        store
+            .cleanup(CleanupOptions {
+                older_than_days: 90,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
 
         // Recent item should still exist
-        let results = store.search("Very recent", Default::default()).await.unwrap();
+        let results = store
+            .search("Very recent", Default::default())
+            .await
+            .unwrap();
         assert!(!results.is_empty(), "Recent item should be preserved");
     }
 
@@ -969,35 +1158,44 @@ mod cleanup_tests {
         store.initialize().await.unwrap();
 
         // Store for different projects
-        store.store(KnowledgeItem {
-            text: "Project A item".to_string(),
-            knowledge_type: KnowledgeType::General,
-            project_id: "project-a".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "test".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Project A item".to_string(),
+                knowledge_type: KnowledgeType::General,
+                project_id: "project-a".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "test".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
-        store.store(KnowledgeItem {
-            text: "Project B item".to_string(),
-            knowledge_type: KnowledgeType::General,
-            project_id: "project-b".to_string(),
-            session_id: "session-002".to_string(),
-            agent: "test".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Project B item".to_string(),
+                knowledge_type: KnowledgeType::General,
+                project_id: "project-b".to_string(),
+                session_id: "session-002".to_string(),
+                agent: "test".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
         // Cleanup only project A
-        store.cleanup(CleanupOptions {
-            older_than_days: 0,
-            project_id: Some("project-a".to_string()),
-        }).await.unwrap();
+        store
+            .cleanup(CleanupOptions {
+                older_than_days: 0,
+                project_id: Some("project-a".to_string()),
+            })
+            .await
+            .unwrap();
 
         // Project B should be unaffected
-        let project_b = store.get_project_knowledge(
-            "project-b",
-            Default::default()
-        ).await.unwrap();
+        let project_b = store
+            .get_project_knowledge("project-b", Default::default())
+            .await
+            .unwrap();
 
         assert!(!project_b.is_empty(), "Other projects should be unaffected");
     }
@@ -1005,7 +1203,7 @@ mod cleanup_tests {
 
 #[cfg(test)]
 mod statistics_tests {
-    use cco::daemon::knowledge::{KnowledgeStore, KnowledgeItem, KnowledgeType};
+    use cco::daemon::knowledge::{KnowledgeItem, KnowledgeStore, KnowledgeType};
     use tempfile::TempDir;
 
     #[tokio::test]
@@ -1018,7 +1216,10 @@ mod statistics_tests {
         let stats = store.get_stats().await.unwrap();
 
         assert!(stats.total_records >= 0, "Should have record count");
-        assert!(stats.repository == "test-repo", "Should have repository name");
+        assert!(
+            stats.repository == "test-repo",
+            "Should have repository name"
+        );
     }
 
     #[tokio::test]
@@ -1030,14 +1231,17 @@ mod statistics_tests {
 
         // Store 5 items
         for i in 0..5 {
-            store.store(KnowledgeItem {
-                text: format!("Item {}", i),
-                knowledge_type: KnowledgeType::General,
-                project_id: "test-project".to_string(),
-                session_id: "session-001".to_string(),
-                agent: "test".to_string(),
-                metadata: serde_json::json!({}).to_string(),
-            }).await.unwrap();
+            store
+                .store(KnowledgeItem {
+                    text: format!("Item {}", i),
+                    knowledge_type: KnowledgeType::General,
+                    project_id: "test-project".to_string(),
+                    session_id: "session-001".to_string(),
+                    agent: "test".to_string(),
+                    metadata: serde_json::json!({}).to_string(),
+                })
+                .await
+                .unwrap();
         }
 
         let stats = store.get_stats().await.unwrap();
@@ -1053,38 +1257,58 @@ mod statistics_tests {
         store.initialize().await.unwrap();
 
         // Store different types
-        store.store(KnowledgeItem {
-            text: "Decision 1".to_string(),
-            knowledge_type: KnowledgeType::Decision,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "architect".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Decision 1".to_string(),
+                knowledge_type: KnowledgeType::Decision,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "architect".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
-        store.store(KnowledgeItem {
-            text: "Decision 2".to_string(),
-            knowledge_type: KnowledgeType::Decision,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "architect".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Decision 2".to_string(),
+                knowledge_type: KnowledgeType::Decision,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "architect".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
-        store.store(KnowledgeItem {
-            text: "Issue 1".to_string(),
-            knowledge_type: KnowledgeType::Issue,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "security".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Issue 1".to_string(),
+                knowledge_type: KnowledgeType::Issue,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "security".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
         let stats = store.get_stats().await.unwrap();
 
-        assert!(stats.by_type.contains_key("decision"), "Should have type breakdown");
-        assert_eq!(stats.by_type.get("decision").unwrap_or(&0), &2, "Should count 2 decisions");
-        assert_eq!(stats.by_type.get("issue").unwrap_or(&0), &1, "Should count 1 issue");
+        assert!(
+            stats.by_type.contains_key("decision"),
+            "Should have type breakdown"
+        );
+        assert_eq!(
+            stats.by_type.get("decision").unwrap_or(&0),
+            &2,
+            "Should count 2 decisions"
+        );
+        assert_eq!(
+            stats.by_type.get("issue").unwrap_or(&0),
+            &1,
+            "Should count 1 issue"
+        );
     }
 
     #[tokio::test]
@@ -1094,28 +1318,40 @@ mod statistics_tests {
         let store = KnowledgeStore::with_path("test-repo", temp_dir.path()).unwrap();
         store.initialize().await.unwrap();
 
-        store.store(KnowledgeItem {
-            text: "From architect".to_string(),
-            knowledge_type: KnowledgeType::Decision,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "architect".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "From architect".to_string(),
+                knowledge_type: KnowledgeType::Decision,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "architect".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
-        store.store(KnowledgeItem {
-            text: "From python".to_string(),
-            knowledge_type: KnowledgeType::Implementation,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "python".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "From python".to_string(),
+                knowledge_type: KnowledgeType::Implementation,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "python".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
         let stats = store.get_stats().await.unwrap();
 
-        assert!(stats.by_agent.contains_key("architect"), "Should have agent breakdown");
-        assert!(stats.by_agent.contains_key("python"), "Should track all agents");
+        assert!(
+            stats.by_agent.contains_key("architect"),
+            "Should have agent breakdown"
+        );
+        assert!(
+            stats.by_agent.contains_key("python"),
+            "Should track all agents"
+        );
     }
 
     #[tokio::test]
@@ -1125,25 +1361,31 @@ mod statistics_tests {
         let store = KnowledgeStore::with_path("test-repo", temp_dir.path()).unwrap();
         store.initialize().await.unwrap();
 
-        store.store(KnowledgeItem {
-            text: "First item".to_string(),
-            knowledge_type: KnowledgeType::General,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "test".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "First item".to_string(),
+                knowledge_type: KnowledgeType::General,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "test".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 
-        store.store(KnowledgeItem {
-            text: "Second item".to_string(),
-            knowledge_type: KnowledgeType::General,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "test".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await.unwrap();
+        store
+            .store(KnowledgeItem {
+                text: "Second item".to_string(),
+                knowledge_type: KnowledgeType::General,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "test".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await
+            .unwrap();
 
         let stats = store.get_stats().await.unwrap();
 
@@ -1164,7 +1406,7 @@ mod statistics_tests {
 
 #[cfg(test)]
 mod error_handling_tests {
-    use cco::daemon::knowledge::{KnowledgeStore, KnowledgeItem, KnowledgeType};
+    use cco::daemon::knowledge::{KnowledgeItem, KnowledgeStore, KnowledgeType};
     use tempfile::TempDir;
 
     #[tokio::test]
@@ -1175,14 +1417,16 @@ mod error_handling_tests {
         store.initialize().await.unwrap();
 
         // Empty text should error
-        let result = store.store(KnowledgeItem {
-            text: "".to_string(),
-            knowledge_type: KnowledgeType::General,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "test".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await;
+        let result = store
+            .store(KnowledgeItem {
+                text: "".to_string(),
+                knowledge_type: KnowledgeType::General,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "test".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await;
 
         assert!(result.is_err(), "Empty text should be rejected");
     }
@@ -1200,16 +1444,18 @@ mod error_handling_tests {
         let result = store.search("test", Default::default()).await;
 
         // Should return error, not panic
-        assert!(result.is_err() || result.is_ok(), "Should handle gracefully");
+        assert!(
+            result.is_err() || result.is_ok(),
+            "Should handle gracefully"
+        );
     }
 
     #[tokio::test]
     async fn test_concurrent_access() {
         // Test multiple simultaneous requests
         let temp_dir = TempDir::new().unwrap();
-        let store = std::sync::Arc::new(
-            KnowledgeStore::with_path("test-repo", temp_dir.path()).unwrap()
-        );
+        let store =
+            std::sync::Arc::new(KnowledgeStore::with_path("test-repo", temp_dir.path()).unwrap());
         store.initialize().await.unwrap();
 
         // Spawn multiple concurrent stores
@@ -1218,14 +1464,16 @@ mod error_handling_tests {
         for i in 0..10 {
             let store_clone = store.clone();
             let handle = tokio::spawn(async move {
-                store_clone.store(KnowledgeItem {
-                    text: format!("Concurrent item {}", i),
-                    knowledge_type: KnowledgeType::General,
-                    project_id: "test-project".to_string(),
-                    session_id: "session-001".to_string(),
-                    agent: "test".to_string(),
-                    metadata: serde_json::json!({}).to_string(),
-                }).await
+                store_clone
+                    .store(KnowledgeItem {
+                        text: format!("Concurrent item {}", i),
+                        knowledge_type: KnowledgeType::General,
+                        project_id: "test-project".to_string(),
+                        session_id: "session-001".to_string(),
+                        agent: "test".to_string(),
+                        metadata: serde_json::json!({}).to_string(),
+                    })
+                    .await
             });
             handles.push(handle);
         }
@@ -1237,10 +1485,10 @@ mod error_handling_tests {
         }
 
         // Verify all were stored
-        let results = store.get_project_knowledge(
-            "test-project",
-            Default::default()
-        ).await.unwrap();
+        let results = store
+            .get_project_knowledge("test-project", Default::default())
+            .await
+            .unwrap();
 
         assert!(results.len() >= 10, "Should store all concurrent items");
     }
@@ -1248,7 +1496,7 @@ mod error_handling_tests {
 
 #[cfg(test)]
 mod data_integrity_tests {
-    use cco::daemon::knowledge::{KnowledgeStore, KnowledgeItem, KnowledgeType};
+    use cco::daemon::knowledge::{KnowledgeItem, KnowledgeStore, KnowledgeType};
     use tempfile::TempDir;
 
     #[tokio::test]
@@ -1268,8 +1516,11 @@ mod data_integrity_tests {
 
         for text in texts {
             let embedding = store.generate_embedding(text);
-            assert_eq!(embedding.len(), 384,
-                "All embeddings must be exactly 384 dimensions");
+            assert_eq!(
+                embedding.len(),
+                384,
+                "All embeddings must be exactly 384 dimensions"
+            );
         }
     }
 
@@ -1280,14 +1531,16 @@ mod data_integrity_tests {
         let store = KnowledgeStore::with_path("test-repo", temp_dir.path()).unwrap();
         store.initialize().await.unwrap();
 
-        let result = store.store(KnowledgeItem {
-            text: "".to_string(),
-            knowledge_type: KnowledgeType::General,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "test".to_string(),
-            metadata: serde_json::json!({}).to_string(),
-        }).await;
+        let result = store
+            .store(KnowledgeItem {
+                text: "".to_string(),
+                knowledge_type: KnowledgeType::General,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "test".to_string(),
+                metadata: serde_json::json!({}).to_string(),
+            })
+            .await;
 
         assert!(result.is_err(), "Empty text should be rejected");
     }
@@ -1311,14 +1564,16 @@ mod data_integrity_tests {
         ];
 
         for knowledge_type in valid_types {
-            let result = store.store(KnowledgeItem {
-                text: "Test".to_string(),
-                knowledge_type,
-                project_id: "test-project".to_string(),
-                session_id: "session-001".to_string(),
-                agent: "test".to_string(),
-                metadata: serde_json::json!({}).to_string(),
-            }).await;
+            let result = store
+                .store(KnowledgeItem {
+                    text: "Test".to_string(),
+                    knowledge_type,
+                    project_id: "test-project".to_string(),
+                    session_id: "session-001".to_string(),
+                    agent: "test".to_string(),
+                    metadata: serde_json::json!({}).to_string(),
+                })
+                .await;
 
             assert!(result.is_ok(), "Valid knowledge type should be accepted");
         }
@@ -1367,14 +1622,16 @@ mod data_integrity_tests {
         ];
 
         for text in special_texts {
-            let result = store.store(KnowledgeItem {
-                text: text.to_string(),
-                knowledge_type: KnowledgeType::General,
-                project_id: "test-project".to_string(),
-                session_id: "session-001".to_string(),
-                agent: "test".to_string(),
-                metadata: serde_json::json!({}).to_string(),
-            }).await;
+            let result = store
+                .store(KnowledgeItem {
+                    text: text.to_string(),
+                    knowledge_type: KnowledgeType::General,
+                    project_id: "test-project".to_string(),
+                    session_id: "session-001".to_string(),
+                    agent: "test".to_string(),
+                    metadata: serde_json::json!({}).to_string(),
+                })
+                .await;
 
             assert!(result.is_ok(), "Should handle special characters: {}", text);
         }
@@ -1405,21 +1662,30 @@ mod data_integrity_tests {
             "null_value": null
         });
 
-        let result = store.store(KnowledgeItem {
-            text: "Complex metadata test".to_string(),
-            knowledge_type: KnowledgeType::General,
-            project_id: "test-project".to_string(),
-            session_id: "session-001".to_string(),
-            agent: "test".to_string(),
-            metadata: complex_metadata.to_string(),
-        }).await;
+        let result = store
+            .store(KnowledgeItem {
+                text: "Complex metadata test".to_string(),
+                knowledge_type: KnowledgeType::General,
+                project_id: "test-project".to_string(),
+                session_id: "session-001".to_string(),
+                agent: "test".to_string(),
+                metadata: complex_metadata.to_string(),
+            })
+            .await;
 
         assert!(result.is_ok(), "Should handle complex metadata");
 
         // Verify metadata roundtrip
-        let results = store.search("Complex metadata", Default::default()).await.unwrap();
+        let results = store
+            .search("Complex metadata", Default::default())
+            .await
+            .unwrap();
         // Verify metadata roundtrip by parsing the stored JSON string
-        let stored_metadata: serde_json::Value = serde_json::from_str(&results[0].metadata).unwrap();
-        assert_eq!(stored_metadata, complex_metadata, "Metadata should roundtrip exactly");
+        let stored_metadata: serde_json::Value =
+            serde_json::from_str(&results[0].metadata).unwrap();
+        assert_eq!(
+            stored_metadata, complex_metadata,
+            "Metadata should roundtrip exactly"
+        );
     }
 }

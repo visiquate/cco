@@ -110,7 +110,8 @@ impl MetricsCache {
     /// * `end` - End time (inclusive)
     pub fn get_range(&self, start: SystemTime, end: SystemTime) -> Vec<StatsSnapshot> {
         let cache = self.cache.read();
-        cache.iter()
+        cache
+            .iter()
             .filter(|s| s.timestamp >= start && s.timestamp <= end)
             .cloned()
             .collect()

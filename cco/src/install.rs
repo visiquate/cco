@@ -48,10 +48,7 @@ fn get_shell_rc_path(shell: &str) -> Result<PathBuf> {
 
 /// Get version from a CCO binary by running `cco version`
 fn get_binary_version(binary_path: &Path) -> Option<String> {
-    let output = Command::new(binary_path)
-        .arg("version")
-        .output()
-        .ok()?;
+    let output = Command::new(binary_path).arg("version").output().ok()?;
 
     if output.status.success() {
         String::from_utf8(output.stdout)
@@ -66,7 +63,10 @@ fn get_binary_version(binary_path: &Path) -> Option<String> {
 fn is_newer_version(new_version: &str, old_version: &str) -> bool {
     use cco::version::DateVersion;
 
-    match (DateVersion::parse(new_version), DateVersion::parse(old_version)) {
+    match (
+        DateVersion::parse(new_version),
+        DateVersion::parse(old_version),
+    ) {
         (Ok(new_v), Ok(old_v)) => new_v > old_v,
         _ => false, // If parsing fails, assume not an upgrade
     }
@@ -155,15 +155,24 @@ pub async fn run(force: bool) -> Result<()> {
         if let Some(installed_version) = get_binary_version(&install_path) {
             if is_newer_version(current_version, &installed_version) {
                 // This is a newer version, proceed with upgrade
-                println!("📦 Upgrading CCO from {} to {}...", installed_version, current_version);
+                println!(
+                    "📦 Upgrading CCO from {} to {}...",
+                    installed_version, current_version
+                );
             } else if installed_version == current_version {
-                println!("✅ CCO v{} is already installed at {}", installed_version, install_path.display());
+                println!(
+                    "✅ CCO v{} is already installed at {}",
+                    installed_version,
+                    install_path.display()
+                );
                 println!("   No upgrade needed");
                 return Ok(());
             } else {
                 // Installed version is newer
-                println!("⚠️  Installed version ({}) is newer than new version ({})",
-                    installed_version, current_version);
+                println!(
+                    "⚠️  Installed version ({}) is newer than new version ({})",
+                    installed_version, current_version
+                );
                 println!("   Use --force to downgrade");
                 return Ok(());
             }

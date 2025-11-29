@@ -2,10 +2,10 @@
   "name": "claude-orchestra",
   "version": "1.0.0",
   "description": "Multi-agent development orchestra with specialized coding agents coordinated by a conductor",
-  "main": "src/orchestra-conductor.js",
+  "main": "cco/target/release/cco",
   "scripts": {
-    "orchestra": "node src/orchestra-conductor.js",
-    "credentials": "node src/credential-manager.js",
+    "orchestra": "echo 'DEPRECATED: Use cco orchestra command instead'",
+    "credentials": "echo 'DEPRECATED: Use cco credentials command instead'",
     "sync": "node scripts/sync-orchestra-config.js",
     "init": "npm run setup:mcp",
     "setup:mcp": "echo 'MCP servers should be enabled in .claude/settings.local.json'",

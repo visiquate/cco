@@ -120,84 +120,68 @@ data/knowledge/
 
 ```bash
 # Run test suite
-node src/knowledge-manager.js test
+cco knowledge test
 
 # Store knowledge
-node src/knowledge-manager.js store "We chose Python for ML integration" decision
+cco knowledge store "We chose Python for ML integration" --type decision
 
 # Search knowledge
-node src/knowledge-manager.js search "authentication" 10
+cco knowledge search "authentication" --limit 10
 
 # View statistics
-node src/knowledge-manager.js stats
+cco knowledge stats
 ```
 
-### Programmatic Usage
+### Programmatic Usage (Rust API)
 
-```javascript
-const KnowledgeManager = require('./src/knowledge-manager');
+The Knowledge Manager is now a Rust-based daemon accessed via the CLI:
 
-// Initialize for current repository
-const km = new KnowledgeManager({
-  repoPath: process.cwd()
-});
+```bash
+# Store knowledge via CLI
+cco knowledge store "We decided to use FastAPI for the REST API" --type decision --agent architect
 
-await km.initialize();
+# Search for relevant knowledge
+cco knowledge search "API authentication" --limit 5
 
-// Store knowledge
-await km.store({
-  text: 'We decided to use FastAPI for the REST API',
-  type: 'decision',
-  agent: 'architect'
-});
+# Get all project knowledge of a specific type
+cco knowledge list --type decision --limit 10
 
-// Search for relevant knowledge
-const results = await km.search('API authentication', {
-  limit: 5
-});
+# Get statistics
+cco knowledge stats
+```
 
-// Get all project knowledge
-const projectKnowledge = await km.getProjectKnowledge('statushub', {
-  type: 'decision',
-  limit: 10
-});
+**For integration with your own code**, use the following HTTP API endpoints:
 
-// Get statistics
-const stats = await km.getStats();
+```bash
+# Store knowledge via HTTP
+curl -X POST http://localhost:8765/api/knowledge/store \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "We decided to use FastAPI for the REST API",
+    "type": "decision",
+    "agent": "architect"
+  }'
+
+# Search knowledge via HTTP
+curl -X GET "http://localhost:8765/api/knowledge/search?query=API%20authentication&limit=5"
+
+# Get statistics via HTTP
+curl -X GET http://localhost:8765/api/knowledge/stats
 ```
 
 ### Orchestra Conductor Integration
 
-```javascript
-const ClaudeOrchestra = require('./src/orchestra-conductor');
+**Note**: The Rust CLI (`cco`) handles all orchestration now. Use these commands in your workflows:
 
-const orchestra = new ClaudeOrchestra({
-  repoPath: '/path/to/repo'
-});
+```bash
+# Store knowledge from orchestration
+cco knowledge store "Implemented JWT with RS256" --type implementation --agent python
 
-// Pre-compaction: Store knowledge
-await orchestra.preCompactionHook(conversationText, {
-  project_id: 'statushub',
-  session_id: 'session-123'
-});
+# Search knowledge during orchestration
+cco knowledge search "database schema"
 
-// Post-compaction: Retrieve context
-const context = await orchestra.postCompactionHook('Implement authentication', {
-  project_id: 'statushub'
-});
-
-// Manual knowledge storage
-await orchestra.storeKnowledge({
-  text: 'Implemented JWT with RS256',
-  type: 'implementation',
-  agent: 'python'
-});
-
-// Search knowledge
-const results = await orchestra.searchKnowledge('database schema');
-
-// Get stats
-const stats = await orchestra.getKnowledgeStats();
+# Get stats for monitoring
+cco knowledge stats
 ```
 
 ## Knowledge Types

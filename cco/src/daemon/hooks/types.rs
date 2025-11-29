@@ -382,7 +382,10 @@ mod tests {
             0.95,
             "Command only reads files",
         );
-        assert_eq!(result.reasoning, Some("Command only reads files".to_string()));
+        assert_eq!(
+            result.reasoning,
+            Some("Command only reads files".to_string())
+        );
     }
 
     #[test]

@@ -1,20 +1,20 @@
 //! HTTP server for CCO proxy
 
 use crate::agents_config::{load_agents_from_embedded, Agent, AgentsConfig};
-use crate::analytics::{AnalyticsEngine, ApiCallRecord, ActivityEvent};
+use crate::analytics::{ActivityEvent, AnalyticsEngine, ApiCallRecord};
 use crate::cache::MokaCache;
 use crate::proxy::{ChatRequest, ChatResponse, ProxyServer};
 use crate::router::ModelRouter;
 use crate::security::{
-    localhost_only_middleware, validate_message_size, validate_terminal_dimensions,
-    validate_utf8, ConnectionTracker,
+    localhost_only_middleware, validate_message_size, validate_terminal_dimensions, validate_utf8,
+    ConnectionTracker,
 };
 use crate::terminal::TerminalSession;
 use crate::version::DateVersion;
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
-        ConnectInfo, Json, State, Path as AxumPath,
+        ConnectInfo, Json, Path as AxumPath, State,
     },
     http::{header, StatusCode},
     middleware,
@@ -32,16 +32,16 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::fs;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Instant;
 use std::net::TcpListener as StdTcpListener;
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::time::Instant;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 use tokio::time::{interval, Duration};
 use tower_http::cors::CorsLayer;
-use tracing::{trace, error, info, warn};
+use tracing::{error, info, trace, warn};
 
 /// Agent configuration from orchestration config
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,10 +61,10 @@ pub struct ServerState {
     pub start_time: Instant,
     pub model_overrides: Arc<HashMap<String, String>>,
     pub agent_models: Arc<HashMap<String, String>>, // agent type -> configured model
-    pub agents: Arc<AgentsConfig>,                   // agent definitions from ~/.claude/agents/
-    pub connection_tracker: ConnectionTracker,       // connection tracking for rate limiting
-    pub shutdown_flag: Arc<AtomicBool>,              // signal to background tasks to shutdown
-    pub persistence: Option<Arc<crate::persistence::PersistenceLayer>>,  // metrics database
+    pub agents: Arc<AgentsConfig>,                  // agent definitions from ~/.claude/agents/
+    pub connection_tracker: ConnectionTracker,      // connection tracking for rate limiting
+    pub shutdown_flag: Arc<AtomicBool>,             // signal to background tasks to shutdown
+    pub persistence: Option<Arc<crate::persistence::PersistenceLayer>>, // metrics database
 }
 
 /// PID file metadata structure
@@ -155,26 +155,18 @@ fn get_current_project_path() -> anyhow::Result<String> {
     trace!("⚠️  CCO_PROJECT_PATH not set, falling back to current directory");
 
     // 2. Fall back to current working directory
-    let cwd = std::env::current_dir()?
-        .to_string_lossy()
-        .to_string();
+    let cwd = std::env::current_dir()?.to_string_lossy().to_string();
 
     trace!("📁 Current working directory: {}", cwd);
 
     // 3. Encode the path: /Users/brent/git/cc-orchestra -> -Users-brent-git-cc-orchestra
-    let encoded = format!("-{}", cwd
-        .trim_start_matches('/')
-        .replace('/', "-"));
+    let encoded = format!("-{}", cwd.trim_start_matches('/').replace('/', "-"));
 
     trace!("🔤 Encoded path: {}", encoded);
 
     // 4. Return full project path
     let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
-    let project_path = format!(
-        "{}/.claude/projects/{}/",
-        home,
-        encoded
-    );
+    let project_path = format!("{}/.claude/projects/{}/", home, encoded);
 
     trace!("🎯 Derived project path: {}", project_path);
 
@@ -236,7 +228,6 @@ pub struct StatsResponse {
 pub struct ErrorResponse {
     error: String,
 }
-
 
 /// Agent not found error response
 #[derive(serde::Serialize)]
@@ -309,7 +300,10 @@ async fn shutdown_handler() -> Json<serde_json::Value> {
 /// Get all available agents - return as raw JSON array
 async fn list_agents(State(state): State<Arc<ServerState>>) -> impl IntoResponse {
     let agents = state.agents.all();
-    info!("list_agents handler: Returning {} agents as RAW ARRAY", agents.len());
+    info!(
+        "list_agents handler: Returning {} agents as RAW ARRAY",
+        agents.len()
+    );
 
     // Serialize to raw JSON array string to avoid any wrapping
     match serde_json::to_string(&agents) {
@@ -369,26 +363,68 @@ fn detect_agent_from_conversation(messages: &[crate::proxy::Message]) -> Option<
         // Pattern matching for known agents
         // These patterns match the agent descriptions from orchestra-config.json
         let patterns = vec![
-            ("chief-architect", vec!["chief architect", "strategic decision"]),
+            (
+                "chief-architect",
+                vec!["chief architect", "strategic decision"],
+            ),
             ("tdd-coding-agent", vec!["tdd", "test-driven", "test-first"]),
-            ("python-specialist", vec!["python specialist", "fastapi", "django"]),
-            ("swift-specialist", vec!["swift specialist", "swiftui", "ios"]),
-            ("rust-specialist", vec!["rust specialist", "systems programming"]),
-            ("go-specialist", vec!["go specialist", "golang", "microservice"]),
-            ("flutter-specialist", vec!["flutter specialist", "cross-platform mobile"]),
-            ("frontend-developer", vec!["frontend developer", "react", "javascript"]),
+            (
+                "python-specialist",
+                vec!["python specialist", "fastapi", "django"],
+            ),
+            (
+                "swift-specialist",
+                vec!["swift specialist", "swiftui", "ios"],
+            ),
+            (
+                "rust-specialist",
+                vec!["rust specialist", "systems programming"],
+            ),
+            (
+                "go-specialist",
+                vec!["go specialist", "golang", "microservice"],
+            ),
+            (
+                "flutter-specialist",
+                vec!["flutter specialist", "cross-platform mobile"],
+            ),
+            (
+                "frontend-developer",
+                vec!["frontend developer", "react", "javascript"],
+            ),
             ("fullstack-developer", vec!["full-stack", "fullstack"]),
-            ("devops-engineer", vec!["devops", "docker", "kubernetes", "deployment"]),
-            ("test-engineer", vec!["test engineer", "qa", "testing", "test automation"]),
+            (
+                "devops-engineer",
+                vec!["devops", "docker", "kubernetes", "deployment"],
+            ),
+            (
+                "test-engineer",
+                vec!["test engineer", "qa", "testing", "test automation"],
+            ),
             ("test-automator", vec!["test automator", "test automation"]),
-            ("documentation-expert", vec!["documentation", "technical writer", "api documenting"]),
-            ("security-auditor", vec!["security", "vulnerability", "penetration"]),
-            ("database-architect", vec!["database architect", "schema design"]),
+            (
+                "documentation-expert",
+                vec!["documentation", "technical writer", "api documenting"],
+            ),
+            (
+                "security-auditor",
+                vec!["security", "vulnerability", "penetration"],
+            ),
+            (
+                "database-architect",
+                vec!["database architect", "schema design"],
+            ),
             ("backend-architect", vec!["backend architect", "api design"]),
             ("code-reviewer", vec!["code review", "code quality"]),
-            ("architecture-modernizer", vec!["architecture", "modernization", "refactor"]),
+            (
+                "architecture-modernizer",
+                vec!["architecture", "modernization", "refactor"],
+            ),
             ("debugger", vec!["debugging", "error analysis"]),
-            ("performance-engineer", vec!["performance", "optimization", "profiling"]),
+            (
+                "performance-engineer",
+                vec!["performance", "optimization", "profiling"],
+            ),
         ];
 
         for (agent_type, keywords) in patterns {
@@ -579,7 +615,7 @@ async fn dashboard_html() -> impl IntoResponse {
     let html_with_cache_bust = if !git_hash.is_empty() && git_hash != "unknown" {
         html.replace(
             r#"<script src="dashboard.js"></script>"#,
-            &format!(r#"<script src="dashboard.js?v={}"></script>"#, git_hash)
+            &format!(r#"<script src="dashboard.js?v={}"></script>"#, git_hash),
         )
     } else {
         // Fallback: use timestamp as cache buster if git hash is unavailable
@@ -589,11 +625,14 @@ async fn dashboard_html() -> impl IntoResponse {
             .as_secs();
         html.replace(
             r#"<script src="dashboard.js"></script>"#,
-            &format!(r#"<script src="dashboard.js?v=t{}"></script>"#, timestamp)
+            &format!(r#"<script src="dashboard.js?v=t{}"></script>"#, timestamp),
         )
     };
 
-    ([(header::CONTENT_TYPE, "text/html; charset=utf-8")], Html(html_with_cache_bust))
+    (
+        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        Html(html_with_cache_bust),
+    )
 }
 
 /// Dashboard CSS
@@ -611,32 +650,42 @@ async fn dashboard_js() -> impl IntoResponse {
 /// Analytics stats endpoint - unified format for dashboard
 async fn stats(State(state): State<Arc<ServerState>>) -> Result<Json<StatsResponse>, ServerError> {
     // Use high-performance parallel parser to scan ALL conversation files
-    let claude_metrics = match crate::claude_history::load_claude_metrics_from_home_dir_parallel().await {
-        Ok(metrics) if metrics.total_cost > 0.0 || metrics.messages_count > 0 => {
-            trace!("✅ Loaded metrics from ALL conversation files (parallel parser)");
-            metrics
-        }
-        Ok(_) => {
-            // Fall back to project-based JSONL files
-            trace!("No data found, trying single project JSONL files");
-            let project_path = get_current_project_path()
-                .map_err(|e| ServerError::Internal(format!("Failed to determine project path: {}", e)))?;
+    let claude_metrics =
+        match crate::claude_history::load_claude_metrics_from_home_dir_parallel().await {
+            Ok(metrics) if metrics.total_cost > 0.0 || metrics.messages_count > 0 => {
+                trace!("✅ Loaded metrics from ALL conversation files (parallel parser)");
+                metrics
+            }
+            Ok(_) => {
+                // Fall back to project-based JSONL files
+                trace!("No data found, trying single project JSONL files");
+                let project_path = get_current_project_path().map_err(|e| {
+                    ServerError::Internal(format!("Failed to determine project path: {}", e))
+                })?;
 
-            crate::claude_history::load_claude_project_metrics(&project_path)
-                .await
-                .map_err(|e| ServerError::Internal(format!("Failed to load Claude metrics: {}", e)))?
-        }
-        Err(e) => {
-            // If parallel scan fails, try project path
-            trace!("Error loading from parallel parser: {}, trying project JSONL files", e);
-            let project_path = get_current_project_path()
-                .map_err(|e| ServerError::Internal(format!("Failed to determine project path: {}", e)))?;
+                crate::claude_history::load_claude_project_metrics(&project_path)
+                    .await
+                    .map_err(|e| {
+                        ServerError::Internal(format!("Failed to load Claude metrics: {}", e))
+                    })?
+            }
+            Err(e) => {
+                // If parallel scan fails, try project path
+                trace!(
+                    "Error loading from parallel parser: {}, trying project JSONL files",
+                    e
+                );
+                let project_path = get_current_project_path().map_err(|e| {
+                    ServerError::Internal(format!("Failed to determine project path: {}", e))
+                })?;
 
-            crate::claude_history::load_claude_project_metrics(&project_path)
-                .await
-                .map_err(|e| ServerError::Internal(format!("Failed to load Claude metrics: {}", e)))?
-        }
-    };
+                crate::claude_history::load_claude_project_metrics(&project_path)
+                    .await
+                    .map_err(|e| {
+                        ServerError::Internal(format!("Failed to load Claude metrics: {}", e))
+                    })?
+            }
+        };
 
     // Get recent activity from analytics engine
     let activity = state.analytics.get_recent_activity(20).await;
@@ -664,10 +713,15 @@ async fn stats(State(state): State<Arc<ServerState>>) -> Result<Json<StatsRespon
     if let Some(ref persistence) = state.persistence {
         let claude_history = persistence.claude_history();
         let today = chrono::Utc::now();
-        let start_date = (today - chrono::Duration::days(30)).format("%Y-%m-%d").to_string();
+        let start_date = (today - chrono::Duration::days(30))
+            .format("%Y-%m-%d")
+            .to_string();
         let end_date = today.format("%Y-%m-%d").to_string();
 
-        match claude_history.get_daily_totals(&start_date, &end_date).await {
+        match claude_history
+            .get_daily_totals(&start_date, &end_date)
+            .await
+        {
             Ok(daily_totals) => {
                 for total in daily_totals {
                     cost_over_time.push(ChartDataPoint {
@@ -675,7 +729,10 @@ async fn stats(State(state): State<Arc<ServerState>>) -> Result<Json<StatsRespon
                         cost: total.cost,
                     });
                 }
-                info!("✅ Loaded {} days of historic metrics from database", cost_over_time.len());
+                info!(
+                    "✅ Loaded {} days of historic metrics from database",
+                    cost_over_time.len()
+                );
             }
             Err(e) => {
                 warn!("Failed to load historic metrics from database: {}", e);
@@ -736,12 +793,15 @@ async fn stats(State(state): State<Arc<ServerState>>) -> Result<Json<StatsRespon
         };
 
         // Aggregate tokens for this tier
-        let tier_info = token_breakdown.entry(tier_name.to_string()).or_insert(TokenBreakdownInfo {
-            input_tokens: 0,
-            output_tokens: 0,
-            cache_read_tokens: 0,
-            cache_write_tokens: 0,
-        });
+        let tier_info =
+            token_breakdown
+                .entry(tier_name.to_string())
+                .or_insert(TokenBreakdownInfo {
+                    input_tokens: 0,
+                    output_tokens: 0,
+                    cache_read_tokens: 0,
+                    cache_write_tokens: 0,
+                });
 
         tier_info.input_tokens += breakdown.input_tokens;
         tier_info.output_tokens += breakdown.output_tokens;
@@ -832,9 +892,7 @@ pub struct ProjectDataRow {
 }
 
 /// Per-project metrics endpoint - return as raw JSON array
-async fn metrics_projects(
-    State(state): State<Arc<ServerState>>,
-) -> impl IntoResponse {
+async fn metrics_projects(State(state): State<Arc<ServerState>>) -> impl IntoResponse {
     // Calculate totals
     let total_actual_cost = state.analytics.get_total_actual_cost().await;
     let total_requests = state.analytics.get_total_requests().await;
@@ -848,16 +906,14 @@ async fn metrics_projects(
         total_output_tokens += metric.total_requests; // This will need adjustment based on actual token data
     }
 
-    let projects = vec![
-        ProjectDataRow {
-            name: "Claude Orchestra".to_string(),
-            api_calls: total_requests,
-            input_tokens: total_input_tokens,
-            output_tokens: total_output_tokens,
-            cost: total_actual_cost,
-            last_activity: Utc::now().to_rfc3339(),
-        },
-    ];
+    let projects = vec![ProjectDataRow {
+        name: "Claude Orchestra".to_string(),
+        api_calls: total_requests,
+        input_tokens: total_input_tokens,
+        output_tokens: total_output_tokens,
+        cost: total_actual_cost,
+        last_activity: Utc::now().to_rfc3339(),
+    }];
 
     // Serialize to raw JSON array string to avoid any wrapping
     match serde_json::to_string(&projects) {
@@ -1075,7 +1131,7 @@ async fn stream(
     Sse::new(stream).keep_alive(
         KeepAlive::new()
             .text("keep-alive")
-            .interval(std::time::Duration::from_secs(30))
+            .interval(std::time::Duration::from_secs(30)),
     )
 }
 
@@ -1135,11 +1191,7 @@ async fn terminal_handler(
 }
 
 /// Handle WebSocket terminal connection with real PTY and security validation
-async fn handle_terminal_socket(
-    socket: WebSocket,
-    _state: Arc<ServerState>,
-    ip: std::net::IpAddr,
-) {
+async fn handle_terminal_socket(socket: WebSocket, _state: Arc<ServerState>, ip: std::net::IpAddr) {
     use futures::{SinkExt, StreamExt};
 
     // Security constants
@@ -1426,7 +1478,9 @@ async fn handle_terminal_socket(
                         error = %e,
                         "Binary message size limit exceeded"
                     );
-                    let _ = sender.lock().await
+                    let _ = sender
+                        .lock()
+                        .await
                         .send(Message::Close(Some(axum::extract::ws::CloseFrame {
                             code: axum::extract::ws::close_code::POLICY,
                             reason: std::borrow::Cow::from(e),
@@ -1474,7 +1528,9 @@ async fn handle_terminal_socket(
                         error = %e,
                         "Text message size limit exceeded"
                     );
-                    let _ = sender.lock().await
+                    let _ = sender
+                        .lock()
+                        .await
                         .send(Message::Close(Some(axum::extract::ws::CloseFrame {
                             code: axum::extract::ws::close_code::POLICY,
                             reason: std::borrow::Cow::from(e),
@@ -1505,10 +1561,9 @@ async fn handle_terminal_socket(
                     if let Some(rest) = text.strip_prefix("\x1b[RESIZE;") {
                         let parts: Vec<&str> = rest.split(';').collect();
                         if parts.len() >= 2 {
-                            if let (Ok(cols), Ok(rows)) = (
-                                parts[0].parse::<u16>(),
-                                parts[1].trim().parse::<u16>(),
-                            ) {
+                            if let (Ok(cols), Ok(rows)) =
+                                (parts[0].parse::<u16>(), parts[1].trim().parse::<u16>())
+                            {
                                 trace!(
                                     ip = %ip,
                                     session_id = %session_id,
@@ -1689,8 +1744,8 @@ fn load_model_overrides() -> HashMap<String, String> {
 }
 
 /// Claude history metrics REST endpoint
-async fn claude_history_metrics(
-) -> Result<Json<crate::claude_history::ClaudeMetrics>, ServerError> {
+async fn claude_history_metrics() -> Result<Json<crate::claude_history::ClaudeMetrics>, ServerError>
+{
     // Use high-performance parallel parser to scan ALL conversation files
     let metrics = match crate::claude_history::load_claude_metrics_from_home_dir_parallel().await {
         Ok(metrics) if metrics.total_cost > 0.0 || metrics.messages_count > 0 => {
@@ -1700,22 +1755,31 @@ async fn claude_history_metrics(
         Ok(_) => {
             // Fall back to project-based JSONL files
             trace!("No data found, trying single project JSONL files");
-            let project_path = get_current_project_path()
-                .map_err(|e| ServerError::Internal(format!("Failed to determine project path: {}", e)))?;
+            let project_path = get_current_project_path().map_err(|e| {
+                ServerError::Internal(format!("Failed to determine project path: {}", e))
+            })?;
 
             crate::claude_history::load_claude_project_metrics(&project_path)
                 .await
-                .map_err(|e| ServerError::Internal(format!("Failed to load Claude metrics: {}", e)))?
+                .map_err(|e| {
+                    ServerError::Internal(format!("Failed to load Claude metrics: {}", e))
+                })?
         }
         Err(e) => {
             // If parallel scan fails, try project path
-            trace!("Error loading from parallel parser: {}, trying project JSONL files", e);
-            let project_path = get_current_project_path()
-                .map_err(|e| ServerError::Internal(format!("Failed to determine project path: {}", e)))?;
+            trace!(
+                "Error loading from parallel parser: {}, trying project JSONL files",
+                e
+            );
+            let project_path = get_current_project_path().map_err(|e| {
+                ServerError::Internal(format!("Failed to determine project path: {}", e))
+            })?;
 
             crate::claude_history::load_claude_project_metrics(&project_path)
                 .await
-                .map_err(|e| ServerError::Internal(format!("Failed to load Claude metrics: {}", e)))?
+                .map_err(|e| {
+                    ServerError::Internal(format!("Failed to load Claude metrics: {}", e))
+                })?
         }
     };
 
@@ -1930,7 +1994,7 @@ pub async fn run_server(
         .route("/dashboard.js", get(dashboard_js))
         // API routes
         .route("/health", get(health))
-        .route("/ready", get(ready))  // Test-friendly ready endpoint
+        .route("/ready", get(ready)) // Test-friendly ready endpoint
         .route("/api/agents", get(list_agents))
         .route("/api/agents/:agent_name", get(get_agent))
         .route("/api/stats", get(stats))
@@ -1964,7 +2028,8 @@ pub async fn run_server(
                 libc::SO_REUSEADDR,
                 &opt_val as *const _ as *const libc::c_void,
                 std::mem::size_of::<libc::c_int>() as libc::socklen_t,
-            ) < 0 {
+            ) < 0
+            {
                 warn!("Failed to set SO_REUSEADDR on socket");
             }
         }

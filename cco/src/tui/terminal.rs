@@ -1,13 +1,15 @@
 //! Terminal management and rendering for the TUI dashboard
 
 use anyhow::Result;
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
 use crossterm::execute;
-use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, Paragraph};
-use ratatui::text::{Line, Span};
+use crossterm::terminal::{
+    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+};
 use ratatui::layout::Alignment;
+use ratatui::prelude::*;
 use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Paragraph};
 use std::io::Stdout;
 use std::time::Duration;
 
@@ -189,10 +191,12 @@ impl Terminal {
 
     /// Render footer with status information
     fn render_footer(f: &mut Frame, _app: &App, area: Rect) {
-        let footer = Paragraph::new("Updated every 1s | Use Tab or ← → arrows to switch tabs | Ctrl+C to quit")
-            .block(Block::default().borders(Borders::TOP))
-            .alignment(Alignment::Center)
-            .style(Style::default().fg(Color::DarkGray));
+        let footer = Paragraph::new(
+            "Updated every 1s | Use Tab or ← → arrows to switch tabs | Ctrl+C to quit",
+        )
+        .block(Block::default().borders(Borders::TOP))
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(Color::DarkGray));
 
         f.render_widget(footer, area);
     }

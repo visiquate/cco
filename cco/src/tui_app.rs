@@ -21,12 +21,12 @@ use ratatui::{
     Frame, Terminal,
 };
 use std::io;
-use std::time::{Duration, SystemTime};
 use std::path::PathBuf;
-use tokio::time::{sleep, interval};
-use tokio::sync::mpsc;
+use std::time::{Duration, SystemTime};
 use tokio::fs;
 use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::sync::mpsc;
+use tokio::time::{interval, sleep};
 
 use crate::api_client::{ApiClient, HealthResponse};
 use crate::daemon::{DaemonConfig, DaemonManager};
@@ -76,18 +76,38 @@ impl Default for CostByTier {
             sonnet_cost: 0.0,
             sonnet_pct: 0.0,
             sonnet_calls: 0,
-            sonnet_tokens: TokenStats { input: 0, output: 0, cache_write: 0, cache_read: 0 },
+            sonnet_tokens: TokenStats {
+                input: 0,
+                output: 0,
+                cache_write: 0,
+                cache_read: 0,
+            },
             opus_cost: 0.0,
             opus_pct: 0.0,
             opus_calls: 0,
-            opus_tokens: TokenStats { input: 0, output: 0, cache_write: 0, cache_read: 0 },
+            opus_tokens: TokenStats {
+                input: 0,
+                output: 0,
+                cache_write: 0,
+                cache_read: 0,
+            },
             haiku_cost: 0.0,
             haiku_pct: 0.0,
             haiku_calls: 0,
-            haiku_tokens: TokenStats { input: 0, output: 0, cache_write: 0, cache_read: 0 },
+            haiku_tokens: TokenStats {
+                input: 0,
+                output: 0,
+                cache_write: 0,
+                cache_read: 0,
+            },
             total_cost: 0.0,
             total_calls: 0,
-            total_tokens: TokenStats { input: 0, output: 0, cache_write: 0, cache_read: 0 },
+            total_tokens: TokenStats {
+                input: 0,
+                output: 0,
+                cache_write: 0,
+                cache_read: 0,
+            },
         }
     }
 }
@@ -174,13 +194,9 @@ pub struct ProjectSummary {
 #[derive(Debug, Clone)]
 pub enum AppState {
     /// Initial startup - checking daemon status
-    Initializing {
-        message: String,
-    },
+    Initializing { message: String },
     /// Daemon is starting up
-    DaemonStarting {
-        progress: u8,
-    },
+    DaemonStarting { progress: u8 },
     /// Connected and running normally
     Connected {
         cost_by_tier: CostByTier,
@@ -197,9 +213,7 @@ pub enum AppState {
     /// Error state with message
     Error(String),
     /// Shutting down
-    Shutting {
-        message: String,
-    },
+    Shutting { message: String },
 }
 
 /// Stats update message for background refresh
@@ -246,32 +260,40 @@ async fn load_overall_metrics() -> Result<OverallSummary> {
     let metrics: serde_json::Value = serde_json::from_str(&content)?;
 
     let summary = OverallSummary {
-        total_cost: metrics.get("total_cost")
+        total_cost: metrics
+            .get("total_cost")
             .and_then(|v| v.as_f64())
             .unwrap_or(0.0),
-        total_tokens: metrics.get("total_tokens")
+        total_tokens: metrics
+            .get("total_tokens")
             .and_then(|v| v.as_u64())
             .unwrap_or(0),
-        total_input_tokens: metrics.get("total_input_tokens")
+        total_input_tokens: metrics
+            .get("total_input_tokens")
             .and_then(|v| v.as_u64())
             .unwrap_or(0),
-        total_output_tokens: metrics.get("total_output_tokens")
+        total_output_tokens: metrics
+            .get("total_output_tokens")
             .and_then(|v| v.as_u64())
             .unwrap_or(0),
-        total_calls: metrics.get("messages_count")
+        total_calls: metrics
+            .get("messages_count")
             .and_then(|v| v.as_u64())
             .unwrap_or(0),
-        opus_cost: metrics.get("model_breakdown")
+        opus_cost: metrics
+            .get("model_breakdown")
             .and_then(|mb| mb.get("claude-opus-4"))
             .and_then(|m| m.get("total_cost"))
             .and_then(|v| v.as_f64())
             .unwrap_or(0.0),
-        sonnet_cost: metrics.get("model_breakdown")
+        sonnet_cost: metrics
+            .get("model_breakdown")
             .and_then(|mb| mb.get("claude-sonnet-4-5"))
             .and_then(|m| m.get("total_cost"))
             .and_then(|v| v.as_f64())
             .unwrap_or(0.0),
-        haiku_cost: metrics.get("model_breakdown")
+        haiku_cost: metrics
+            .get("model_breakdown")
             .and_then(|mb| mb.get("claude-haiku-4-5"))
             .and_then(|m| m.get("total_cost"))
             .and_then(|v| v.as_f64())
@@ -306,13 +328,20 @@ async fn load_project_summaries() -> Result<Vec<ProjectSummary>> {
     }
 
     // Sort by cost descending
-    projects.sort_by(|a, b| b.cost.partial_cmp(&a.cost).unwrap_or(std::cmp::Ordering::Equal));
+    projects.sort_by(|a, b| {
+        b.cost
+            .partial_cmp(&a.cost)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     Ok(projects)
 }
 
 /// Load a single project's metrics from its claude.jsonl file
-async fn load_project_from_jsonl(jsonl_path: &PathBuf, project_dir: &PathBuf) -> Result<ProjectSummary> {
+async fn load_project_from_jsonl(
+    jsonl_path: &PathBuf,
+    project_dir: &PathBuf,
+) -> Result<ProjectSummary> {
     let file = fs::File::open(jsonl_path).await?;
     let reader = BufReader::new(file);
     let mut lines = reader.lines();
@@ -327,10 +356,12 @@ async fn load_project_from_jsonl(jsonl_path: &PathBuf, project_dir: &PathBuf) ->
                 if let Some(usage) = message.get("usage") {
                     calls += 1;
 
-                    let input_tokens = usage.get("input_tokens")
+                    let input_tokens = usage
+                        .get("input_tokens")
                         .and_then(|v| v.as_u64())
                         .unwrap_or(0);
-                    let output_tokens = usage.get("output_tokens")
+                    let output_tokens = usage
+                        .get("output_tokens")
                         .and_then(|v| v.as_u64())
                         .unwrap_or(0);
 
@@ -516,9 +547,7 @@ impl TuiApp {
                             "Daemon process exists but not responding: {}",
                             e
                         ));
-                        return Err(anyhow::anyhow!(
-                            "Daemon process exists but not responding"
-                        ));
+                        return Err(anyhow::anyhow!("Daemon process exists but not responding"));
                     }
                 }
             }
@@ -584,7 +613,9 @@ impl TuiApp {
             }
         }
 
-        Err(anyhow::anyhow!("Timeout waiting for daemon to become ready"))
+        Err(anyhow::anyhow!(
+            "Timeout waiting for daemon to become ready"
+        ))
     }
 
     /// Load cost metrics and recent calls from daemon
@@ -600,8 +631,12 @@ impl TuiApp {
         };
 
         let time_range_param = time_range.as_query_param();
-        let stats_url = format!("{}/api/stats?time_range={}", self.client.base_url, time_range_param);
-        let stats_response: Result<serde_json::Value, _> = self.client.get_with_retry(&stats_url).await;
+        let stats_url = format!(
+            "{}/api/stats?time_range={}",
+            self.client.base_url, time_range_param
+        );
+        let stats_response: Result<serde_json::Value, _> =
+            self.client.get_with_retry(&stats_url).await;
 
         match (health, stats_response) {
             (Ok(health), Ok(stats)) => {
@@ -635,23 +670,30 @@ impl TuiApp {
 
                 // Create overall metrics from /api/stats data
                 let overall_summary = OverallSummary {
-                    total_cost: stats.get("project")
+                    total_cost: stats
+                        .get("project")
                         .and_then(|p| p.get("cost"))
                         .and_then(|c| c.as_f64())
                         .unwrap_or(0.0),
-                    total_tokens: stats.get("project")
+                    total_tokens: stats
+                        .get("project")
                         .and_then(|p| p.get("tokens"))
                         .and_then(|t| t.as_u64())
                         .unwrap_or(0),
-                    total_input_tokens: (stats.get("project")
+                    total_input_tokens: (stats
+                        .get("project")
                         .and_then(|p| p.get("tokens"))
                         .and_then(|t| t.as_u64())
-                        .unwrap_or(0) as f64 * 0.6) as u64,
-                    total_output_tokens: (stats.get("project")
+                        .unwrap_or(0) as f64
+                        * 0.6) as u64,
+                    total_output_tokens: (stats
+                        .get("project")
                         .and_then(|p| p.get("tokens"))
                         .and_then(|t| t.as_u64())
-                        .unwrap_or(0) as f64 * 0.4) as u64,
-                    total_calls: stats.get("project")
+                        .unwrap_or(0) as f64
+                        * 0.4) as u64,
+                    total_calls: stats
+                        .get("project")
                         .and_then(|p| p.get("messages"))
                         .and_then(|m| m.as_u64())
                         .unwrap_or(0),
@@ -664,11 +706,13 @@ impl TuiApp {
                 let project_summaries = self.parse_project_summaries(&stats);
 
                 // Parse history_start_date from response
-                let history_start_date = stats.get("history_start_date")
+                let history_start_date = stats
+                    .get("history_start_date")
                     .and_then(|d| d.as_str())
                     .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
                     .map(|dt| {
-                        std::time::UNIX_EPOCH + std::time::Duration::from_secs(dt.timestamp() as u64)
+                        std::time::UNIX_EPOCH
+                            + std::time::Duration::from_secs(dt.timestamp() as u64)
                     });
 
                 self.state = AppState::Connected {
@@ -697,7 +741,10 @@ impl TuiApp {
 
         // Use provided time_range parameter
         let time_range_param = time_range.as_query_param();
-        let stats_url = format!("{}/api/stats?time_range={}", client.base_url, time_range_param);
+        let stats_url = format!(
+            "{}/api/stats?time_range={}",
+            client.base_url, time_range_param
+        );
         let stats: serde_json::Value = client.get_with_retry(&stats_url).await?;
 
         // Parse cost by tier
@@ -730,23 +777,30 @@ impl TuiApp {
 
         // Create overall summary with calculated tier costs
         let overall_summary = OverallSummary {
-            total_cost: stats.get("project")
+            total_cost: stats
+                .get("project")
                 .and_then(|p| p.get("cost"))
                 .and_then(|c| c.as_f64())
                 .unwrap_or(0.0),
-            total_tokens: stats.get("project")
+            total_tokens: stats
+                .get("project")
                 .and_then(|p| p.get("tokens"))
                 .and_then(|t| t.as_u64())
                 .unwrap_or(0),
-            total_input_tokens: (stats.get("project")
+            total_input_tokens: (stats
+                .get("project")
                 .and_then(|p| p.get("tokens"))
                 .and_then(|t| t.as_u64())
-                .unwrap_or(0) as f64 * 0.6) as u64,
-            total_output_tokens: (stats.get("project")
+                .unwrap_or(0) as f64
+                * 0.6) as u64,
+            total_output_tokens: (stats
+                .get("project")
                 .and_then(|p| p.get("tokens"))
                 .and_then(|t| t.as_u64())
-                .unwrap_or(0) as f64 * 0.4) as u64,
-            total_calls: stats.get("project")
+                .unwrap_or(0) as f64
+                * 0.4) as u64,
+            total_calls: stats
+                .get("project")
                 .and_then(|p| p.get("messages"))
                 .and_then(|m| m.as_u64())
                 .unwrap_or(0),
@@ -759,7 +813,8 @@ impl TuiApp {
         let project_summaries = Self::parse_project_summaries_static(&stats);
 
         // Parse history_start_date from response
-        let history_start_date = stats.get("history_start_date")
+        let history_start_date = stats
+            .get("history_start_date")
             .and_then(|d| d.as_str())
             .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
             .map(|dt| {
@@ -801,22 +856,28 @@ impl TuiApp {
         let mut cost_by_tier = CostByTier::default();
 
         // Get total cost and calls from stats.project
-        let total_cost = stats.get("project")
+        let total_cost = stats
+            .get("project")
             .and_then(|p| p.get("cost"))
             .and_then(|c| c.as_f64())
             .unwrap_or(0.0);
-        let total_calls = stats.get("project")
+        let total_calls = stats
+            .get("project")
             .and_then(|p| p.get("messages"))
             .and_then(|c| c.as_u64())
             .unwrap_or(0);
-        let total_tokens = stats.get("project")
+        let total_tokens = stats
+            .get("project")
             .and_then(|p| p.get("tokens"))
             .and_then(|t| t.as_u64())
             .unwrap_or(0);
 
         // Try to extract model_distribution from chart_data
         if let Some(chart_data) = stats.get("chart_data") {
-            if let Some(model_distribution) = chart_data.get("model_distribution").and_then(|d| d.as_array()) {
+            if let Some(model_distribution) = chart_data
+                .get("model_distribution")
+                .and_then(|d| d.as_array())
+            {
                 let mut sonnet_cost = 0.0;
                 let mut opus_cost = 0.0;
                 let mut haiku_cost = 0.0;
@@ -828,7 +889,9 @@ impl TuiApp {
                 for model_item in model_distribution {
                     if let Some(model_name) = model_item.get("model").and_then(|m| m.as_str()) {
                         // Estimate cost based on percentage if available
-                        if let Some(percentage) = model_item.get("percentage").and_then(|p| p.as_f64()) {
+                        if let Some(percentage) =
+                            model_item.get("percentage").and_then(|p| p.as_f64())
+                        {
                             let cost = (total_cost * percentage) / 100.0;
                             let calls = ((total_calls as f64 * percentage) / 100.0) as u64;
 
@@ -899,17 +962,25 @@ impl TuiApp {
     }
 
     /// Extract token statistics per model from model_breakdown in chart_data (static version)
-    fn extract_token_stats_per_model_static(stats: &serde_json::Value, total_tokens: u64) -> (TokenStats, TokenStats, TokenStats) {
+    fn extract_token_stats_per_model_static(
+        stats: &serde_json::Value,
+        total_tokens: u64,
+    ) -> (TokenStats, TokenStats, TokenStats) {
         let mut sonnet_stats = TokenStats::default();
         let mut opus_stats = TokenStats::default();
         let mut haiku_stats = TokenStats::default();
 
         // Try to extract from model_breakdown if available
         if let Some(chart_data) = stats.get("chart_data") {
-            if let Some(model_distribution) = chart_data.get("model_distribution").and_then(|d| d.as_array()) {
+            if let Some(model_distribution) = chart_data
+                .get("model_distribution")
+                .and_then(|d| d.as_array())
+            {
                 for model_item in model_distribution {
                     if let Some(model_name) = model_item.get("model").and_then(|m| m.as_str()) {
-                        if let Some(percentage) = model_item.get("percentage").and_then(|p| p.as_f64()) {
+                        if let Some(percentage) =
+                            model_item.get("percentage").and_then(|p| p.as_f64())
+                        {
                             let model_tokens = ((total_tokens as f64 * percentage) / 100.0) as u64;
                             let estimated_input = (model_tokens as f64 * 0.6) as u64;
                             let estimated_output = (model_tokens as f64 * 0.4) as u64;
@@ -934,7 +1005,11 @@ impl TuiApp {
     }
 
     /// Extract token statistics per model from model_breakdown in chart_data
-    fn extract_token_stats_per_model(&self, stats: &serde_json::Value, total_tokens: u64) -> (TokenStats, TokenStats, TokenStats) {
+    fn extract_token_stats_per_model(
+        &self,
+        stats: &serde_json::Value,
+        total_tokens: u64,
+    ) -> (TokenStats, TokenStats, TokenStats) {
         Self::extract_token_stats_per_model_static(stats, total_tokens)
     }
 
@@ -942,7 +1017,8 @@ impl TuiApp {
     fn parse_recent_calls_static(stats: &serde_json::Value) -> Vec<RecentCall> {
         let mut calls = Vec::new();
 
-        if let Some(recent_calls) = stats.get("activity")
+        if let Some(recent_calls) = stats
+            .get("activity")
             .and_then(|a| a.get("recent_calls"))
             .and_then(|rc| rc.as_array())
         {
@@ -1089,7 +1165,8 @@ impl TuiApp {
                         };
                     }
 
-                    self.status_message = format!("Loading {} data...", new_time_range.display_name());
+                    self.status_message =
+                        format!("Loading {} data...", new_time_range.display_name());
                     self.render()?;
 
                     // Send new time_range to background task (non-blocking)
@@ -1101,7 +1178,8 @@ impl TuiApp {
                     if let Err(e) = self.load_agents_and_stats().await {
                         self.state = AppState::Error(format!("Failed to reload data: {}", e));
                     } else {
-                        self.status_message = format!("Time range: {}", new_time_range.display_name());
+                        self.status_message =
+                            format!("Time range: {}", new_time_range.display_name());
                     }
                 }
             }
@@ -1115,34 +1193,45 @@ impl TuiApp {
         let state = self.state.clone();
         let status_message = self.status_message.clone();
 
-        self.terminal.draw(|f| {
-            match &state {
-                AppState::Initializing { message } => {
-                    Self::render_initializing(f, message);
-                }
-                AppState::DaemonStarting { progress } => {
-                    Self::render_starting(f, *progress);
-                }
-                AppState::Connected {
+        self.terminal.draw(|f| match &state {
+            AppState::Initializing { message } => {
+                Self::render_initializing(f, message);
+            }
+            AppState::DaemonStarting { progress } => {
+                Self::render_starting(f, *progress);
+            }
+            AppState::Connected {
+                cost_by_tier,
+                recent_calls,
+                health,
+                is_active,
+                overall_summary,
+                project_summaries,
+                model_summaries,
+                last_updated,
+                time_range,
+                history_start_date,
+            } => {
+                Self::render_connected(
+                    f,
                     cost_by_tier,
                     recent_calls,
                     health,
-                    is_active,
+                    *is_active,
                     overall_summary,
                     project_summaries,
                     model_summaries,
-                    last_updated,
-                    time_range,
-                    history_start_date,
-                } => {
-                    Self::render_connected(f, cost_by_tier, recent_calls, health, *is_active, overall_summary, project_summaries, model_summaries, &status_message, *last_updated, *time_range, *history_start_date);
-                }
-                AppState::Error(err) => {
-                    Self::render_error(f, err);
-                }
-                AppState::Shutting { message } => {
-                    Self::render_shutting(f, message);
-                }
+                    &status_message,
+                    *last_updated,
+                    *time_range,
+                    *history_start_date,
+                );
+            }
+            AppState::Error(err) => {
+                Self::render_error(f, err);
+            }
+            AppState::Shutting { message } => {
+                Self::render_shutting(f, message);
             }
         })?;
         Ok(())
@@ -1222,9 +1311,9 @@ impl TuiApp {
             .margin(0)
             .constraints(
                 [
-                    Constraint::Length(3),  // Header
-                    Constraint::Min(10),    // Main content
-                    Constraint::Length(3),  // Footer
+                    Constraint::Length(3), // Header
+                    Constraint::Min(10),   // Main content
+                    Constraint::Length(3), // Footer
                 ]
                 .as_ref(),
             )
@@ -1236,12 +1325,15 @@ impl TuiApp {
         // Main content area layout with Overall Summary and expanded Project Summaries
         let content_chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3),   // Overall Summary
-                Constraint::Length(3 + (project_summaries.len() as u16).min(10)), // Project Summaries (expanded to show up to 10 projects)
-                Constraint::Length(11),  // Cost summary table
-                Constraint::Min(2),      // Recent calls list (dynamic height)
-            ].as_ref())
+            .constraints(
+                [
+                    Constraint::Length(3), // Overall Summary
+                    Constraint::Length(3 + (project_summaries.len() as u16).min(10)), // Project Summaries (expanded to show up to 10 projects)
+                    Constraint::Length(11), // Cost summary table
+                    Constraint::Min(2),     // Recent calls list (dynamic height)
+                ]
+                .as_ref(),
+            )
             .split(chunks[1]);
 
         // Overall Summary (Section 1)
@@ -1263,7 +1355,13 @@ impl TuiApp {
     }
 
     /// Render header with title and status
-    fn render_header(f: &mut Frame, health: &HealthResponse, area: Rect, time_range: TimeRange, history_start_date: Option<SystemTime>) {
+    fn render_header(
+        f: &mut Frame,
+        health: &HealthResponse,
+        area: Rect,
+        time_range: TimeRange,
+        history_start_date: Option<SystemTime>,
+    ) {
         let uptime = health.uptime_seconds;
         let hours = uptime / 3600;
         let minutes = (uptime % 3600) / 60;
@@ -1296,7 +1394,13 @@ impl TuiApp {
 
         let header_str = format!(
             "v{} | Port: {} | Uptime: {:02}:{:02}:{:02} | Filter: {}{}",
-            health.version, port_str, hours, minutes, seconds, time_range.display_name(), history_str
+            health.version,
+            port_str,
+            hours,
+            minutes,
+            seconds,
+            time_range.display_name(),
+            history_str
         );
 
         let header_text = vec![Line::from(vec![
@@ -1388,17 +1492,37 @@ impl TuiApp {
         let mut text = vec![Line::from(vec![
             Span::styled(
                 format!("{:<width$}", "Project Name", width = available_name_width),
-                Style::default().fg(Color::White).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
             ),
-            Span::styled("Cost         ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-            Span::styled("Tokens    ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-            Span::styled("Calls", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "Cost         ",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                "Tokens    ",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                "Calls",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
         ])];
 
         // Expanded to show up to 10 projects (was 5)
         for project in projects.iter().take(10) {
             let name = if project.name.len() > available_name_width {
-                format!("{}...", &project.name[..(available_name_width.saturating_sub(3))])
+                format!(
+                    "{}...",
+                    &project.name[..(available_name_width.saturating_sub(3))]
+                )
             } else {
                 format!("{:<width$}", project.name, width = available_name_width)
             };
@@ -1424,7 +1548,10 @@ impl TuiApp {
 
         let para = Paragraph::new(text).block(
             Block::default()
-                .title(format!("Cost Summary by Project ({} total)", projects.len()))
+                .title(format!(
+                    "Cost Summary by Project ({} total)",
+                    projects.len()
+                ))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Blue)),
         );
@@ -1435,11 +1562,36 @@ impl TuiApp {
     /// Render cost summary by tier/model
     fn render_cost_summary(f: &mut Frame, _cost: &CostByTier, models: &[ModelSummary], area: Rect) {
         let mut text = vec![Line::from(vec![
-            Span::styled("Model                     ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-            Span::styled("Cost       ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-            Span::styled("%     ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-            Span::styled("Tokens    ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-            Span::styled("Calls", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "Model                     ",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                "Cost       ",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                "%     ",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                "Tokens    ",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                "Calls",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
         ])];
 
         // Calculate totals
@@ -1449,7 +1601,11 @@ impl TuiApp {
 
         // Sort models by cost descending for consistent display order
         let mut sorted_models = models.to_vec();
-        sorted_models.sort_by(|a, b| b.cost.partial_cmp(&a.cost).unwrap_or(std::cmp::Ordering::Equal));
+        sorted_models.sort_by(|a, b| {
+            b.cost
+                .partial_cmp(&a.cost)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         // Display all models
         for model in &sorted_models {
@@ -1581,22 +1737,23 @@ impl TuiApp {
                 };
 
                 // Parse timestamp and calculate relative time
-                let relative_time = if let Ok(timestamp) = chrono::DateTime::parse_from_rfc3339(&call.timestamp) {
-                    let now = chrono::Utc::now();
-                    let duration = now.signed_duration_since(timestamp);
+                let relative_time =
+                    if let Ok(timestamp) = chrono::DateTime::parse_from_rfc3339(&call.timestamp) {
+                        let now = chrono::Utc::now();
+                        let duration = now.signed_duration_since(timestamp);
 
-                    if duration.num_seconds() < 60 {
-                        format!("{}s ago", duration.num_seconds())
-                    } else if duration.num_minutes() < 60 {
-                        format!("{}m ago", duration.num_minutes())
-                    } else if duration.num_hours() < 24 {
-                        format!("{}h ago", duration.num_hours())
+                        if duration.num_seconds() < 60 {
+                            format!("{}s ago", duration.num_seconds())
+                        } else if duration.num_minutes() < 60 {
+                            format!("{}m ago", duration.num_minutes())
+                        } else if duration.num_hours() < 24 {
+                            format!("{}h ago", duration.num_hours())
+                        } else {
+                            format!("{}d ago", duration.num_days())
+                        }
                     } else {
-                        format!("{}d ago", duration.num_days())
-                    }
-                } else {
-                    "unknown".to_string()
-                };
+                        "unknown".to_string()
+                    };
 
                 // Format tokens (e.g., 3480 -> 3.5K)
                 let tokens_str = Self::format_tokens(call.tokens);
@@ -1604,10 +1761,7 @@ impl TuiApp {
                 // Format: "5m ago  claude-sonnet-4-5  3.5K tokens  $0.0012"
                 let content = format!(
                     "{:<8}  {:<22}  {:>6} tokens  ${:>7.4}",
-                    relative_time,
-                    call.model,
-                    tokens_str,
-                    call.cost
+                    relative_time, call.model, tokens_str, call.cost
                 );
 
                 ListItem::new(content).style(Style::default().fg(model_color))
@@ -1617,11 +1771,7 @@ impl TuiApp {
         let title = if calls.is_empty() {
             "Recent API Calls (None)".to_string()
         } else {
-            format!(
-                "Recent API Calls ({} of {})",
-                display_count,
-                calls.len()
-            )
+            format!("Recent API Calls ({} of {})", display_count, calls.len())
         };
 
         let list = List::new(items).block(
@@ -1635,11 +1785,15 @@ impl TuiApp {
     }
 
     /// Render footer with controls
-    fn render_footer(f: &mut Frame, area: Rect, status_message: &str, last_updated: SystemTime, time_range: TimeRange) {
+    fn render_footer(
+        f: &mut Frame,
+        area: Rect,
+        status_message: &str,
+        last_updated: SystemTime,
+        time_range: TimeRange,
+    ) {
         // Calculate elapsed time since last update
-        let elapsed = last_updated
-            .elapsed()
-            .unwrap_or(Duration::from_secs(0));
+        let elapsed = last_updated.elapsed().unwrap_or(Duration::from_secs(0));
         let seconds_ago = elapsed.as_secs();
 
         let update_text = if seconds_ago < 1 {
@@ -1651,9 +1805,18 @@ impl TuiApp {
         };
 
         let footer_text = if !status_message.is_empty() {
-            format!("{} | {} | q: Quit | r: Restart | t: Time Range ({})", status_message, update_text, time_range.display_name())
+            format!(
+                "{} | {} | q: Quit | r: Restart | t: Time Range ({})",
+                status_message,
+                update_text,
+                time_range.display_name()
+            )
         } else {
-            format!("{} | q: Quit | r: Restart | t: Time Range ({})", update_text, time_range.display_name())
+            format!(
+                "{} | q: Quit | r: Restart | t: Time Range ({})",
+                update_text,
+                time_range.display_name()
+            )
         };
 
         let footer = Paragraph::new(footer_text)

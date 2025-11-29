@@ -144,7 +144,9 @@ mod tests {
 
     #[test]
     fn test_api_metrics_table_has_required_columns() {
-        let start_idx = SCHEMA.find("CREATE TABLE IF NOT EXISTS api_metrics").unwrap();
+        let start_idx = SCHEMA
+            .find("CREATE TABLE IF NOT EXISTS api_metrics")
+            .unwrap();
         let end_idx = SCHEMA[start_idx..].find(");").unwrap() + start_idx + 2;
         let table_def = &SCHEMA[start_idx..end_idx];
 

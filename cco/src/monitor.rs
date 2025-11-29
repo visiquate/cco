@@ -6,11 +6,11 @@
 use crate::metrics::{MetricsEngine, MetricsSummary};
 use crate::sse::SseClient;
 use anyhow::Result;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
-use tracing::{debug, info, warn, error};
+use tracing::{debug, error, info, warn};
 
 /// Configuration for the monitoring service
 #[derive(Debug, Clone)]
@@ -98,10 +98,10 @@ impl MonitorService {
         let metrics = self.metrics.clone();
 
         tokio::spawn(async move {
-            let mut sigint = signal(SignalKind::interrupt())
-                .expect("Failed to setup SIGINT handler");
-            let mut sigterm = signal(SignalKind::terminate())
-                .expect("Failed to setup SIGTERM handler");
+            let mut sigint =
+                signal(SignalKind::interrupt()).expect("Failed to setup SIGINT handler");
+            let mut sigterm =
+                signal(SignalKind::terminate()).expect("Failed to setup SIGTERM handler");
 
             tokio::select! {
                 _ = sigint.recv() => {
@@ -343,13 +343,7 @@ mod tests {
             cache_read_tokens: 0,
         };
 
-        let event = ApiCallEvent::new(
-            "claude-opus-4".to_string(),
-            tokens,
-            None,
-            None,
-        )
-        .unwrap();
+        let event = ApiCallEvent::new("claude-opus-4".to_string(), tokens, None, None).unwrap();
 
         service.metrics().record_event(event).await;
 

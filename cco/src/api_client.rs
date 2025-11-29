@@ -137,7 +137,9 @@ impl ApiClient {
             }
         }
 
-        Err(last_error.unwrap_or_else(|| anyhow::anyhow!("Request failed after {} retries", self.max_retries)))
+        Err(last_error.unwrap_or_else(|| {
+            anyhow::anyhow!("Request failed after {} retries", self.max_retries)
+        }))
     }
 }
 
@@ -232,8 +234,7 @@ mod tests {
 
     #[test]
     fn test_api_client_with_max_retries() {
-        let client = ApiClient::new("http://127.0.0.1:3000".to_string())
-            .with_max_retries(5);
+        let client = ApiClient::new("http://127.0.0.1:3000".to_string()).with_max_retries(5);
         assert_eq!(client.max_retries, 5);
     }
 
@@ -242,11 +243,26 @@ mod tests {
         let initial = Duration::from_millis(100);
         let max = Duration::from_millis(1000);
 
-        assert_eq!(calculate_backoff(1, initial, max), Duration::from_millis(100));
-        assert_eq!(calculate_backoff(2, initial, max), Duration::from_millis(200));
-        assert_eq!(calculate_backoff(3, initial, max), Duration::from_millis(400));
-        assert_eq!(calculate_backoff(4, initial, max), Duration::from_millis(800));
-        assert_eq!(calculate_backoff(5, initial, max), Duration::from_millis(1000)); // Capped at max
+        assert_eq!(
+            calculate_backoff(1, initial, max),
+            Duration::from_millis(100)
+        );
+        assert_eq!(
+            calculate_backoff(2, initial, max),
+            Duration::from_millis(200)
+        );
+        assert_eq!(
+            calculate_backoff(3, initial, max),
+            Duration::from_millis(400)
+        );
+        assert_eq!(
+            calculate_backoff(4, initial, max),
+            Duration::from_millis(800)
+        );
+        assert_eq!(
+            calculate_backoff(5, initial, max),
+            Duration::from_millis(1000)
+        ); // Capped at max
     }
 
     #[test]

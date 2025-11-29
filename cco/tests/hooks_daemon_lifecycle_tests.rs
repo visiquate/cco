@@ -58,8 +58,11 @@ async fn test_daemon_startup_time_with_hooks() {
 
     // Daemon should start within reasonable time (< 5 seconds)
     // Even with classifier initialization
-    assert!(elapsed < std::time::Duration::from_secs(5),
-        "Daemon startup too slow: {:?}", elapsed);
+    assert!(
+        elapsed < std::time::Duration::from_secs(5),
+        "Daemon startup too slow: {:?}",
+        elapsed
+    );
 }
 
 // =============================================================================
@@ -192,7 +195,10 @@ async fn test_environment_overrides_config_file() {
 async fn test_classifier_disabled_by_default() {
     let config = DaemonConfig::default();
 
-    assert!(!config.hooks.enabled, "Hooks should be disabled by default for safety");
+    assert!(
+        !config.hooks.enabled,
+        "Hooks should be disabled by default for safety"
+    );
 }
 
 #[tokio::test]

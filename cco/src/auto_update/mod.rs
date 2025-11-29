@@ -36,8 +36,8 @@ use crate::version::DateVersion;
 
 /// Get the log directory for updates
 fn get_log_dir() -> Result<PathBuf> {
-    let home = dirs::home_dir()
-        .ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))?;
+    let home =
+        dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))?;
     let log_dir = home.join(".cco").join("logs");
     fs::create_dir_all(&log_dir)?;
     Ok(log_dir)
@@ -162,7 +162,7 @@ impl Default for UpdateConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            auto_install: true,  // Changed: Auto-install enabled by default
+            auto_install: true, // Changed: Auto-install enabled by default
             check_interval: "daily".to_string(),
             channel: "stable".to_string(),
             last_check: None,
@@ -286,7 +286,9 @@ impl AutoUpdateManager {
             Err(e) => {
                 // Check if it's an authentication error
                 let err_msg = format!("{}", e);
-                if err_msg.contains("Not authenticated") || err_msg.contains("Please run 'cco login'") {
+                if err_msg.contains("Not authenticated")
+                    || err_msg.contains("Please run 'cco login'")
+                {
                     log_update_event("Update check requires authentication");
                     println!("\n⚠️  Update check requires authentication.");
                     println!("   Please run 'cco login' to access updates.");
@@ -302,10 +304,7 @@ impl AutoUpdateManager {
         let latest = DateVersion::parse(&release.version)?;
 
         if latest > current {
-            log_update_event(&format!(
-                "Update available: {} -> {}",
-                current, latest
-            ));
+            log_update_event(&format!("Update available: {} -> {}", current, latest));
             Ok(Some(release))
         } else {
             log_update_event(&format!("No updates available (current: {})", current));
@@ -525,8 +524,14 @@ async fn check_for_updates_internal() -> Result<()> {
         Some(release) => {
             if manager.config.updates.auto_install {
                 // Auto-install in background
-                log_update_event(&format!("Auto-installing CCO {} in background...", release.version));
-                println!("ℹ️  Auto-installing CCO {} in background...", release.version);
+                log_update_event(&format!(
+                    "Auto-installing CCO {} in background...",
+                    release.version
+                ));
+                println!(
+                    "ℹ️  Auto-installing CCO {} in background...",
+                    release.version
+                );
 
                 match manager.perform_update(true).await {
                     Ok(_) => {
@@ -536,7 +541,10 @@ async fn check_for_updates_internal() -> Result<()> {
                     Err(e) => {
                         log_update_event(&format!("Auto-update failed: {}", e));
                         tracing::error!("Auto-update failed: {}", e);
-                        println!("⚠️  Auto-update failed: {}. Run 'cco update' to try again.", e);
+                        println!(
+                            "⚠️  Auto-update failed: {}. Run 'cco update' to try again.",
+                            e
+                        );
                     }
                 }
             } else {

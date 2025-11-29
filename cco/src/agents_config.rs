@@ -253,7 +253,10 @@ pub fn load_agents_from_embedded() -> AgentsConfig {
 
     // Check development mode override
     if let Ok(dev_dir) = std::env::var("CCO_AGENTS_DIR") {
-        info!("Development mode: Loading agents from CCO_AGENTS_DIR: {}", dev_dir);
+        info!(
+            "Development mode: Loading agents from CCO_AGENTS_DIR: {}",
+            dev_dir
+        );
         return load_agents_from_dir(&dev_dir);
     }
 
@@ -271,7 +274,10 @@ pub fn load_agents_from_embedded() -> AgentsConfig {
         panic!("No agents loaded from embedded data - build may have failed!");
     }
 
-    info!("✓ Loaded {} embedded agents from compiled binary", loaded_count);
+    info!(
+        "✓ Loaded {} embedded agents from compiled binary",
+        loaded_count
+    );
 
     config
 }
@@ -327,13 +333,15 @@ tools: Read, Write, Edit
         assert_eq!(config.get("test"), Some(&agent));
     }
 
-
     #[test]
     fn test_load_agents_from_embedded_loads_agents() {
         // This test will only work if the embedded agents are available
         // It should not panic and should load some agents
         let config = load_agents_from_embedded();
-        assert!(!config.is_empty(), "Should have loaded at least some agents");
+        assert!(
+            !config.is_empty(),
+            "Should have loaded at least some agents"
+        );
         assert!(
             config.len() >= 50,
             "Should have loaded 50+ agents, got {}",

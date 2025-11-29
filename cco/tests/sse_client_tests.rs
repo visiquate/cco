@@ -297,10 +297,7 @@ mod sse_client_tests {
         let result = client.parse_event(raw).await;
 
         assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            "Malformed SSE event: missing colon"
-        );
+        assert_eq!(result.unwrap_err(), "Malformed SSE event: missing colon");
     }
 
     // Test 8: Connection State Transitions
@@ -352,22 +349,31 @@ mod sse_client_tests {
         let client = SseClient::new("http://localhost:3000/stream".to_string(), config);
 
         // Attempt 0: 100ms
-        assert_eq!(client.calculate_backoff_delay(0), Duration::from_millis(100));
+        assert_eq!(
+            client.calculate_backoff_delay(0),
+            Duration::from_millis(100)
+        );
 
         // Attempt 1: 200ms
-        assert_eq!(client.calculate_backoff_delay(1), Duration::from_millis(200));
+        assert_eq!(
+            client.calculate_backoff_delay(1),
+            Duration::from_millis(200)
+        );
 
         // Attempt 2: 400ms
-        assert_eq!(client.calculate_backoff_delay(2), Duration::from_millis(400));
+        assert_eq!(
+            client.calculate_backoff_delay(2),
+            Duration::from_millis(400)
+        );
 
         // Attempt 3: 800ms
-        assert_eq!(client.calculate_backoff_delay(3), Duration::from_millis(800));
+        assert_eq!(
+            client.calculate_backoff_delay(3),
+            Duration::from_millis(800)
+        );
 
         // Attempt 10: Should cap at max_delay (30s)
-        assert_eq!(
-            client.calculate_backoff_delay(10),
-            Duration::from_secs(30)
-        );
+        assert_eq!(client.calculate_backoff_delay(10), Duration::from_secs(30));
     }
 
     // Test 11: Reconnection with Backoff
@@ -408,9 +414,8 @@ mod sse_client_tests {
 
         // Start reconnection in background
         let client_clone = client.clone();
-        let reconnect_handle = tokio::spawn(async move {
-            client_clone.reconnect_with_backoff(3).await
-        });
+        let reconnect_handle =
+            tokio::spawn(async move { client_clone.reconnect_with_backoff(3).await });
 
         // Trigger shutdown during backoff
         tokio::time::sleep(Duration::from_millis(50)).await;

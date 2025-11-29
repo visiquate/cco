@@ -58,7 +58,8 @@ mod tests {
 
     #[test]
     fn test_schema_contains_migration_status_table() {
-        assert!(CLAUDE_HISTORY_SCHEMA.contains("CREATE TABLE IF NOT EXISTS claude_history_migration_status"));
+        assert!(CLAUDE_HISTORY_SCHEMA
+            .contains("CREATE TABLE IF NOT EXISTS claude_history_migration_status"));
     }
 
     #[test]

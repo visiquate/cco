@@ -190,7 +190,11 @@ mod tests {
     use super::*;
     use crate::metrics::{ModelTier, TokenBreakdown};
 
-    fn create_test_event(model_tier: ModelTier, input_tokens: u64, output_tokens: u64) -> ApiCallEvent {
+    fn create_test_event(
+        model_tier: ModelTier,
+        input_tokens: u64,
+        output_tokens: u64,
+    ) -> ApiCallEvent {
         let model_name = match model_tier {
             ModelTier::Opus => "claude-opus-4",
             ModelTier::Sonnet => "claude-sonnet-3.5",
@@ -204,13 +208,7 @@ mod tests {
             cache_read_tokens: 0,
         };
 
-        ApiCallEvent::new(
-            model_name.to_string(),
-            tokens,
-            None,
-            None,
-        )
-        .unwrap()
+        ApiCallEvent::new(model_name.to_string(), tokens, None, None).unwrap()
     }
 
     #[tokio::test]
@@ -332,13 +330,7 @@ mod tests {
             cache_read_tokens: 300,
         };
 
-        let event = ApiCallEvent::new(
-            "claude-opus-4".to_string(),
-            tokens,
-            None,
-            None,
-        )
-        .unwrap();
+        let event = ApiCallEvent::new("claude-opus-4".to_string(), tokens, None, None).unwrap();
 
         engine.record_event(event).await;
 

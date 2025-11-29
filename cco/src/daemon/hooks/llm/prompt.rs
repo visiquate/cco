@@ -127,7 +127,9 @@ fn extract_classification_word(response: &str) -> String {
         if let Some(idx) = response.find(pattern) {
             let after = &response[idx + pattern.len()..];
             if let Some(word) = after.split_whitespace().next() {
-                return word.trim_matches(|c: char| !c.is_alphanumeric()).to_string();
+                return word
+                    .trim_matches(|c: char| !c.is_alphanumeric())
+                    .to_string();
             }
         }
     }
@@ -246,8 +248,14 @@ mod tests {
     #[test]
     fn test_extract_classification_word() {
         assert_eq!(extract_classification_word("READ"), "READ");
-        assert_eq!(extract_classification_word("Classification: CREATE"), "CREATE");
-        assert_eq!(extract_classification_word("The answer is UPDATE"), "UPDATE");
+        assert_eq!(
+            extract_classification_word("Classification: CREATE"),
+            "CREATE"
+        );
+        assert_eq!(
+            extract_classification_word("The answer is UPDATE"),
+            "UPDATE"
+        );
         assert_eq!(extract_classification_word("  DELETE  "), "DELETE");
     }
 }

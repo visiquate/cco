@@ -173,6 +173,24 @@ enum Commands {
 
     /// Logout from CCO releases API (clear stored tokens)
     Logout,
+
+    /// Manage knowledge store (search, store, stats)
+    Knowledge {
+        #[command(subcommand)]
+        action: KnowledgeAction,
+    },
+
+    /// Manage LLM routing (stats, route decisions, custom calls)
+    LlmRouter {
+        #[command(subcommand)]
+        action: LlmRouterAction,
+    },
+
+    /// Orchestra conductor (stats, generate, workflow)
+    Orchestra {
+        #[command(subcommand)]
+        action: OrchestraAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -384,8 +402,145 @@ enum CredentialAction {
         /// Credential key
         key: String,
     },
+    /// Delete a credential
+    Delete {
+        /// Credential key
+        key: String,
+    },
     /// List all credentials
     List,
+    /// Check credential rotation status
+    CheckRotation,
+}
+
+#[derive(Subcommand, Debug)]
+enum KnowledgeAction {
+    /// Store knowledge item
+    Store {
+        /// Knowledge text
+        text: String,
+
+        /// Knowledge type (decision, architecture, implementation, etc.)
+        #[arg(short, long)]
+        r#type: Option<String>,
+
+        /// Agent name
+        #[arg(short, long)]
+        agent: Option<String>,
+
+        /// Output format (json or human)
+        #[arg(short, long, default_value = "human")]
+        format: String,
+    },
+
+    /// Search knowledge base
+    Search {
+        /// Search query
+        query: String,
+
+        /// Maximum results
+        #[arg(short, long, default_value = "10")]
+        limit: usize,
+
+        /// Output format
+        #[arg(short, long, default_value = "human")]
+        format: String,
+    },
+
+    /// Show knowledge statistics
+    Stats {
+        /// Output format
+        #[arg(short, long, default_value = "human")]
+        format: String,
+    },
+
+    /// Pre-compaction knowledge capture
+    PreCompaction {
+        /// Conversation text (or path to file)
+        conversation: String,
+
+        /// Output format
+        #[arg(short, long, default_value = "json")]
+        format: String,
+    },
+
+    /// Post-compaction knowledge retrieval
+    PostCompaction {
+        /// Current task description
+        task: String,
+
+        /// Maximum results
+        #[arg(short, long, default_value = "10")]
+        limit: usize,
+
+        /// Output format
+        #[arg(short, long, default_value = "json")]
+        format: String,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum LlmRouterAction {
+    /// Show routing configuration and statistics
+    Stats {
+        /// Output format (json or human)
+        #[arg(short, long, default_value = "human")]
+        format: String,
+    },
+
+    /// Show routing decision for agent and task type
+    Route {
+        /// Agent type (e.g., python-expert, system-architect)
+        agent_type: String,
+
+        /// Task type (e.g., implement, design, code)
+        #[arg(short, long)]
+        task_type: Option<String>,
+
+        /// Output format (json or human)
+        #[arg(short, long, default_value = "human")]
+        format: String,
+    },
+
+    /// Call custom LLM endpoint with a prompt
+    Call {
+        /// Prompt to send to LLM
+        prompt: String,
+
+        /// Output format (json or human)
+        #[arg(short, long, default_value = "human")]
+        format: String,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum OrchestraAction {
+    /// Show orchestra statistics (agent counts, model distribution)
+    Stats {
+        /// Output format (json or human)
+        #[arg(short, long, default_value = "human")]
+        format: String,
+    },
+
+    /// Generate agent spawn instructions for a requirement
+    Generate {
+        /// User requirement description
+        requirement: String,
+
+        /// Output format (json or human)
+        #[arg(short, long, default_value = "human")]
+        format: String,
+    },
+
+    /// Generate complete workflow with todos for a requirement
+    Workflow {
+        /// User requirement description
+        requirement: String,
+
+        /// Output format (json or human)
+        #[arg(short, long, default_value = "human")]
+        format: String,
+    },
 }
 
 #[tokio::main]
@@ -472,7 +627,10 @@ async fn main() -> anyhow::Result<()> {
             // Check if daemon is already running on a different port
             if let Ok(daemon_port) = cco::daemon::read_daemon_port() {
                 if daemon_port != port {
-                    eprintln!("⚠️  Warning: Daemon already running on port {}", daemon_port);
+                    eprintln!(
+                        "⚠️  Warning: Daemon already running on port {}",
+                        daemon_port
+                    );
                     eprintln!("   Requested port: {}", port);
                     eprintln!("   Stop daemon first with: cco daemon stop");
                     eprintln!("   Or use the running daemon: cco tui");
@@ -592,7 +750,10 @@ async fn main() -> anyhow::Result<()> {
                         match response.json::<serde_json::Value>().await {
                             Ok(json) => {
                                 println!("✅ Health check passed:");
-                                println!("{}", serde_json::to_string_pretty(&json).unwrap_or_default());
+                                println!(
+                                    "{}",
+                                    serde_json::to_string_pretty(&json).unwrap_or_default()
+                                );
                                 Ok(())
                             }
                             Err(_) => {
@@ -613,26 +774,10 @@ async fn main() -> anyhow::Result<()> {
         }
 
         Commands::Credentials { action } => {
-            // Initialize tracing for other commands
+            // Initialize tracing for credentials commands
             tracing_subscriber::fmt::init();
 
-            match action {
-                CredentialAction::Store { key, value: _ } => {
-                    println!("Storing credential: {}", key);
-                    // In a real implementation, we would encrypt and store the credential
-                    Ok(())
-                }
-                CredentialAction::Retrieve { key } => {
-                    println!("Retrieving credential: {}", key);
-                    // In a real implementation, we would retrieve and decrypt the credential
-                    Ok(())
-                }
-                CredentialAction::List => {
-                    println!("Listing credentials");
-                    // In a real implementation, we would list all stored credentials
-                    Ok(())
-                }
-            }
+            commands::credentials::run(action).await
         }
 
         Commands::Status => {
@@ -657,7 +802,10 @@ async fn main() -> anyhow::Result<()> {
             commands::logs::run(port, follow, lines).await
         }
 
-        Commands::Dashboard { database: _, refresh_ms: _ } => {
+        Commands::Dashboard {
+            database: _,
+            refresh_ms: _,
+        } => {
             // Initialize tracing for dashboard
             tracing_subscriber::fmt::init();
 
@@ -668,7 +816,10 @@ async fn main() -> anyhow::Result<()> {
 
                     // Try to discover daemon port for helpful error message
                     if let Ok(port) = cco::daemon::read_daemon_port() {
-                        eprintln!("   Please use the web-based dashboard instead at http://localhost:{}", port);
+                        eprintln!(
+                            "   Please use the web-based dashboard instead at http://localhost:{}",
+                            port
+                        );
                     } else {
                         eprintln!("   Start the daemon first: cco daemon start");
                     }
@@ -780,8 +931,7 @@ async fn main() -> anyhow::Result<()> {
                         loop {
                             match reader.read_line(&mut buffer) {
                                 Ok(0) => {
-                                    tokio::time::sleep(std::time::Duration::from_millis(100))
-                                        .await;
+                                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
                                 }
                                 Ok(_) => {
                                     print!("{}", buffer);
@@ -797,7 +947,8 @@ async fn main() -> anyhow::Result<()> {
                     } else {
                         let file = std::fs::File::open(&log_file)?;
                         let reader = std::io::BufReader::new(file);
-                        let all_lines: Vec<String> = reader.lines().collect::<Result<Vec<_>, _>>()?;
+                        let all_lines: Vec<String> =
+                            reader.lines().collect::<Result<Vec<_>, _>>()?;
 
                         let start = if all_lines.len() > lines {
                             all_lines.len() - lines
@@ -841,11 +992,10 @@ async fn main() -> anyhow::Result<()> {
                     println!("Version: {}", version);
 
                     // Load daemon configuration
-                    let config = cco::daemon::load_config()
-                        .unwrap_or_else(|e| {
-                            eprintln!("Warning: Failed to load config, using defaults: {}", e);
-                            cco::daemon::DaemonConfig::default()
-                        });
+                    let config = cco::daemon::load_config().unwrap_or_else(|e| {
+                        eprintln!("Warning: Failed to load config, using defaults: {}", e);
+                        cco::daemon::DaemonConfig::default()
+                    });
 
                     // Run the daemon HTTP server (with CRUD classifier and hooks)
                     // Server internally updates PID file with actual port after binding
@@ -861,17 +1011,11 @@ async fn main() -> anyhow::Result<()> {
             tracing_subscriber::fmt::init();
 
             match action {
-                ServerAction::Install { force } => {
-                    commands::server::install(force).await
-                }
+                ServerAction::Install { force } => commands::server::install(force).await,
 
-                ServerAction::Run { host, port } => {
-                    commands::server::run(&host, port).await
-                }
+                ServerAction::Run { host, port } => commands::server::run(&host, port).await,
 
-                ServerAction::Uninstall => {
-                    commands::server::uninstall().await
-                }
+                ServerAction::Uninstall => commands::server::uninstall().await,
             }
         }
 
@@ -887,6 +1031,27 @@ async fn main() -> anyhow::Result<()> {
             tracing_subscriber::fmt::init();
 
             cco::auth::logout().await
+        }
+
+        Commands::Knowledge { action } => {
+            // Initialize tracing for knowledge commands
+            tracing_subscriber::fmt::init();
+
+            commands::knowledge::run(action).await
+        }
+
+        Commands::LlmRouter { action } => {
+            // Initialize tracing for LLM router commands
+            tracing_subscriber::fmt::init();
+
+            commands::llm_router::run(action).await
+        }
+
+        Commands::Orchestra { action } => {
+            // Initialize tracing for orchestra commands
+            tracing_subscriber::fmt::init();
+
+            commands::orchestra::run(action).await
         }
 
         Commands::Orchestration { action } => {
@@ -931,7 +1096,10 @@ async fn main() -> anyhow::Result<()> {
                     issue_id,
                     agent_type,
                 } => {
-                    println!("📥 Getting context for {} (issue: {})", agent_type, issue_id);
+                    println!(
+                        "📥 Getting context for {} (issue: {})",
+                        agent_type, issue_id
+                    );
 
                     let client = reqwest::Client::new();
                     let url = format!(
@@ -952,7 +1120,9 @@ async fn main() -> anyhow::Result<()> {
                         }
                         Err(e) => {
                             eprintln!("❌ Failed to connect: {}", e);
-                            eprintln!("   Make sure the sidecar is running (cco orchestration start)");
+                            eprintln!(
+                                "   Make sure the sidecar is running (cco orchestration start)"
+                            );
                             std::process::exit(1);
                         }
                     }
@@ -963,10 +1133,7 @@ async fn main() -> anyhow::Result<()> {
                     agent_type,
                     file,
                 } => {
-                    println!(
-                        "💾 Storing result for {} (issue: {})",
-                        agent_type, issue_id
-                    );
+                    println!("💾 Storing result for {} (issue: {})", agent_type, issue_id);
 
                     let result_json = std::fs::read_to_string(&file)?;
                     let result: serde_json::Value = serde_json::from_str(&result_json)?;

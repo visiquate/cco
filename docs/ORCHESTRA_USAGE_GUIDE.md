@@ -49,11 +49,14 @@ The Claude Orchestra uses the built-in **Knowledge Manager** for coordination. N
 # Verify Node.js is installed
 node --version  # Should be 16+
 
+# Start CCO daemon
+cco daemon start
+
 # Test credential manager
-node src/credential-manager.js list
+cco credentials list
 
 # Test Knowledge Manager
-node src/knowledge-manager.js stats
+cco knowledge stats
 ```
 
 ## Usage Workflows
@@ -156,32 +159,31 @@ TodoWrite({ todos: [10+ todos for all phases] })
 
 ```bash
 # Store a database password
-node src/credential-manager.js store \
-  db_password "super_secret_123" database
+cco credentials store db_password "super_secret_123" \
+  --credential-type database \
+  --service production
 
 # Store an API key with metadata
-node src/credential-manager.js store \
-  openai_api_key "sk-..." api
+cco credentials store openai_api_key "sk-..." \
+  --credential-type api-token \
+  --service openai
 ```
 
 ### Retrieving Credentials
 
 ```bash
 # Retrieve a credential
-node src/credential-manager.js retrieve db_password
+cco credentials retrieve db_password
 ```
 
 ### Best Practices
 
 1. **Never hardcode credentials** in source code
-2. **Use environment variables** for runtime access
-3. **Track all credentials** in the inventory
-4. **Rotate regularly** - check with:
-   ```bash
-   node src/credential-manager.js check-rotation
-   ```
-5. **Store in /tmp** during development (not committed to git)
-6. **Use secrets manager** in production (AWS Secrets Manager, 1Password, etc.)
+2. **Always use `cco credentials`** for secure storage (OS keyring integration)
+3. **Track all credentials** in the inventory: `cco credentials list`
+4. **Rotate regularly** - check with: `cco credentials check-rotation`
+5. **See [CREDENTIAL_MIGRATION.md](CREDENTIAL_MIGRATION.md)** for security details (FIPS 140-2, audit logging, rate limiting)
+6. **Use secrets manager** in production (AWS Secrets Manager, 1Password, Vault, etc.)
 
 ## Example: Complete Feature Development
 
@@ -276,13 +278,14 @@ node ~/git/cc-orchestra/src/knowledge-manager.js stats
 
 ### Credential Access Issues
 ```bash
-# Check credentials file exists and has correct permissions
-ls -la /tmp/credentials.json
-
-# Should show: -rw------- (600 permissions)
+# Verify daemon is running
+cco daemon status
 
 # List all stored credentials
-node src/credential-manager.js list
+cco credentials list
+
+# Check rotation status
+cco credentials check-rotation
 ```
 
 ## Advanced Features

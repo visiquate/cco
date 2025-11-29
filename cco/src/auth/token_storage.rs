@@ -89,8 +89,7 @@ impl TokenStorage {
             .ok_or_else(|| anyhow::anyhow!("Could not determine config directory"))?;
         let cco_config_dir = config_dir.join("cco");
 
-        fs::create_dir_all(&cco_config_dir)
-            .context("Failed to create CCO config directory")?;
+        fs::create_dir_all(&cco_config_dir).context("Failed to create CCO config directory")?;
 
         Ok(cco_config_dir.join("tokens.json"))
     }
@@ -98,8 +97,8 @@ impl TokenStorage {
     /// Store tokens securely using keyring or file storage
     pub fn store_tokens(&self, tokens: &TokenResponse) -> Result<()> {
         let token_info: TokenInfo = tokens.clone().into();
-        let content = serde_json::to_string_pretty(&token_info)
-            .context("Failed to serialize tokens")?;
+        let content =
+            serde_json::to_string_pretty(&token_info).context("Failed to serialize tokens")?;
 
         match self.backend {
             StorageBackend::Keyring => {
@@ -123,8 +122,7 @@ impl TokenStorage {
 
     /// Store tokens to file with secure permissions (internal helper)
     fn store_tokens_to_file(&self, content: &str) -> Result<()> {
-        fs::write(&self.token_file, content)
-            .context("Failed to write token file")?;
+        fs::write(&self.token_file, content).context("Failed to write token file")?;
 
         #[cfg(unix)]
         {
@@ -134,7 +132,10 @@ impl TokenStorage {
                 .context("Failed to set secure permissions on token file")?;
         }
 
-        tracing::info!("Tokens stored securely in file: {}", self.token_file.display());
+        tracing::info!(
+            "Tokens stored securely in file: {}",
+            self.token_file.display()
+        );
         Ok(())
     }
 
@@ -154,8 +155,8 @@ impl TokenStorage {
             StorageBackend::File => self.get_tokens_from_file()?,
         };
 
-        let tokens: TokenInfo = serde_json::from_str(&content)
-            .context("Failed to parse token data")?;
+        let tokens: TokenInfo =
+            serde_json::from_str(&content).context("Failed to parse token data")?;
 
         Ok(tokens)
     }
@@ -168,8 +169,7 @@ impl TokenStorage {
             ));
         }
 
-        fs::read_to_string(&self.token_file)
-            .context("Failed to read token file")
+        fs::read_to_string(&self.token_file).context("Failed to read token file")
     }
 
     /// Check if tokens exist
@@ -216,8 +216,7 @@ impl TokenStorage {
 
         // Clear from file (always try for migration cases)
         if self.token_file.exists() {
-            fs::remove_file(&self.token_file)
-                .context("Failed to remove token file")?;
+            fs::remove_file(&self.token_file).context("Failed to remove token file")?;
             tracing::info!("Tokens cleared from file");
             cleared = true;
         }
@@ -364,7 +363,11 @@ mod tests {
         // Check permissions are 0o600
         let metadata = fs::metadata(&token_file)?;
         let mode = metadata.permissions().mode();
-        assert_eq!(mode & 0o777, 0o600, "Token file should have 0o600 permissions");
+        assert_eq!(
+            mode & 0o777,
+            0o600,
+            "Token file should have 0o600 permissions"
+        );
 
         Ok(())
     }

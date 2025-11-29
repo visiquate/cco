@@ -4,8 +4,8 @@
 //! These commands ensure safe, repeatable server management with proper status checking.
 
 use anyhow::{Context, Result};
-use cco::daemon::{DaemonConfig, DaemonManager};
 use cco::api_client::ApiClient;
+use cco::daemon::{DaemonConfig, DaemonManager};
 use std::time::Duration;
 
 /// Install the server (idempotent - safe to run multiple times)
@@ -27,13 +27,11 @@ pub async fn install(force: bool) -> Result<()> {
 
     // Create daemon directory structure
     let daemon_dir = cco::daemon::get_daemon_dir()?;
-    std::fs::create_dir_all(&daemon_dir)
-        .context("Failed to create daemon directory")?;
+    std::fs::create_dir_all(&daemon_dir).context("Failed to create daemon directory")?;
 
     // Create default configuration
     let config = DaemonConfig::default();
-    cco::daemon::save_config(&config)
-        .context("Failed to save configuration")?;
+    cco::daemon::save_config(&config).context("Failed to save configuration")?;
 
     println!("✅ Server installed successfully");
     println!("   Config directory: {}", daemon_dir.display());
@@ -83,8 +81,10 @@ pub async fn run(host: &str, port: u16) -> Result<()> {
                         let current_version = env!("CCO_VERSION");
 
                         // Compare versions (strip git hash suffix if present)
-                        let running_version = health.version.split('+').next().unwrap_or(&health.version);
-                        let binary_version = current_version.split('+').next().unwrap_or(current_version);
+                        let running_version =
+                            health.version.split('+').next().unwrap_or(&health.version);
+                        let binary_version =
+                            current_version.split('+').next().unwrap_or(current_version);
 
                         if running_version != binary_version {
                             println!("🔄 Version mismatch detected:");
@@ -130,8 +130,7 @@ pub async fn run(host: &str, port: u16) -> Result<()> {
 
     // Start the server
     println!("🔌 Starting server on {}:{}...", host, port);
-    manager.start().await
-        .context("Failed to start server")?;
+    manager.start().await.context("Failed to start server")?;
 
     // Wait for server to be ready
     println!("⏳ Waiting for server to become ready...");
@@ -166,24 +165,21 @@ pub async fn uninstall() -> Result<()> {
     // Remove configuration files
     let config_file = cco::daemon::get_daemon_config_file()?;
     if config_file.exists() {
-        std::fs::remove_file(&config_file)
-            .context("Failed to remove config file")?;
+        std::fs::remove_file(&config_file).context("Failed to remove config file")?;
         println!("✅ Configuration removed");
     }
 
     // Remove PID file if exists
     let pid_file = cco::daemon::get_daemon_pid_file()?;
     if pid_file.exists() {
-        std::fs::remove_file(&pid_file)
-            .context("Failed to remove PID file")?;
+        std::fs::remove_file(&pid_file).context("Failed to remove PID file")?;
         println!("✅ PID file removed");
     }
 
     // Remove log file if exists
     let log_file = cco::daemon::get_daemon_log_file()?;
     if log_file.exists() {
-        std::fs::remove_file(&log_file)
-            .context("Failed to remove log file")?;
+        std::fs::remove_file(&log_file).context("Failed to remove log file")?;
         println!("✅ Log file removed");
     }
 
@@ -209,16 +205,22 @@ async fn wait_for_server_ready(host: &str, port: u16, timeout: Duration) -> Resu
         // Try ready check first (faster)
         match client.ready().await {
             Ok(_) => {
-                println!("   (Ready after {} attempts in {:.1}s)",
-                    attempts, start.elapsed().as_secs_f64());
+                println!(
+                    "   (Ready after {} attempts in {:.1}s)",
+                    attempts,
+                    start.elapsed().as_secs_f64()
+                );
                 return Ok(());
             }
             Err(_) => {
                 // Fall back to health check
                 match client.health().await {
                     Ok(health) if health.status == "ok" => {
-                        println!("   (Ready after {} attempts in {:.1}s)",
-                            attempts, start.elapsed().as_secs_f64());
+                        println!(
+                            "   (Ready after {} attempts in {:.1}s)",
+                            attempts,
+                            start.elapsed().as_secs_f64()
+                        );
                         return Ok(());
                     }
                     _ => {
@@ -230,8 +232,11 @@ async fn wait_for_server_ready(host: &str, port: u16, timeout: Duration) -> Resu
         }
     }
 
-    anyhow::bail!("Timeout waiting for server to become ready (tried {} times over {:.1}s)",
-        attempts, timeout.as_secs_f64())
+    anyhow::bail!(
+        "Timeout waiting for server to become ready (tried {} times over {:.1}s)",
+        attempts,
+        timeout.as_secs_f64()
+    )
 }
 
 #[cfg(test)]

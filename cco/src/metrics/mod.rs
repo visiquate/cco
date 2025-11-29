@@ -81,8 +81,10 @@ impl TokenBreakdown {
     pub fn calculate_cost(&self, pricing: &ModelPricing) -> f64 {
         let input_cost = (self.input_tokens as f64 / 1_000_000.0) * pricing.input_cost;
         let output_cost = (self.output_tokens as f64 / 1_000_000.0) * pricing.output_cost;
-        let cache_write_cost = (self.cache_write_tokens as f64 / 1_000_000.0) * pricing.cache_write_cost;
-        let cache_read_cost = (self.cache_read_tokens as f64 / 1_000_000.0) * pricing.cache_read_cost;
+        let cache_write_cost =
+            (self.cache_write_tokens as f64 / 1_000_000.0) * pricing.cache_write_cost;
+        let cache_read_cost =
+            (self.cache_read_tokens as f64 / 1_000_000.0) * pricing.cache_read_cost;
 
         input_cost + output_cost + cache_write_cost + cache_read_cost
     }

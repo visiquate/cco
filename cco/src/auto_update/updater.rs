@@ -85,8 +85,7 @@ pub async fn download_and_verify(release: &ReleaseInfo) -> Result<PathBuf> {
 
     #[cfg(not(unix))]
     {
-        fs::create_dir_all(&temp_dir)
-            .context("Failed to create temporary directory")?;
+        fs::create_dir_all(&temp_dir).context("Failed to create temporary directory")?;
         // TODO: Set Windows ACLs for equivalent protection
         tracing::warn!("Windows ACL protection not yet implemented");
     }
@@ -104,7 +103,8 @@ pub async fn download_and_verify(release: &ReleaseInfo) -> Result<PathBuf> {
 
     // Download the archive
     tracing::info!("Downloading from: {}", release.download_url);
-    download_file(&release.download_url, &temp_archive, release.size).await
+    download_file(&release.download_url, &temp_archive, release.size)
+        .await
         .context("Failed to download update")?;
 
     // CRITICAL: Checksum verification is MANDATORY
@@ -286,14 +286,15 @@ fn check_disk_space(_required_bytes: u64) -> Result<()> {
 
 /// Verify SHA256 checksum of a file
 fn verify_checksum(file_path: &Path, expected_checksum: &str) -> Result<bool> {
-    let mut file = fs::File::open(file_path)
-        .context("Failed to open file for checksum verification")?;
+    let mut file =
+        fs::File::open(file_path).context("Failed to open file for checksum verification")?;
 
     let mut hasher = Sha256::new();
     let mut buffer = [0; 8192];
 
     loop {
-        let n = file.read(&mut buffer)
+        let n = file
+            .read(&mut buffer)
             .context("Failed to read file for checksum")?;
         if n == 0 {
             break;
@@ -334,13 +335,13 @@ fn extract_archive(archive_path: &Path, temp_dir: &Path) -> Result<PathBuf> {
 
 /// Extract tar.gz archive
 fn extract_tar_gz(archive_path: &Path, dest_dir: &Path) -> Result<()> {
-    let tar_gz = fs::File::open(archive_path)
-        .context("Failed to open archive")?;
+    let tar_gz = fs::File::open(archive_path).context("Failed to open archive")?;
 
     let tar = flate2::read::GzDecoder::new(tar_gz);
     let mut archive = tar::Archive::new(tar);
 
-    archive.unpack(dest_dir)
+    archive
+        .unpack(dest_dir)
         .context("Failed to extract archive")?;
 
     Ok(())
@@ -380,8 +381,7 @@ fn extract_zip(archive_path: &Path, dest_dir: &Path) -> Result<()> {
 /// Get the installation path for CCO binary
 pub fn get_install_path() -> Result<PathBuf> {
     // Try to use the current executable path
-    let current_exe = std::env::current_exe()
-        .context("Failed to get current executable path")?;
+    let current_exe = std::env::current_exe().context("Failed to get current executable path")?;
 
     Ok(current_exe)
 }
@@ -431,26 +431,22 @@ pub async fn replace_binary(new_binary_path: &Path) -> Result<()> {
     // Backup current installation
     if install_path.exists() {
         tracing::info!("Backing up current binary...");
-        fs::copy(&install_path, &backup_path)
-            .context("Failed to create backup")?;
+        fs::copy(&install_path, &backup_path).context("Failed to create backup")?;
     }
 
     // Atomically replace binary (on Unix, this is atomic; on Windows, it's best-effort)
     #[cfg(unix)]
     {
-        fs::rename(&temp_install_path, &install_path)
-            .context("Failed to replace binary")?;
+        fs::rename(&temp_install_path, &install_path).context("Failed to replace binary")?;
     }
 
     #[cfg(not(unix))]
     {
         // On Windows, we need to delete first, then rename
         if install_path.exists() {
-            fs::remove_file(&install_path)
-                .context("Failed to remove old binary")?;
+            fs::remove_file(&install_path).context("Failed to remove old binary")?;
         }
-        fs::rename(&temp_install_path, &install_path)
-            .context("Failed to install new binary")?;
+        fs::rename(&temp_install_path, &install_path).context("Failed to install new binary")?;
     }
 
     // Final verification
@@ -480,10 +476,14 @@ pub async fn replace_binary(new_binary_path: &Path) -> Result<()> {
             if backup_path.exists() {
                 fs::copy(&backup_path, &install_path)
                     .context("Failed to restore backup during rollback")?;
-                return Err(anyhow!("Update failed verification, rolled back to previous version"));
+                return Err(anyhow!(
+                    "Update failed verification, rolled back to previous version"
+                ));
             }
 
-            Err(anyhow!("Update verification failed and no backup available"))
+            Err(anyhow!(
+                "Update verification failed and no backup available"
+            ))
         }
     }
 }

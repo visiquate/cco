@@ -214,28 +214,34 @@ Orchestra Response:
 
 ## Credential Management
 
-Secure credential storage and retrieval:
+Secure credential storage and retrieval via OS keyring integration:
 
 ```bash
-# Store credentials
-npm run credentials store db_password "secret123" database
+# Store credentials with metadata
+cco credentials store db_password "secret123" --credential-type database --description "Primary database password"
 
 # Retrieve credentials
-npm run credentials retrieve db_password
+cco credentials retrieve db_password
 
 # List all credentials
-npm run credentials list
+cco credentials list
 
 # Check rotation status
-npm run credentials check-rotation
+cco credentials check-rotation
+
+# Delete a credential
+cco credentials delete db_password
 ```
 
-Features:
-- AES-256-CBC encryption
-- Secure file permissions (600)
-- Rotation tracking
-- Expiration monitoring
-- Never stored in git
+Security Features:
+- **OS Keyring Integration**: Credentials stored in macOS Keychain, Linux Secret Service, or Windows DPAPI
+- **FIPS 140-2 Compliant Encryption**: AES-256-GCM for superior security
+- **Secure Memory Management**: SecretString zeroization prevents memory attacks
+- **Comprehensive Audit Logging**: All operations logged with full traceability
+- **Rate Limiting**: 10 attempts per 60 seconds prevents brute-force attacks
+- **Automatic Rotation Tracking**: Configurable per-credential rotation policies
+- **Zero File-Based Vulnerabilities**: No temporary files or exposed credentials
+- **Never stored in git**: Credentials managed through daemon only
 
 ## Architecture
 
@@ -265,21 +271,30 @@ Every agent follows this workflow:
 **Before Work:**
 ```bash
 # Review knowledge base for relevant context
-node ~/git/cc-orchestra/src/knowledge-manager.js search "task keywords"
-node ~/git/cc-orchestra/src/knowledge-manager.js search "architect decisions"
+cco knowledge search "task keywords"
+cco knowledge search "architect decisions"
+
+# Check credential inventory
+cco credentials list
 ```
 
 **During Work:**
 ```bash
 # Update knowledge base with progress
-node ~/git/cc-orchestra/src/knowledge-manager.js store "Edit: [filename] - [changes]" --type edit --agent [agent-name]
-node ~/git/cc-orchestra/src/knowledge-manager.js store "Progress: [status]" --type status --agent [agent-name]
+cco knowledge store "Edit: [filename] - [changes]" --type edit --agent [agent-name]
+cco knowledge store "Progress: [status]" --type status --agent [agent-name]
+
+# Manage credentials securely
+cco credentials store [key] [value] --credential-type [type] --service [service]
 ```
 
 **After Work:**
 ```bash
 # Document task completion
-node ~/git/cc-orchestra/src/knowledge-manager.js store "Task complete: [task]" --type completion --agent [agent-name]
+cco knowledge store "Task complete: [task]" --type completion --agent [agent-name]
+
+# Verify credential rotation status
+cco credentials check-rotation
 ```
 
 ## Performance

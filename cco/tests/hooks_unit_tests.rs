@@ -13,10 +13,10 @@
 //!
 //! Run with: cargo test hooks_unit --lib
 
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::{Duration, Instant};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tokio::time::sleep;
 
 // Note: These imports will work once hooks module is implemented
@@ -92,7 +92,10 @@ fn test_hook_payload_with_empty_context() {
 #[test]
 fn test_hook_payload_with_complex_context() {
     let mut context = HashMap::new();
-    context.insert("config".to_string(), r#"{"port":3000,"host":"localhost"}"#.to_string());
+    context.insert(
+        "config".to_string(),
+        r#"{"port":3000,"host":"localhost"}"#.to_string(),
+    );
     context.insert("env".to_string(), "production".to_string());
 
     let payload = HookPayload {
@@ -100,7 +103,10 @@ fn test_hook_payload_with_complex_context() {
         context,
     };
 
-    assert_eq!(payload.context.get("config").unwrap(), r#"{"port":3000,"host":"localhost"}"#);
+    assert_eq!(
+        payload.context.get("config").unwrap(),
+        r#"{"port":3000,"host":"localhost"}"#
+    );
 }
 
 #[test]
@@ -286,7 +292,10 @@ impl MockHookRegistry {
 
     fn register(&self, hook_type: HookType, hook_name: String) {
         let key = format!("{:?}", hook_type);
-        self.hooks.entry(key).or_insert_with(Vec::new).push(hook_name);
+        self.hooks
+            .entry(key)
+            .or_insert_with(Vec::new)
+            .push(hook_name);
     }
 
     fn get_hooks(&self, hook_type: HookType) -> Vec<String> {
@@ -550,9 +559,7 @@ async fn test_execute_async_hook() {
     };
 
     // Verify hook is async and awaitable
-    let result = tokio::spawn(async move {
-        mock_successful_hook(payload).await
-    }).await;
+    let result = tokio::spawn(async move { mock_successful_hook(payload).await }).await;
 
     assert!(result.is_ok());
     assert!(result.unwrap().is_ok());

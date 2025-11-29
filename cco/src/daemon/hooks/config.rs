@@ -265,7 +265,9 @@ impl HooksConfig {
     /// - LLM temperature is out of range (0.0-1.0)
     pub fn validate(&self) -> HookResult<()> {
         if self.timeout_ms == 0 {
-            return Err(HookError::invalid_config("timeout_ms must be greater than 0"));
+            return Err(HookError::invalid_config(
+                "timeout_ms must be greater than 0",
+            ));
         }
 
         if self.max_retries > 10 {
@@ -275,12 +277,14 @@ impl HooksConfig {
         // Validate LLM config
         if self.llm.temperature < 0.0 || self.llm.temperature > 1.0 {
             return Err(HookError::invalid_config(
-                "llm.temperature must be between 0.0 and 1.0"
+                "llm.temperature must be between 0.0 and 1.0",
             ));
         }
 
         if self.llm.inference_timeout_ms == 0 {
-            return Err(HookError::invalid_config("llm.inference_timeout_ms must be greater than 0"));
+            return Err(HookError::invalid_config(
+                "llm.inference_timeout_ms must be greater than 0",
+            ));
         }
 
         if self.llm.model_name.is_empty() {

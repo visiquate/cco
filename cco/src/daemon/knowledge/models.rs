@@ -138,6 +138,24 @@ pub struct SearchResult {
     pub score: f32, // Similarity score (distance)
 }
 
+/// Session start request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionStartRequest {
+    pub session_id: String,
+    #[serde(default)]
+    pub context: Option<serde_json::Value>,
+    #[serde(default = "default_limit")]
+    pub limit: usize,
+}
+
+/// Session start response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionStartResponse {
+    pub success: bool,
+    pub recent_knowledge: Vec<KnowledgeItem>,
+    pub summary: String,
+}
+
 /// Pre-compaction context
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PreCompactionRequest {
@@ -232,7 +250,10 @@ mod tests {
     #[test]
     fn test_knowledge_type_conversion() {
         assert_eq!(KnowledgeType::from("decision"), KnowledgeType::Decision);
-        assert_eq!(KnowledgeType::from("ARCHITECTURE"), KnowledgeType::Architecture);
+        assert_eq!(
+            KnowledgeType::from("ARCHITECTURE"),
+            KnowledgeType::Architecture
+        );
         assert_eq!(KnowledgeType::from("unknown"), KnowledgeType::General);
     }
 

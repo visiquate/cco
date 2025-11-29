@@ -83,7 +83,11 @@ async fn test_classify_head_tail_commands() {
     let response = daemon.client.classify("head -20 log.txt").await.unwrap();
     assert_classification(&response, "READ", 0.8);
 
-    let response = daemon.client.classify("tail -f application.log").await.unwrap();
+    let response = daemon
+        .client
+        .classify("tail -f application.log")
+        .await
+        .unwrap();
     assert_classification(&response, "READ", 0.8);
 }
 
@@ -103,7 +107,11 @@ async fn test_classify_touch_command() {
 #[ignore]
 async fn test_classify_mkdir_command() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
-    let response = daemon.client.classify("mkdir -p path/to/dir").await.unwrap();
+    let response = daemon
+        .client
+        .classify("mkdir -p path/to/dir")
+        .await
+        .unwrap();
     assert_classification(&response, "CREATE", 0.8);
 }
 
@@ -127,7 +135,11 @@ async fn test_classify_git_init() {
 #[ignore]
 async fn test_classify_output_redirect_create() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
-    let response = daemon.client.classify("echo 'hello' > output.txt").await.unwrap();
+    let response = daemon
+        .client
+        .classify("echo 'hello' > output.txt")
+        .await
+        .unwrap();
     assert_classification(&response, "CREATE", 0.8);
 }
 
@@ -143,7 +155,11 @@ async fn test_classify_npm_init() {
 #[ignore]
 async fn test_classify_cargo_new() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
-    let response = daemon.client.classify("cargo new my-project").await.unwrap();
+    let response = daemon
+        .client
+        .classify("cargo new my-project")
+        .await
+        .unwrap();
     assert_classification(&response, "CREATE", 0.8);
 }
 
@@ -151,7 +167,11 @@ async fn test_classify_cargo_new() {
 #[ignore]
 async fn test_classify_git_branch_create() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
-    let response = daemon.client.classify("git branch new-feature").await.unwrap();
+    let response = daemon
+        .client
+        .classify("git branch new-feature")
+        .await
+        .unwrap();
     assert_classification(&response, "CREATE", 0.7);
 }
 
@@ -163,7 +183,11 @@ async fn test_classify_git_branch_create() {
 #[ignore]
 async fn test_classify_echo_append() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
-    let response = daemon.client.classify("echo 'data' >> file.txt").await.unwrap();
+    let response = daemon
+        .client
+        .classify("echo 'data' >> file.txt")
+        .await
+        .unwrap();
     assert_classification(&response, "UPDATE", 0.8);
 }
 
@@ -171,7 +195,11 @@ async fn test_classify_echo_append() {
 #[ignore]
 async fn test_classify_git_commit() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
-    let response = daemon.client.classify("git commit -m 'Update README'").await.unwrap();
+    let response = daemon
+        .client
+        .classify("git commit -m 'Update README'")
+        .await
+        .unwrap();
     assert_classification(&response, "UPDATE", 0.8);
 }
 
@@ -187,7 +215,11 @@ async fn test_classify_chmod_command() {
 #[ignore]
 async fn test_classify_sed_inplace() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
-    let response = daemon.client.classify("sed -i 's/old/new/g' file.txt").await.unwrap();
+    let response = daemon
+        .client
+        .classify("sed -i 's/old/new/g' file.txt")
+        .await
+        .unwrap();
     assert_classification(&response, "UPDATE", 0.8);
 }
 
@@ -203,7 +235,11 @@ async fn test_classify_git_add() {
 #[ignore]
 async fn test_classify_mv_command() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
-    let response = daemon.client.classify("mv oldname.txt newname.txt").await.unwrap();
+    let response = daemon
+        .client
+        .classify("mv oldname.txt newname.txt")
+        .await
+        .unwrap();
     assert_classification(&response, "UPDATE", 0.7);
 }
 
@@ -211,7 +247,11 @@ async fn test_classify_mv_command() {
 #[ignore]
 async fn test_classify_chown_command() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
-    let response = daemon.client.classify("chown user:group file.txt").await.unwrap();
+    let response = daemon
+        .client
+        .classify("chown user:group file.txt")
+        .await
+        .unwrap();
     assert_classification(&response, "UPDATE", 0.7);
 }
 
@@ -239,7 +279,11 @@ async fn test_classify_rm_rf_command() {
 #[ignore]
 async fn test_classify_rmdir_command() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
-    let response = daemon.client.classify("rmdir empty_directory").await.unwrap();
+    let response = daemon
+        .client
+        .classify("rmdir empty_directory")
+        .await
+        .unwrap();
     assert_classification(&response, "DELETE", 0.8);
 }
 
@@ -247,7 +291,11 @@ async fn test_classify_rmdir_command() {
 #[ignore]
 async fn test_classify_docker_rm() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
-    let response = daemon.client.classify("docker rm container_name").await.unwrap();
+    let response = daemon
+        .client
+        .classify("docker rm container_name")
+        .await
+        .unwrap();
     assert_classification(&response, "DELETE", 0.8);
 }
 
@@ -255,7 +303,11 @@ async fn test_classify_docker_rm() {
 #[ignore]
 async fn test_classify_git_branch_delete() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
-    let response = daemon.client.classify("git branch -d feature-branch").await.unwrap();
+    let response = daemon
+        .client
+        .classify("git branch -d feature-branch")
+        .await
+        .unwrap();
     assert_classification(&response, "DELETE", 0.8);
 }
 
@@ -271,7 +323,11 @@ async fn test_classify_git_clean() {
 #[ignore]
 async fn test_classify_npm_uninstall() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
-    let response = daemon.client.classify("npm uninstall package-name").await.unwrap();
+    let response = daemon
+        .client
+        .classify("npm uninstall package-name")
+        .await
+        .unwrap();
     assert_classification(&response, "DELETE", 0.7);
 }
 
@@ -285,7 +341,11 @@ async fn test_classify_piped_read_commands() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
 
     // Multiple read operations piped together
-    let response = daemon.client.classify("cat file.txt | grep pattern | sort | uniq").await.unwrap();
+    let response = daemon
+        .client
+        .classify("cat file.txt | grep pattern | sort | uniq")
+        .await
+        .unwrap();
     assert_classification(&response, "READ", 0.7);
 }
 
@@ -295,7 +355,11 @@ async fn test_classify_command_with_background() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
 
     // Background execution doesn't change classification
-    let response = daemon.client.classify("docker run -d nginx &").await.unwrap();
+    let response = daemon
+        .client
+        .classify("docker run -d nginx &")
+        .await
+        .unwrap();
     assert_classification(&response, "CREATE", 0.6);
 }
 
@@ -305,7 +369,11 @@ async fn test_classify_compound_command_and() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
 
     // Should classify based on most destructive operation
-    let response = daemon.client.classify("mkdir test && cd test && rm -rf *").await.unwrap();
+    let response = daemon
+        .client
+        .classify("mkdir test && cd test && rm -rf *")
+        .await
+        .unwrap();
     // This contains DELETE, which should be detected
     assert_classification(&response, "DELETE", 0.6);
 }
@@ -325,7 +393,11 @@ async fn test_classify_command_substitution() {
 async fn test_classify_here_document() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
 
-    let response = daemon.client.classify("cat > file.txt << EOF\nContent\nEOF").await.unwrap();
+    let response = daemon
+        .client
+        .classify("cat > file.txt << EOF\nContent\nEOF")
+        .await
+        .unwrap();
     assert_classification(&response, "CREATE", 0.7);
 }
 
@@ -353,7 +425,11 @@ async fn test_classify_git_diff_read() {
 #[ignore]
 async fn test_classify_docker_build_create() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
-    let response = daemon.client.classify("docker build -t myapp:latest .").await.unwrap();
+    let response = daemon
+        .client
+        .classify("docker build -t myapp:latest .")
+        .await
+        .unwrap();
     assert_classification(&response, "CREATE", 0.7);
 }
 
@@ -363,7 +439,11 @@ async fn test_classify_curl_read() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
 
     // Curl without output redirect is READ
-    let response = daemon.client.classify("curl https://example.com").await.unwrap();
+    let response = daemon
+        .client
+        .classify("curl https://example.com")
+        .await
+        .unwrap();
     assert_classification(&response, "READ", 0.7);
 }
 
@@ -373,7 +453,11 @@ async fn test_classify_curl_download_create() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
 
     // Curl with -o creates a file
-    let response = daemon.client.classify("curl -o file.zip https://example.com/file.zip").await.unwrap();
+    let response = daemon
+        .client
+        .classify("curl -o file.zip https://example.com/file.zip")
+        .await
+        .unwrap();
     assert_classification(&response, "CREATE", 0.7);
 }
 
@@ -396,7 +480,11 @@ async fn test_high_confidence_for_obvious_commands() {
     for (cmd, expected_class) in obvious_commands {
         let response = daemon.client.classify(cmd).await.unwrap();
         assert_eq!(response.classification.to_uppercase(), expected_class);
-        assert!(response.confidence > 0.8, "Command '{}' should have high confidence", cmd);
+        assert!(
+            response.confidence > 0.8,
+            "Command '{}' should have high confidence",
+            cmd
+        );
     }
 }
 

@@ -52,7 +52,6 @@ struct PlatformAsset {
     checksum: String,
 }
 
-
 /// Platform identifier
 #[derive(Debug, Clone, Copy)]
 pub enum Platform {
@@ -102,7 +101,12 @@ impl Platform {
 
     /// Generate expected asset name for a version
     pub fn asset_name(&self, version: &str) -> String {
-        format!("cco-v{}-{}.{}", version, self.as_str(), self.archive_extension())
+        format!(
+            "cco-v{}-{}.{}",
+            version,
+            self.as_str(),
+            self.archive_extension()
+        )
     }
 }
 
@@ -173,12 +177,7 @@ pub async fn fetch_latest_release(channel: &str) -> Result<ReleaseInfo> {
         .platforms
         .iter()
         .find(|a| a.platform == platform_str)
-        .ok_or_else(|| {
-            anyhow!(
-                "No release asset found for platform: {}",
-                platform_str
-            )
-        })?;
+        .ok_or_else(|| anyhow!("No release asset found for platform: {}", platform_str))?;
 
     // Validate asset size
     if asset.size > MAX_BINARY_SIZE {
@@ -204,7 +203,6 @@ pub async fn fetch_latest_release(channel: &str) -> Result<ReleaseInfo> {
         filename: asset.filename.clone(),
     })
 }
-
 
 /// Fetch release by specific version
 pub async fn fetch_release_by_version(version: &str) -> Result<ReleaseInfo> {
@@ -243,9 +241,7 @@ pub async fn fetch_release_by_version(version: &str) -> Result<ReleaseInfo> {
     }
 
     if response.status() == reqwest::StatusCode::FORBIDDEN {
-        return Err(anyhow!(
-            "Access denied. Contact your administrator."
-        ));
+        return Err(anyhow!("Access denied. Contact your administrator."));
     }
 
     if response.status() == reqwest::StatusCode::NOT_FOUND {
@@ -276,12 +272,7 @@ pub async fn fetch_release_by_version(version: &str) -> Result<ReleaseInfo> {
         .platforms
         .iter()
         .find(|a| a.platform == platform_str)
-        .ok_or_else(|| {
-            anyhow!(
-                "No release asset found for platform: {}",
-                platform_str
-            )
-        })?;
+        .ok_or_else(|| anyhow!("No release asset found for platform: {}", platform_str))?;
 
     // Validate asset size
     if asset.size > MAX_BINARY_SIZE {
@@ -291,10 +282,7 @@ pub async fn fetch_release_by_version(version: &str) -> Result<ReleaseInfo> {
     }
 
     // Construct direct download URL for the API endpoint
-    let download_url = format!(
-        "{}/download/{}/{}",
-        RELEASES_API_URL, version, platform_str
-    );
+    let download_url = format!("{}/download/{}/{}", RELEASES_API_URL, version, platform_str);
 
     Ok(ReleaseInfo {
         version: release_data.version,
@@ -346,5 +334,4 @@ mod tests {
             "cco-v2025.11.2-windows-x86_64.zip"
         );
     }
-
 }

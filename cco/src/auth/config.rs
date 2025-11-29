@@ -39,7 +39,11 @@ impl OidcConfig {
             device_auth_endpoint,
             token_endpoint,
             userinfo_endpoint: None,
-            scopes: vec!["openid".to_string(), "profile".to_string(), "email".to_string()],
+            scopes: vec![
+                "openid".to_string(),
+                "profile".to_string(),
+                "email".to_string(),
+            ],
         }
     }
 

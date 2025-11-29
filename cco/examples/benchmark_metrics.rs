@@ -46,12 +46,24 @@ async fn main() -> Result<()> {
 
     println!("\n✅ Sequential Results:");
     println!("   Time:          {:.2}s", sequential_elapsed.as_secs_f64());
-    println!("   Throughput:    {:.1} files/sec", file_count as f64 / sequential_elapsed.as_secs_f64());
+    println!(
+        "   Throughput:    {:.1} files/sec",
+        file_count as f64 / sequential_elapsed.as_secs_f64()
+    );
     println!("   Messages:      {}", sequential_metrics.messages_count);
-    println!("   Conversations: {}", sequential_metrics.conversations_count);
+    println!(
+        "   Conversations: {}",
+        sequential_metrics.conversations_count
+    );
     println!("   Total Cost:    ${:.2}", sequential_metrics.total_cost);
-    println!("   Projects:      {}", sequential_metrics.project_breakdown.len());
-    println!("   Models:        {}", sequential_metrics.model_breakdown.len());
+    println!(
+        "   Projects:      {}",
+        sequential_metrics.project_breakdown.len()
+    );
+    println!(
+        "   Models:        {}",
+        sequential_metrics.model_breakdown.len()
+    );
 
     // Benchmark 2: Parallel implementation
     println!("\n═══════════════════════════════════════════════════════════");
@@ -59,17 +71,27 @@ async fn main() -> Result<()> {
     println!("═══════════════════════════════════════════════════════════");
 
     let parallel_start = Instant::now();
-    let parallel_metrics = cco::claude_history::load_claude_metrics_from_home_dir_parallel().await?;
+    let parallel_metrics =
+        cco::claude_history::load_claude_metrics_from_home_dir_parallel().await?;
     let parallel_elapsed = parallel_start.elapsed();
 
     println!("\n✅ Parallel Results:");
     println!("   Time:          {:.2}s", parallel_elapsed.as_secs_f64());
-    println!("   Throughput:    {:.1} files/sec", file_count as f64 / parallel_elapsed.as_secs_f64());
+    println!(
+        "   Throughput:    {:.1} files/sec",
+        file_count as f64 / parallel_elapsed.as_secs_f64()
+    );
     println!("   Messages:      {}", parallel_metrics.messages_count);
     println!("   Conversations: {}", parallel_metrics.conversations_count);
     println!("   Total Cost:    ${:.2}", parallel_metrics.total_cost);
-    println!("   Projects:      {}", parallel_metrics.project_breakdown.len());
-    println!("   Models:        {}", parallel_metrics.model_breakdown.len());
+    println!(
+        "   Projects:      {}",
+        parallel_metrics.project_breakdown.len()
+    );
+    println!(
+        "   Models:        {}",
+        parallel_metrics.model_breakdown.len()
+    );
 
     // Compare results
     println!("\n═══════════════════════════════════════════════════════════");
@@ -89,25 +111,35 @@ async fn main() -> Result<()> {
 
     let messages_match = sequential_metrics.messages_count == parallel_metrics.messages_count;
     let cost_match = (sequential_metrics.total_cost - parallel_metrics.total_cost).abs() < 0.01;
-    let projects_match = sequential_metrics.project_breakdown.len() == parallel_metrics.project_breakdown.len();
-    let models_match = sequential_metrics.model_breakdown.len() == parallel_metrics.model_breakdown.len();
+    let projects_match =
+        sequential_metrics.project_breakdown.len() == parallel_metrics.project_breakdown.len();
+    let models_match =
+        sequential_metrics.model_breakdown.len() == parallel_metrics.model_breakdown.len();
 
-    println!("   Messages match:      {} ({} vs {})",
-             if messages_match { "✅" } else { "❌" },
-             sequential_metrics.messages_count,
-             parallel_metrics.messages_count);
-    println!("   Cost match:          {} (${:.2} vs ${:.2})",
-             if cost_match { "✅" } else { "❌" },
-             sequential_metrics.total_cost,
-             parallel_metrics.total_cost);
-    println!("   Projects match:      {} ({} vs {})",
-             if projects_match { "✅" } else { "❌" },
-             sequential_metrics.project_breakdown.len(),
-             parallel_metrics.project_breakdown.len());
-    println!("   Models match:        {} ({} vs {})",
-             if models_match { "✅" } else { "❌" },
-             sequential_metrics.model_breakdown.len(),
-             parallel_metrics.model_breakdown.len());
+    println!(
+        "   Messages match:      {} ({} vs {})",
+        if messages_match { "✅" } else { "❌" },
+        sequential_metrics.messages_count,
+        parallel_metrics.messages_count
+    );
+    println!(
+        "   Cost match:          {} (${:.2} vs ${:.2})",
+        if cost_match { "✅" } else { "❌" },
+        sequential_metrics.total_cost,
+        parallel_metrics.total_cost
+    );
+    println!(
+        "   Projects match:      {} ({} vs {})",
+        if projects_match { "✅" } else { "❌" },
+        sequential_metrics.project_breakdown.len(),
+        parallel_metrics.project_breakdown.len()
+    );
+    println!(
+        "   Models match:        {} ({} vs {})",
+        if models_match { "✅" } else { "❌" },
+        sequential_metrics.model_breakdown.len(),
+        parallel_metrics.model_breakdown.len()
+    );
 
     let all_match = messages_match && cost_match && projects_match && models_match;
 
@@ -130,12 +162,16 @@ async fn main() -> Result<()> {
     let time_target_met = parallel_elapsed.as_secs_f64() < target_time;
     let throughput_target_met = parallel_throughput > target_throughput;
 
-    println!("   Time < 60s:          {} ({:.2}s)",
-             if time_target_met { "✅" } else { "❌" },
-             parallel_elapsed.as_secs_f64());
-    println!("   Throughput > 40/s:   {} ({:.1} files/sec)",
-             if throughput_target_met { "✅" } else { "❌" },
-             parallel_throughput);
+    println!(
+        "   Time < 60s:          {} ({:.2}s)",
+        if time_target_met { "✅" } else { "❌" },
+        parallel_elapsed.as_secs_f64()
+    );
+    println!(
+        "   Throughput > 40/s:   {} ({:.1} files/sec)",
+        if throughput_target_met { "✅" } else { "❌" },
+        parallel_throughput
+    );
     println!("   Memory < 500MB:      ⚠️  (requires manual measurement)");
 
     println!("\n═══════════════════════════════════════════════════════════");

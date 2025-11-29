@@ -204,7 +204,7 @@ impl EventBus {
                         timestamp: event.timestamp,
                     }]);
                 }
-                Ok(Ok(_)) => continue, // Wrong event type
+                Ok(Ok(_)) => continue,           // Wrong event type
                 Ok(Err(_)) => return Ok(vec![]), // Channel closed
                 Err(_) => return Ok(vec![]),     // Timeout
             }
@@ -224,7 +224,12 @@ impl EventBus {
 
     /// Get dead letter queue
     pub async fn get_dead_letter_queue(&self) -> Vec<Event> {
-        self.dead_letter_queue.read().await.iter().cloned().collect()
+        self.dead_letter_queue
+            .read()
+            .await
+            .iter()
+            .cloned()
+            .collect()
     }
 
     /// Clear dead letter queue

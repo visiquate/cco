@@ -111,7 +111,10 @@ async fn test_classify_many_arguments() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
 
     // Command with 1000 arguments
-    let args = (0..1000).map(|i| format!("arg{}", i)).collect::<Vec<_>>().join(" ");
+    let args = (0..1000)
+        .map(|i| format!("arg{}", i))
+        .collect::<Vec<_>>()
+        .join(" ");
     let command = format!("echo {}", args);
 
     let response = daemon.client.classify(&command).await.unwrap();
@@ -140,7 +143,9 @@ async fn test_invalid_json_request() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
 
     let url = format!("{}/api/classify", daemon.client.base_url);
-    let response = daemon.client.client
+    let response = daemon
+        .client
+        .client
         .post(&url)
         .header("Content-Type", "application/json")
         .body("{invalid json}}")
@@ -157,7 +162,9 @@ async fn test_missing_required_field() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
 
     let url = format!("{}/api/classify", daemon.client.base_url);
-    let response = daemon.client.client
+    let response = daemon
+        .client
+        .client
         .post(&url)
         .json(&json!({
             "wrong_field": "value"
@@ -175,7 +182,9 @@ async fn test_wrong_content_type() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
 
     let url = format!("{}/api/classify", daemon.client.base_url);
-    let response = daemon.client.client
+    let response = daemon
+        .client
+        .client
         .post(&url)
         .header("Content-Type", "text/plain")
         .body("ls -la")
@@ -196,7 +205,9 @@ async fn test_oversized_json_payload() {
     let huge_command = "x".repeat(2_000_000);
     let url = format!("{}/api/classify", daemon.client.base_url);
 
-    let result = daemon.client.client
+    let result = daemon
+        .client
+        .client
         .post(&url)
         .json(&json!({
             "command": huge_command
@@ -223,7 +234,9 @@ async fn test_malformed_context_field() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
 
     let url = format!("{}/api/classify", daemon.client.base_url);
-    let response = daemon.client.client
+    let response = daemon
+        .client
+        .client
         .post(&url)
         .json(&json!({
             "command": "ls",
@@ -329,9 +342,7 @@ async fn test_concurrent_classification_requests() {
     for cmd in commands {
         let client = daemon.client.clone();
         let command = cmd.to_string();
-        handles.push(tokio::spawn(async move {
-            client.classify(&command).await
-        }));
+        handles.push(tokio::spawn(async move { client.classify(&command).await }));
     }
 
     // All should complete successfully
@@ -405,8 +416,11 @@ async fn test_rapid_sequential_requests() {
     let elapsed = start.elapsed();
 
     // Should handle rapid requests efficiently (< 30s for 50 requests)
-    assert!(elapsed < Duration::from_secs(30),
-        "Sequential requests too slow: {:?}", elapsed);
+    assert!(
+        elapsed < Duration::from_secs(30),
+        "Sequential requests too slow: {:?}",
+        elapsed
+    );
 }
 
 #[tokio::test]
@@ -446,8 +460,11 @@ async fn test_classification_timeout_enforcement() {
     let elapsed = start.elapsed();
 
     // Should timeout within inference timeout (2s) + some margin
-    assert!(elapsed < Duration::from_secs(4),
-        "Classification should timeout: {:?}", elapsed);
+    assert!(
+        elapsed < Duration::from_secs(4),
+        "Classification should timeout: {:?}",
+        elapsed
+    );
 }
 
 #[tokio::test]
@@ -478,11 +495,7 @@ async fn test_multiple_timeout_scenarios() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
 
     // Send several requests that might timeout
-    let commands = vec![
-        "x".repeat(100000),
-        "y".repeat(100000),
-        "z".repeat(100000),
-    ];
+    let commands = vec!["x".repeat(100000), "y".repeat(100000), "z".repeat(100000)];
 
     for cmd in commands {
         let start = std::time::Instant::now();

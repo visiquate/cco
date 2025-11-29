@@ -8,7 +8,7 @@ mod token_storage;
 
 pub use config::OidcConfig;
 pub use device_flow::{DeviceFlowClient, DeviceFlowError, DeviceFlowResponse, TokenResponse};
-pub use token_storage::{TokenStorage, TokenInfo};
+pub use token_storage::{TokenInfo, TokenStorage};
 
 use anyhow::Result;
 

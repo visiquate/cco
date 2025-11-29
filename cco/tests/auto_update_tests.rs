@@ -371,7 +371,10 @@ mod checksum_tests {
 
         // Both uppercase and lowercase should match
         assert_eq!(checksum.to_lowercase(), checksum.to_lowercase());
-        assert_eq!(checksum.to_uppercase().to_lowercase(), checksum.to_lowercase());
+        assert_eq!(
+            checksum.to_uppercase().to_lowercase(),
+            checksum.to_lowercase()
+        );
     }
 }
 
@@ -511,13 +514,20 @@ mod platform_detection_tests {
             "windows-x86_64",
         ];
 
-        let platform = format!("{}-{}",
+        let platform = format!(
+            "{}-{}",
             if os == "macos" { "darwin" } else { os },
-            if arch == "aarch64" && os == "macos" { "arm64" } else { arch }
+            if arch == "aarch64" && os == "macos" {
+                "arm64"
+            } else {
+                arch
+            }
         );
 
         // Should be one of the valid platforms
-        assert!(valid_platforms.iter().any(|p| platform.contains(&p[..p.find('-').unwrap()])));
+        assert!(valid_platforms
+            .iter()
+            .any(|p| platform.contains(&p[..p.find('-').unwrap()])));
     }
 }
 

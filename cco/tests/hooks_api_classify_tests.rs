@@ -27,7 +27,11 @@ async fn test_classify_read_command() {
     let response = daemon.client.classify("ls -la").await.unwrap();
 
     assert_eq!(response.classification.to_uppercase(), "READ");
-    assert!(response.confidence > 0.8, "Confidence too low: {}", response.confidence);
+    assert!(
+        response.confidence > 0.8,
+        "Confidence too low: {}",
+        response.confidence
+    );
     assert!(response.reasoning.is_some());
 }
 
@@ -47,7 +51,11 @@ async fn test_classify_create_command() {
 async fn test_classify_update_command() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
 
-    let response = daemon.client.classify("echo 'text' >> file.txt").await.unwrap();
+    let response = daemon
+        .client
+        .classify("echo 'text' >> file.txt")
+        .await
+        .unwrap();
 
     assert_eq!(response.classification.to_uppercase(), "UPDATE");
     assert!(response.confidence > 0.7);
@@ -105,9 +113,7 @@ async fn test_classify_multiple_requests_concurrently() {
     for cmd in commands {
         let client = daemon.client.clone();
         let command = cmd.to_string();
-        handles.push(tokio::spawn(async move {
-            client.classify(&command).await
-        }));
+        handles.push(tokio::spawn(async move { client.classify(&command).await }));
     }
 
     // All should complete successfully
@@ -147,7 +153,9 @@ async fn test_classify_endpoint_invalid_json() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
 
     let url = format!("{}/api/classify", daemon.client.base_url);
-    let response = daemon.client.client
+    let response = daemon
+        .client
+        .client
         .post(&url)
         .body("invalid json {{{")
         .header("Content-Type", "application/json")
@@ -164,7 +172,9 @@ async fn test_classify_endpoint_missing_command_field() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
 
     let url = format!("{}/api/classify", daemon.client.base_url);
-    let response = daemon.client.client
+    let response = daemon
+        .client
+        .client
         .post(&url)
         .json(&json!({
             "context": "test"
@@ -198,7 +208,9 @@ async fn test_classify_endpoint_classifier_unavailable() {
     let daemon = TestDaemon::with_hooks_disabled().await.unwrap();
 
     let url = format!("{}/api/classify", daemon.client.base_url);
-    let response = daemon.client.client
+    let response = daemon
+        .client
+        .client
         .post(&url)
         .json(&json!({
             "command": "ls -la"
@@ -210,7 +222,11 @@ async fn test_classify_endpoint_classifier_unavailable() {
     assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
 
     let error: serde_json::Value = response.json().await.unwrap();
-    assert!(error["error"].as_str().unwrap().to_lowercase().contains("classifier"));
+    assert!(error["error"]
+        .as_str()
+        .unwrap()
+        .to_lowercase()
+        .contains("classifier"));
 }
 
 #[tokio::test]
@@ -221,11 +237,7 @@ async fn test_classify_endpoint_wrong_http_method() {
     let url = format!("{}/api/classify", daemon.client.base_url);
 
     // Try GET instead of POST
-    let response = daemon.client.client
-        .get(&url)
-        .send()
-        .await
-        .unwrap();
+    let response = daemon.client.client.get(&url).send().await.unwrap();
 
     assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
 }
@@ -291,7 +303,11 @@ async fn test_classify_response_confidence_in_range() {
 async fn test_classify_unicode_command() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
 
-    let response = daemon.client.classify("echo '你好世界' > file.txt").await.unwrap();
+    let response = daemon
+        .client
+        .classify("echo '你好世界' > file.txt")
+        .await
+        .unwrap();
 
     // Should classify correctly despite unicode
     assert_eq!(response.classification.to_uppercase(), "CREATE");
@@ -302,7 +318,11 @@ async fn test_classify_unicode_command() {
 async fn test_classify_command_with_pipes() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
 
-    let response = daemon.client.classify("cat file.txt | grep pattern").await.unwrap();
+    let response = daemon
+        .client
+        .classify("cat file.txt | grep pattern")
+        .await
+        .unwrap();
 
     // Piped read commands are still READ
     assert_eq!(response.classification.to_uppercase(), "READ");
@@ -314,11 +334,19 @@ async fn test_classify_command_with_redirects() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
 
     // Output redirect creates a file
-    let response = daemon.client.classify("echo 'test' > output.txt").await.unwrap();
+    let response = daemon
+        .client
+        .classify("echo 'test' > output.txt")
+        .await
+        .unwrap();
     assert_eq!(response.classification.to_uppercase(), "CREATE");
 
     // Append redirect updates a file
-    let response = daemon.client.classify("echo 'more' >> output.txt").await.unwrap();
+    let response = daemon
+        .client
+        .classify("echo 'more' >> output.txt")
+        .await
+        .unwrap();
     assert_eq!(response.classification.to_uppercase(), "UPDATE");
 }
 
@@ -351,7 +379,9 @@ async fn test_classify_with_context() {
     let daemon = TestDaemon::with_hooks_enabled().await.unwrap();
 
     let url = format!("{}/api/classify", daemon.client.base_url);
-    let response = daemon.client.client
+    let response = daemon
+        .client
+        .client
         .post(&url)
         .json(&json!({
             "command": "ls -la",

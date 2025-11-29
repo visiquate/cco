@@ -115,7 +115,7 @@ struct ClaudeMessage {
     #[serde(rename = "type")]
     message_type: String,
     message: Option<MessageContent>,
-    timestamp: Option<String>,  // ISO 8601 timestamp (e.g., "2025-11-11T22:35:42.543Z")
+    timestamp: Option<String>, // ISO 8601 timestamp (e.g., "2025-11-11T22:35:42.543Z")
 }
 
 #[derive(Debug, Deserialize)]
@@ -155,16 +155,16 @@ pub fn get_model_pricing(model_name: &str) -> (f64, f64, f64, f64) {
         "claude-sonnet-4-5" | "claude-3-5-sonnet" => {
             let input = 3.0;
             let output = 15.0;
-            let cache_write = 3.75;  // 25% premium over input
-            let cache_read = 0.30;   // 90% discount (10% of input)
+            let cache_write = 3.75; // 25% premium over input
+            let cache_read = 0.30; // 90% discount (10% of input)
             (input, output, cache_write, cache_read)
         }
         // Haiku 4.5 variants
         "claude-haiku-4-5" | "claude-3-5-haiku" => {
             let input = 1.0;
             let output = 5.0;
-            let cache_write = 1.25;  // 25% premium over input
-            let cache_read = 0.10;   // 90% discount (10% of input)
+            let cache_write = 1.25; // 25% premium over input
+            let cache_read = 0.10; // 90% discount (10% of input)
             (input, output, cache_write, cache_read)
         }
         // Opus 4 variants
@@ -172,7 +172,7 @@ pub fn get_model_pricing(model_name: &str) -> (f64, f64, f64, f64) {
             let input = 15.0;
             let output = 75.0;
             let cache_write = 18.75; // 25% premium over input
-            let cache_read = 1.50;   // 90% discount (10% of input)
+            let cache_read = 1.50; // 90% discount (10% of input)
             (input, output, cache_write, cache_read)
         }
         _ => {
@@ -429,7 +429,8 @@ pub async fn load_claude_metrics_from_home_dir() -> Result<ClaudeMetrics> {
 
                 // Aggregate model breakdown
                 for (model, breakdown) in &project_metrics.model_breakdown {
-                    let entry = metrics.model_breakdown
+                    let entry = metrics
+                        .model_breakdown
                         .entry(model.clone())
                         .or_insert_with(ModelBreakdown::default);
 
@@ -453,7 +454,8 @@ pub async fn load_claude_metrics_from_home_dir() -> Result<ClaudeMetrics> {
                             name: project_name,
                             total_input_tokens: project_metrics.total_input_tokens,
                             total_output_tokens: project_metrics.total_output_tokens,
-                            total_cache_creation_tokens: project_metrics.total_cache_creation_tokens,
+                            total_cache_creation_tokens: project_metrics
+                                .total_cache_creation_tokens,
                             total_cache_read_tokens: project_metrics.total_cache_read_tokens,
                             total_cost: project_metrics.total_cost,
                             message_count: project_metrics.messages_count,
@@ -540,7 +542,8 @@ pub async fn load_claude_metrics_from_metrics_json() -> Result<ClaudeMetrics> {
         metrics.messages_count += 1;
 
         // Update per-model breakdown
-        let breakdown = metrics.model_breakdown
+        let breakdown = metrics
+            .model_breakdown
             .entry(normalized_model.clone())
             .or_insert_with(ModelBreakdown::default);
 
@@ -552,13 +555,13 @@ pub async fn load_claude_metrics_from_metrics_json() -> Result<ClaudeMetrics> {
         // Calculate individual cost components for the breakdown
         // Note: The actual_cost from metrics.json is the authoritative total
         // We distribute it proportionally based on token pricing
-        let total_cost_estimate =
-            calculate_cost(entry.input_tokens, input_price) +
-            calculate_cost(entry.output_tokens, output_price);
+        let total_cost_estimate = calculate_cost(entry.input_tokens, input_price)
+            + calculate_cost(entry.output_tokens, output_price);
 
         if total_cost_estimate > 0.0 {
             let input_ratio = calculate_cost(entry.input_tokens, input_price) / total_cost_estimate;
-            let output_ratio = calculate_cost(entry.output_tokens, output_price) / total_cost_estimate;
+            let output_ratio =
+                calculate_cost(entry.output_tokens, output_price) / total_cost_estimate;
 
             breakdown.input_cost += entry.actual_cost * input_ratio;
             breakdown.output_cost += entry.actual_cost * output_ratio;
@@ -634,7 +637,8 @@ pub async fn load_claude_project_metrics(project_path: &str) -> Result<ClaudeMet
                         let cache_write_cost = calculate_cost(cache_creation, cache_write_price);
                         let cache_read_cost = calculate_cost(cache_read, cache_read_price);
 
-                        let total_message_cost = input_cost + output_cost + cache_write_cost + cache_read_cost;
+                        let total_message_cost =
+                            input_cost + output_cost + cache_write_cost + cache_read_cost;
 
                         // Update global totals
                         metrics.total_input_tokens += input_tokens;
@@ -645,7 +649,8 @@ pub async fn load_claude_project_metrics(project_path: &str) -> Result<ClaudeMet
                         metrics.messages_count += 1;
 
                         // Update per-model breakdown
-                        let breakdown = metrics.model_breakdown
+                        let breakdown = metrics
+                            .model_breakdown
                             .entry(normalized_model.clone())
                             .or_insert_with(ModelBreakdown::default);
 
@@ -761,8 +766,10 @@ pub async fn load_claude_metrics_from_home_dir_parallel() -> Result<ClaudeMetric
     let parse_start = std::time::Instant::now();
 
     // Concurrent aggregation structures using DashMap (lock-free)
-    let model_breakdown: Arc<DashMap<String, ModelBreakdown>> = Arc::new(DashMap::with_capacity(10));
-    let project_breakdown: Arc<DashMap<String, ProjectBreakdown>> = Arc::new(DashMap::with_capacity(30));
+    let model_breakdown: Arc<DashMap<String, ModelBreakdown>> =
+        Arc::new(DashMap::with_capacity(10));
+    let project_breakdown: Arc<DashMap<String, ProjectBreakdown>> =
+        Arc::new(DashMap::with_capacity(30));
 
     // Global counters (we'll use atomic operations via DashMap pattern)
     let global_stats = Arc::new(DashMap::new());
@@ -811,7 +818,8 @@ pub async fn load_claude_metrics_from_home_dir_parallel() -> Result<ClaudeMetric
                         let output_cost = calculate_cost(output_tokens, output_price);
                         let cache_write_cost = calculate_cost(cache_creation, cache_write_price);
                         let cache_read_cost = calculate_cost(cache_read, cache_read_price);
-                        let total_message_cost = input_cost + output_cost + cache_write_cost + cache_read_cost;
+                        let total_message_cost =
+                            input_cost + output_cost + cache_write_cost + cache_read_cost;
 
                         // Update global stats atomically
                         global_stats
@@ -829,9 +837,7 @@ pub async fn load_claude_metrics_from_home_dir_parallel() -> Result<ClaudeMetric
                         global_stats
                             .entry("total_cost")
                             .and_modify(|v| *v += (total_message_cost * 1_000_000_000.0) as u64);
-                        global_stats
-                            .entry("messages_count")
-                            .and_modify(|v| *v += 1);
+                        global_stats.entry("messages_count").and_modify(|v| *v += 1);
 
                         // Update per-model breakdown
                         model_breakdown
@@ -951,9 +957,7 @@ pub async fn load_claude_metrics_from_home_dir_parallel() -> Result<ClaudeMetric
                 }
                 Err(e) => {
                     debug!("Failed to parse file {:?}: {}", file_path, e);
-                    global_stats
-                        .entry("files_failed")
-                        .and_modify(|v| *v += 1);
+                    global_stats.entry("files_failed").and_modify(|v| *v += 1);
                     Err(e)
                 }
             }
@@ -972,7 +976,8 @@ pub async fn load_claude_metrics_from_home_dir_parallel() -> Result<ClaudeMetric
         "Parsed {} files in {:.2}s ({:.1} files/sec)",
         global_stats.get("files_processed").map(|v| *v).unwrap_or(0),
         parse_elapsed.as_secs_f64(),
-        global_stats.get("files_processed").map(|v| *v).unwrap_or(0) as f64 / parse_elapsed.as_secs_f64()
+        global_stats.get("files_processed").map(|v| *v).unwrap_or(0) as f64
+            / parse_elapsed.as_secs_f64()
     );
 
     // Step 3: Convert DashMap to regular HashMap for ClaudeMetrics
@@ -988,8 +993,14 @@ pub async fn load_claude_metrics_from_home_dir_parallel() -> Result<ClaudeMetric
 
     // Build final metrics struct
     let metrics = ClaudeMetrics {
-        total_input_tokens: global_stats.get("total_input_tokens").map(|v| *v).unwrap_or(0),
-        total_output_tokens: global_stats.get("total_output_tokens").map(|v| *v).unwrap_or(0),
+        total_input_tokens: global_stats
+            .get("total_input_tokens")
+            .map(|v| *v)
+            .unwrap_or(0),
+        total_output_tokens: global_stats
+            .get("total_output_tokens")
+            .map(|v| *v)
+            .unwrap_or(0),
         total_cache_creation_tokens: global_stats
             .get("total_cache_creation_tokens")
             .map(|v| *v)
@@ -998,9 +1009,13 @@ pub async fn load_claude_metrics_from_home_dir_parallel() -> Result<ClaudeMetric
             .get("total_cache_read_tokens")
             .map(|v| *v)
             .unwrap_or(0),
-        total_cost: global_stats.get("total_cost").map(|v| *v).unwrap_or(0) as f64 / 1_000_000_000.0,
+        total_cost: global_stats.get("total_cost").map(|v| *v).unwrap_or(0) as f64
+            / 1_000_000_000.0,
         messages_count: global_stats.get("messages_count").map(|v| *v).unwrap_or(0),
-        conversations_count: global_stats.get("conversations_count").map(|v| *v).unwrap_or(0),
+        conversations_count: global_stats
+            .get("conversations_count")
+            .map(|v| *v)
+            .unwrap_or(0),
         model_breakdown: model_breakdown_map,
         project_breakdown: project_breakdown_map,
         last_updated: Utc::now(),
@@ -1015,7 +1030,8 @@ pub async fn load_claude_metrics_from_home_dir_parallel() -> Result<ClaudeMetric
     );
     info!(
         "Performance: {:.1} files/sec, {} messages, ${:.2} total cost",
-        global_stats.get("files_processed").map(|v| *v).unwrap_or(0) as f64 / total_elapsed.as_secs_f64(),
+        global_stats.get("files_processed").map(|v| *v).unwrap_or(0) as f64
+            / total_elapsed.as_secs_f64(),
         metrics.messages_count,
         metrics.total_cost
     );
@@ -1052,7 +1068,7 @@ pub async fn load_claude_metrics_from_home_dir_parallel() -> Result<ClaudeMetric
 /// }
 /// ```
 pub async fn load_claude_metrics_with_time_filter(
-    since: Option<std::time::SystemTime>
+    since: Option<std::time::SystemTime>,
 ) -> Result<(ClaudeMetrics, Option<std::time::SystemTime>)> {
     const CONCURRENCY_LIMIT: usize = 50;
 
@@ -1069,7 +1085,10 @@ pub async fn load_claude_metrics_with_time_filter(
     }
 
     // Step 1: Collect all JSONL files from all projects with metadata
-    info!("Discovering JSONL files in {} (with time filter)...", projects_dir);
+    info!(
+        "Discovering JSONL files in {} (with time filter)...",
+        projects_dir
+    );
     let discovery_start = std::time::Instant::now();
 
     let mut all_files: Vec<(PathBuf, String, std::time::SystemTime)> = Vec::with_capacity(2500);
@@ -1114,9 +1133,7 @@ pub async fn load_claude_metrics_with_time_filter(
     );
 
     // Track oldest conversation timestamp
-    let oldest_file_time = all_files.iter()
-        .map(|(_, _, modified)| *modified)
-        .min();
+    let oldest_file_time = all_files.iter().map(|(_, _, modified)| *modified).min();
 
     // Step 2: Process files in parallel with semaphore-controlled concurrency
     info!(
@@ -1127,8 +1144,10 @@ pub async fn load_claude_metrics_with_time_filter(
     let parse_start = std::time::Instant::now();
 
     // Concurrent aggregation structures using DashMap (lock-free)
-    let model_breakdown: Arc<DashMap<String, ModelBreakdown>> = Arc::new(DashMap::with_capacity(10));
-    let project_breakdown: Arc<DashMap<String, ProjectBreakdown>> = Arc::new(DashMap::with_capacity(30));
+    let model_breakdown: Arc<DashMap<String, ModelBreakdown>> =
+        Arc::new(DashMap::with_capacity(10));
+    let project_breakdown: Arc<DashMap<String, ProjectBreakdown>> =
+        Arc::new(DashMap::with_capacity(30));
 
     // Global counters
     let global_stats = Arc::new(DashMap::new());
@@ -1173,14 +1192,25 @@ pub async fn load_claude_metrics_with_time_filter(
                         let output_cost = calculate_cost(output_tokens, output_price);
                         let cache_write_cost = calculate_cost(cache_creation, cache_write_price);
                         let cache_read_cost = calculate_cost(cache_read, cache_read_price);
-                        let total_message_cost = input_cost + output_cost + cache_write_cost + cache_read_cost;
+                        let total_message_cost =
+                            input_cost + output_cost + cache_write_cost + cache_read_cost;
 
                         // Update global stats atomically
-                        global_stats.entry("total_input_tokens").and_modify(|v| *v += input_tokens);
-                        global_stats.entry("total_output_tokens").and_modify(|v| *v += output_tokens);
-                        global_stats.entry("total_cache_creation_tokens").and_modify(|v| *v += cache_creation);
-                        global_stats.entry("total_cache_read_tokens").and_modify(|v| *v += cache_read);
-                        global_stats.entry("total_cost").and_modify(|v| *v += (total_message_cost * 1_000_000_000.0) as u64);
+                        global_stats
+                            .entry("total_input_tokens")
+                            .and_modify(|v| *v += input_tokens);
+                        global_stats
+                            .entry("total_output_tokens")
+                            .and_modify(|v| *v += output_tokens);
+                        global_stats
+                            .entry("total_cache_creation_tokens")
+                            .and_modify(|v| *v += cache_creation);
+                        global_stats
+                            .entry("total_cache_read_tokens")
+                            .and_modify(|v| *v += cache_read);
+                        global_stats
+                            .entry("total_cost")
+                            .and_modify(|v| *v += (total_message_cost * 1_000_000_000.0) as u64);
                         global_stats.entry("messages_count").and_modify(|v| *v += 1);
 
                         // Update per-model breakdown
@@ -1287,8 +1317,12 @@ pub async fn load_claude_metrics_with_time_filter(
                         .and_modify(|breakdown| {
                             breakdown.conversation_count += 1;
                         });
-                    global_stats.entry("conversations_count").and_modify(|v| *v += 1);
-                    global_stats.entry("files_processed").and_modify(|v| *v += 1);
+                    global_stats
+                        .entry("conversations_count")
+                        .and_modify(|v| *v += 1);
+                    global_stats
+                        .entry("files_processed")
+                        .and_modify(|v| *v += 1);
 
                     Ok::<(), anyhow::Error>(())
                 }
@@ -1313,7 +1347,8 @@ pub async fn load_claude_metrics_with_time_filter(
         "Parsed {} files in {:.2}s ({:.1} files/sec)",
         global_stats.get("files_processed").map(|v| *v).unwrap_or(0),
         parse_elapsed.as_secs_f64(),
-        global_stats.get("files_processed").map(|v| *v).unwrap_or(0) as f64 / parse_elapsed.as_secs_f64()
+        global_stats.get("files_processed").map(|v| *v).unwrap_or(0) as f64
+            / parse_elapsed.as_secs_f64()
     );
 
     // Step 3: Convert DashMap to regular HashMap
@@ -1329,8 +1364,14 @@ pub async fn load_claude_metrics_with_time_filter(
 
     // Build final metrics struct
     let metrics = ClaudeMetrics {
-        total_input_tokens: global_stats.get("total_input_tokens").map(|v| *v).unwrap_or(0),
-        total_output_tokens: global_stats.get("total_output_tokens").map(|v| *v).unwrap_or(0),
+        total_input_tokens: global_stats
+            .get("total_input_tokens")
+            .map(|v| *v)
+            .unwrap_or(0),
+        total_output_tokens: global_stats
+            .get("total_output_tokens")
+            .map(|v| *v)
+            .unwrap_or(0),
         total_cache_creation_tokens: global_stats
             .get("total_cache_creation_tokens")
             .map(|v| *v)
@@ -1339,9 +1380,13 @@ pub async fn load_claude_metrics_with_time_filter(
             .get("total_cache_read_tokens")
             .map(|v| *v)
             .unwrap_or(0),
-        total_cost: global_stats.get("total_cost").map(|v| *v).unwrap_or(0) as f64 / 1_000_000_000.0,
+        total_cost: global_stats.get("total_cost").map(|v| *v).unwrap_or(0) as f64
+            / 1_000_000_000.0,
         messages_count: global_stats.get("messages_count").map(|v| *v).unwrap_or(0),
-        conversations_count: global_stats.get("conversations_count").map(|v| *v).unwrap_or(0),
+        conversations_count: global_stats
+            .get("conversations_count")
+            .map(|v| *v)
+            .unwrap_or(0),
         model_breakdown: model_breakdown_map,
         project_breakdown: project_breakdown_map,
         last_updated: Utc::now(),
@@ -1356,7 +1401,8 @@ pub async fn load_claude_metrics_with_time_filter(
     );
     info!(
         "Performance: {:.1} files/sec, {} messages, ${:.2} total cost",
-        global_stats.get("files_processed").map(|v| *v).unwrap_or(0) as f64 / total_elapsed.as_secs_f64(),
+        global_stats.get("files_processed").map(|v| *v).unwrap_or(0) as f64
+            / total_elapsed.as_secs_f64(),
         metrics.messages_count,
         metrics.total_cost
     );
@@ -1421,10 +1467,11 @@ pub async fn load_claude_project_metrics_by_date(
                             // Parse ISO 8601 timestamp and extract date
                             if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&timestamp_str) {
                                 let date = dt.format("%Y-%m-%d").to_string();
-                                metrics_by_date
-                                    .entry(date)
-                                    .or_insert_with(Vec::new)
-                                    .push((model, usage, timestamp_str));
+                                metrics_by_date.entry(date).or_insert_with(Vec::new).push((
+                                    model,
+                                    usage,
+                                    timestamp_str,
+                                ));
                             } else {
                                 tracing::debug!(
                                     "Failed to parse timestamp: {}. Skipping message.",
@@ -1479,21 +1526,21 @@ mod tests {
         assert_eq!(input, 15.0);
         assert_eq!(output, 75.0);
         assert_eq!(cache_write, 18.75); // 25% premium
-        assert_eq!(cache_read, 1.50);   // 10% of input
+        assert_eq!(cache_read, 1.50); // 10% of input
 
         // Test Sonnet 4.5 pricing
         let (input, output, cache_write, cache_read) = get_model_pricing("claude-sonnet-4-5");
         assert_eq!(input, 3.0);
         assert_eq!(output, 15.0);
-        assert_eq!(cache_write, 3.75);  // 25% premium
-        assert_eq!(cache_read, 0.30);   // 10% of input
+        assert_eq!(cache_write, 3.75); // 25% premium
+        assert_eq!(cache_read, 0.30); // 10% of input
 
         // Test Haiku 4.5 pricing
         let (input, output, cache_write, cache_read) = get_model_pricing("claude-haiku-4-5");
         assert_eq!(input, 1.0);
         assert_eq!(output, 5.0);
-        assert_eq!(cache_write, 1.25);  // 25% premium
-        assert_eq!(cache_read, 0.10);   // 10% of input
+        assert_eq!(cache_write, 1.25); // 25% premium
+        assert_eq!(cache_read, 0.10); // 10% of input
 
         // Test variant names (3-5-sonnet format)
         let (input, output, cache_write, cache_read) = get_model_pricing("claude-3-5-sonnet");
@@ -1639,7 +1686,8 @@ mod tests {
         let expected_opus_input = (2000.0 * 15.0) / 1_000_000.0;
         let expected_opus_output = (1000.0 * 75.0) / 1_000_000.0;
         let expected_opus_cache_write = (5000.0 * 18.75) / 1_000_000.0;
-        let expected_opus_total = expected_opus_input + expected_opus_output + expected_opus_cache_write;
+        let expected_opus_total =
+            expected_opus_input + expected_opus_output + expected_opus_cache_write;
 
         assert!((opus.input_cost - expected_opus_input).abs() < 0.00001);
         assert!((opus.output_cost - expected_opus_output).abs() < 0.00001);
@@ -1759,17 +1807,17 @@ malformed data here
         // Test Sonnet
         let (input, _output, cache_write, cache_read) = get_model_pricing("claude-sonnet-4-5");
         assert!((cache_write - input * 1.25).abs() < 0.0001); // 3.0 * 1.25 = 3.75
-        assert!((cache_read - input * 0.10).abs() < 0.0001);  // 3.0 * 0.10 = 0.30
+        assert!((cache_read - input * 0.10).abs() < 0.0001); // 3.0 * 0.10 = 0.30
 
         // Test Haiku
         let (input, _output, cache_write, cache_read) = get_model_pricing("claude-haiku-4-5");
         assert!((cache_write - input * 1.25).abs() < 0.0001); // 1.0 * 1.25 = 1.25
-        assert!((cache_read - input * 0.10).abs() < 0.0001);  // 1.0 * 0.10 = 0.10
+        assert!((cache_read - input * 0.10).abs() < 0.0001); // 1.0 * 0.10 = 0.10
 
         // Test Opus
         let (input, _output, cache_write, cache_read) = get_model_pricing("claude-opus-4");
         assert!((cache_write - input * 1.25).abs() < 0.0001); // 15.0 * 1.25 = 18.75
-        assert!((cache_read - input * 0.10).abs() < 0.0001);  // 15.0 * 0.10 = 1.50
+        assert!((cache_read - input * 0.10).abs() < 0.0001); // 15.0 * 0.10 = 1.50
     }
 
     #[test]
@@ -1808,7 +1856,8 @@ malformed data here
         assert!((cache_read_cost - expected_cache_read).abs() < 0.00001);
 
         let total = input_cost + output_cost + cache_write_cost + cache_read_cost;
-        let expected_total = expected_input + expected_output + expected_cache_write + expected_cache_read;
+        let expected_total =
+            expected_input + expected_output + expected_cache_write + expected_cache_read;
         assert!((total - expected_total).abs() < 0.00001);
     }
 

@@ -2,7 +2,6 @@
 ///
 /// Tests the detect_agent_from_conversation() function against all 119 agents
 /// from orchestra-config.json with various edge cases and scenarios.
-
 use cco::proxy::Message;
 
 /// Helper function to create a system message
@@ -27,26 +26,68 @@ fn detect_agent_from_conversation(messages: &[Message]) -> Option<String> {
 
         // Pattern matching for known agents
         let patterns = vec![
-            ("chief-architect", vec!["chief architect", "strategic decision"]),
+            (
+                "chief-architect",
+                vec!["chief architect", "strategic decision"],
+            ),
             ("tdd-coding-agent", vec!["tdd", "test-driven", "test-first"]),
-            ("python-specialist", vec!["python specialist", "fastapi", "django"]),
-            ("swift-specialist", vec!["swift specialist", "swiftui", "ios"]),
-            ("rust-specialist", vec!["rust specialist", "systems programming"]),
-            ("go-specialist", vec!["go specialist", "golang", "microservice"]),
-            ("flutter-specialist", vec!["flutter specialist", "cross-platform mobile"]),
-            ("frontend-developer", vec!["frontend developer", "react", "javascript"]),
+            (
+                "python-specialist",
+                vec!["python specialist", "fastapi", "django"],
+            ),
+            (
+                "swift-specialist",
+                vec!["swift specialist", "swiftui", "ios"],
+            ),
+            (
+                "rust-specialist",
+                vec!["rust specialist", "systems programming"],
+            ),
+            (
+                "go-specialist",
+                vec!["go specialist", "golang", "microservice"],
+            ),
+            (
+                "flutter-specialist",
+                vec!["flutter specialist", "cross-platform mobile"],
+            ),
+            (
+                "frontend-developer",
+                vec!["frontend developer", "react", "javascript"],
+            ),
             ("fullstack-developer", vec!["full-stack", "fullstack"]),
-            ("devops-engineer", vec!["devops", "docker", "kubernetes", "deployment"]),
-            ("test-engineer", vec!["test engineer", "qa", "testing", "test automation"]),
+            (
+                "devops-engineer",
+                vec!["devops", "docker", "kubernetes", "deployment"],
+            ),
+            (
+                "test-engineer",
+                vec!["test engineer", "qa", "testing", "test automation"],
+            ),
             ("test-automator", vec!["test automator", "test automation"]),
-            ("documentation-expert", vec!["documentation", "technical writer", "api documenting"]),
-            ("security-auditor", vec!["security", "vulnerability", "penetration"]),
-            ("database-architect", vec!["database architect", "schema design"]),
+            (
+                "documentation-expert",
+                vec!["documentation", "technical writer", "api documenting"],
+            ),
+            (
+                "security-auditor",
+                vec!["security", "vulnerability", "penetration"],
+            ),
+            (
+                "database-architect",
+                vec!["database architect", "schema design"],
+            ),
             ("backend-architect", vec!["backend architect", "api design"]),
             ("code-reviewer", vec!["code review", "code quality"]),
-            ("architecture-modernizer", vec!["architecture", "modernization", "refactor"]),
+            (
+                "architecture-modernizer",
+                vec!["architecture", "modernization", "refactor"],
+            ),
             ("debugger", vec!["debugging", "error analysis"]),
-            ("performance-engineer", vec!["performance", "optimization", "profiling"]),
+            (
+                "performance-engineer",
+                vec!["performance", "optimization", "profiling"],
+            ),
         ];
 
         for (agent_type, keywords) in patterns {
@@ -487,15 +528,9 @@ mod agent_detection_tests {
 
     #[test]
     fn test_unrecognized_agent() {
-        assert!(test_detection(
-            "You are a blockchain specialist.",
-            None
-        ));
+        assert!(test_detection("You are a blockchain specialist.", None));
 
-        assert!(test_detection(
-            "You are a random agent type.",
-            None
-        ));
+        assert!(test_detection("You are a random agent type.", None));
 
         assert!(test_detection(
             "Generic system message with no keywords.",
@@ -532,9 +567,8 @@ mod agent_detection_tests {
     fn test_multiple_keywords_first_match_wins() {
         // Message contains both "FastAPI" (python-specialist) and "Docker" (devops-engineer)
         // Should match python-specialist since it comes first in the pattern list
-        let messages = create_system_message(
-            "You are building a FastAPI app with Docker deployment."
-        );
+        let messages =
+            create_system_message("You are building a FastAPI app with Docker deployment.");
         let detected = detect_agent_from_conversation(&messages);
         assert_eq!(detected.as_deref(), Some("python-specialist"));
     }
@@ -596,97 +630,199 @@ mod agent_detection_tests {
     #[test]
     fn test_all_pattern_keywords() {
         // Chief Architect patterns
-        assert!(test_detection("chief architect role", Some("chief-architect")));
-        assert!(test_detection("strategic decision making", Some("chief-architect")));
+        assert!(test_detection(
+            "chief architect role",
+            Some("chief-architect")
+        ));
+        assert!(test_detection(
+            "strategic decision making",
+            Some("chief-architect")
+        ));
 
         // TDD patterns
         assert!(test_detection("tdd methodology", Some("tdd-coding-agent")));
-        assert!(test_detection("test-driven approach", Some("tdd-coding-agent")));
-        assert!(test_detection("test-first development", Some("tdd-coding-agent")));
+        assert!(test_detection(
+            "test-driven approach",
+            Some("tdd-coding-agent")
+        ));
+        assert!(test_detection(
+            "test-first development",
+            Some("tdd-coding-agent")
+        ));
 
         // Python patterns
-        assert!(test_detection("python specialist", Some("python-specialist")));
-        assert!(test_detection("fastapi framework", Some("python-specialist")));
+        assert!(test_detection(
+            "python specialist",
+            Some("python-specialist")
+        ));
+        assert!(test_detection(
+            "fastapi framework",
+            Some("python-specialist")
+        ));
         assert!(test_detection("django project", Some("python-specialist")));
 
         // Swift patterns
         assert!(test_detection("swift specialist", Some("swift-specialist")));
-        assert!(test_detection("swiftui interface", Some("swift-specialist")));
+        assert!(test_detection(
+            "swiftui interface",
+            Some("swift-specialist")
+        ));
         assert!(test_detection("ios development", Some("swift-specialist")));
 
         // Rust patterns
         assert!(test_detection("rust specialist", Some("rust-specialist")));
-        assert!(test_detection("systems programming", Some("rust-specialist")));
+        assert!(test_detection(
+            "systems programming",
+            Some("rust-specialist")
+        ));
 
         // Go patterns
         assert!(test_detection("go specialist", Some("go-specialist")));
         assert!(test_detection("golang backend", Some("go-specialist")));
-        assert!(test_detection("microservice architecture", Some("go-specialist")));
+        assert!(test_detection(
+            "microservice architecture",
+            Some("go-specialist")
+        ));
 
         // Flutter patterns
-        assert!(test_detection("flutter specialist", Some("flutter-specialist")));
-        assert!(test_detection("cross-platform mobile", Some("flutter-specialist")));
+        assert!(test_detection(
+            "flutter specialist",
+            Some("flutter-specialist")
+        ));
+        assert!(test_detection(
+            "cross-platform mobile",
+            Some("flutter-specialist")
+        ));
 
         // Frontend patterns
-        assert!(test_detection("frontend developer", Some("frontend-developer")));
-        assert!(test_detection("react components", Some("frontend-developer")));
-        assert!(test_detection("javascript frameworks", Some("frontend-developer")));
+        assert!(test_detection(
+            "frontend developer",
+            Some("frontend-developer")
+        ));
+        assert!(test_detection(
+            "react components",
+            Some("frontend-developer")
+        ));
+        assert!(test_detection(
+            "javascript frameworks",
+            Some("frontend-developer")
+        ));
 
         // Fullstack patterns
-        assert!(test_detection("full-stack engineer", Some("fullstack-developer")));
-        assert!(test_detection("fullstack developer", Some("fullstack-developer")));
+        assert!(test_detection(
+            "full-stack engineer",
+            Some("fullstack-developer")
+        ));
+        assert!(test_detection(
+            "fullstack developer",
+            Some("fullstack-developer")
+        ));
 
         // DevOps patterns
         assert!(test_detection("devops practices", Some("devops-engineer")));
         assert!(test_detection("docker containers", Some("devops-engineer")));
-        assert!(test_detection("kubernetes cluster", Some("devops-engineer")));
-        assert!(test_detection("deployment pipeline", Some("devops-engineer")));
+        assert!(test_detection(
+            "kubernetes cluster",
+            Some("devops-engineer")
+        ));
+        assert!(test_detection(
+            "deployment pipeline",
+            Some("devops-engineer")
+        ));
 
         // Test Engineer patterns
         assert!(test_detection("test engineer", Some("test-engineer")));
         assert!(test_detection("qa processes", Some("test-engineer")));
         assert!(test_detection("testing framework", Some("test-engineer")));
-        assert!(test_detection("test automation suite", Some("test-engineer")));
+        assert!(test_detection(
+            "test automation suite",
+            Some("test-engineer")
+        ));
 
         // Test Automator patterns
         assert!(test_detection("test automator", Some("test-automator")));
-        assert!(test_detection("test automation framework", Some("test-automator")));
+        assert!(test_detection(
+            "test automation framework",
+            Some("test-automator")
+        ));
 
         // Documentation patterns
-        assert!(test_detection("documentation specialist", Some("documentation-expert")));
-        assert!(test_detection("technical writer", Some("documentation-expert")));
-        assert!(test_detection("api documenting", Some("documentation-expert")));
+        assert!(test_detection(
+            "documentation specialist",
+            Some("documentation-expert")
+        ));
+        assert!(test_detection(
+            "technical writer",
+            Some("documentation-expert")
+        ));
+        assert!(test_detection(
+            "api documenting",
+            Some("documentation-expert")
+        ));
 
         // Security patterns
         assert!(test_detection("security audit", Some("security-auditor")));
-        assert!(test_detection("vulnerability assessment", Some("security-auditor")));
-        assert!(test_detection("penetration testing", Some("security-auditor")));
+        assert!(test_detection(
+            "vulnerability assessment",
+            Some("security-auditor")
+        ));
+        assert!(test_detection(
+            "penetration testing",
+            Some("security-auditor")
+        ));
 
         // Database patterns
-        assert!(test_detection("database architect", Some("database-architect")));
+        assert!(test_detection(
+            "database architect",
+            Some("database-architect")
+        ));
         assert!(test_detection("schema design", Some("database-architect")));
 
         // Backend patterns
-        assert!(test_detection("backend architect", Some("backend-architect")));
+        assert!(test_detection(
+            "backend architect",
+            Some("backend-architect")
+        ));
         assert!(test_detection("api design", Some("backend-architect")));
 
         // Code Review patterns
         assert!(test_detection("code review process", Some("code-reviewer")));
-        assert!(test_detection("code quality standards", Some("code-reviewer")));
+        assert!(test_detection(
+            "code quality standards",
+            Some("code-reviewer")
+        ));
 
         // Architecture patterns
-        assert!(test_detection("architecture modernization", Some("architecture-modernizer")));
-        assert!(test_detection("modernization strategy", Some("architecture-modernizer")));
-        assert!(test_detection("refactor legacy", Some("architecture-modernizer")));
+        assert!(test_detection(
+            "architecture modernization",
+            Some("architecture-modernizer")
+        ));
+        assert!(test_detection(
+            "modernization strategy",
+            Some("architecture-modernizer")
+        ));
+        assert!(test_detection(
+            "refactor legacy",
+            Some("architecture-modernizer")
+        ));
 
         // Debugging patterns
         assert!(test_detection("debugging session", Some("debugger")));
         assert!(test_detection("error analysis", Some("debugger")));
 
         // Performance patterns
-        assert!(test_detection("performance optimization", Some("performance-engineer")));
-        assert!(test_detection("optimization techniques", Some("performance-engineer")));
-        assert!(test_detection("profiling analysis", Some("performance-engineer")));
+        assert!(test_detection(
+            "performance optimization",
+            Some("performance-engineer")
+        ));
+        assert!(test_detection(
+            "optimization techniques",
+            Some("performance-engineer")
+        ));
+        assert!(test_detection(
+            "profiling analysis",
+            Some("performance-engineer")
+        ));
     }
 
     // ========================================================================
@@ -740,26 +876,68 @@ mod test_statistics {
 
         // Count total patterns
         let patterns = vec![
-            ("chief-architect", vec!["chief architect", "strategic decision"]),
+            (
+                "chief-architect",
+                vec!["chief architect", "strategic decision"],
+            ),
             ("tdd-coding-agent", vec!["tdd", "test-driven", "test-first"]),
-            ("python-specialist", vec!["python specialist", "fastapi", "django"]),
-            ("swift-specialist", vec!["swift specialist", "swiftui", "ios"]),
-            ("rust-specialist", vec!["rust specialist", "systems programming"]),
-            ("go-specialist", vec!["go specialist", "golang", "microservice"]),
-            ("flutter-specialist", vec!["flutter specialist", "cross-platform mobile"]),
-            ("frontend-developer", vec!["frontend developer", "react", "javascript"]),
+            (
+                "python-specialist",
+                vec!["python specialist", "fastapi", "django"],
+            ),
+            (
+                "swift-specialist",
+                vec!["swift specialist", "swiftui", "ios"],
+            ),
+            (
+                "rust-specialist",
+                vec!["rust specialist", "systems programming"],
+            ),
+            (
+                "go-specialist",
+                vec!["go specialist", "golang", "microservice"],
+            ),
+            (
+                "flutter-specialist",
+                vec!["flutter specialist", "cross-platform mobile"],
+            ),
+            (
+                "frontend-developer",
+                vec!["frontend developer", "react", "javascript"],
+            ),
             ("fullstack-developer", vec!["full-stack", "fullstack"]),
-            ("devops-engineer", vec!["devops", "docker", "kubernetes", "deployment"]),
-            ("test-engineer", vec!["test engineer", "qa", "testing", "test automation"]),
+            (
+                "devops-engineer",
+                vec!["devops", "docker", "kubernetes", "deployment"],
+            ),
+            (
+                "test-engineer",
+                vec!["test engineer", "qa", "testing", "test automation"],
+            ),
             ("test-automator", vec!["test automator", "test automation"]),
-            ("documentation-expert", vec!["documentation", "technical writer", "api documenting"]),
-            ("security-auditor", vec!["security", "vulnerability", "penetration"]),
-            ("database-architect", vec!["database architect", "schema design"]),
+            (
+                "documentation-expert",
+                vec!["documentation", "technical writer", "api documenting"],
+            ),
+            (
+                "security-auditor",
+                vec!["security", "vulnerability", "penetration"],
+            ),
+            (
+                "database-architect",
+                vec!["database architect", "schema design"],
+            ),
             ("backend-architect", vec!["backend architect", "api design"]),
             ("code-reviewer", vec!["code review", "code quality"]),
-            ("architecture-modernizer", vec!["architecture", "modernization", "refactor"]),
+            (
+                "architecture-modernizer",
+                vec!["architecture", "modernization", "refactor"],
+            ),
             ("debugger", vec!["debugging", "error analysis"]),
-            ("performance-engineer", vec!["performance", "optimization", "profiling"]),
+            (
+                "performance-engineer",
+                vec!["performance", "optimization", "profiling"],
+            ),
         ];
 
         println!("Total Agent Types with Patterns: {}", patterns.len());

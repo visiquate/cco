@@ -27,7 +27,7 @@ use anyhow::{anyhow, Result};
 use portable_pty::{native_pty_system, CommandBuilder};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::{trace, error, info, warn};
+use tracing::{error, info, trace, warn};
 use uuid::Uuid;
 
 /// Wrapper for PTY master with Read + Write
@@ -64,18 +64,28 @@ impl PtyMaster {
         // SAFETY: master_fd_raw is a valid open FD that we own
         let read_fd_raw = unsafe { libc::dup(master_fd_raw) };
         if read_fd_raw < 0 {
-            panic!("Failed to duplicate PTY master FD for reading: {}", std::io::Error::last_os_error());
+            panic!(
+                "Failed to duplicate PTY master FD for reading: {}",
+                std::io::Error::last_os_error()
+            );
         }
 
         let write_fd_raw = unsafe { libc::dup(master_fd_raw) };
         if write_fd_raw < 0 {
-            unsafe { libc::close(read_fd_raw); }
-            panic!("Failed to duplicate PTY master FD for writing: {}", std::io::Error::last_os_error());
+            unsafe {
+                libc::close(read_fd_raw);
+            }
+            panic!(
+                "Failed to duplicate PTY master FD for writing: {}",
+                std::io::Error::last_os_error()
+            );
         }
 
         // Close the original FD now that we have our duplicates
         // SAFETY: master_fd_raw is valid and we own it
-        unsafe { libc::close(master_fd_raw); }
+        unsafe {
+            libc::close(master_fd_raw);
+        }
 
         // SAFETY: read_fd_raw and write_fd_raw are valid FDs from successful dup() calls
         unsafe {
@@ -91,7 +101,11 @@ impl PtyMaster {
         use std::os::unix::io::AsRawFd;
 
         let n = unsafe {
-            libc::read(self.read_fd.as_raw_fd(), buf.as_mut_ptr() as *mut libc::c_void, buf.len())
+            libc::read(
+                self.read_fd.as_raw_fd(),
+                buf.as_mut_ptr() as *mut libc::c_void,
+                buf.len(),
+            )
         };
 
         if n < 0 {
@@ -106,7 +120,11 @@ impl PtyMaster {
         use std::os::unix::io::AsRawFd;
 
         let n = unsafe {
-            libc::write(self.write_fd.as_raw_fd(), buf.as_ptr() as *const libc::c_void, buf.len())
+            libc::write(
+                self.write_fd.as_raw_fd(),
+                buf.as_ptr() as *const libc::c_void,
+                buf.len(),
+            )
         };
 
         if n < 0 {
@@ -267,14 +285,12 @@ impl TerminalSession {
         // Create PTY pair with 80x24 default size
         trace!("Creating PTY pair with 80x24 dimensions");
         let pair = pty_system
-            .openpty(
-                portable_pty::PtySize {
-                    rows: 24,
-                    cols: 80,
-                    pixel_width: 0,
-                    pixel_height: 0,
-                },
-            )
+            .openpty(portable_pty::PtySize {
+                rows: 24,
+                cols: 80,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
             .map_err(|e| {
                 error!("Failed to create PTY pair: {}", e);
                 anyhow!("Failed to create PTY: {}", e)
@@ -320,13 +336,10 @@ impl TerminalSession {
 
         // Spawn the child process
         trace!("Spawning shell process in PTY slave");
-        let child = pair
-            .slave
-            .spawn_command(cmd)
-            .map_err(|e| {
-                error!("Failed to spawn shell process: {}", e);
-                anyhow!("Failed to spawn shell: {}", e)
-            })?;
+        let child = pair.slave.spawn_command(cmd).map_err(|e| {
+            error!("Failed to spawn shell process: {}", e);
+            anyhow!("Failed to spawn shell: {}", e)
+        })?;
 
         info!(
             session_id = %session_id,
@@ -362,7 +375,9 @@ impl TerminalSession {
                     termios_struct.c_cc[libc::VTIME] = 0;
 
                     // Apply the new settings immediately (TCSANOW)
-                    if unsafe { libc::tcsetattr(master_fd_raw, libc::TCSANOW, &termios_struct) } == 0 {
+                    if unsafe { libc::tcsetattr(master_fd_raw, libc::TCSANOW, &termios_struct) }
+                        == 0
+                    {
                         trace!("PTY master configured for raw mode successfully");
                     } else {
                         warn!("Failed to configure PTY master for raw mode (tcsetattr failed)");
@@ -383,7 +398,9 @@ impl TerminalSession {
             // CRITICAL FD OWNERSHIP FIX:
             // Get the raw FD value from pair.master (without consuming it)
             // Note: as_raw_fd() returns Option<RawFd> for portable_pty's MasterPty trait
-            let master_fd_raw = pair.master.as_raw_fd()
+            let master_fd_raw = pair
+                .master
+                .as_raw_fd()
                 .ok_or_else(|| anyhow!("PTY master does not have a raw file descriptor"))?;
 
             // Duplicate the FD ONCE to get an owned copy
@@ -393,13 +410,13 @@ impl TerminalSession {
             // own duplicated FD that PtyMaster owns.
             let dup_fd = unsafe { libc::dup(master_fd_raw) };
             if dup_fd < 0 {
-                return Err(anyhow!("Failed to duplicate PTY master file descriptor: {}",
-                    std::io::Error::last_os_error()));
+                return Err(anyhow!(
+                    "Failed to duplicate PTY master file descriptor: {}",
+                    std::io::Error::last_os_error()
+                ));
             }
 
-            let master_fd = unsafe {
-                std::os::unix::io::OwnedFd::from_raw_fd(dup_fd)
-            };
+            let master_fd = unsafe { std::os::unix::io::OwnedFd::from_raw_fd(dup_fd) };
 
             // Drop pair.master explicitly to close the original FD before we pass our duplicate
             // to PtyMaster::from_fd(). This ensures clean FD ownership.
@@ -416,7 +433,9 @@ impl TerminalSession {
 
         #[cfg(not(unix))]
         {
-            Err(anyhow!("Terminal sessions only supported on Unix-like systems"))
+            Err(anyhow!(
+                "Terminal sessions only supported on Unix-like systems"
+            ))
         }
     }
 
@@ -527,16 +546,14 @@ impl TerminalSession {
         );
 
         // Flush the output (no-op for PTYs)
-        master
-            .flush()
-            .map_err(|e| {
-                error!(
-                    session_id = %self.session_id,
-                    error = %e,
-                    "PTY flush error"
-                );
-                anyhow!("Failed to flush shell input: {}", e)
-            })?;
+        master.flush().map_err(|e| {
+            error!(
+                session_id = %self.session_id,
+                error = %e,
+                "PTY flush error"
+            );
+            anyhow!("Failed to flush shell input: {}", e)
+        })?;
 
         trace!(
             session_id = %self.session_id,
@@ -738,16 +755,14 @@ impl TerminalSession {
             );
 
             // Kill the process
-            child_process
-                .kill()
-                .map_err(|e| {
-                    error!(
-                        session_id = %self.session_id,
-                        error = %e,
-                        "Failed to send SIGTERM to shell process"
-                    );
-                    anyhow!("Failed to kill shell process: {}", e)
-                })?;
+            child_process.kill().map_err(|e| {
+                error!(
+                    session_id = %self.session_id,
+                    error = %e,
+                    "Failed to send SIGTERM to shell process"
+                );
+                anyhow!("Failed to kill shell process: {}", e)
+            })?;
 
             trace!(
                 session_id = %self.session_id,
@@ -975,7 +990,10 @@ mod tests {
         assert!(session.is_ok(), "Should spawn shell successfully");
 
         let session = session.unwrap();
-        assert!(!session.session_id().is_empty(), "Session ID should not be empty");
+        assert!(
+            !session.session_id().is_empty(),
+            "Session ID should not be empty"
+        );
 
         // Check if process is running
         let running = session.is_running().await;

@@ -216,10 +216,7 @@ mod server_tests {
     async fn test_health_endpoint_returns_healthy_status() {
         // RED: Health endpoint doesn't exist yet
         let client = reqwest::Client::new();
-        let response = client
-            .get("http://localhost:3001/health")
-            .send()
-            .await;
+        let response = client.get("http://localhost:3001/health").send().await;
 
         assert!(response.is_ok());
         let response = response.unwrap();
@@ -236,10 +233,7 @@ mod server_tests {
     async fn test_status_endpoint_returns_detailed_info() {
         // RED: Status endpoint doesn't exist yet
         let client = reqwest::Client::new();
-        let response = client
-            .get("http://localhost:3001/status")
-            .send()
-            .await;
+        let response = client.get("http://localhost:3001/status").send().await;
 
         assert!(response.is_ok());
         let response = response.unwrap();
@@ -322,10 +316,7 @@ mod server_tests {
     async fn test_cors_headers_present() {
         // RED: CORS not configured yet
         let client = reqwest::Client::new();
-        let response = client
-            .get("http://localhost:3001/health")
-            .send()
-            .await;
+        let response = client.get("http://localhost:3001/health").send().await;
 
         assert!(response.is_ok());
         let response = response.unwrap();
@@ -339,7 +330,10 @@ mod server_tests {
         let client = reqwest::Client::new();
 
         // Test 404
-        let response = client.get("http://localhost:3001/api/nonexistent").send().await;
+        let response = client
+            .get("http://localhost:3001/api/nonexistent")
+            .send()
+            .await;
         assert!(response.is_ok());
         assert_eq!(response.unwrap().status(), 404);
 
@@ -370,7 +364,11 @@ mod server_tests {
 
         if context.get("truncated").unwrap() == &json!(true) {
             assert!(context.get("truncation_strategy").is_some());
-            let strategy = context.get("truncation_strategy").unwrap().as_str().unwrap();
+            let strategy = context
+                .get("truncation_strategy")
+                .unwrap()
+                .as_str()
+                .unwrap();
             assert!(["smart", "file_sampling", "semantic_chunking"].contains(&strategy));
         }
     }
@@ -385,7 +383,10 @@ mod server_tests {
             let client = client.clone();
             let handle = tokio::spawn(async move {
                 client
-                    .get(&format!("http://localhost:3001/api/context/issue-{}/python-specialist", i))
+                    .get(&format!(
+                        "http://localhost:3001/api/context/issue-{}/python-specialist",
+                        i
+                    ))
                     .header("Authorization", format!("Bearer {}", mock_jwt_token()))
                     .send()
                     .await

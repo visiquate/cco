@@ -32,7 +32,10 @@ impl CredentialDetector {
             ),
             (
                 "AWS Secret Access Key".to_string(),
-                Regex::new(r#"(?i)(aws.{0,20}?(?:secret|access.?key).{0,20}?['"][0-9a-zA-Z/+=]{40}['"])"#).unwrap(),
+                Regex::new(
+                    r#"(?i)(aws.{0,20}?(?:secret|access.?key).{0,20}?['"][0-9a-zA-Z/+=]{40}['"])"#,
+                )
+                .unwrap(),
             ),
             // API Keys
             (
@@ -220,7 +223,8 @@ mod tests {
     #[test]
     fn test_detect_private_key() {
         let detector = CredentialDetector::new();
-        let text = "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA...\n-----END RSA PRIVATE KEY-----";
+        let text =
+            "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA...\n-----END RSA PRIVATE KEY-----";
 
         let matches = detector.detect(text);
         assert!(!matches.is_empty());

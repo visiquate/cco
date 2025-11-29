@@ -1,11 +1,11 @@
 //! Persistence layer for metrics storage and retrieval
 //! Handles SQLite database operations for metrics, aggregations, and session tracking
 
+pub mod claude_history_models;
+pub mod claude_history_persistence;
+pub mod claude_history_schema;
 pub mod models;
 pub mod schema;
-pub mod claude_history_models;
-pub mod claude_history_schema;
-pub mod claude_history_persistence;
 
 use models::{ApiMetricRecord, DailySummary, HourlyAggregation, MonitoringSession};
 use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
@@ -59,10 +59,10 @@ impl PersistenceLayer {
         // Create connection pool with optimized settings
         // Pool provides fast connection reuse (<1ms acquisition)
         let pool = SqlitePoolOptions::new()
-            .max_connections(10)  // Increased for better concurrency
-            .min_connections(2)   // Keep 2 connections warm
+            .max_connections(10) // Increased for better concurrency
+            .min_connections(2) // Keep 2 connections warm
             .acquire_timeout(std::time::Duration::from_secs(5))
-            .idle_timeout(Some(std::time::Duration::from_secs(300)))  // 5 minutes
+            .idle_timeout(Some(std::time::Duration::from_secs(300))) // 5 minutes
             .connect(&database_url)
             .await?;
 
@@ -76,9 +76,7 @@ impl PersistenceLayer {
             .await?;
 
         // Create schema
-        sqlx::raw_sql(schema::SCHEMA)
-            .execute(&pool)
-            .await?;
+        sqlx::raw_sql(schema::SCHEMA).execute(&pool).await?;
 
         // Create Claude history schema
         sqlx::raw_sql(claude_history_schema::CLAUDE_HISTORY_SCHEMA)
@@ -130,7 +128,10 @@ impl PersistenceLayer {
     /// # Performance
     /// - Individual inserts: ~50ms per record
     /// - Batch insert: ~50ms per 100 records
-    pub async fn batch_record_events(&self, records: Vec<ApiMetricRecord>) -> PersistenceResult<usize> {
+    pub async fn batch_record_events(
+        &self,
+        records: Vec<ApiMetricRecord>,
+    ) -> PersistenceResult<usize> {
         if records.is_empty() {
             return Ok(0);
         }
@@ -335,10 +336,7 @@ impl PersistenceLayer {
     }
 
     /// Insert or update an hourly aggregation
-    pub async fn insert_hourly_aggregation(
-        &self,
-        agg: HourlyAggregation,
-    ) -> PersistenceResult<()> {
+    pub async fn insert_hourly_aggregation(&self, agg: HourlyAggregation) -> PersistenceResult<()> {
         sqlx::query(
             r#"
             INSERT INTO hourly_aggregations (hour_start, model_tier, total_calls,
@@ -794,7 +792,10 @@ mod tests {
         }
 
         let start = std::time::Instant::now();
-        persistence.batch_record_events(batch_records).await.unwrap();
+        persistence
+            .batch_record_events(batch_records)
+            .await
+            .unwrap();
         let batch_duration = start.elapsed();
 
         println!("Individual inserts (50): {:?}", individual_duration);

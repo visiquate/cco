@@ -107,7 +107,10 @@ impl SseClient {
                 break;
             }
 
-            trace!("SSE client attempting connection (attempt {})", retry_count + 1);
+            trace!(
+                "SSE client attempting connection (attempt {})",
+                retry_count + 1
+            );
 
             // Create event source
             let client = reqwest::Client::builder()
@@ -191,8 +194,8 @@ impl SseClient {
         trace!("Processing analytics event: {}", data);
 
         // Parse the SSE response
-        let response: SseStreamResponse = serde_json::from_str(data)
-            .context("Failed to parse analytics event JSON")?;
+        let response: SseStreamResponse =
+            serde_json::from_str(data).context("Failed to parse analytics event JSON")?;
 
         // Convert and record each activity event
         for event in response.activity {

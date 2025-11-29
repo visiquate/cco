@@ -16,16 +16,13 @@ pub use app::{App, AppState};
 pub use event::{Event, EventHandler};
 pub use terminal::Terminal;
 
+use crate::metrics::MetricsEngine;
+use crate::persistence::PersistenceLayer;
 use anyhow::Result;
 use std::path::Path;
-use crate::persistence::PersistenceLayer;
-use crate::metrics::MetricsEngine;
 
 /// Run the TUI dashboard
-pub async fn run_dashboard(
-    db_path: impl AsRef<Path>,
-    refresh_rate_ms: u64,
-) -> Result<()> {
+pub async fn run_dashboard(db_path: impl AsRef<Path>, refresh_rate_ms: u64) -> Result<()> {
     // Initialize persistence layer and metrics engine
     let persistence = PersistenceLayer::new(db_path).await?;
     let metrics_engine = MetricsEngine::new();
@@ -38,7 +35,9 @@ pub async fn run_dashboard(
     let event_handler = EventHandler::new(250); // 250ms event polling
 
     // Run the dashboard
-    terminal.draw_loop(app, event_handler, refresh_rate_ms).await?;
+    terminal
+        .draw_loop(app, event_handler, refresh_rate_ms)
+        .await?;
 
     Ok(())
 }

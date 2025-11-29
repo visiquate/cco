@@ -267,7 +267,7 @@ Claude Code will:
    Just describe your project to Claude Code and watch the orchestra deploy!
 
 3. **Monitor Progress**
-   - Check Knowledge Manager for agent coordination: `node src/knowledge-manager.js list`
+   - Check Knowledge Manager for agent coordination: `cco knowledge list`
    - Watch the TodoWrite list for progress tracking
    - Review outputs as agents complete their work
 

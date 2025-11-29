@@ -90,6 +90,15 @@ pub enum HookError {
     },
 }
 
+impl From<serde_json::Error> for HookError {
+    fn from(err: serde_json::Error) -> Self {
+        Self::ExecutionFailed {
+            hook_type: "json_serialization".to_string(),
+            message: err.to_string(),
+        }
+    }
+}
+
 impl HookError {
     /// Create a timeout error
     pub fn timeout(hook_type: impl Into<String>, duration: Duration) -> Self {

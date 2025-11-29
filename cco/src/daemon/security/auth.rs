@@ -73,21 +73,19 @@ impl TokenManager {
 
         // Ensure parent directory exists
         if let Some(parent) = storage_path.parent() {
-            fs::create_dir_all(parent)
-                .context("Failed to create token storage directory")?;
+            fs::create_dir_all(parent).context("Failed to create token storage directory")?;
         }
 
         // Load existing tokens or create new storage
         let tokens = if storage_path.exists() {
-            let content = fs::read_to_string(&storage_path)
-                .context("Failed to read token storage")?;
+            let content =
+                fs::read_to_string(&storage_path).context("Failed to read token storage")?;
 
             // Handle empty file
             if content.trim().is_empty() {
                 TokenStorage::default()
             } else {
-                serde_json::from_str(&content)
-                    .context("Failed to parse token storage")?
+                serde_json::from_str(&content).context("Failed to parse token storage")?
             }
         } else {
             TokenStorage::default()
@@ -103,14 +101,16 @@ impl TokenManager {
             manager.set_secure_permissions()?;
         }
 
-        info!("Token manager initialized with storage: {:?}", manager.storage_path);
+        info!(
+            "Token manager initialized with storage: {:?}",
+            manager.storage_path
+        );
         Ok(manager)
     }
 
     /// Set secure file permissions (600)
     fn set_secure_permissions(&self) -> Result<()> {
-        let metadata = fs::metadata(&self.storage_path)
-            .context("Failed to get file metadata")?;
+        let metadata = fs::metadata(&self.storage_path).context("Failed to get file metadata")?;
 
         let mut permissions = metadata.permissions();
         permissions.set_mode(0o600);
@@ -125,11 +125,10 @@ impl TokenManager {
     /// Persist tokens to disk
     async fn persist(&self) -> Result<()> {
         let tokens = self.tokens.read().await;
-        let content = serde_json::to_string_pretty(&*tokens)
-            .context("Failed to serialize tokens")?;
+        let content =
+            serde_json::to_string_pretty(&*tokens).context("Failed to serialize tokens")?;
 
-        fs::write(&self.storage_path, content)
-            .context("Failed to write token storage")?;
+        fs::write(&self.storage_path, content).context("Failed to write token storage")?;
 
         // Ensure permissions are secure after write
         self.set_secure_permissions()?;
@@ -182,7 +181,9 @@ impl TokenManager {
         let token_hash = Self::hash_token(token_value);
 
         let tokens = self.tokens.read().await;
-        let token = tokens.tokens.get(&token_hash)
+        let token = tokens
+            .tokens
+            .get(&token_hash)
             .ok_or_else(|| anyhow::anyhow!("Invalid token"))?;
 
         if !token.is_valid() {
@@ -234,7 +235,9 @@ impl TokenManager {
     /// List all active tokens (for admin purposes)
     pub async fn list_active_tokens(&self) -> Vec<Token> {
         let tokens = self.tokens.read().await;
-        tokens.tokens.values()
+        tokens
+            .tokens
+            .values()
             .filter(|t| t.is_valid())
             .cloned()
             .collect()
@@ -385,7 +388,10 @@ mod tests {
         let temp_file = NamedTempFile::new().unwrap();
         let manager = TokenManager::new(temp_file.path()).unwrap();
 
-        let token = manager.generate_token("test-project".to_string()).await.unwrap();
+        let token = manager
+            .generate_token("test-project".to_string())
+            .await
+            .unwrap();
         assert_eq!(token.len(), 36); // UUID v4 length
     }
 
@@ -394,7 +400,10 @@ mod tests {
         let temp_file = NamedTempFile::new().unwrap();
         let manager = TokenManager::new(temp_file.path()).unwrap();
 
-        let token_value = manager.generate_token("test-project".to_string()).await.unwrap();
+        let token_value = manager
+            .generate_token("test-project".to_string())
+            .await
+            .unwrap();
         let token = manager.validate_token(&token_value).await.unwrap();
 
         assert_eq!(token.project_id, "test-project");
@@ -415,7 +424,10 @@ mod tests {
         let temp_file = NamedTempFile::new().unwrap();
         let manager = TokenManager::new(temp_file.path()).unwrap();
 
-        let token_value = manager.generate_token("test-project".to_string()).await.unwrap();
+        let token_value = manager
+            .generate_token("test-project".to_string())
+            .await
+            .unwrap();
         manager.revoke_token(&token_value).await.unwrap();
 
         let result = manager.validate_token(&token_value).await;
@@ -459,13 +471,16 @@ mod tests {
 
         {
             let mut tokens = manager.tokens.write().await;
-            tokens.tokens.insert(token_hash, Token {
-                token_hash: TokenManager::hash_token(&token_value),
-                created_at: Utc::now() - Duration::hours(25),
-                expires_at: Utc::now() - Duration::hours(1),
-                project_id: "test".to_string(),
-                revoked: false,
-            });
+            tokens.tokens.insert(
+                token_hash,
+                Token {
+                    token_hash: TokenManager::hash_token(&token_value),
+                    created_at: Utc::now() - Duration::hours(25),
+                    expires_at: Utc::now() - Duration::hours(1),
+                    project_id: "test".to_string(),
+                    revoked: false,
+                },
+            );
         }
 
         let removed = manager.cleanup_expired().await.unwrap();

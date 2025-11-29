@@ -57,7 +57,11 @@ mod daemon_startup_tests {
         let _ = daemon.wait();
 
         // Assertions
-        assert!(listening, "Daemon should bind to port {} within 10 seconds", port);
+        assert!(
+            listening,
+            "Daemon should bind to port {} within 10 seconds",
+            port
+        );
     }
 
     #[tokio::test]
@@ -110,7 +114,10 @@ mod daemon_startup_tests {
         if let Ok(json) = resp.json::<serde_json::Value>().await {
             assert_eq!(json["status"], "ok", "Status should be 'ok'");
             assert!(json["version"].is_string(), "Version should be present");
-            assert!(json["cache_stats"].is_object(), "Cache stats should be present");
+            assert!(
+                json["cache_stats"].is_object(),
+                "Cache stats should be present"
+            );
             assert!(json["uptime"].is_number(), "Uptime should be present");
         }
     }
@@ -169,12 +176,7 @@ mod daemon_startup_tests {
         let client = reqwest::Client::new();
 
         // Test all critical endpoints
-        let endpoints = vec![
-            "/health",
-            "/ready",
-            "/api/agents",
-            "/api/stats",
-        ];
+        let endpoints = vec!["/health", "/ready", "/api/agents", "/api/stats"];
 
         let mut all_ok = true;
         for endpoint in endpoints {
@@ -263,7 +265,10 @@ mod tui_connection_tests {
         let _ = daemon.wait();
 
         // Verify connection succeeded
-        assert!(response.is_ok(), "TUI should connect to daemon API successfully");
+        assert!(
+            response.is_ok(),
+            "TUI should connect to daemon API successfully"
+        );
         assert_eq!(response.unwrap().status(), 200, "API should return 200");
     }
 
@@ -351,14 +356,8 @@ mod tui_connection_tests {
 
         if let Ok(json) = resp.json::<serde_json::Value>().await {
             // Check main structure
-            assert!(
-                json.get("project").is_some(),
-                "Should have 'project' field"
-            );
-            assert!(
-                json.get("machine").is_some(),
-                "Should have 'machine' field"
-            );
+            assert!(json.get("project").is_some(), "Should have 'project' field");
+            assert!(json.get("machine").is_some(), "Should have 'machine' field");
 
             // Verify project metrics
             if let Some(project) = json.get("project") {
@@ -370,8 +369,14 @@ mod tui_connection_tests {
             // Verify machine metrics
             if let Some(machine) = json.get("machine") {
                 assert!(machine.get("cpu").is_some(), "Machine should have cpu");
-                assert!(machine.get("memory").is_some(), "Machine should have memory");
-                assert!(machine.get("uptime").is_some(), "Machine should have uptime");
+                assert!(
+                    machine.get("memory").is_some(),
+                    "Machine should have memory"
+                );
+                assert!(
+                    machine.get("uptime").is_some(),
+                    "Machine should have uptime"
+                );
             }
         }
     }
@@ -752,7 +757,10 @@ mod error_handling_tests {
         let _ = daemon.kill();
         let _ = daemon.wait();
 
-        assert!(good_response.is_ok(), "Daemon should still be responsive after bad request");
+        assert!(
+            good_response.is_ok(),
+            "Daemon should still be responsive after bad request"
+        );
         assert_eq!(
             good_response.unwrap().status(),
             200,

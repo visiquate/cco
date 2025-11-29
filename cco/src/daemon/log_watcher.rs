@@ -12,9 +12,7 @@
 //! - Continues operation even if individual parse errors occur
 
 use anyhow::{Context, Result};
-use notify::{
-    Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
-};
+use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -72,14 +70,10 @@ impl LogWatcher {
                 "Watch path does not exist, will create: {}",
                 watch_path.display()
             );
-            std::fs::create_dir_all(&watch_path)
-                .context("Failed to create watch directory")?;
+            std::fs::create_dir_all(&watch_path).context("Failed to create watch directory")?;
         }
 
-        info!(
-            "Initializing log watcher for: {}",
-            watch_path.display()
-        );
+        info!("Initializing log watcher for: {}", watch_path.display());
 
         // Create channel for file change events
         let (tx, rx) = mpsc::channel(EVENT_CHANNEL_SIZE);
@@ -118,10 +112,7 @@ impl LogWatcher {
                                                         e
                                                     );
                                                 } else {
-                                                    debug!(
-                                                        "Queued file for parsing: {:?}",
-                                                        path
-                                                    );
+                                                    debug!("Queued file for parsing: {:?}", path);
                                                 }
                                             }
                                         });
@@ -130,7 +121,10 @@ impl LogWatcher {
                                         // Send synchronously using blocking channel
                                         debug!("No async runtime, skipping debounce check");
                                         if let Err(e) = tx.blocking_send(path.clone()) {
-                                            error!("Failed to send file change event (blocking): {}", e);
+                                            error!(
+                                                "Failed to send file change event (blocking): {}",
+                                                e
+                                            );
                                         }
                                     }
                                 }

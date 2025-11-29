@@ -120,10 +120,7 @@ pub struct PermissionResponse {
 
 impl PermissionResponse {
     /// Create a new permission response
-    pub fn new(
-        decision: PermissionDecision,
-        reasoning: impl Into<String>,
-    ) -> Self {
+    pub fn new(decision: PermissionDecision, reasoning: impl Into<String>) -> Self {
         Self {
             decision,
             reasoning: reasoning.into(),
@@ -326,10 +323,8 @@ mod tests {
 
     #[test]
     fn test_permission_response_creation() {
-        let response = PermissionResponse::new(
-            PermissionDecision::Approved,
-            "Safe operation"
-        ).with_confidence(0.95);
+        let response = PermissionResponse::new(PermissionDecision::Approved, "Safe operation")
+            .with_confidence(0.95);
 
         assert_eq!(response.decision, PermissionDecision::Approved);
         assert_eq!(response.reasoning, "Safe operation");
@@ -397,7 +392,9 @@ mod tests {
         let handler = PermissionHandler::new();
         let classification = ClassificationResult::new(CrudClassification::Read, 0.95);
 
-        let response = handler.process_classification("git status", classification).await;
+        let response = handler
+            .process_classification("git status", classification)
+            .await;
 
         assert_eq!(response.decision, PermissionDecision::Approved);
         assert_eq!(response.confidence, Some(0.95));

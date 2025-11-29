@@ -47,6 +47,7 @@ pub mod audit;
 pub mod config;
 pub mod error;
 pub mod executor;
+pub mod lifecycle;
 pub mod llm;
 pub mod permissions;
 pub mod registry;
@@ -57,6 +58,7 @@ pub use audit::{Decision, DecisionDatabase, DecisionStats, SqliteAuditDatabase};
 pub use config::{HookLlmConfig, HooksCallbacks, HooksConfig, HooksPermissions};
 pub use error::{HookError, HookResult};
 pub use executor::HookExecutor;
+pub use lifecycle::execute_lifecycle_hook;
 pub use llm::CrudClassifier;
 pub use permissions::{
     PermissionConfig, PermissionDecision, PermissionHandler, PermissionRequest, PermissionResponse,

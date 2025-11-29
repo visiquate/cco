@@ -137,14 +137,12 @@ impl SqliteAuditDatabase {
 
         // Ensure parent directory exists
         if let Some(parent) = db_path.parent() {
-            tokio::fs::create_dir_all(parent)
-                .await
-                .map_err(|e| {
-                    HookError::execution_failed(
-                        "audit_db_init",
-                        format!("Failed to create database directory: {}", e),
-                    )
-                })?;
+            tokio::fs::create_dir_all(parent).await.map_err(|e| {
+                HookError::execution_failed(
+                    "audit_db_init",
+                    format!("Failed to create database directory: {}", e),
+                )
+            })?;
         }
 
         // Create connection options with read-write mode
@@ -318,7 +316,10 @@ impl SqliteAuditDatabase {
 #[async_trait::async_trait]
 impl DecisionDatabase for SqliteAuditDatabase {
     async fn store_decision(&self, decision: Decision) -> HookResult<()> {
-        debug!("Storing decision: {} ({})", decision.command, decision.classification);
+        debug!(
+            "Storing decision: {} ({})",
+            decision.command, decision.classification
+        );
 
         // Sanitize command to remove credentials before storage
         let sanitized_command = self.sanitize_command(&decision.command);
@@ -359,7 +360,10 @@ impl DecisionDatabase for SqliteAuditDatabase {
     }
 
     async fn get_recent_decisions(&self, limit: usize, offset: usize) -> HookResult<Vec<Decision>> {
-        debug!("Fetching recent decisions (limit: {}, offset: {})", limit, offset);
+        debug!(
+            "Fetching recent decisions (limit: {}, offset: {})",
+            limit, offset
+        );
 
         let rows = sqlx::query(
             r#"
@@ -380,17 +384,30 @@ impl DecisionDatabase for SqliteAuditDatabase {
 
         let mut decisions = Vec::new();
         for row in rows {
-            let classification_str: String = row.try_get("classification")
-                .map_err(|e| HookError::execution_failed("parse_decision", format!("Failed to get classification: {}", e)))?;
-            let user_decision_str: String = row.try_get("user_decision")
-                .map_err(|e| HookError::execution_failed("parse_decision", format!("Failed to get user_decision: {}", e)))?;
+            let classification_str: String = row.try_get("classification").map_err(|e| {
+                HookError::execution_failed(
+                    "parse_decision",
+                    format!("Failed to get classification: {}", e),
+                )
+            })?;
+            let user_decision_str: String = row.try_get("user_decision").map_err(|e| {
+                HookError::execution_failed(
+                    "parse_decision",
+                    format!("Failed to get user_decision: {}", e),
+                )
+            })?;
 
             let classification = match classification_str.as_str() {
                 "Read" => CrudClassification::Read,
                 "Create" => CrudClassification::Create,
                 "Update" => CrudClassification::Update,
                 "Delete" => CrudClassification::Delete,
-                _ => return Err(HookError::execution_failed("parse_decision", format!("Invalid classification: {}", classification_str))),
+                _ => {
+                    return Err(HookError::execution_failed(
+                        "parse_decision",
+                        format!("Invalid classification: {}", classification_str),
+                    ))
+                }
             };
 
             let user_decision = match user_decision_str.as_str() {
@@ -398,19 +415,43 @@ impl DecisionDatabase for SqliteAuditDatabase {
                 "Denied" => PermissionDecision::Denied,
                 "Pending" => PermissionDecision::Pending,
                 "Skipped" => PermissionDecision::Skipped,
-                _ => return Err(HookError::execution_failed("parse_decision", format!("Invalid user_decision: {}", user_decision_str))),
+                _ => {
+                    return Err(HookError::execution_failed(
+                        "parse_decision",
+                        format!("Invalid user_decision: {}", user_decision_str),
+                    ))
+                }
             };
 
             // Parse timestamp from RFC3339 string
-            let timestamp_str: String = row.try_get("timestamp")
-                .map_err(|e| HookError::execution_failed("parse_decision", format!("Failed to get timestamp: {}", e)))?;
+            let timestamp_str: String = row.try_get("timestamp").map_err(|e| {
+                HookError::execution_failed(
+                    "parse_decision",
+                    format!("Failed to get timestamp: {}", e),
+                )
+            })?;
             let timestamp = DateTime::parse_from_rfc3339(&timestamp_str)
-                .map_err(|e| HookError::execution_failed("parse_decision", format!("Failed to parse timestamp: {}", e)))?
+                .map_err(|e| {
+                    HookError::execution_failed(
+                        "parse_decision",
+                        format!("Failed to parse timestamp: {}", e),
+                    )
+                })?
                 .with_timezone(&Utc);
 
             decisions.push(Decision {
-                id: row.try_get("id").map_err(|e| HookError::execution_failed("parse_decision", format!("Failed to get id: {}", e)))?,
-                command: row.try_get("command").map_err(|e| HookError::execution_failed("parse_decision", format!("Failed to get command: {}", e)))?,
+                id: row.try_get("id").map_err(|e| {
+                    HookError::execution_failed(
+                        "parse_decision",
+                        format!("Failed to get id: {}", e),
+                    )
+                })?,
+                command: row.try_get("command").map_err(|e| {
+                    HookError::execution_failed(
+                        "parse_decision",
+                        format!("Failed to get command: {}", e),
+                    )
+                })?,
                 classification,
                 timestamp,
                 user_decision,
@@ -428,46 +469,54 @@ impl DecisionDatabase for SqliteAuditDatabase {
         debug!("Calculating decision statistics");
 
         // Count by classification
-        let read_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM decisions WHERE classification = 'Read'")
-            .fetch_one(&self.pool)
-            .await
-            .unwrap_or(0);
+        let read_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM decisions WHERE classification = 'Read'")
+                .fetch_one(&self.pool)
+                .await
+                .unwrap_or(0);
 
-        let create_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM decisions WHERE classification = 'Create'")
-            .fetch_one(&self.pool)
-            .await
-            .unwrap_or(0);
+        let create_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM decisions WHERE classification = 'Create'")
+                .fetch_one(&self.pool)
+                .await
+                .unwrap_or(0);
 
-        let update_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM decisions WHERE classification = 'Update'")
-            .fetch_one(&self.pool)
-            .await
-            .unwrap_or(0);
+        let update_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM decisions WHERE classification = 'Update'")
+                .fetch_one(&self.pool)
+                .await
+                .unwrap_or(0);
 
-        let delete_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM decisions WHERE classification = 'Delete'")
-            .fetch_one(&self.pool)
-            .await
-            .unwrap_or(0);
+        let delete_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM decisions WHERE classification = 'Delete'")
+                .fetch_one(&self.pool)
+                .await
+                .unwrap_or(0);
 
         // Count by decision
-        let approved_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM decisions WHERE user_decision = 'Approved'")
-            .fetch_one(&self.pool)
-            .await
-            .unwrap_or(0);
+        let approved_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM decisions WHERE user_decision = 'Approved'")
+                .fetch_one(&self.pool)
+                .await
+                .unwrap_or(0);
 
-        let denied_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM decisions WHERE user_decision = 'Denied'")
-            .fetch_one(&self.pool)
-            .await
-            .unwrap_or(0);
+        let denied_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM decisions WHERE user_decision = 'Denied'")
+                .fetch_one(&self.pool)
+                .await
+                .unwrap_or(0);
 
-        let pending_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM decisions WHERE user_decision = 'Pending'")
-            .fetch_one(&self.pool)
-            .await
-            .unwrap_or(0);
+        let pending_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM decisions WHERE user_decision = 'Pending'")
+                .fetch_one(&self.pool)
+                .await
+                .unwrap_or(0);
 
-        let skipped_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM decisions WHERE user_decision = 'Skipped'")
-            .fetch_one(&self.pool)
-            .await
-            .unwrap_or(0);
+        let skipped_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM decisions WHERE user_decision = 'Skipped'")
+                .fetch_one(&self.pool)
+                .await
+                .unwrap_or(0);
 
         let total_requests = read_count + create_count + update_count + delete_count;
 
@@ -498,7 +547,10 @@ impl DecisionDatabase for SqliteAuditDatabase {
             .await
             .map_err(|e| {
                 error!("Failed to cleanup old decisions: {}", e);
-                HookError::execution_failed("cleanup_old_decisions", format!("Database error: {}", e))
+                HookError::execution_failed(
+                    "cleanup_old_decisions",
+                    format!("Database error: {}", e),
+                )
             })?;
 
         let deleted = result.rows_affected();
@@ -649,7 +701,8 @@ mod tests {
         let db = create_test_db().await;
 
         let mut decision = create_test_decision();
-        decision.command = "curl -H 'api_key=sk_test_1234567890abcdef' https://api.example.com".to_string();
+        decision.command =
+            "curl -H 'api_key=sk_test_1234567890abcdef' https://api.example.com".to_string();
 
         // Store decision
         db.store_decision(decision).await.unwrap();
@@ -697,7 +750,9 @@ mod tests {
         assert_eq!(decisions.len(), 1);
 
         // Command should be sanitized
-        assert!(!decisions[0].command.contains("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"));
+        assert!(!decisions[0]
+            .command
+            .contains("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"));
         assert!(decisions[0].command.contains("***"));
     }
 
@@ -706,7 +761,9 @@ mod tests {
         let db = create_test_db().await;
 
         let mut decision = create_test_decision();
-        decision.command = "git push https://ghp_1234567890abcdefghijklmnopqrstuv@github.com/user/repo".to_string();
+        decision.command =
+            "git push https://ghp_1234567890abcdefghijklmnopqrstuv@github.com/user/repo"
+                .to_string();
 
         // Store decision
         db.store_decision(decision).await.unwrap();
@@ -716,7 +773,9 @@ mod tests {
         assert_eq!(decisions.len(), 1);
 
         // Command should be sanitized
-        assert!(!decisions[0].command.contains("ghp_1234567890abcdefghijklmnopqrstuv"));
+        assert!(!decisions[0]
+            .command
+            .contains("ghp_1234567890abcdefghijklmnopqrstuv"));
         assert!(decisions[0].command.contains("***"));
     }
 
@@ -801,6 +860,10 @@ mod tests {
         let mode = permissions.mode();
 
         // Verify 0600 permissions (owner read/write only)
-        assert_eq!(mode & 0o777, 0o600, "Database file should have 0600 permissions");
+        assert_eq!(
+            mode & 0o777,
+            0o600,
+            "Database file should have 0600 permissions"
+        );
     }
 }

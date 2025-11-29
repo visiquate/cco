@@ -74,7 +74,7 @@ mod model_override_integration_tests {
     /// Analytics record
     #[derive(Clone, Debug)]
     struct AnalyticsRecord {
-        model: String, // The overridden model
+        model: String,                  // The overridden model
         original_model: Option<String>, // The requested model before override
         input_tokens: u32,
         output_tokens: u32,
@@ -500,14 +500,21 @@ mod model_override_integration_tests {
         proxy.handle_request(request3).await;
 
         // Then: analytics should show correct overrides
-        assert_eq!(proxy.get_override_count().await, 2, "Two sonnet requests should be overridden");
+        assert_eq!(
+            proxy.get_override_count().await,
+            2,
+            "Two sonnet requests should be overridden"
+        );
 
         let analytics = proxy.analytics.lock().await;
         assert_eq!(analytics.len(), 3);
 
         // First: sonnet → haiku (overridden)
         assert_eq!(analytics[0].model, "claude-haiku-4.5");
-        assert_eq!(analytics[0].original_model.as_ref().unwrap(), "claude-sonnet-4.5");
+        assert_eq!(
+            analytics[0].original_model.as_ref().unwrap(),
+            "claude-sonnet-4.5"
+        );
 
         // Second: opus → opus (unchanged)
         assert_eq!(analytics[1].model, "claude-opus-4");
@@ -515,7 +522,10 @@ mod model_override_integration_tests {
 
         // Third: sonnet → haiku (overridden)
         assert_eq!(analytics[2].model, "claude-haiku-4.5");
-        assert_eq!(analytics[2].original_model.as_ref().unwrap(), "claude-sonnet-4.5");
+        assert_eq!(
+            analytics[2].original_model.as_ref().unwrap(),
+            "claude-sonnet-4.5"
+        );
     }
 
     // ========== CACHE + OVERRIDE INTERACTION TESTS ==========

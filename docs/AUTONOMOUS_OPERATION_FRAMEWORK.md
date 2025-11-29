@@ -522,7 +522,7 @@ if (securityAudit.criticalVulnerabilities > 0) {
 # Use comprehensive questioning to understand project scope
 
 # 2. Initialize orchestra with Knowledge Manager
-node src/orchestra-conductor.js "Build [your project]"
+cco orchestra conduct "Build [your project]"
 
 # 3. Orchestra works autonomously with:
 #    - Automatic model fallback (Opus → Sonnet 4.5)

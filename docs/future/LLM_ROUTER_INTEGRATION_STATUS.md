@@ -258,11 +258,11 @@ Create a wrapper that spawns agents via API calls to the custom LLM instead of T
 2. **Set the token** in one of these ways:
 
    ```bash
-   # Option 1: Environment variable (recommended)
-   export CODER_LLM_TOKEN="your-token-here"
+   # Option 1: Use credential manager (recommended)
+   cco credentials store CODER_LLM_TOKEN "your-token-here" --credential-type api-token --service llm-router
 
-   # Option 2: Credential manager
-   npm run credentials store CODER_LLM_TOKEN "your-token-here" bearer_token
+   # Option 2: Environment variable (less secure)
+   export CODER_LLM_TOKEN="your-token-here"
    ```
 
 3. **Test the connection**:

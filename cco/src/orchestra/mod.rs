@@ -5,4 +5,4 @@
 
 pub mod config_parser;
 
-pub use config_parser::{OrchestraConfig, Agent, ClaudeAgent};
+pub use config_parser::{Agent, ClaudeAgent, OrchestraConfig};

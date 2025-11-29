@@ -233,12 +233,10 @@ pub fn validate_terminal_dimensions(cols: u16, rows: u16) -> Result<(), String> 
 /// * `Ok(())` if data is valid UTF-8
 /// * `Err(String)` with error message if encoding is invalid
 pub fn validate_utf8(data: &[u8]) -> Result<(), String> {
-    std::str::from_utf8(data)
-        .map(|_| ())
-        .map_err(|e| {
-            trace!("Invalid UTF-8 encoding: {}", e);
-            "Invalid UTF-8 encoding".to_string()
-        })
+    std::str::from_utf8(data).map(|_| ()).map_err(|e| {
+        trace!("Invalid UTF-8 encoding: {}", e);
+        "Invalid UTF-8 encoding".to_string()
+    })
 }
 
 #[cfg(test)]

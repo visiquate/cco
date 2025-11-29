@@ -69,8 +69,8 @@ impl OrchestraConfig {
         let content = fs::read_to_string(path)
             .with_context(|| format!("Failed to read orchestra config: {}", path))?;
 
-        let config: OrchestraConfig = serde_json::from_str(&content)
-            .context("Failed to parse orchestra-config.json")?;
+        let config: OrchestraConfig =
+            serde_json::from_str(&content).context("Failed to parse orchestra-config.json")?;
 
         Ok(config)
     }
@@ -102,7 +102,9 @@ impl OrchestraConfig {
 
         for agent in self.all_agents() {
             // Get role description (fallback to name if missing)
-            let role = agent.role.as_ref()
+            let role = agent
+                .role
+                .as_ref()
                 .map(|r| r.clone())
                 .unwrap_or_else(|| agent.name.clone());
 
@@ -112,7 +114,7 @@ impl OrchestraConfig {
                     description: role,
                     prompt: agent.prompt.clone(),
                     model: agent.model.clone(),
-                }
+                },
             );
         }
 
@@ -221,14 +223,21 @@ mod tests {
         let config = OrchestraConfig::load(config_path).unwrap();
 
         for agent in config.all_agents() {
-            assert!(!agent.prompt.is_empty(),
+            assert!(
+                !agent.prompt.is_empty(),
                 "Agent '{}' (type: {}) has empty prompt",
-                agent.name, agent.agent_type);
+                agent.name,
+                agent.agent_type
+            );
 
             // Verify prompt has reasonable content (at least 50 characters)
-            assert!(agent.prompt.len() >= 50,
+            assert!(
+                agent.prompt.len() >= 50,
                 "Agent '{}' (type: {}) has suspiciously short prompt: {} chars",
-                agent.name, agent.agent_type, agent.prompt.len());
+                agent.name,
+                agent.agent_type,
+                agent.prompt.len()
+            );
         }
     }
 }

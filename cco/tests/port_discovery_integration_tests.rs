@@ -13,11 +13,11 @@
 
 #[cfg(test)]
 mod port_discovery_integration_tests {
-    use cco::daemon::DaemonConfig;
     use cco::daemon::lifecycle::PidFileContent;
+    use cco::daemon::DaemonConfig;
+    use chrono::Utc;
     use std::fs;
     use tempfile::TempDir;
-    use chrono::Utc;
 
     /// Test that daemon can start on port 0 (random port assignment)
     #[tokio::test]
@@ -26,7 +26,10 @@ mod port_discovery_integration_tests {
         config.port = 0; // Request random port
 
         // Verify config accepts port 0
-        assert_eq!(config.port, 0, "Config should accept port 0 for random assignment");
+        assert_eq!(
+            config.port, 0,
+            "Config should accept port 0 for random assignment"
+        );
 
         // Verify validation allows port 0
         let validation_result = config.validate();
@@ -61,7 +64,10 @@ mod port_discovery_integration_tests {
 
         assert_ne!(parsed.port, 0, "Port should be assigned (not 0)");
         assert_ne!(parsed.port, 3000, "Port should not be hardcoded to 3000");
-        assert_eq!(parsed.port, discovered_port, "Port should match discovered port");
+        assert_eq!(
+            parsed.port, discovered_port,
+            "Port should match discovered port"
+        );
     }
 
     /// Test that read_daemon_port discovers the actual port from PID file
@@ -89,7 +95,10 @@ mod port_discovery_integration_tests {
 
         // Verify discovered port is correct
         assert_eq!(parsed.port, random_port);
-        assert!(parsed.port >= 1024, "Port should be in valid range (>= 1024)");
+        assert!(
+            parsed.port >= 1024,
+            "Port should be in valid range (>= 1024)"
+        );
         // Note: u16 type inherently ensures port <= 65535, so no need to check upper bound
     }
 
@@ -107,9 +116,14 @@ mod port_discovery_integration_tests {
             port: first_port,
             version: "2025.11.1".to_string(),
         };
-        fs::write(&pid_file_path, serde_json::to_string_pretty(&pid_content_1).unwrap()).unwrap();
+        fs::write(
+            &pid_file_path,
+            serde_json::to_string_pretty(&pid_content_1).unwrap(),
+        )
+        .unwrap();
 
-        let parsed_1: PidFileContent = serde_json::from_str(&fs::read_to_string(&pid_file_path).unwrap()).unwrap();
+        let parsed_1: PidFileContent =
+            serde_json::from_str(&fs::read_to_string(&pid_file_path).unwrap()).unwrap();
         assert_eq!(parsed_1.port, first_port);
 
         // Simulate restart with different random port
@@ -122,13 +136,21 @@ mod port_discovery_integration_tests {
             port: second_port,
             version: "2025.11.1".to_string(),
         };
-        fs::write(&pid_file_path, serde_json::to_string_pretty(&pid_content_2).unwrap()).unwrap();
+        fs::write(
+            &pid_file_path,
+            serde_json::to_string_pretty(&pid_content_2).unwrap(),
+        )
+        .unwrap();
 
-        let parsed_2: PidFileContent = serde_json::from_str(&fs::read_to_string(&pid_file_path).unwrap()).unwrap();
+        let parsed_2: PidFileContent =
+            serde_json::from_str(&fs::read_to_string(&pid_file_path).unwrap()).unwrap();
         assert_eq!(parsed_2.port, second_port);
 
         // Verify ports are different
-        assert_ne!(parsed_1.port, parsed_2.port, "Ports should differ across restarts");
+        assert_ne!(
+            parsed_1.port, parsed_2.port,
+            "Ports should differ across restarts"
+        );
         assert_ne!(parsed_1.port, 3000, "First port should not be 3000");
         assert_ne!(parsed_2.port, 3000, "Second port should not be 3000");
     }
@@ -164,7 +186,11 @@ mod port_discovery_integration_tests {
             port: discovered_port,
             version: "2025.11.1".to_string(),
         };
-        fs::write(&pid_file_path, serde_json::to_string_pretty(&pid_content).unwrap()).unwrap();
+        fs::write(
+            &pid_file_path,
+            serde_json::to_string_pretty(&pid_content).unwrap(),
+        )
+        .unwrap();
 
         // Verify API URL construction
         let contents = fs::read_to_string(&pid_file_path).unwrap();
@@ -172,7 +198,10 @@ mod port_discovery_integration_tests {
 
         let api_url = format!("http://localhost:{}", parsed.port);
         assert_eq!(api_url, "http://localhost:58912");
-        assert!(!api_url.contains("3000"), "API URL should not contain hardcoded port 3000");
+        assert!(
+            !api_url.contains("3000"),
+            "API URL should not contain hardcoded port 3000"
+        );
     }
 
     /// Test that launcher sets correct ORCHESTRATOR_API_URL
@@ -191,7 +220,11 @@ mod port_discovery_integration_tests {
             port: random_port,
             version: "2025.11.1".to_string(),
         };
-        fs::write(&pid_file_path, serde_json::to_string_pretty(&pid_content).unwrap()).unwrap();
+        fs::write(
+            &pid_file_path,
+            serde_json::to_string_pretty(&pid_content).unwrap(),
+        )
+        .unwrap();
 
         // Read discovered port
         let contents = fs::read_to_string(&pid_file_path).unwrap();
@@ -203,7 +236,10 @@ mod port_discovery_integration_tests {
 
         let env_value = env::var("ORCHESTRATOR_API_URL_TEST").unwrap();
         assert_eq!(env_value, format!("http://localhost:{}", random_port));
-        assert!(!env_value.contains("3000"), "Environment variable should not contain hardcoded port 3000");
+        assert!(
+            !env_value.contains("3000"),
+            "Environment variable should not contain hardcoded port 3000"
+        );
 
         // Cleanup
         env::remove_var("ORCHESTRATOR_API_URL_TEST");
@@ -226,14 +262,23 @@ mod port_discovery_integration_tests {
             port: 0, // Before binding
             version: original_version.clone(),
         };
-        fs::write(&pid_file_path, serde_json::to_string_pretty(&content).unwrap()).unwrap();
+        fs::write(
+            &pid_file_path,
+            serde_json::to_string_pretty(&content).unwrap(),
+        )
+        .unwrap();
 
         // Simulate port discovery and update
         content.port = 55555; // After binding
-        fs::write(&pid_file_path, serde_json::to_string_pretty(&content).unwrap()).unwrap();
+        fs::write(
+            &pid_file_path,
+            serde_json::to_string_pretty(&content).unwrap(),
+        )
+        .unwrap();
 
         // Verify update preserved other fields
-        let parsed: PidFileContent = serde_json::from_str(&fs::read_to_string(&pid_file_path).unwrap()).unwrap();
+        let parsed: PidFileContent =
+            serde_json::from_str(&fs::read_to_string(&pid_file_path).unwrap()).unwrap();
         assert_eq!(parsed.pid, original_pid);
         assert_eq!(parsed.started_at, original_time);
         assert_eq!(parsed.version, original_version);
@@ -253,7 +298,11 @@ mod port_discovery_integration_tests {
             port: test_port,
             version: "2025.11.1".to_string(),
         };
-        fs::write(&pid_file_path, serde_json::to_string_pretty(&pid_content).unwrap()).unwrap();
+        fs::write(
+            &pid_file_path,
+            serde_json::to_string_pretty(&pid_content).unwrap(),
+        )
+        .unwrap();
 
         // Spawn multiple concurrent reads
         let path1 = pid_file_path.clone();
@@ -307,7 +356,10 @@ mod port_discovery_integration_tests {
 
         // Verify error message is helpful (should not suggest connecting to port 3000)
         let error_msg = result.unwrap_err().to_string();
-        assert!(!error_msg.contains("3000"), "Error should not mention hardcoded port 3000");
+        assert!(
+            !error_msg.contains("3000"),
+            "Error should not mention hardcoded port 3000"
+        );
     }
 
     /// Test that status command would display correct port
@@ -324,7 +376,11 @@ mod port_discovery_integration_tests {
             port: status_port,
             version: "2025.11.1".to_string(),
         };
-        fs::write(&pid_file_path, serde_json::to_string_pretty(&pid_content).unwrap()).unwrap();
+        fs::write(
+            &pid_file_path,
+            serde_json::to_string_pretty(&pid_content).unwrap(),
+        )
+        .unwrap();
 
         // Read PID file (as status command would)
         let contents = fs::read_to_string(&pid_file_path).unwrap();
@@ -371,7 +427,11 @@ mod port_discovery_integration_tests {
             port: manager_port,
             version: "2025.11.1".to_string(),
         };
-        fs::write(&pid_file_path, serde_json::to_string_pretty(&pid_content).unwrap()).unwrap();
+        fs::write(
+            &pid_file_path,
+            serde_json::to_string_pretty(&pid_content).unwrap(),
+        )
+        .unwrap();
 
         // Verify manager would construct correct URL
         let contents = fs::read_to_string(&pid_file_path).unwrap();

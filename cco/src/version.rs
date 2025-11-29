@@ -104,23 +104,12 @@ impl DateVersion {
     pub fn git_hash(&self) -> Option<&str> {
         self.git_hash.as_deref()
     }
-
-    /// Format as string
-    pub fn to_string(&self) -> String {
-        if let Some(hash) = &self.git_hash {
-            format!("{}.{}.{}+{}", self.year, self.month, self.release, hash)
-        } else {
-            format!("{}.{}.{}", self.year, self.month, self.release)
-        }
-    }
 }
 
 impl PartialEq for DateVersion {
     fn eq(&self, other: &Self) -> bool {
         // Compare only semantic version parts, ignore git hash
-        self.year == other.year
-            && self.month == other.month
-            && self.release == other.release
+        self.year == other.year && self.month == other.month && self.release == other.release
     }
 }
 
@@ -154,7 +143,11 @@ impl Ord for DateVersion {
 
 impl std::fmt::Display for DateVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.to_string())
+        if let Some(hash) = &self.git_hash {
+            write!(f, "{}.{}.{}+{}", self.year, self.month, self.release, hash)
+        } else {
+            write!(f, "{}.{}.{}", self.year, self.month, self.release)
+        }
     }
 }
 

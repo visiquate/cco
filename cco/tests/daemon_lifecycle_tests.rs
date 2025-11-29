@@ -9,7 +9,10 @@
 
 #[cfg(test)]
 mod daemon_lifecycle_tests {
-    use cco::daemon::{DaemonConfig, DaemonManager, get_daemon_config_file, get_daemon_log_file, get_daemon_pid_file};
+    use cco::daemon::{
+        get_daemon_config_file, get_daemon_log_file, get_daemon_pid_file, DaemonConfig,
+        DaemonManager,
+    };
     use tempfile::TempDir;
 
     #[test]
@@ -35,8 +38,8 @@ mod daemon_lifecycle_tests {
     fn test_daemon_config_validation_accepts_port_zero() {
         let mut config = DaemonConfig::default();
         config.port = 0; // Port 0 is now valid (random OS assignment)
-        // This should now pass validation
-        // Note: Actual implementation may need validation logic update
+                         // This should now pass validation
+                         // Note: Actual implementation may need validation logic update
         assert_eq!(config.port, 0);
     }
 
@@ -52,7 +55,11 @@ mod daemon_lifecycle_tests {
         for level in &["debug", "info", "warn", "error"] {
             let mut config = DaemonConfig::default();
             config.log_level = level.to_string();
-            assert!(config.validate().is_ok(), "Log level '{}' should be valid", level);
+            assert!(
+                config.validate().is_ok(),
+                "Log level '{}' should be valid",
+                level
+            );
         }
     }
 
@@ -284,7 +291,10 @@ mod daemon_service_tests {
     #[cfg(any(target_os = "macos", target_os = "linux"))]
     fn test_get_service_manager() {
         let result = service::get_service_manager();
-        assert!(result.is_ok(), "Service manager should be available on supported platforms");
+        assert!(
+            result.is_ok(),
+            "Service manager should be available on supported platforms"
+        );
     }
 
     #[test]
@@ -387,10 +397,7 @@ mod daemon_linux_tests {
 
 #[cfg(test)]
 mod random_port_discovery_tests {
-    use cco::daemon::{
-        DaemonConfig,
-        lifecycle::PidFileContent
-    };
+    use cco::daemon::{lifecycle::PidFileContent, DaemonConfig};
     use chrono::Utc;
     use std::fs;
     use tempfile::TempDir;
@@ -413,7 +420,10 @@ mod random_port_discovery_tests {
         fs::write(&pid_file_path, pid_json).unwrap();
 
         // Override PID file location by setting environment variable
-        std::env::set_var("CCO_TEST_PID_FILE", pid_file_path.to_string_lossy().to_string());
+        std::env::set_var(
+            "CCO_TEST_PID_FILE",
+            pid_file_path.to_string_lossy().to_string(),
+        );
 
         // NOTE: This test requires the read_daemon_port function to support
         // test environment variables or we need to test via integration tests
@@ -546,7 +556,10 @@ mod random_port_discovery_tests {
         assert_eq!(parsed_2.port, second_port);
 
         // Verify ports are different (in real scenario, OS would assign different ports)
-        assert_ne!(parsed_1.port, parsed_2.port, "Ports should differ across restarts");
+        assert_ne!(
+            parsed_1.port, parsed_2.port,
+            "Ports should differ across restarts"
+        );
     }
 
     /// Test daemon status shows random port correctly
@@ -673,7 +686,10 @@ mod random_port_discovery_tests {
 
         // Simulate launcher setting discovered port
         let discovered_port = 54321;
-        env::set_var("ORCHESTRATOR_API_URL", format!("http://localhost:{}", discovered_port));
+        env::set_var(
+            "ORCHESTRATOR_API_URL",
+            format!("http://localhost:{}", discovered_port),
+        );
 
         let api_url = env::var("ORCHESTRATOR_API_URL").unwrap();
         assert_eq!(api_url, "http://localhost:54321");

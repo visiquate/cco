@@ -100,6 +100,34 @@ impl TempFileManager {
             },
 
             "hooks": {
+                "PreToolUse": [],
+                "PostToolUse": [],
+                "Notification": [],
+                "UserPromptSubmit": [],
+                "SessionStart": [
+                    json!({
+                        "type": "http",
+                        "url": format!("http://{}:{}/api/knowledge/session-start", daemon_config.host, daemon_config.port),
+                        "method": "POST",
+                        "timeout_ms": 5000,
+                    })
+                ],
+                "SessionEnd": [],
+                "Stop": [],
+                "SubagentStart": [],
+                "SubagentStop": [],
+                "PreCompact": [
+                    json!({
+                        "type": "http",
+                        "url": format!("http://{}:{}/api/knowledge/pre-compaction", daemon_config.host, daemon_config.port),
+                        "method": "POST",
+                        "timeout_ms": 10000,
+                    })
+                ],
+                "PermissionRequest": []
+            },
+
+            "hooks_config": {
                 "enabled": daemon_config.hooks.enabled,
                 "timeout_ms": daemon_config.hooks.timeout_ms,
                 "max_retries": daemon_config.hooks.max_retries,
@@ -136,7 +164,10 @@ impl TempFileManager {
             fs::set_permissions(&self.settings_path, fs::Permissions::from_mode(0o644))?;
         }
 
-        tracing::info!("Wrote orchestrator settings to: {}", self.settings_path.display());
+        tracing::info!(
+            "Wrote orchestrator settings to: {}",
+            self.settings_path.display()
+        );
 
         Ok(())
     }
@@ -172,7 +203,11 @@ impl TempFileManager {
 
     /// Clean up all temporary files
     pub async fn cleanup_files(&self) -> Result<()> {
-        for path in [&self.settings_path, &self.system_prompt_path, &self.agents_json_path] {
+        for path in [
+            &self.settings_path,
+            &self.system_prompt_path,
+            &self.agents_json_path,
+        ] {
             if path.exists() {
                 fs::remove_file(path).ok();
             }
@@ -221,10 +256,7 @@ impl TempFileManager {
         const OBFUSCATED: &[u8] = include_bytes!("../../config/orchestrator-prompt.bin");
         const XOR_KEY: u8 = 0xA7;
 
-        let content: Vec<u8> = OBFUSCATED
-            .iter()
-            .map(|b| b ^ XOR_KEY)
-            .collect();
+        let content: Vec<u8> = OBFUSCATED.iter().map(|b| b ^ XOR_KEY).collect();
 
         let content_str = String::from_utf8(content)?;
 
@@ -253,6 +285,20 @@ impl TempFileManager {
                 "api_url": api_url
             },
             "hooks": {
+                "PreToolUse": [],
+                "PostToolUse": [],
+                "Notification": [],
+                "UserPromptSubmit": [],
+                "SessionStart": [],
+                "SessionEnd": [],
+                "Stop": [],
+                "SubagentStart": [],
+                "SubagentStop": [],
+                "PreCompact": [],
+                "PermissionRequest": []
+            },
+
+            "hooks_config": {
                 "enabled": true,
                 "timeout_ms": 5000,
                 "max_retries": 2,
@@ -355,54 +401,151 @@ mod tests {
         let temp_manager = TempFileManager::new();
 
         // Write settings with daemon config
-        temp_manager.write_orchestrator_settings(&config).await.unwrap();
+        temp_manager
+            .write_orchestrator_settings(&config)
+            .await
+            .unwrap();
 
         // Read settings file
         let settings_content = fs::read_to_string(temp_manager.settings_path()).unwrap();
         let settings: serde_json::Value = serde_json::from_str(&settings_content).unwrap();
 
-        // Verify hooks section exists
+        // Verify hooks section exists (new format with hook types)
         assert!(settings.get("hooks").is_some(), "hooks section missing");
-
         let hooks = settings["hooks"].as_object().unwrap();
 
+        // Verify all hook types are present
+        assert!(hooks.contains_key("PreToolUse"), "hooks.PreToolUse missing");
+        assert!(
+            hooks.contains_key("PostToolUse"),
+            "hooks.PostToolUse missing"
+        );
+        assert!(
+            hooks.contains_key("Notification"),
+            "hooks.Notification missing"
+        );
+        assert!(
+            hooks.contains_key("UserPromptSubmit"),
+            "hooks.UserPromptSubmit missing"
+        );
+        assert!(
+            hooks.contains_key("SessionStart"),
+            "hooks.SessionStart missing"
+        );
+        assert!(hooks.contains_key("SessionEnd"), "hooks.SessionEnd missing");
+        assert!(hooks.contains_key("Stop"), "hooks.Stop missing");
+        assert!(
+            hooks.contains_key("SubagentStart"),
+            "hooks.SubagentStart missing"
+        );
+        assert!(
+            hooks.contains_key("SubagentStop"),
+            "hooks.SubagentStop missing"
+        );
+        assert!(hooks.contains_key("PreCompact"), "hooks.PreCompact missing");
+        assert!(
+            hooks.contains_key("PermissionRequest"),
+            "hooks.PermissionRequest missing"
+        );
+
+        // Verify hooks_config section exists
+        assert!(
+            settings.get("hooks_config").is_some(),
+            "hooks_config section missing"
+        );
+        let hooks_config = settings["hooks_config"].as_object().unwrap();
+
         // Verify hooks configuration fields
-        assert!(hooks.contains_key("enabled"), "hooks.enabled missing");
-        assert!(hooks.contains_key("timeout_ms"), "hooks.timeout_ms missing");
-        assert!(hooks.contains_key("max_retries"), "hooks.max_retries missing");
-        assert!(hooks.contains_key("llm"), "hooks.llm missing");
-        assert!(hooks.contains_key("permissions"), "hooks.permissions missing");
+        assert!(
+            hooks_config.contains_key("enabled"),
+            "hooks_config.enabled missing"
+        );
+        assert!(
+            hooks_config.contains_key("timeout_ms"),
+            "hooks_config.timeout_ms missing"
+        );
+        assert!(
+            hooks_config.contains_key("max_retries"),
+            "hooks_config.max_retries missing"
+        );
+        assert!(hooks_config.contains_key("llm"), "hooks_config.llm missing");
+        assert!(
+            hooks_config.contains_key("permissions"),
+            "hooks_config.permissions missing"
+        );
 
         // Verify LLM configuration
-        let llm = hooks["llm"].as_object().unwrap();
+        let llm = hooks_config["llm"].as_object().unwrap();
         assert!(llm.contains_key("model_type"), "llm.model_type missing");
         assert!(llm.contains_key("model_name"), "llm.model_name missing");
         assert!(llm.contains_key("model_path"), "llm.model_path missing");
-        assert!(llm.contains_key("model_size_mb"), "llm.model_size_mb missing");
+        assert!(
+            llm.contains_key("model_size_mb"),
+            "llm.model_size_mb missing"
+        );
         assert!(llm.contains_key("quantization"), "llm.quantization missing");
         assert!(llm.contains_key("loaded"), "llm.loaded missing");
-        assert!(llm.contains_key("inference_timeout_ms"), "llm.inference_timeout_ms missing");
+        assert!(
+            llm.contains_key("inference_timeout_ms"),
+            "llm.inference_timeout_ms missing"
+        );
         assert!(llm.contains_key("temperature"), "llm.temperature missing");
 
         // Verify permissions configuration
-        let perms = hooks["permissions"].as_object().unwrap();
-        assert!(perms.contains_key("allow_command_modification"), "permissions.allow_command_modification missing");
-        assert!(perms.contains_key("allow_execution_blocking"), "permissions.allow_execution_blocking missing");
-        assert!(perms.contains_key("allow_external_calls"), "permissions.allow_external_calls missing");
-        assert!(perms.contains_key("allow_env_access"), "permissions.allow_env_access missing");
-        assert!(perms.contains_key("allow_file_read"), "permissions.allow_file_read missing");
-        assert!(perms.contains_key("allow_file_write"), "permissions.allow_file_write missing");
+        let perms = hooks_config["permissions"].as_object().unwrap();
+        assert!(
+            perms.contains_key("allow_command_modification"),
+            "permissions.allow_command_modification missing"
+        );
+        assert!(
+            perms.contains_key("allow_execution_blocking"),
+            "permissions.allow_execution_blocking missing"
+        );
+        assert!(
+            perms.contains_key("allow_external_calls"),
+            "permissions.allow_external_calls missing"
+        );
+        assert!(
+            perms.contains_key("allow_env_access"),
+            "permissions.allow_env_access missing"
+        );
+        assert!(
+            perms.contains_key("allow_file_read"),
+            "permissions.allow_file_read missing"
+        );
+        assert!(
+            perms.contains_key("allow_file_write"),
+            "permissions.allow_file_write missing"
+        );
 
         // Verify daemon section
         assert!(settings.get("daemon").is_some(), "daemon section missing");
-        assert!(settings["daemon"].get("host").is_some(), "daemon.host missing");
-        assert!(settings["daemon"].get("port").is_some(), "daemon.port missing");
-        assert!(settings["daemon"].get("version").is_some(), "daemon.version missing");
+        assert!(
+            settings["daemon"].get("host").is_some(),
+            "daemon.host missing"
+        );
+        assert!(
+            settings["daemon"].get("port").is_some(),
+            "daemon.port missing"
+        );
+        assert!(
+            settings["daemon"].get("version").is_some(),
+            "daemon.version missing"
+        );
 
         // Verify orchestrator section
-        assert!(settings.get("orchestrator").is_some(), "orchestrator section missing");
-        assert!(settings["orchestrator"].get("enabled").is_some(), "orchestrator.enabled missing");
-        assert!(settings["orchestrator"].get("api_url").is_some(), "orchestrator.api_url missing");
+        assert!(
+            settings.get("orchestrator").is_some(),
+            "orchestrator section missing"
+        );
+        assert!(
+            settings["orchestrator"].get("enabled").is_some(),
+            "orchestrator.enabled missing"
+        );
+        assert!(
+            settings["orchestrator"].get("api_url").is_some(),
+            "orchestrator.api_url missing"
+        );
 
         // Cleanup
         temp_manager.cleanup_files().await.unwrap();
@@ -420,20 +563,37 @@ mod tests {
         config.hooks.permissions.allow_file_read = true;
 
         let temp_manager = TempFileManager::new();
-        temp_manager.write_orchestrator_settings(&config).await.unwrap();
+        temp_manager
+            .write_orchestrator_settings(&config)
+            .await
+            .unwrap();
 
         // Read and verify
         let settings_content = fs::read_to_string(temp_manager.settings_path()).unwrap();
         let settings: serde_json::Value = serde_json::from_str(&settings_content).unwrap();
 
-        // Verify customized values
-        assert_eq!(settings["hooks"]["enabled"].as_bool().unwrap(), true);
-        assert_eq!(settings["hooks"]["timeout_ms"].as_u64().unwrap(), 7500);
-        assert_eq!(settings["hooks"]["max_retries"].as_u64().unwrap(), 5);
+        // Verify customized values in hooks_config (not hooks)
+        assert_eq!(settings["hooks_config"]["enabled"].as_bool().unwrap(), true);
+        assert_eq!(
+            settings["hooks_config"]["timeout_ms"].as_u64().unwrap(),
+            7500
+        );
+        assert_eq!(settings["hooks_config"]["max_retries"].as_u64().unwrap(), 5);
         // Use approximate comparison for floating point
-        let temp = settings["hooks"]["llm"]["temperature"].as_f64().unwrap();
-        assert!((temp - 0.2).abs() < 0.01, "Temperature should be approximately 0.2, got {}", temp);
-        assert_eq!(settings["hooks"]["permissions"]["allow_file_read"].as_bool().unwrap(), true);
+        let temp = settings["hooks_config"]["llm"]["temperature"]
+            .as_f64()
+            .unwrap();
+        assert!(
+            (temp - 0.2).abs() < 0.01,
+            "Temperature should be approximately 0.2, got {}",
+            temp
+        );
+        assert_eq!(
+            settings["hooks_config"]["permissions"]["allow_file_read"]
+                .as_bool()
+                .unwrap(),
+            true
+        );
 
         // Cleanup
         temp_manager.cleanup_files().await.unwrap();

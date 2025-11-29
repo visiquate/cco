@@ -110,10 +110,7 @@ mod tests {
 
     #[test]
     fn test_daily_model_metrics_creation() {
-        let metrics = DailyModelMetrics::new(
-            "2025-11-17".to_string(),
-            "claude-opus-4".to_string(),
-        );
+        let metrics = DailyModelMetrics::new("2025-11-17".to_string(), "claude-opus-4".to_string());
 
         assert_eq!(metrics.date, "2025-11-17");
         assert_eq!(metrics.model, "claude-opus-4");
@@ -122,10 +119,8 @@ mod tests {
 
     #[test]
     fn test_daily_model_metrics_total_tokens() {
-        let mut metrics = DailyModelMetrics::new(
-            "2025-11-17".to_string(),
-            "claude-sonnet-4-5".to_string(),
-        );
+        let mut metrics =
+            DailyModelMetrics::new("2025-11-17".to_string(), "claude-sonnet-4-5".to_string());
 
         metrics.input_tokens = 1000;
         metrics.output_tokens = 500;
@@ -137,19 +132,15 @@ mod tests {
 
     #[test]
     fn test_daily_model_metrics_merge() {
-        let mut metrics1 = DailyModelMetrics::new(
-            "2025-11-17".to_string(),
-            "claude-haiku-4-5".to_string(),
-        );
+        let mut metrics1 =
+            DailyModelMetrics::new("2025-11-17".to_string(), "claude-haiku-4-5".to_string());
         metrics1.input_tokens = 100;
         metrics1.output_tokens = 50;
         metrics1.cost = 0.005;
         metrics1.message_count = 5;
 
-        let mut metrics2 = DailyModelMetrics::new(
-            "2025-11-17".to_string(),
-            "claude-haiku-4-5".to_string(),
-        );
+        let mut metrics2 =
+            DailyModelMetrics::new("2025-11-17".to_string(), "claude-haiku-4-5".to_string());
         metrics2.input_tokens = 200;
         metrics2.output_tokens = 100;
         metrics2.cost = 0.010;

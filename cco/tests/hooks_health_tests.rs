@@ -52,7 +52,10 @@ async fn test_api_health_includes_hooks_status() {
 
     let response = daemon.client.api_health().await.unwrap();
 
-    assert!(response.hooks.is_some(), "Health response should include hooks status");
+    assert!(
+        response.hooks.is_some(),
+        "Health response should include hooks status"
+    );
 }
 
 #[tokio::test]
@@ -76,7 +79,10 @@ async fn test_health_classifier_unavailable_when_disabled() {
     let hooks = response.hooks.unwrap();
 
     assert!(!hooks.enabled, "Hooks should be disabled");
-    assert!(!hooks.classifier_available, "Classifier should be unavailable");
+    assert!(
+        !hooks.classifier_available,
+        "Classifier should be unavailable"
+    );
 }
 
 #[tokio::test]
@@ -138,7 +144,10 @@ async fn test_health_model_status_when_disabled() {
 
     assert!(!hooks.enabled);
     assert!(!hooks.classifier_available);
-    assert!(!hooks.model_loaded, "Model should not be loaded when disabled");
+    assert!(
+        !hooks.model_loaded,
+        "Model should not be loaded when disabled"
+    );
 }
 
 // =============================================================================
@@ -155,8 +164,11 @@ async fn test_health_endpoint_responds_quickly() {
     let elapsed = start.elapsed();
 
     // Health check should be fast (< 100ms)
-    assert!(elapsed < std::time::Duration::from_millis(100),
-        "Health check took too long: {:?}", elapsed);
+    assert!(
+        elapsed < std::time::Duration::from_millis(100),
+        "Health check took too long: {:?}",
+        elapsed
+    );
 }
 
 #[tokio::test]
@@ -168,9 +180,7 @@ async fn test_health_endpoint_concurrent_requests() {
 
     for _ in 0..10 {
         let client = daemon.client.clone();
-        handles.push(tokio::spawn(async move {
-            client.api_health().await
-        }));
+        handles.push(tokio::spawn(async move { client.api_health().await }));
     }
 
     // All should succeed

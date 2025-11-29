@@ -135,8 +135,10 @@ mod metrics_engine_tests {
 
             for event in events.iter() {
                 total_requests += 1;
-                let event_tokens = event.input_tokens + event.output_tokens
-                    + event.cached_input_tokens + event.cached_output_tokens;
+                let event_tokens = event.input_tokens
+                    + event.output_tokens
+                    + event.cached_input_tokens
+                    + event.cached_output_tokens;
                 total_tokens += event_tokens;
                 total_cost += event.cost;
 
@@ -189,18 +191,18 @@ mod metrics_engine_tests {
             cached_output_tokens: u64,
         ) -> f64 {
             // Pricing per 1M tokens (as of 2025)
-            let (input_price, output_price, cached_input_price, cached_output_price) =
-                match model {
-                    "claude-opus-4" => (15.0, 75.0, 1.5, 7.5),
-                    "claude-sonnet-4.5" => (3.0, 15.0, 0.3, 1.5),
-                    "claude-haiku-4.5" => (0.8, 4.0, 0.08, 0.4),
-                    _ => (0.0, 0.0, 0.0, 0.0),
-                };
+            let (input_price, output_price, cached_input_price, cached_output_price) = match model {
+                "claude-opus-4" => (15.0, 75.0, 1.5, 7.5),
+                "claude-sonnet-4.5" => (3.0, 15.0, 0.3, 1.5),
+                "claude-haiku-4.5" => (0.8, 4.0, 0.08, 0.4),
+                _ => (0.0, 0.0, 0.0, 0.0),
+            };
 
             let input_cost = (input_tokens as f64 / 1_000_000.0) * input_price;
             let output_cost = (output_tokens as f64 / 1_000_000.0) * output_price;
             let cached_input_cost = (cached_input_tokens as f64 / 1_000_000.0) * cached_input_price;
-            let cached_output_cost = (cached_output_tokens as f64 / 1_000_000.0) * cached_output_price;
+            let cached_output_cost =
+                (cached_output_tokens as f64 / 1_000_000.0) * cached_output_price;
 
             input_cost + output_cost + cached_input_cost + cached_output_cost
         }
@@ -348,10 +350,7 @@ mod metrics_engine_tests {
             .await;
 
         assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            "Buffer overflow: max capacity reached"
-        );
+        assert_eq!(result.unwrap_err(), "Buffer overflow: max capacity reached");
     }
 
     // Test 9: Concurrent Access (Race Condition Test)
@@ -366,13 +365,7 @@ mod metrics_engine_tests {
             let handle = tokio::spawn(async move {
                 for j in 0..10 {
                     engine_clone
-                        .record_event(
-                            format!("model-{}", i),
-                            j * 100,
-                            j * 50,
-                            0,
-                            0,
-                        )
+                        .record_event(format!("model-{}", i), j * 100, j * 50, 0, 0)
                         .await
                         .unwrap();
                 }

@@ -55,6 +55,7 @@ pub fn knowledge_router_without_state() -> Router<KnowledgeState> {
             "/api/knowledge/project/:project_id",
             get(project_knowledge_handler),
         )
+        .route("/api/knowledge/session-start", post(session_start_handler))
         .route(
             "/api/knowledge/pre-compaction",
             post(pre_compaction_handler),
@@ -143,8 +144,9 @@ async fn store_batch_handler(
 
         // Validate metadata if present
         if let Some(ref metadata) = request.metadata {
-            let metadata_value = serde_json::to_value(metadata)
-                .map_err(|e| ApiError::InvalidMetadata(format!("Item {}: Invalid JSON: {}", idx, e)))?;
+            let metadata_value = serde_json::to_value(metadata).map_err(|e| {
+                ApiError::InvalidMetadata(format!("Item {}: Invalid JSON: {}", idx, e))
+            })?;
             ValidatedMetadata::from_json(metadata_value)
                 .map_err(|e| ApiError::InvalidMetadata(format!("Item {}: {}", idx, e)))?;
         }
@@ -194,6 +196,23 @@ async fn project_knowledge_handler(
     // TODO: Parse query parameters for type and limit
     match store.get_project_knowledge(&project_id, None, 100).await {
         Ok(results) => Ok(Json(results)),
+        Err(e) => Err(ApiError::StorageError(e.to_string())),
+    }
+}
+
+/// Session start hook - load recent knowledge
+///
+/// POST /api/knowledge/session-start
+/// Body: SessionStartRequest
+async fn session_start_handler(
+    State(store): State<KnowledgeState>,
+    Extension(_auth): Extension<AuthContext>,
+    Json(request): Json<SessionStartRequest>,
+) -> Result<Json<SessionStartResponse>, ApiError> {
+    let mut store = store.lock().await;
+
+    match store.session_start(request).await {
+        Ok(response) => Ok(Json(response)),
         Err(e) => Err(ApiError::StorageError(e.to_string())),
     }
 }

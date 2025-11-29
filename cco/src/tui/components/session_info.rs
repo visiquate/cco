@@ -30,7 +30,11 @@ impl Component for SessionInfoComponent {
         // Session Start Time
         let start_time = app.session_start.format("%Y-%m-%d %H:%M:%S UTC");
         let start_widget = Paragraph::new(format!("{}", start_time))
-            .block(Block::default().title("Session Start").borders(Borders::ALL))
+            .block(
+                Block::default()
+                    .title("Session Start")
+                    .borders(Borders::ALL),
+            )
             .alignment(Alignment::Center)
             .style(Style::default().fg(Color::Cyan));
         f.render_widget(start_widget, chunks[0]);
@@ -40,13 +44,21 @@ impl Component for SessionInfoComponent {
         let uptime_widget = Paragraph::new(uptime)
             .block(Block::default().title("Uptime").borders(Borders::ALL))
             .alignment(Alignment::Center)
-            .style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD));
+            .style(
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            );
         f.render_widget(uptime_widget, chunks[1]);
 
         // Metrics Recorded
         let metrics_text = format!("{}", app.metrics_count);
         let metrics_widget = Paragraph::new(metrics_text)
-            .block(Block::default().title("Metrics Recorded").borders(Borders::ALL))
+            .block(
+                Block::default()
+                    .title("Metrics Recorded")
+                    .borders(Borders::ALL),
+            )
             .alignment(Alignment::Center)
             .style(Style::default().fg(Color::Yellow));
         f.render_widget(metrics_widget, chunks[2]);

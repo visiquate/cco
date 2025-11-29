@@ -1,10 +1,14 @@
 //! Persistence layer for Claude conversation history metrics
 //! Manages SQLite storage of daily aggregated metrics from JSONL files
 
-use super::claude_history_models::{DailyModelMetrics, DailyTotalMetrics, MigrationStatus, ModelDayBreakdown};
+use super::claude_history_models::{
+    DailyModelMetrics, DailyTotalMetrics, MigrationStatus, ModelDayBreakdown,
+};
 use super::claude_history_schema::CLAUDE_HISTORY_SCHEMA;
 use super::PersistenceError;
-use crate::claude_history::{load_claude_project_metrics_by_date, normalize_model_name, get_model_pricing, calculate_cost};
+use crate::claude_history::{
+    calculate_cost, get_model_pricing, load_claude_project_metrics_by_date, normalize_model_name,
+};
 use sqlx::sqlite::SqlitePool;
 use sqlx::Row;
 use std::collections::HashMap;
@@ -32,9 +36,10 @@ impl ClaudeHistoryPersistence {
 
     /// Check if migration has already been completed
     pub async fn is_migrated(&self) -> Result<bool, PersistenceError> {
-        let result = sqlx::query("SELECT migrated FROM claude_history_migration_status WHERE id = 1")
-            .fetch_one(&self.pool)
-            .await?;
+        let result =
+            sqlx::query("SELECT migrated FROM claude_history_migration_status WHERE id = 1")
+                .fetch_one(&self.pool)
+                .await?;
 
         let migrated: bool = result.get("migrated");
         Ok(migrated)
@@ -96,7 +101,10 @@ impl ClaudeHistoryPersistence {
     }
 
     /// Insert or update daily model metrics
-    pub async fn upsert_daily_metrics(&self, metrics: &DailyModelMetrics) -> Result<(), PersistenceError> {
+    pub async fn upsert_daily_metrics(
+        &self,
+        metrics: &DailyModelMetrics,
+    ) -> Result<(), PersistenceError> {
         sqlx::query(
             r#"
             INSERT INTO claude_history_metrics (
@@ -286,7 +294,9 @@ impl ClaudeHistoryPersistence {
                 // Update or create daily metrics for this model
                 let metrics = daily_metrics
                     .entry(normalized_model.clone())
-                    .or_insert_with(|| DailyModelMetrics::new(date.clone(), normalized_model.clone()));
+                    .or_insert_with(|| {
+                        DailyModelMetrics::new(date.clone(), normalized_model.clone())
+                    });
 
                 metrics.input_tokens += input_tokens;
                 metrics.output_tokens += output_tokens;
@@ -307,7 +317,8 @@ impl ClaudeHistoryPersistence {
         }
 
         // Mark migration as complete
-        self.mark_migration_completed(files_processed, conversations_processed, messages_processed).await?;
+        self.mark_migration_completed(files_processed, conversations_processed, messages_processed)
+            .await?;
         info!(
             "Migration complete: {} files, {} conversations, {} messages",
             files_processed, conversations_processed, messages_processed
@@ -333,11 +344,18 @@ impl ClaudeHistoryPersistence {
     }
 
     /// Store aggregated metrics from ClaudeMetrics (used by background parser)
-    pub async fn store_aggregated_metrics(&self, metrics: &crate::claude_history::ClaudeMetrics) -> Result<(), PersistenceError> {
+    pub async fn store_aggregated_metrics(
+        &self,
+        metrics: &crate::claude_history::ClaudeMetrics,
+    ) -> Result<(), PersistenceError> {
         // Get current date for metrics storage
         let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
 
-        debug!("Storing aggregated metrics for {}: {} models", today, metrics.model_breakdown.len());
+        debug!(
+            "Storing aggregated metrics for {}: {} models",
+            today,
+            metrics.model_breakdown.len()
+        );
 
         // Store each model's breakdown as daily metrics
         for (model_name, breakdown) in &metrics.model_breakdown {
@@ -356,7 +374,10 @@ impl ClaudeHistoryPersistence {
             self.upsert_daily_metrics(&daily_metrics).await?;
         }
 
-        debug!("Successfully stored metrics for {} models", metrics.model_breakdown.len());
+        debug!(
+            "Successfully stored metrics for {} models",
+            metrics.model_breakdown.len()
+        );
         Ok(())
     }
 }
@@ -407,7 +428,10 @@ mod tests {
         persistence.upsert_daily_metrics(&metrics).await.unwrap();
 
         // Retrieve and verify
-        let retrieved = persistence.get_metrics_for_date("2025-11-17").await.unwrap();
+        let retrieved = persistence
+            .get_metrics_for_date("2025-11-17")
+            .await
+            .unwrap();
         assert_eq!(retrieved.len(), 1);
         assert_eq!(retrieved[0].model, "claude-opus-4");
         assert_eq!(retrieved[0].input_tokens, 1000);
@@ -434,7 +458,10 @@ mod tests {
             persistence.upsert_daily_metrics(&metrics).await.unwrap();
         }
 
-        let metrics = persistence.get_metrics_range("2025-11-16", "2025-11-18").await.unwrap();
+        let metrics = persistence
+            .get_metrics_range("2025-11-16", "2025-11-18")
+            .await
+            .unwrap();
         assert_eq!(metrics.len(), 3);
     }
 
@@ -459,7 +486,10 @@ mod tests {
             persistence.upsert_daily_metrics(&metrics).await.unwrap();
         }
 
-        let totals = persistence.get_daily_totals("2025-11-17", "2025-11-17").await.unwrap();
+        let totals = persistence
+            .get_daily_totals("2025-11-17", "2025-11-17")
+            .await
+            .unwrap();
         assert_eq!(totals.len(), 1);
         assert_eq!(totals[0].date, "2025-11-17");
         assert_eq!(totals[0].models.len(), 3);

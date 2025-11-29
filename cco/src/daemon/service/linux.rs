@@ -22,8 +22,7 @@ pub struct LinuxService {
 impl LinuxService {
     /// Create new Linux service manager
     pub fn new() -> Result<Self> {
-        let home = dirs::home_dir()
-            .context("Could not determine home directory")?;
+        let home = dirs::home_dir().context("Could not determine home directory")?;
 
         let service_dir = home.join(".config/systemd/user");
         let service_path = service_dir.join(SERVICE_FILE_NAME);
@@ -37,16 +36,14 @@ impl LinuxService {
 
     /// Generate systemd service unit content
     pub fn generate_service_unit(&self) -> Result<String> {
-        let exe_path = std::env::current_exe()
-            .context("Failed to get current executable path")?;
+        let exe_path = std::env::current_exe().context("Failed to get current executable path")?;
 
         let exe_path_str = exe_path.to_string_lossy();
 
         let log_file = super::super::get_daemon_log_file()?;
         let log_file_str = log_file.to_string_lossy();
 
-        let home = dirs::home_dir()
-            .context("Could not determine home directory")?;
+        let home = dirs::home_dir().context("Could not determine home directory")?;
         let home_str = home.to_string_lossy();
 
         let service_unit = format!(
@@ -140,13 +137,11 @@ impl ServiceManager for LinuxService {
         }
 
         // Create systemd user directory if needed
-        fs::create_dir_all(&self.service_dir)
-            .context("Failed to create systemd user directory")?;
+        fs::create_dir_all(&self.service_dir).context("Failed to create systemd user directory")?;
 
         // Generate and write service unit file
         let service_unit = self.generate_service_unit()?;
-        fs::write(&self.service_path, service_unit)
-            .context("Failed to write service unit file")?;
+        fs::write(&self.service_path, service_unit).context("Failed to write service unit file")?;
 
         // Reload systemd daemon
         self.systemctl_daemon_reload()?;
@@ -172,8 +167,7 @@ impl ServiceManager for LinuxService {
         let _ = self.systemctl_disable();
 
         // Remove the service unit file
-        fs::remove_file(&self.service_path)
-            .context("Failed to remove service unit file")?;
+        fs::remove_file(&self.service_path).context("Failed to remove service unit file")?;
 
         // Reload systemd daemon
         self.systemctl_daemon_reload()?;
@@ -226,8 +220,14 @@ mod tests {
         assert!(result.is_ok());
 
         let service = result.unwrap();
-        assert!(service.service_path.to_string_lossy().contains(".config/systemd/user"));
-        assert!(service.service_path.to_string_lossy().contains("cco-daemon.service"));
+        assert!(service
+            .service_path
+            .to_string_lossy()
+            .contains(".config/systemd/user"));
+        assert!(service
+            .service_path
+            .to_string_lossy()
+            .contains("cco-daemon.service"));
     }
 
     #[test]

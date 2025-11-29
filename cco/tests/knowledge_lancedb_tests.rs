@@ -37,7 +37,7 @@
 //! - `integration_tests`: HTTP API endpoint validation
 
 use cco::daemon::knowledge::{
-    KnowledgeStore, StoreKnowledgeRequest, SearchRequest, CleanupRequest,
+    CleanupRequest, KnowledgeStore, SearchRequest, StoreKnowledgeRequest,
 };
 use std::path::{Path, PathBuf};
 use tempfile::{tempdir, TempDir};
@@ -60,7 +60,10 @@ async fn create_test_store_with_base(base_dir: &Path, repo_name: &str) -> Knowle
         Some("orchestra_knowledge".to_string()),
     );
 
-    store.initialize().await.expect("Failed to initialize store");
+    store
+        .initialize()
+        .await
+        .expect("Failed to initialize store");
     store
 }
 
@@ -98,10 +101,7 @@ mod vfs_storage_tests {
         let _store = create_test_store_with_base(base_path, repo_name).await;
 
         // Verify directory structure
-        let expected_db_path = base_path
-            .join(".cco")
-            .join("knowledge")
-            .join(repo_name);
+        let expected_db_path = base_path.join(".cco").join("knowledge").join(repo_name);
 
         assert!(
             expected_db_path.exists(),
@@ -125,7 +125,10 @@ mod vfs_storage_tests {
         let repo_dir = knowledge_dir.join(repo_name);
 
         assert!(cco_dir.exists(), ".cco directory should exist");
-        assert!(knowledge_dir.exists(), ".cco/knowledge directory should exist");
+        assert!(
+            knowledge_dir.exists(),
+            ".cco/knowledge directory should exist"
+        );
         assert!(repo_dir.exists(), "Repository directory should exist");
     }
 
@@ -236,7 +239,9 @@ mod file_permission_tests {
         let db_path = base_path.join(".cco").join("knowledge").join(repo_name);
 
         // Check directory permissions first
-        let dir_metadata = fs::metadata(&db_path).await.expect("Failed to read directory");
+        let dir_metadata = fs::metadata(&db_path)
+            .await
+            .expect("Failed to read directory");
         let dir_mode = dir_metadata.permissions().mode() & 0o777;
         assert_eq!(
             dir_mode, 0o700,
@@ -246,7 +251,9 @@ mod file_permission_tests {
 
         // If any files exist, verify their permissions
         // LanceDB creates various files (.lance, _versions, etc.)
-        let mut entries = fs::read_dir(&db_path).await.expect("Failed to read directory");
+        let mut entries = fs::read_dir(&db_path)
+            .await
+            .expect("Failed to read directory");
         let mut found_file = false;
 
         while let Some(entry) = entries.next_entry().await.expect("Failed to read entry") {
@@ -718,10 +725,7 @@ mod vector_search_tests {
             .await
             .expect("Failed to search");
 
-        assert!(
-            results.len() <= 5,
-            "Search should respect limit parameter"
-        );
+        assert!(results.len() <= 5, "Search should respect limit parameter");
     }
 
     #[tokio::test]
@@ -1187,7 +1191,10 @@ mod edge_case_tests {
             .search(search_request)
             .await
             .expect("Search on empty database should not fail");
-        assert!(results.is_empty(), "Empty database should return no results");
+        assert!(
+            results.is_empty(),
+            "Empty database should return no results"
+        );
     }
 
     #[tokio::test]
@@ -1281,11 +1288,8 @@ mod edge_case_tests {
             let repo_path = base_path.join(name);
             let base_path_buf = base_path.to_path_buf();
             let result = std::panic::catch_unwind(|| {
-                let _ = KnowledgeStore::new(
-                    &repo_path,
-                    Some(&base_path_buf),
-                    Some("test".to_string()),
-                );
+                let _ =
+                    KnowledgeStore::new(&repo_path, Some(&base_path_buf), Some("test".to_string()));
             });
 
             assert!(
@@ -1312,11 +1316,7 @@ mod edge_case_tests {
         assert!(result.is_ok(), "Should create missing directories");
 
         // Verify knowledge database directory was created (not the repo path itself)
-        let knowledge_db_path = temp_dir
-            .path()
-            .join(".cco")
-            .join("knowledge")
-            .join("repo");
+        let knowledge_db_path = temp_dir.path().join(".cco").join("knowledge").join("repo");
         assert!(
             knowledge_db_path.exists(),
             "Knowledge database directory should be created"
@@ -1414,10 +1414,7 @@ mod edge_case_tests {
         };
 
         let result2 = store.store(request2).await;
-        assert!(
-            result2.is_ok(),
-            "Should handle text within 100KB limit"
-        );
+        assert!(result2.is_ok(), "Should handle text within 100KB limit");
     }
 
     #[tokio::test]
@@ -1444,11 +1441,7 @@ mod edge_case_tests {
             };
 
             let result = store.store(request).await;
-            assert!(
-                result.is_ok(),
-                "Should handle special characters: {}",
-                text
-            );
+            assert!(result.is_ok(), "Should handle special characters: {}", text);
         }
     }
 }

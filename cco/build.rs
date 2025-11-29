@@ -74,12 +74,18 @@ fn obfuscate_orchestrator_prompt() {
 
     // Check if source files exist
     if !script_path.exists() {
-        println!("cargo:warning=⚠ Obfuscation script not found: {:?}", script_path);
+        println!(
+            "cargo:warning=⚠ Obfuscation script not found: {:?}",
+            script_path
+        );
         return;
     }
 
     if !input_path.exists() {
-        println!("cargo:warning=⚠ Orchestrator prompt not found: {:?}", input_path);
+        println!(
+            "cargo:warning=⚠ Orchestrator prompt not found: {:?}",
+            input_path
+        );
         return;
     }
 
@@ -349,10 +355,7 @@ fn load_agents_from_orchestra_config() -> Vec<AgentData> {
     let content = match fs::read_to_string(&config_path) {
         Ok(c) => c,
         Err(e) => {
-            println!(
-                "cargo:warning=⚠ Failed to read orchestra config: {}",
-                e
-            );
+            println!("cargo:warning=⚠ Failed to read orchestra config: {}", e);
             return Vec::new();
         }
     };
@@ -360,10 +363,7 @@ fn load_agents_from_orchestra_config() -> Vec<AgentData> {
     let json: serde_json::Value = match serde_json::from_str(&content) {
         Ok(j) => j,
         Err(e) => {
-            println!(
-                "cargo:warning=⚠ Failed to parse orchestra config: {}",
-                e
-            );
+            println!("cargo:warning=⚠ Failed to parse orchestra config: {}", e);
             return Vec::new();
         }
     };
@@ -425,10 +425,7 @@ fn load_agents_from_orchestra_config() -> Vec<AgentData> {
 }
 
 /// Extract agent data from JSON object
-fn extract_agent_from_json(
-    json_obj: &serde_json::Value,
-    type_name: &str,
-) -> Option<AgentData> {
+fn extract_agent_from_json(json_obj: &serde_json::Value, type_name: &str) -> Option<AgentData> {
     let name = json_obj
         .get("name")
         .and_then(|v| v.as_str())
@@ -506,20 +503,10 @@ fn generate_agents_code(agents: &[AgentData]) -> String {
         // Generate capabilities array
         let capabilities_array = generate_capabilities_array(&agent.capabilities);
 
-        code.push_str(&format!(
-            "    // {}\n",
-            agent_name
-        ));
-        code.push_str(&format!(
-            "    agents.insert(\n"
-        ));
-        code.push_str(&format!(
-            "        \"{}\".to_string(),\n",
-            agent_name
-        ));
-        code.push_str(&format!(
-            "        Agent {{\n"
-        ));
+        code.push_str(&format!("    // {}\n", agent_name));
+        code.push_str("    agents.insert(\n");
+        code.push_str(&format!("        \"{}\".to_string(),\n", agent_name));
+        code.push_str("        Agent {\n");
         code.push_str(&format!(
             "            name: \"{}\".to_string(),\n",
             agent_name

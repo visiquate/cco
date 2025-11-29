@@ -27,8 +27,7 @@ pub struct MacOSService {
 impl MacOSService {
     /// Create new macOS service manager
     pub fn new() -> Result<Self> {
-        let home = dirs::home_dir()
-            .context("Could not determine home directory")?;
+        let home = dirs::home_dir().context("Could not determine home directory")?;
 
         let launch_agents_dir = home.join("Library/LaunchAgents");
 
@@ -40,8 +39,7 @@ impl MacOSService {
 
     /// Generate plist content for LaunchAgent
     pub fn generate_plist(&self) -> Result<String> {
-        let exe_path = std::env::current_exe()
-            .context("Failed to get current executable path")?;
+        let exe_path = std::env::current_exe().context("Failed to get current executable path")?;
 
         let exe_path_str = exe_path.to_string_lossy();
 
@@ -76,7 +74,10 @@ impl MacOSService {
 		<key>PATH</key>
 		<string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
 	</dict>"#,
-            self.service_name, exe_path_str, log_file_str, log_file_str,
+            self.service_name,
+            exe_path_str,
+            log_file_str,
+            log_file_str,
             dirs::home_dir().unwrap_or_default().to_string_lossy()
         );
 
@@ -114,17 +115,16 @@ impl ServiceManager for MacOSService {
         }
 
         // Create LaunchAgents directory if needed
-        let parent_dir = self.plist_path
+        let parent_dir = self
+            .plist_path
             .parent()
             .context("Failed to get parent directory")?;
 
-        fs::create_dir_all(parent_dir)
-            .context("Failed to create LaunchAgents directory")?;
+        fs::create_dir_all(parent_dir).context("Failed to create LaunchAgents directory")?;
 
         // Generate and write plist file
         let plist_content = self.generate_plist()?;
-        fs::write(&self.plist_path, plist_content)
-            .context("Failed to write plist file")?;
+        fs::write(&self.plist_path, plist_content).context("Failed to write plist file")?;
 
         // Load the agent
         self.load_agent()?;
@@ -146,8 +146,7 @@ impl ServiceManager for MacOSService {
         let _ = self.unload_agent();
 
         // Remove the plist file
-        fs::remove_file(&self.plist_path)
-            .context("Failed to remove plist file")?;
+        fs::remove_file(&self.plist_path).context("Failed to remove plist file")?;
 
         println!("✅ Service uninstalled successfully");
         println!("   Service: {}", self.service_name);
@@ -192,8 +191,14 @@ mod tests {
         assert!(result.is_ok());
 
         let service = result.unwrap();
-        assert!(service.plist_path.to_string_lossy().contains("Library/LaunchAgents"));
-        assert!(service.plist_path.to_string_lossy().contains("com.anthropic.cco.daemon.plist"));
+        assert!(service
+            .plist_path
+            .to_string_lossy()
+            .contains("Library/LaunchAgents"));
+        assert!(service
+            .plist_path
+            .to_string_lossy()
+            .contains("com.anthropic.cco.daemon.plist"));
     }
 
     #[test]

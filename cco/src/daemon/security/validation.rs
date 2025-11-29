@@ -55,8 +55,8 @@ impl ValidatedMetadata {
     /// Create from arbitrary JSON metadata
     pub fn from_json(value: serde_json::Value) -> Result<Self, ValidationError> {
         // Validate metadata size
-        let metadata_json = serde_json::to_string(&value)
-            .map_err(|e| ValidationError::InvalidMetadataField {
+        let metadata_json =
+            serde_json::to_string(&value).map_err(|e| ValidationError::InvalidMetadataField {
                 field: format!("JSON serialization failed: {}", e),
             })?;
 
@@ -140,7 +140,10 @@ impl ValidatedMetadata {
             map.insert(
                 "tags".to_string(),
                 serde_json::Value::Array(
-                    self.tags.iter().map(|s| serde_json::Value::String(s.clone())).collect()
+                    self.tags
+                        .iter()
+                        .map(|s| serde_json::Value::String(s.clone()))
+                        .collect(),
                 ),
             );
         }

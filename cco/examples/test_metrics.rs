@@ -25,16 +25,24 @@ async fn main() -> Result<()> {
     println!("  Cache Create:  {}", metrics.total_cache_creation_tokens);
     println!("  Cache Read:    {}", metrics.total_cache_read_tokens);
 
-    println!("\nPer-Model Breakdown ({} models):", metrics.model_breakdown.len());
+    println!(
+        "\nPer-Model Breakdown ({} models):",
+        metrics.model_breakdown.len()
+    );
     let mut models: Vec<_> = metrics.model_breakdown.iter().collect();
     models.sort_by(|a, b| b.1.total_cost.partial_cmp(&a.1.total_cost).unwrap());
 
     for (model, breakdown) in models.iter().take(10) {
-        println!("  {:<25} ${:>8.2}  {} messages",
-                 model, breakdown.total_cost, breakdown.message_count);
+        println!(
+            "  {:<25} ${:>8.2}  {} messages",
+            model, breakdown.total_cost, breakdown.message_count
+        );
     }
 
-    println!("\nPer-Project Breakdown ({} projects):", metrics.project_breakdown.len());
+    println!(
+        "\nPer-Project Breakdown ({} projects):",
+        metrics.project_breakdown.len()
+    );
     let mut projects: Vec<_> = metrics.project_breakdown.iter().collect();
     projects.sort_by(|a, b| b.1.total_cost.partial_cmp(&a.1.total_cost).unwrap());
 
@@ -44,9 +52,10 @@ async fn main() -> Result<()> {
         } else {
             project.to_string()
         };
-        println!("  {:<40} ${:>8.2}  {} msgs  {} convos",
-                 short_name, breakdown.total_cost,
-                 breakdown.message_count, breakdown.conversation_count);
+        println!(
+            "  {:<40} ${:>8.2}  {} msgs  {} convos",
+            short_name, breakdown.total_cost, breakdown.message_count, breakdown.conversation_count
+        );
     }
 
     Ok(())

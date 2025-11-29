@@ -38,10 +38,7 @@ fn test_normalize_model_name() {
         normalize_model_name("claude-sonnet-3.5"),
         "claude-sonnet-3.5"
     );
-    assert_eq!(
-        normalize_model_name("claude-opus-4-1"),
-        "claude-opus-4-1"
-    );
+    assert_eq!(normalize_model_name("claude-opus-4-1"), "claude-opus-4-1");
 
     // Test edge cases
     assert_eq!(normalize_model_name("gpt-4"), "gpt-4");
@@ -431,13 +428,20 @@ async fn test_benchmark_parsing_100_files() {
 
     println!("Parsed 100 files in {:?}", parse_duration);
     println!("Messages parsed: {}", metrics.messages_count);
-    println!("Total tokens: {}", metrics.total_input_tokens + metrics.total_output_tokens);
+    println!(
+        "Total tokens: {}",
+        metrics.total_input_tokens + metrics.total_output_tokens
+    );
 
     assert_eq!(metrics.messages_count, 100);
     assert_eq!(metrics.conversations_count, 100);
 
     // Performance assertion: should parse 100 files in under 5 seconds
-    assert!(parse_duration.as_secs() < 5, "Parsing took too long: {:?}", parse_duration);
+    assert!(
+        parse_duration.as_secs() < 5,
+        "Parsing took too long: {:?}",
+        parse_duration
+    );
 }
 
 #[tokio::test]
@@ -466,7 +470,11 @@ async fn test_verify_parallel_execution() {
     assert_eq!(metrics.messages_count, 20);
 
     // Parallel execution should be reasonably fast
-    assert!(duration.as_millis() < 1000, "Parallel parsing too slow: {:?}", duration);
+    assert!(
+        duration.as_millis() < 1000,
+        "Parallel parsing too slow: {:?}",
+        duration
+    );
 }
 
 #[tokio::test]
@@ -502,7 +510,11 @@ async fn test_memory_usage_stays_reasonable() {
     assert_eq!(metrics.conversations_count, 50);
 
     // Should complete in reasonable time
-    assert!(duration.as_secs() < 10, "Parsing 5000 messages took too long: {:?}", duration);
+    assert!(
+        duration.as_secs() < 10,
+        "Parsing 5000 messages took too long: {:?}",
+        duration
+    );
 }
 
 // ============================================================================
@@ -626,7 +638,11 @@ async fn test_large_file_with_10k_messages() {
     assert_eq!(metrics.conversations_count, 1);
 
     // Should handle large files efficiently
-    assert!(duration.as_secs() < 5, "Large file parsing too slow: {:?}", duration);
+    assert!(
+        duration.as_secs() < 5,
+        "Large file parsing too slow: {:?}",
+        duration
+    );
 }
 
 #[tokio::test]
@@ -750,9 +766,8 @@ async fn test_incremental_parsing_from_offset() {
     fs::write(&test_file, initial_content).await.unwrap();
 
     // Parse from start
-    let (messages1, offset1, line_count1) = parse_jsonl_file_from_offset(&test_file, 0)
-        .await
-        .unwrap();
+    let (messages1, offset1, line_count1) =
+        parse_jsonl_file_from_offset(&test_file, 0).await.unwrap();
 
     assert_eq!(messages1.len(), 3);
     assert_eq!(line_count1, 3);
@@ -808,9 +823,7 @@ async fn test_incremental_parsing_performance() {
 
     // Initial parse
     let start1 = SystemTime::now();
-    let (messages1, offset1, _) = parse_jsonl_file_from_offset(&test_file, 0)
-        .await
-        .unwrap();
+    let (messages1, offset1, _) = parse_jsonl_file_from_offset(&test_file, 0).await.unwrap();
     let duration1 = start1.elapsed().unwrap();
 
     assert_eq!(messages1.len(), 1000);
@@ -827,7 +840,10 @@ async fn test_incremental_parsing_performance() {
     println!("Incremental parse with no changes: {:?}", duration2);
 
     // Incremental should be much faster than initial
-    assert!(duration2 < duration1 / 10, "Incremental parsing not optimized");
+    assert!(
+        duration2 < duration1 / 10,
+        "Incremental parsing not optimized"
+    );
 }
 
 // ============================================================================

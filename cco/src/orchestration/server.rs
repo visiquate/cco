@@ -98,9 +98,7 @@ impl OrchestrationServer {
             .await
             .context("Failed to bind to address")?;
 
-        axum::serve(listener, app)
-            .await
-            .context("Server error")?;
+        axum::serve(listener, app).await.context("Server error")?;
 
         Ok(())
     }
@@ -332,7 +330,7 @@ async fn health_handler(State(state): State<HandlerState>) -> Json<HealthRespons
             event_bus: "healthy".to_string(),
             memory_usage_mb,
             active_agents,
-            event_queue_size: 0,  // TODO: event queue size
+            event_queue_size: 0, // TODO: event queue size
         },
     })
 }
@@ -452,7 +450,12 @@ async fn publish_event_handler(
     let event_id = state
         .orchestration
         .event_bus
-        .publish(&event_type, &request.publisher, &request.topic, request.data)
+        .publish(
+            &event_type,
+            &request.publisher,
+            &request.topic,
+            request.data,
+        )
         .await
         .map_err(|e| AppError::InternalError(e.to_string()))?;
 

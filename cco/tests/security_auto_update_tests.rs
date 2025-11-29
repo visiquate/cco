@@ -77,7 +77,9 @@ mod critical_security {
         let mut buffer = [0; 8192];
         loop {
             let n = std::io::Read::read(&mut file, &mut buffer).unwrap();
-            if n == 0 { break; }
+            if n == 0 {
+                break;
+            }
             hasher.update(&buffer[..n]);
         }
         let computed = hex::encode(hasher.finalize());
@@ -118,8 +120,7 @@ mod critical_security {
 
         // Must detect tampering
         assert_ne!(
-            original_checksum,
-            tampered_checksum,
+            original_checksum, tampered_checksum,
             "Tampered binary must have different checksum"
         );
     }
@@ -169,10 +170,10 @@ mod critical_security {
 
         // Typosquatting attempts
         let typosquatting_attempts = vec![
-            ("brent1ey", "cco-releases"),  // l -> 1
-            ("brentIey", "cco-releases"),  // l -> I
-            ("brentley", "cco-release"),   // missing 's'
-            ("brentley", "cco-reIeases"),  // l -> I
+            ("brent1ey", "cco-releases"),   // l -> 1
+            ("brentIey", "cco-releases"),   // l -> I
+            ("brentley", "cco-release"),    // missing 's'
+            ("brentley", "cco-reIeases"),   // l -> I
             ("anthroplcs", "cco-releases"), // i -> l
         ];
 
@@ -181,8 +182,7 @@ mod critical_security {
             let expected_path = format!("{}/{}", EXPECTED_OWNER, EXPECTED_REPO);
 
             assert_ne!(
-                full_path,
-                expected_path,
+                full_path, expected_path,
                 "Typosquatting attempt must be detected: {}/{}",
                 owner, repo
             );
@@ -233,10 +233,7 @@ mod high_priority_security {
         // Each should be unique
         for i in 0..names.len() {
             for j in (i + 1)..names.len() {
-                assert_ne!(
-                    names[i], names[j],
-                    "Temp directory names must be unique"
-                );
+                assert_ne!(names[i], names[j], "Temp directory names must be unique");
             }
         }
 
@@ -292,7 +289,8 @@ mod high_priority_security {
         let mode = metadata.permissions().mode();
 
         assert_eq!(
-            mode & 0o111, 0o111,
+            mode & 0o111,
+            0o111,
             "Binary must have executable permissions"
         );
     }
@@ -312,7 +310,8 @@ mod high_priority_security {
         let mode = metadata.permissions().mode();
 
         assert_eq!(
-            mode & 0o111, 0,
+            mode & 0o111,
+            0,
             "Binary without executable bit must be rejected"
         );
     }
@@ -365,12 +364,12 @@ mod high_priority_security {
         for filename in &malicious_filenames {
             // Check for dangerous characters
             assert!(
-                filename.contains("..") ||
-                filename.contains(";") ||
-                filename.contains("&&") ||
-                filename.contains("|") ||
-                filename.contains("`") ||
-                filename.contains("$("),
+                filename.contains("..")
+                    || filename.contains(";")
+                    || filename.contains("&&")
+                    || filename.contains("|")
+                    || filename.contains("`")
+                    || filename.contains("$("),
                 "Malicious filename must be detected: {}",
                 filename
             );
@@ -379,9 +378,7 @@ mod high_priority_security {
         // Valid filename
         let valid = "cco-v2025.11.2-darwin-arm64.tar.gz";
         assert!(
-            !valid.contains("..") &&
-            !valid.contains(";") &&
-            !valid.contains("&&"),
+            !valid.contains("..") && !valid.contains(";") && !valid.contains("&&"),
             "Valid filename must pass"
         );
     }
@@ -390,12 +387,7 @@ mod high_priority_security {
     #[test]
     fn test_release_tag_validation() {
         // Valid release tags
-        let valid_tags = vec![
-            "v2025.11.1",
-            "v2025.11.2",
-            "v2025.12.1",
-            "v2026.1.1",
-        ];
+        let valid_tags = vec!["v2025.11.1", "v2025.11.2", "v2025.12.1", "v2026.1.1"];
 
         for tag in &valid_tags {
             let version = tag.trim_start_matches('v');
@@ -439,10 +431,10 @@ mod medium_priority_security {
 
         // Reasonable binary sizes (should pass)
         let valid_sizes = vec![
-            5 * 1024 * 1024,   // 5 MB
-            10 * 1024 * 1024,  // 10 MB
-            50 * 1024 * 1024,  // 50 MB
-            99 * 1024 * 1024,  // 99 MB
+            5 * 1024 * 1024,  // 5 MB
+            10 * 1024 * 1024, // 10 MB
+            50 * 1024 * 1024, // 50 MB
+            99 * 1024 * 1024, // 99 MB
         ];
 
         for size in &valid_sizes {
@@ -583,10 +575,10 @@ mod low_priority_security {
 
         // Should not leak OS/architecture details
         assert!(
-            !user_agent.contains("Darwin") &&
-            !user_agent.contains("Linux") &&
-            !user_agent.contains("x86_64") &&
-            !user_agent.contains("aarch64"),
+            !user_agent.contains("Darwin")
+                && !user_agent.contains("Linux")
+                && !user_agent.contains("x86_64")
+                && !user_agent.contains("aarch64"),
             "User-Agent should not leak OS/arch: {}",
             user_agent
         );
@@ -621,8 +613,14 @@ mod auto_update_defaults {
             config.auto_install,
             "Auto-install should be ON by default (security fixes applied)"
         );
-        assert_eq!(config.check_interval, "daily", "Should check daily by default");
-        assert_eq!(config.channel, "stable", "Should use stable channel by default");
+        assert_eq!(
+            config.check_interval, "daily",
+            "Should check daily by default"
+        );
+        assert_eq!(
+            config.channel, "stable",
+            "Should use stable channel by default"
+        );
     }
 
     /// Test auto-install configuration can be enabled
@@ -685,12 +683,18 @@ mod auto_update_defaults {
         // Recently checked - should not check again
         config.last_check = Some(Utc::now());
         let elapsed = Utc::now() - config.last_check.unwrap();
-        assert!(elapsed < Duration::days(1), "Recent check should not trigger new check");
+        assert!(
+            elapsed < Duration::days(1),
+            "Recent check should not trigger new check"
+        );
 
         // Old check - should check again
         config.last_check = Some(Utc::now() - Duration::days(2));
         let elapsed = Utc::now() - config.last_check.unwrap();
-        assert!(elapsed >= Duration::days(1), "Old check should trigger new check");
+        assert!(
+            elapsed >= Duration::days(1),
+            "Old check should trigger new check"
+        );
     }
 }
 
@@ -831,10 +835,7 @@ mod edge_cases {
         // Use different expected checksum
         let expected = "0000000000000000000000000000000000000000000000000000000000000000";
 
-        assert_ne!(
-            actual, expected,
-            "Checksum mismatch should be detected"
-        );
+        assert_ne!(actual, expected, "Checksum mismatch should be detected");
 
         // In production, this should:
         // 1. Reject the binary
@@ -889,7 +890,10 @@ mod edge_cases {
         if lock_file.exists() {
             // Lock exists, should wait or abort
             let content = fs::read_to_string(&lock_file).unwrap();
-            assert_eq!(content, "process-1", "Lock file should contain first process ID");
+            assert_eq!(
+                content, "process-1",
+                "Lock file should contain first process ID"
+            );
         }
 
         // Cleanup
@@ -963,10 +967,7 @@ mod performance {
         let duration = start.elapsed();
 
         // Should complete quickly
-        assert!(
-            duration.as_millis() < 100,
-            "Logging should be fast"
-        );
+        assert!(duration.as_millis() < 100, "Logging should be fast");
     }
 
     /// Test memory usage during update

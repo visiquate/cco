@@ -96,7 +96,10 @@ impl ModelCache {
     pub async fn ensure_model_available(&self, config: &ModelDownloadConfig) -> Result<bool> {
         // Check if model already exists and is valid
         if self.verify_existing_model(&config.target_path, config.expected_checksum.as_deref())? {
-            debug!("Model already exists and is valid at {:?}", config.target_path);
+            debug!(
+                "Model already exists and is valid at {:?}",
+                config.target_path
+            );
             return Ok(false);
         }
 
@@ -126,7 +129,10 @@ impl ModelCache {
             match self.download_with_progress(config, &config.url).await {
                 Ok(()) => return Ok(()),
                 Err(e) => {
-                    warn!("Download attempt {}/{} failed: {}", attempt, config.max_retries, e);
+                    warn!(
+                        "Download attempt {}/{} failed: {}",
+                        attempt, config.max_retries, e
+                    );
                     last_error = Some(e);
 
                     // Clean up partial download
@@ -169,12 +175,12 @@ impl ModelCache {
 
         // Ensure parent directory exists
         if let Some(parent) = config.target_path.parent() {
-            fs::create_dir_all(parent)
-                .context("Failed to create model directory")?;
+            fs::create_dir_all(parent).context("Failed to create model directory")?;
         }
 
         // Initiate HTTP request
-        let response = self.client
+        let response = self
+            .client
             .get(url)
             .send()
             .await
@@ -184,7 +190,8 @@ impl ModelCache {
             anyhow::bail!("Download failed with status: {}", response.status());
         }
 
-        let total_size = response.content_length()
+        let total_size = response
+            .content_length()
             .or(config.expected_size_bytes)
             .unwrap_or(0);
 
@@ -199,8 +206,7 @@ impl ModelCache {
 
         // Write to temporary file first (atomic write pattern)
         let temp_path = self.get_temp_path(&config.target_path);
-        let temp_file = File::create(&temp_path)
-            .context("Failed to create temporary file")?;
+        let temp_file = File::create(&temp_path).context("Failed to create temporary file")?;
 
         let mut writer = BufWriter::new(temp_file);
         let mut hasher = Sha256::new();
@@ -209,11 +215,11 @@ impl ModelCache {
 
         // Stream download in chunks
         while let Some(chunk_result) = stream.next().await {
-            let chunk = chunk_result
-                .context("Download stream error")?;
+            let chunk = chunk_result.context("Download stream error")?;
 
             // Write chunk to file
-            writer.write_all(&chunk)
+            writer
+                .write_all(&chunk)
                 .context("Failed to write to temporary file")?;
 
             // Update hash
@@ -225,8 +231,7 @@ impl ModelCache {
         }
 
         // Flush all buffered data
-        writer.flush()
-            .context("Failed to flush temporary file")?;
+        writer.flush().context("Failed to flush temporary file")?;
 
         pb.finish_with_message("Download complete");
 
@@ -263,7 +268,11 @@ impl ModelCache {
     /// Verify existing model file
     ///
     /// Returns true if file exists and checksum matches (if provided)
-    pub fn verify_existing_model(&self, path: &Path, expected_checksum: Option<&str>) -> Result<bool> {
+    pub fn verify_existing_model(
+        &self,
+        path: &Path,
+        expected_checksum: Option<&str>,
+    ) -> Result<bool> {
         if !path.exists() {
             return Ok(false);
         }
@@ -276,8 +285,7 @@ impl ModelCache {
         info!("Verifying existing model at {:?}", path);
 
         // Compute checksum of existing file
-        let file = File::open(path)
-            .context("Failed to open existing model file")?;
+        let file = File::open(path).context("Failed to open existing model file")?;
 
         let computed_hash = self.compute_file_checksum(&file)?;
 
@@ -342,7 +350,10 @@ impl ModelCache {
                             warn!("Removing stale lock file: {:?}", lock_path);
                             let _ = fs::remove_file(lock_path);
                         } else {
-                            anyhow::bail!("Another download is in progress (lock file: {:?})", lock_path);
+                            anyhow::bail!(
+                                "Another download is in progress (lock file: {:?})",
+                                lock_path
+                            );
                         }
                     }
                 }
@@ -350,8 +361,7 @@ impl ModelCache {
         }
 
         // Create lock file
-        File::create(lock_path)
-            .context("Failed to create lock file")?;
+        File::create(lock_path).context("Failed to create lock file")?;
 
         Ok(())
     }
@@ -431,10 +441,9 @@ mod tests {
     #[tokio::test]
     async fn test_verify_existing_model_not_found() {
         let cache = ModelCache::new();
-        let result = cache.verify_existing_model(
-            &PathBuf::from("/nonexistent/model.gguf"),
-            None
-        ).unwrap();
+        let result = cache
+            .verify_existing_model(&PathBuf::from("/nonexistent/model.gguf"), None)
+            .unwrap();
 
         assert!(!result);
     }

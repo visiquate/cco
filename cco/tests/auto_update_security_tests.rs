@@ -44,8 +44,8 @@ mod security_tests {
     #[test]
     #[cfg(unix)]
     fn test_secure_temp_directory_permissions() {
-        use std::os::unix::fs::PermissionsExt;
         use std::fs;
+        use std::os::unix::fs::PermissionsExt;
 
         let temp_dir = TempDir::new().unwrap();
         let temp_path = temp_dir.path();
@@ -69,12 +69,7 @@ mod security_tests {
     #[test]
     fn test_release_tag_validation() {
         // Valid tags
-        let valid_tags = vec![
-            "v2025.11.1",
-            "v2025.1.1",
-            "v1.2.3",
-            "v1.2.3-beta1",
-        ];
+        let valid_tags = vec!["v2025.11.1", "v2025.1.1", "v1.2.3", "v1.2.3-beta1"];
 
         for tag in valid_tags {
             // Would call validate_release_tag(tag)
@@ -144,9 +139,9 @@ mod security_tests {
 
         // Invalid URLs
         let invalid_urls = vec![
-            "http://github.com/file.tar.gz",  // HTTP not HTTPS
-            "https://evil.com/malware.tar.gz",  // Not GitHub domain
-            "file:///etc/passwd",  // Local file
+            "http://github.com/file.tar.gz",   // HTTP not HTTPS
+            "https://evil.com/malware.tar.gz", // Not GitHub domain
+            "file:///etc/passwd",              // Local file
             "https://internal-server/secret",  // Internal SSRF
         ];
 
@@ -218,8 +213,8 @@ mod security_tests {
     #[test]
     #[cfg(unix)]
     fn test_binary_permissions_verification() {
-        use std::os::unix::fs::PermissionsExt;
         use std::fs;
+        use std::os::unix::fs::PermissionsExt;
 
         let temp_dir = TempDir::new().unwrap();
         let binary_path = temp_dir.path().join("cco");
@@ -244,12 +239,7 @@ mod security_tests {
     #[test]
     fn test_version_string_sanitization() {
         // Valid versions
-        let valid_versions = vec![
-            "2025.11.1",
-            "2025.1.1",
-            "1.2.3",
-            "1.2.3-beta1",
-        ];
+        let valid_versions = vec!["2025.11.1", "2025.1.1", "1.2.3", "1.2.3-beta1"];
 
         // Invalid versions
         let invalid_versions = vec![

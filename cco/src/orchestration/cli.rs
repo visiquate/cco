@@ -137,7 +137,10 @@ pub async fn execute(cli: OrchestrationCli) -> Result<()> {
             issue_id,
             agent_type,
         } => {
-            println!("📥 Getting context for {} (issue: {})", agent_type, issue_id);
+            println!(
+                "📥 Getting context for {} (issue: {})",
+                agent_type, issue_id
+            );
 
             let client = reqwest::Client::new();
             let url = format!(
@@ -166,10 +169,7 @@ pub async fn execute(cli: OrchestrationCli) -> Result<()> {
             agent_type,
             file,
         } => {
-            println!(
-                "💾 Storing result for {} (issue: {})",
-                agent_type, issue_id
-            );
+            println!("💾 Storing result for {} (issue: {})", agent_type, issue_id);
 
             let result_json = std::fs::read_to_string(&file)?;
             let result: serde_json::Value = serde_json::from_str(&result_json)?;

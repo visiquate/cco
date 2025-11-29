@@ -173,9 +173,7 @@ impl RateLimiter {
 
         // Remove buckets that haven't been used in over an hour
         let now = Utc::now();
-        buckets.retain(|_, bucket| {
-            (now - bucket.last_refill_hour).num_hours() < 2
-        });
+        buckets.retain(|_, bucket| (now - bucket.last_refill_hour).num_hours() < 2);
 
         let removed = initial_count - buckets.len();
         if removed > 0 {

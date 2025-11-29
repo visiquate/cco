@@ -32,7 +32,11 @@ impl Component for OverviewComponent {
         let total_cost = Paragraph::new(total_cost_text)
             .block(Block::default().title("Total Cost").borders(Borders::ALL))
             .alignment(Alignment::Center)
-            .style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD));
+            .style(
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            );
         f.render_widget(total_cost, chunks[0]);
 
         // API Calls
@@ -54,7 +58,11 @@ impl Component for OverviewComponent {
         // Cache Hit Rate Gauge
         let cache_rate = app.cache_hit_rate();
         let gauge = Gauge::default()
-            .block(Block::default().title("Cache Hit Rate").borders(Borders::ALL))
+            .block(
+                Block::default()
+                    .title("Cache Hit Rate")
+                    .borders(Borders::ALL),
+            )
             .gauge_style(Style::default().fg(Color::Blue))
             .ratio(cache_rate / 100.0)
             .label(format!("{:.1}%", cache_rate));

@@ -22,7 +22,11 @@ async fn test_log_watcher_detects_new_file() {
 
     // Create new .jsonl file
     let test_file = watch_path.join("conversation_123.jsonl");
-    fs::write(&test_file, r#"{"type":"assistant","message":{"model":"claude-sonnet-4-5"}}"#).unwrap();
+    fs::write(
+        &test_file,
+        r#"{"type":"assistant","message":{"model":"claude-sonnet-4-5"}}"#,
+    )
+    .unwrap();
 
     // Verify event received within 5 seconds
     let result = timeout(Duration::from_secs(5), rx.recv()).await;
@@ -59,7 +63,10 @@ async fn test_log_watcher_ignores_non_jsonl() {
 
     // Wait 2 seconds - should NOT receive any events
     let result = timeout(Duration::from_secs(2), rx.recv()).await;
-    assert!(result.is_err(), "Should NOT receive events for invalid files");
+    assert!(
+        result.is_err(),
+        "Should NOT receive events for invalid files"
+    );
 
     println!("✅ Non-JSONL filtering test passed");
 
@@ -189,7 +196,10 @@ async fn test_log_watcher_handles_nonexistent_directory() {
 
     // Should create directory and not panic
     let result = LogWatcher::new(watch_path.clone());
-    assert!(result.is_ok(), "Should handle nonexistent directory gracefully");
+    assert!(
+        result.is_ok(),
+        "Should handle nonexistent directory gracefully"
+    );
 
     let (mut watcher, _rx) = result.unwrap();
 
@@ -238,7 +248,10 @@ async fn test_log_watcher_concurrent_operations() {
         }
     }
 
-    assert!(event_count >= 5, "Should detect all concurrent file creations");
+    assert!(
+        event_count >= 5,
+        "Should detect all concurrent file creations"
+    );
 
     println!("✅ Concurrent operations test passed");
 
@@ -419,9 +432,15 @@ async fn test_log_watcher_channel_buffer_overflow() {
     }
 
     // Should have received many events (may lose some due to buffer overflow)
-    assert!(event_count >= 50, "Should receive many events even with overflow");
+    assert!(
+        event_count >= 50,
+        "Should receive many events even with overflow"
+    );
 
-    println!("✅ Channel buffer overflow test passed: {} events", event_count);
+    println!(
+        "✅ Channel buffer overflow test passed: {} events",
+        event_count
+    );
 
     // Cleanup
     let _ = watcher.stop();

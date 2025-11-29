@@ -1,8 +1,8 @@
 //! Comprehensive tests for the TUI dashboard module
 
-use cco::metrics::{ApiCallEvent, MetricsEngine, TokenBreakdown, ModelTier};
-use cco::persistence::{PersistenceLayer, models::ApiMetricRecord};
-use cco::tui::app::{App, AppState, ApiCallDisplay};
+use cco::metrics::{ApiCallEvent, MetricsEngine, ModelTier, TokenBreakdown};
+use cco::persistence::{models::ApiMetricRecord, PersistenceLayer};
+use cco::tui::app::{ApiCallDisplay, App, AppState};
 use std::collections::VecDeque;
 use tempfile::TempDir;
 
@@ -103,12 +103,7 @@ async fn test_metrics_aggregation() {
             cache_read_tokens: 0,
         };
 
-        let event = ApiCallEvent::new(
-            "claude-opus-4".to_string(),
-            tokens,
-            None,
-            None,
-        );
+        let event = ApiCallEvent::new("claude-opus-4".to_string(), tokens, None, None);
 
         if let Some(event) = event {
             metrics_engine.record_event(event).await;
@@ -173,12 +168,7 @@ async fn test_cache_hit_rate_with_data() {
         cache_read_tokens: 50,
     };
 
-    let event = ApiCallEvent::new(
-        "claude-opus-4".to_string(),
-        tokens,
-        None,
-        None,
-    ).unwrap();
+    let event = ApiCallEvent::new("claude-opus-4".to_string(), tokens, None, None).unwrap();
 
     metrics_engine.record_event(event).await;
 
@@ -220,12 +210,7 @@ async fn test_avg_cost_per_call_with_data() {
             cache_read_tokens: 0,
         };
 
-        let event = ApiCallEvent::new(
-            "claude-haiku".to_string(),
-            tokens,
-            None,
-            None,
-        ).unwrap();
+        let event = ApiCallEvent::new("claude-haiku".to_string(), tokens, None, None).unwrap();
 
         metrics_engine.record_event(event).await;
     }
@@ -261,12 +246,7 @@ async fn test_multiple_model_tiers() {
             cache_read_tokens: 0,
         };
 
-        let event = ApiCallEvent::new(
-            model.to_string(),
-            tokens,
-            None,
-            None,
-        ).unwrap();
+        let event = ApiCallEvent::new(model.to_string(), tokens, None, None).unwrap();
 
         metrics_engine.record_event(event).await;
     }
@@ -363,12 +343,7 @@ async fn test_token_breakdown_totals() {
         cache_read_tokens: 30,
     };
 
-    let event = ApiCallEvent::new(
-        "claude-opus-4".to_string(),
-        tokens,
-        None,
-        None,
-    ).unwrap();
+    let event = ApiCallEvent::new("claude-opus-4".to_string(), tokens, None, None).unwrap();
 
     metrics_engine.record_event(event).await;
 
@@ -399,12 +374,7 @@ async fn test_recent_calls_deque() {
             cache_read_tokens: 0,
         };
 
-        let event = ApiCallEvent::new(
-            "claude-opus-4".to_string(),
-            tokens,
-            None,
-            None,
-        ).unwrap();
+        let event = ApiCallEvent::new("claude-opus-4".to_string(), tokens, None, None).unwrap();
 
         metrics_engine.record_event(event).await;
     }

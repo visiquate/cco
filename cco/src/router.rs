@@ -243,7 +243,8 @@ impl ModelRouter {
         output_tokens: u32,
     ) -> Option<f64> {
         self.config.pricing.get(model).map(|pricing| {
-            let cache_write_cost = (cache_write_tokens as f64 / 1_000_000.0) * pricing.cache_write_cost;
+            let cache_write_cost =
+                (cache_write_tokens as f64 / 1_000_000.0) * pricing.cache_write_cost;
             let cache_read_cost = (cached_tokens as f64 / 1_000_000.0) * pricing.cache_read_cost;
             let new_input_cost = (new_tokens as f64 / 1_000_000.0) * pricing.input_cost;
             let output_cost = (output_tokens as f64 / 1_000_000.0) * pricing.output_cost;
@@ -341,7 +342,7 @@ mod tests {
     fn test_claude_cache_savings_with_90_percent_cached() {
         let router = ModelRouter::new();
         let total_input = 1_000_000u32;
-        let cache_write_tokens = 0u32;  // No cache write in this scenario
+        let cache_write_tokens = 0u32; // No cache write in this scenario
         let cached_tokens = 900_000u32;
         let new_tokens = 100_000u32;
         let output_tokens = 500_000u32;

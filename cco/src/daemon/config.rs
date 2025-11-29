@@ -59,7 +59,7 @@ impl Default for DaemonConfig {
             log_max_files: 5,
             database_url: "sqlite://analytics.db".to_string(),
             cache_size: 1024 * 1024 * 1024, // 1GB
-            cache_ttl: 3600, // 1 hour
+            cache_ttl: 3600,                // 1 hour
             auto_start: true,
             health_checks: true,
             health_check_interval: 30,
@@ -88,11 +88,15 @@ impl DaemonConfig {
 
         match self.log_level.as_str() {
             "debug" | "info" | "warn" | "error" => {}
-            level => anyhow::bail!("Invalid log level: {} (must be debug, info, warn, or error)", level),
+            level => anyhow::bail!(
+                "Invalid log level: {} (must be debug, info, warn, or error)",
+                level
+            ),
         }
 
         // Validate hooks configuration
-        self.hooks.validate()
+        self.hooks
+            .validate()
             .map_err(|e| anyhow::anyhow!("Hooks configuration error: {}", e))?;
 
         Ok(())
@@ -105,11 +109,11 @@ impl DaemonConfig {
             return Ok(Self::default());
         }
 
-        let contents = std::fs::read_to_string(path)
-            .context("Failed to read configuration file")?;
+        let contents =
+            std::fs::read_to_string(path).context("Failed to read configuration file")?;
 
-        let config: Self = toml::from_str(&contents)
-            .context("Failed to parse configuration file")?;
+        let config: Self =
+            toml::from_str(&contents).context("Failed to parse configuration file")?;
 
         config.validate()?;
 
@@ -122,15 +126,12 @@ impl DaemonConfig {
 
         // Create directory if needed
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
-                .context("Failed to create configuration directory")?;
+            std::fs::create_dir_all(parent).context("Failed to create configuration directory")?;
         }
 
-        let contents = toml::to_string_pretty(self)
-            .context("Failed to serialize configuration")?;
+        let contents = toml::to_string_pretty(self).context("Failed to serialize configuration")?;
 
-        std::fs::write(path, contents)
-            .context("Failed to write configuration file")?;
+        std::fs::write(path, contents).context("Failed to write configuration file")?;
 
         Ok(())
     }
@@ -142,7 +143,8 @@ impl DaemonConfig {
             "host" => self.host = value.to_string(),
             "log_level" => self.log_level = value.to_string(),
             "log_rotation_size" => {
-                self.log_rotation_size = value.parse().context("Failed to parse log_rotation_size")?;
+                self.log_rotation_size =
+                    value.parse().context("Failed to parse log_rotation_size")?;
             }
             "log_max_files" => {
                 self.log_max_files = value.parse().context("Failed to parse log_max_files")?;
@@ -161,7 +163,9 @@ impl DaemonConfig {
                 self.health_checks = value.parse().context("Failed to parse health_checks")?;
             }
             "health_check_interval" => {
-                self.health_check_interval = value.parse().context("Failed to parse health_check_interval")?;
+                self.health_check_interval = value
+                    .parse()
+                    .context("Failed to parse health_check_interval")?;
             }
             _ => anyhow::bail!("Unknown configuration key: {}", key),
         }

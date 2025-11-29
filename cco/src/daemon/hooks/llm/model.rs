@@ -85,16 +85,17 @@ fn is_read_operation(command: &str) -> bool {
         || command.starts_with("wget ");
 
     // Check for piped READ commands (cat | grep | sort)
-    let is_piped_read = command.contains('|') &&
-        !command.contains(" > ") &&
-        !command.contains(" >> ") &&
-        (command.contains("cat ") || command.contains("grep ") ||
-         command.contains("sort") || command.contains("uniq"));
+    let is_piped_read = command.contains('|')
+        && !command.contains(" > ")
+        && !command.contains(" >> ")
+        && (command.contains("cat ")
+            || command.contains("grep ")
+            || command.contains("sort")
+            || command.contains("uniq"));
 
     // Curl without output redirect is READ
-    let is_curl_read = command.starts_with("curl ") &&
-        !command.contains(" -o ") &&
-        !command.contains(" > ");
+    let is_curl_read =
+        command.starts_with("curl ") && !command.contains(" -o ") && !command.contains(" > ");
 
     starts_with_read || is_piped_read || is_curl_read
 }
@@ -265,13 +266,12 @@ impl ModelManager {
 
         // Create HTTP client
         let client = Client::new();
-        let response = client
-            .get(&model_url)
-            .send()
-            .await
-            .map_err(|e| {
-                HookError::execution_failed("model_download", format!("Failed to initiate download: {}", e))
-            })?;
+        let response = client.get(&model_url).send().await.map_err(|e| {
+            HookError::execution_failed(
+                "model_download",
+                format!("Failed to initiate download: {}", e),
+            )
+        })?;
 
         if !response.status().is_success() {
             return Err(HookError::execution_failed(
@@ -295,7 +295,10 @@ impl ModelManager {
         let mut file = tokio::fs::File::create(&self.model_path)
             .await
             .map_err(|e| {
-                HookError::execution_failed("model_download", format!("Failed to create file: {}", e))
+                HookError::execution_failed(
+                    "model_download",
+                    format!("Failed to create file: {}", e),
+                )
             })?;
 
         let mut downloaded: u64 = 0;
@@ -303,13 +306,19 @@ impl ModelManager {
 
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.map_err(|e| {
-                HookError::execution_failed("model_download", format!("Download stream error: {}", e))
+                HookError::execution_failed(
+                    "model_download",
+                    format!("Download stream error: {}", e),
+                )
             })?;
 
             tokio::io::AsyncWriteExt::write_all(&mut file, &chunk)
                 .await
                 .map_err(|e| {
-                    HookError::execution_failed("model_download", format!("Failed to write file: {}", e))
+                    HookError::execution_failed(
+                        "model_download",
+                        format!("Failed to write file: {}", e),
+                    )
                 })?;
 
             downloaded += chunk.len() as u64;
@@ -348,7 +357,10 @@ impl ModelManager {
         // In production, you would verify against a known-good hash
 
         let file = std::fs::File::open(path).map_err(|e| {
-            HookError::execution_failed("model_verification", format!("Failed to open model file: {}", e))
+            HookError::execution_failed(
+                "model_verification",
+                format!("Failed to open model file: {}", e),
+            )
         })?;
 
         let mut reader = std::io::BufReader::new(file);
@@ -357,7 +369,10 @@ impl ModelManager {
 
         loop {
             let count = std::io::Read::read(&mut reader, &mut buffer).map_err(|e| {
-                HookError::execution_failed("model_verification", format!("Failed to read file: {}", e))
+                HookError::execution_failed(
+                    "model_verification",
+                    format!("Failed to read file: {}", e),
+                )
             })?;
 
             if count == 0 {
@@ -549,7 +564,10 @@ impl ModelManager {
                 "CREATE"
             };
 
-            info!("Placeholder inference result: {} for command: {}", classification, command);
+            info!(
+                "Placeholder inference result: {} for command: {}",
+                classification, command
+            );
             Ok(classification.to_string())
         })
         .await
@@ -667,7 +685,10 @@ Rules:
 - CREATE: Makes new resources, files, processes (touch, mkdir, git init, docker run)"#;
 
         let extracted = extract_command_from_prompt(prompt);
-        assert_eq!(extracted, "git status", "Should extract command AFTER marker, not from examples");
+        assert_eq!(
+            extracted, "git status",
+            "Should extract command AFTER marker, not from examples"
+        );
 
         // Test with different command
         let prompt2 = r#"Examples:
@@ -700,7 +721,9 @@ Rules:
         assert!(is_read_operation("curl https://example.com"));
 
         // Piped read commands
-        assert!(is_read_operation("cat file.txt | grep pattern | sort | uniq"));
+        assert!(is_read_operation(
+            "cat file.txt | grep pattern | sort | uniq"
+        ));
 
         // Should NOT be read
         assert!(!is_read_operation("rm file.txt"));
@@ -718,7 +741,9 @@ Rules:
         assert!(is_create_operation("npm init -y"));
         assert!(is_create_operation("cargo new my-project"));
         assert!(is_create_operation("echo 'hello' > output.txt"));
-        assert!(is_create_operation("curl -o file.zip https://example.com/file.zip"));
+        assert!(is_create_operation(
+            "curl -o file.zip https://example.com/file.zip"
+        ));
 
         // Should NOT be create
         assert!(!is_create_operation("ls -la"));

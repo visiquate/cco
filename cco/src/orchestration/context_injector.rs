@@ -54,14 +54,17 @@ impl ContextInjector {
         context.project_structure = self.gather_project_structure(&project_root).await?;
 
         // Gather relevant files based on agent type
-        context.relevant_files = self.gather_relevant_files(&project_root, agent_type).await?;
+        context.relevant_files = self
+            .gather_relevant_files(&project_root, agent_type)
+            .await?;
 
         // Gather git context
         context.git_context = self.gather_git_context(&project_root).await?;
 
         // Gather previous agent outputs
-        context.previous_agent_outputs =
-            self.gather_previous_outputs(&project_root, issue_id).await?;
+        context.previous_agent_outputs = self
+            .gather_previous_outputs(&project_root, issue_id)
+            .await?;
 
         // Gather metadata
         context.metadata = self.gather_metadata(&project_root).await?;
