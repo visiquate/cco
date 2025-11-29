@@ -160,7 +160,7 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
-    use tower::ServiceExt;
+    use tower::util::ServiceExt;
 
     // Helper to create test state
     fn create_test_state() -> OrchestraState {

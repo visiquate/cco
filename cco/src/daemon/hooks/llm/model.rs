@@ -1,13 +1,14 @@
 //! Model management for embedded LLM
 //!
 //! Handles downloading, caching, loading, and lifecycle management
-//! of the TinyLLaMA GGML model for CRUD classification.
+//! of the Qwen2.5-Coder GGML model for CRUD classification.
 
 use crate::daemon::hooks::config::HookLlmConfig;
 use crate::daemon::hooks::{HookError, HookResult};
 use anyhow::Result;
 use futures::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
+use llm::{Model, ModelArchitecture};
 use reqwest::Client;
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
@@ -17,152 +18,15 @@ use tracing::{debug, info, warn};
 
 /// Loaded LLM model wrapper
 ///
-/// Note: This is a placeholder structure pending full LLM integration.
-/// The actual LLM integration will be completed once the llm crate API is properly documented.
+/// Wraps the llm crate's model instance for CRUD classification
 pub struct LlmModel {
-    /// Placeholder for the loaded model instance
-    _model_path: PathBuf,
-    /// Model configuration
-    _config: HookLlmConfig,
+    /// The loaded model instance from llm crate
+    model: Box<dyn Model>,
+    /// Model configuration (kept for future extensibility)
+    #[allow(dead_code)]
+    config: HookLlmConfig,
 }
 
-/// Extract the actual command from the classification prompt
-///
-/// The prompt format contains examples with "Command: " labels, followed by
-/// "Now classify this command:" marker, then the actual command to classify.
-/// We must use the marker to avoid extracting example commands.
-///
-/// ```text
-/// Examples:
-/// Command: ls -la
-/// ...
-/// Now classify this command:
-/// Command: <ACTUAL_COMMAND>
-/// ```
-///
-/// This function extracts just the `<ACTUAL_COMMAND>` part after the marker.
-fn extract_command_from_prompt(prompt: &str) -> String {
-    // Look for the marker that precedes the actual command to classify
-    if let Some(marker_idx) = prompt.find("Now classify this command:") {
-        let after_marker = &prompt[marker_idx..];
-
-        // Find "Command: " AFTER the marker (not the examples before it)
-        if let Some(cmd_idx) = after_marker.find("Command: ") {
-            let after_label = &after_marker[cmd_idx + 9..]; // Skip "Command: "
-
-            // Extract until newline or end of string
-            if let Some(end_idx) = after_label.find('\n') {
-                return after_label[..end_idx].trim().to_string();
-            }
-            return after_label.trim().to_string();
-        }
-    }
-
-    // Fallback: couldn't parse the prompt format
-    String::new()
-}
-
-/// Check if a command is a READ operation
-///
-/// READ operations retrieve/display data without side effects.
-fn is_read_operation(command: &str) -> bool {
-    // Check command prefix (start of command)
-    let starts_with_read = command.starts_with("ls")
-        || command.starts_with("cat ")
-        || command.starts_with("grep ")
-        || command.starts_with("git status")
-        || command.starts_with("git log")
-        || command.starts_with("git diff")
-        || command.starts_with("ps ")
-        || command.starts_with("ps")
-        || command.starts_with("find ")
-        || command.starts_with("head ")
-        || command.starts_with("tail ")
-        || command.starts_with("docker ps")
-        || command.starts_with("docker logs")
-        || command.starts_with("docker inspect")
-        || command.starts_with("curl ")
-        || command.starts_with("wget ");
-
-    // Check for piped READ commands (cat | grep | sort)
-    let is_piped_read = command.contains('|')
-        && !command.contains(" > ")
-        && !command.contains(" >> ")
-        && (command.contains("cat ")
-            || command.contains("grep ")
-            || command.contains("sort")
-            || command.contains("uniq"));
-
-    // Curl without output redirect is READ
-    let is_curl_read =
-        command.starts_with("curl ") && !command.contains(" -o ") && !command.contains(" > ");
-
-    starts_with_read || is_piped_read || is_curl_read
-}
-
-/// Check if a command is a DELETE operation
-///
-/// DELETE operations remove resources.
-fn is_delete_operation(command: &str) -> bool {
-    command.starts_with("rm ")
-        || command.starts_with("rm -")
-        || command.starts_with("rmdir ")
-        || command.starts_with("docker rm")
-        || command.starts_with("docker rmi")
-        || command.starts_with("git branch -d")
-        || command.starts_with("git clean")
-        || command.starts_with("npm uninstall")
-        || command.starts_with("pip uninstall")
-        || command.starts_with("cargo uninstall")
-        || command.contains("&& rm ")
-        || command.contains("&& rm -")
-}
-
-/// Check if a command is a CREATE operation
-///
-/// CREATE operations make new resources.
-fn is_create_operation(command: &str) -> bool {
-    command.starts_with("touch ")
-        || command.starts_with("mkdir ")
-        || command.starts_with("git init")
-        || command.starts_with("git branch ")
-        || command.starts_with("git checkout -b")
-        || command.starts_with("docker run")
-        || command.starts_with("docker build")
-        || command.starts_with("docker create")
-        || command.starts_with("npm init")
-        || command.starts_with("npm install")
-        || command.starts_with("cargo new")
-        || command.starts_with("cargo init")
-        || command.starts_with("pip install")
-        || command.contains("echo ") && command.contains(" > ")
-        || command.contains("cat >")
-        || command.contains("curl ") && (command.contains(" -o ") || command.contains(" -O"))
-}
-
-/// Check if a command is an UPDATE operation
-///
-/// UPDATE operations modify existing resources.
-fn is_update_operation(command: &str) -> bool {
-    command.starts_with("git commit")
-        || command.starts_with("git add")
-        || command.starts_with("git push")
-        || command.starts_with("git pull")
-        || command.starts_with("git merge")
-        || command.starts_with("git rebase")
-        || command.starts_with("chmod ")
-        || command.starts_with("chown ")
-        || command.starts_with("sed -i")
-        || command.starts_with("mv ")
-        || command.starts_with("cp ")
-        || command.starts_with("npm update")
-        || command.starts_with("pip install --upgrade")
-        || command.starts_with("cargo update")
-        || command.contains(" >> ")
-        || command.contains("docker restart")
-        || command.contains("docker stop")
-        || command.contains("docker start")
-}
 
 /// Model manager handles lifecycle of the embedded LLM
 ///
@@ -261,7 +125,7 @@ impl ModelManager {
             })?;
         }
 
-        // Get download URL for TinyLLaMA
+        // Get download URL for Qwen2.5-Coder
         let model_url = self.get_huggingface_url();
 
         // Create HTTP client
@@ -335,10 +199,11 @@ impl ModelManager {
         Ok(())
     }
 
-    /// Get HuggingFace download URL for TinyLLaMA
+    /// Get HuggingFace download URL for Qwen2.5-Coder
     fn get_huggingface_url(&self) -> String {
-        // TinyLLaMA 1.1B Chat Q4_K_M from HuggingFace
-        "https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf".to_string()
+        // Qwen2.5-Coder 1.5B Instruct Q2_K from HuggingFace
+        // Q2_K quantization: 577MB, optimized for CRUD classification
+        "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q2_k.gguf".to_string()
     }
 
     /// Verify model file hash
@@ -351,7 +216,7 @@ impl ModelManager {
     ///
     /// Returns error if hash doesn't match expected value
     fn verify_model_hash(&self, path: &Path) -> HookResult<()> {
-        // Expected SHA256 hash for TinyLLaMA 1.1B Chat Q4_K_M
+        // Expected SHA256 hash for Qwen2.5-Coder 1.5B Instruct Q2_K
         // Note: This should be verified from the HuggingFace model card
         // For now, we'll skip strict hash verification and just log a warning
         // In production, you would verify against a known-good hash
@@ -414,7 +279,7 @@ impl ModelManager {
             return Ok(());
         }
 
-        info!("Loading model from {:?}", self.model_path);
+        info!("Loading Qwen2.5-Coder model from {:?}", self.model_path);
 
         // Ensure model file exists
         if !self.model_path.exists() {
@@ -429,30 +294,47 @@ impl ModelManager {
         let config = self.config.clone();
 
         let loaded = tokio::task::spawn_blocking(move || -> Result<Arc<LlmModel>, HookError> {
-            // TODO: Integrate with llm crate once API is stable
-            // For now, placeholder implementation that verifies the file exists
+            info!("Loading GGUF model using llm crate...");
 
-            info!("Model loading placeholder - actual LLM integration pending");
-            info!("Model file: {:?}", model_path);
-
-            // Verify model file exists and is readable
-            if !model_path.exists() {
-                return Err(HookError::execution_failed(
-                    "model_load",
-                    format!("Model file not found: {:?}", model_path),
-                ));
-            }
-
-            let metadata = std::fs::metadata(&model_path).map_err(|e| {
-                HookError::execution_failed("model_load", format!("Cannot read model file: {}", e))
+            // Load the model using llm crate with LLaMA architecture
+            let model = llm::load_dynamic(
+                ModelArchitecture::Llama,
+                &model_path,
+                Default::default(),
+                |progress| {
+                    match progress {
+                        llm::LoadProgress::HyperparametersLoaded => {
+                            debug!("Model hyperparameters loaded");
+                        }
+                        llm::LoadProgress::ContextSize { bytes } => {
+                            debug!("Context size: {} bytes", bytes);
+                        }
+                        llm::LoadProgress::TensorLoaded {
+                            current_tensor,
+                            tensor_count,
+                        } => {
+                            if current_tensor % 10 == 0 {
+                                debug!("Loading tensors: {}/{}", current_tensor, tensor_count);
+                            }
+                        }
+                        llm::LoadProgress::Loaded {
+                            file_size,
+                            tensor_count,
+                        } => {
+                            info!(
+                                "Model loaded: {} tensors, {} MB",
+                                tensor_count,
+                                file_size / (1024 * 1024)
+                            );
+                        }
+                    }
+                },
+            )
+            .map_err(|e| {
+                HookError::execution_failed("model_load", format!("Failed to load model: {}", e))
             })?;
 
-            info!("Model file size: {} MB", metadata.len() / (1024 * 1024));
-
-            Ok(Arc::new(LlmModel {
-                _model_path: model_path,
-                _config: config,
-            }))
+            Ok(Arc::new(LlmModel { model, config }))
         })
         .await
         .map_err(|e| {
@@ -500,7 +382,7 @@ impl ModelManager {
     ///
     /// # Returns
     ///
-    /// The model's response text
+    /// The model's response text (should be one of: READ, CREATE, UPDATE, DELETE)
     ///
     /// # Errors
     ///
@@ -516,58 +398,97 @@ impl ModelManager {
 
         // Get model reference
         let model_guard = self.model.lock().await;
-        let _model = model_guard
+        let model_arc = model_guard
             .as_ref()
             .ok_or_else(|| HookError::execution_failed("inference", "Model not loaded"))?
             .clone();
         drop(model_guard); // Release lock before blocking operation
 
         let prompt_str = prompt.to_string();
+        let temperature = self.config.temperature;
 
         // Run inference in blocking task
         let result = tokio::task::spawn_blocking(move || -> Result<String, HookError> {
-            // TODO: Integrate with llm crate once API is stable
-            // For now, placeholder implementation that returns a basic classification
+            info!("Running LLM inference for CRUD classification");
+            debug!("Prompt: {}", prompt_str);
 
-            debug!("Inference placeholder - prompt: {}", prompt_str);
-            warn!("Using placeholder inference - actual LLM integration pending");
+            // Create inference session
+            let mut session = model_arc.model.start_session(Default::default());
 
-            // CRITICAL FIX: Extract the actual command from the prompt
-            // The prompt contains examples in the rules section, so we must parse
-            // out just the "Command: <actual_command>" line to avoid false matches.
-            let command = extract_command_from_prompt(&prompt_str);
-            debug!("Extracted command: {}", command);
+            // Collect the output
+            let mut output = String::new();
 
-            if command.is_empty() {
-                warn!("Failed to extract command from prompt, using fallback");
-                return Ok("CREATE".to_string()); // Safe fallback
+            // Create inference parameters with temperature control
+            let inference_params = llm::InferenceParameters {
+                n_threads: num_cpus::get(),
+                n_batch: 8,
+                top_k: 40,
+                top_p: 0.95,
+                repeat_penalty: 1.1,
+                temperature,
+                bias_tokens: Default::default(),
+                repetition_penalty_last_n: 64,
+            };
+
+            let request = llm::InferenceRequest {
+                prompt: prompt_str.as_str(),
+                parameters: Some(&inference_params),
+                play_back_previous_tokens: false,
+                maximum_token_count: Some(10), // We only need 1 word (READ/CREATE/UPDATE/DELETE)
+            };
+
+            // Run inference with the prompt
+            let inference_result = session.infer::<std::convert::Infallible>(
+                model_arc.model.as_ref(),
+                &mut rand::thread_rng(),
+                &request,
+                &mut Default::default(),
+                |token| {
+                    output.push_str(token);
+                    Ok(())
+                },
+            );
+
+            match inference_result {
+                Ok(stats) => {
+                    info!(
+                        "Inference completed: {} prompt tokens, {} predict tokens, feed_prompt: {}ms, predict: {}ms",
+                        stats.prompt_tokens,
+                        stats.predict_tokens,
+                        stats.feed_prompt_duration.as_millis(),
+                        stats.predict_duration.as_millis()
+                    );
+                }
+                Err(e) => {
+                    warn!("Inference error: {:?}", e);
+                    return Err(HookError::execution_failed(
+                        "inference",
+                        format!("LLM inference failed: {:?}", e),
+                    ));
+                }
             }
 
-            // Classify based on the EXTRACTED COMMAND only, not the full prompt
-            let command_lower = command.to_lowercase();
-            let command_trimmed = command_lower.trim();
-
-            // READ: Operations that only retrieve/display data
-            let classification = if is_read_operation(&command_trimmed) {
+            // Extract the classification from the output
+            // The model should output one of: READ, CREATE, UPDATE, DELETE
+            let output_trimmed = output.trim().to_uppercase();
+            let classification = if output_trimmed.contains("READ") {
                 "READ"
-            // DELETE: Operations that remove resources
-            } else if is_delete_operation(&command_trimmed) {
-                "DELETE"
-            // CREATE: Operations that make new resources
-            } else if is_create_operation(&command_trimmed) {
+            } else if output_trimmed.contains("CREATE") {
                 "CREATE"
-            // UPDATE: Operations that modify existing resources
-            } else if is_update_operation(&command_trimmed) {
+            } else if output_trimmed.contains("UPDATE") {
                 "UPDATE"
+            } else if output_trimmed.contains("DELETE") {
+                "DELETE"
             } else {
-                // Default to CREATE (safest - requires confirmation)
+                // Fallback to CREATE if we can't parse the output
+                warn!(
+                    "Could not parse classification from output: '{}', defaulting to CREATE",
+                    output_trimmed
+                );
                 "CREATE"
             };
 
-            info!(
-                "Placeholder inference result: {} for command: {}",
-                classification, command
-            );
+            info!("LLM classification result: {}", classification);
             Ok(classification.to_string())
         })
         .await
@@ -631,14 +552,14 @@ mod tests {
     #[tokio::test]
     async fn test_model_manager_creation() {
         let config = HookLlmConfig {
-            model_type: "tinyllama".to_string(),
+            model_type: "qwen-coder".to_string(),
             model_name: "test-model".to_string(),
             model_path: PathBuf::from("/tmp/test-model.gguf"),
-            model_size_mb: 600,
-            quantization: "Q4_K_M".to_string(),
+            model_size_mb: 577,
+            quantization: "Q2_K".to_string(),
             loaded: false,
             inference_timeout_ms: 2000,
-            temperature: 0.5,
+            temperature: 0.05,
         };
 
         let manager = ModelManager::new(config).await.unwrap();
@@ -648,14 +569,14 @@ mod tests {
     #[tokio::test]
     async fn test_model_unload() {
         let config = HookLlmConfig {
-            model_type: "tinyllama".to_string(),
+            model_type: "qwen-coder".to_string(),
             model_name: "test-model".to_string(),
             model_path: PathBuf::from("/tmp/test-model.gguf"),
-            model_size_mb: 600,
-            quantization: "Q4_K_M".to_string(),
+            model_size_mb: 577,
+            quantization: "Q2_K".to_string(),
             loaded: false,
             inference_timeout_ms: 2000,
-            temperature: 0.5,
+            temperature: 0.05,
         };
 
         let manager = ModelManager::new(config).await.unwrap();
@@ -665,119 +586,4 @@ mod tests {
         assert!(!manager.is_loaded().await);
     }
 
-    #[test]
-    fn test_extract_command_from_prompt() {
-        // Test with realistic prompt that has examples BEFORE the actual command
-        let prompt = r#"Classify this shell command as EXACTLY ONE of: READ, CREATE, UPDATE, or DELETE
-
-Examples:
-Command: ls -la
-Classification: READ
-
-Command: mkdir newdir
-Classification: CREATE
-
-Now classify this command:
-Command: git status
-
-Rules:
-- READ: Retrieves/displays data, no side effects (ls, cat, grep, git status)
-- CREATE: Makes new resources, files, processes (touch, mkdir, git init, docker run)"#;
-
-        let extracted = extract_command_from_prompt(prompt);
-        assert_eq!(
-            extracted, "git status",
-            "Should extract command AFTER marker, not from examples"
-        );
-
-        // Test with different command
-        let prompt2 = r#"Examples:
-Command: touch file.txt
-Classification: CREATE
-
-Now classify this command:
-Command: rm -rf /tmp/test
-
-Rules:
-..."#;
-        let extracted2 = extract_command_from_prompt(prompt2);
-        assert_eq!(extracted2, "rm -rf /tmp/test");
-    }
-
-    #[test]
-    fn test_read_operations() {
-        // Basic read commands
-        assert!(is_read_operation("ls -la"));
-        assert!(is_read_operation("cat file.txt"));
-        assert!(is_read_operation("grep pattern file"));
-        assert!(is_read_operation("git status"));
-        assert!(is_read_operation("git log --oneline"));
-        assert!(is_read_operation("git diff HEAD~1"));
-        assert!(is_read_operation("ps aux"));
-        assert!(is_read_operation("find . -name '*.rs'"));
-        assert!(is_read_operation("head -20 log.txt"));
-        assert!(is_read_operation("tail -f application.log"));
-        assert!(is_read_operation("docker ps -a"));
-        assert!(is_read_operation("curl https://example.com"));
-
-        // Piped read commands
-        assert!(is_read_operation(
-            "cat file.txt | grep pattern | sort | uniq"
-        ));
-
-        // Should NOT be read
-        assert!(!is_read_operation("rm file.txt"));
-        assert!(!is_read_operation("touch newfile.txt"));
-    }
-
-    #[test]
-    fn test_create_operations() {
-        assert!(is_create_operation("touch newfile.txt"));
-        assert!(is_create_operation("mkdir -p path/to/dir"));
-        assert!(is_create_operation("git init"));
-        assert!(is_create_operation("git branch new-feature"));
-        assert!(is_create_operation("docker run -d nginx"));
-        assert!(is_create_operation("docker build -t myapp:latest ."));
-        assert!(is_create_operation("npm init -y"));
-        assert!(is_create_operation("cargo new my-project"));
-        assert!(is_create_operation("echo 'hello' > output.txt"));
-        assert!(is_create_operation(
-            "curl -o file.zip https://example.com/file.zip"
-        ));
-
-        // Should NOT be create
-        assert!(!is_create_operation("ls -la"));
-        assert!(!is_create_operation("rm file.txt"));
-    }
-
-    #[test]
-    fn test_update_operations() {
-        assert!(is_update_operation("git commit -m 'Update README'"));
-        assert!(is_update_operation("git add ."));
-        assert!(is_update_operation("chmod +x script.sh"));
-        assert!(is_update_operation("chown user:group file.txt"));
-        assert!(is_update_operation("sed -i 's/old/new/g' file.txt"));
-        assert!(is_update_operation("mv oldname.txt newname.txt"));
-        assert!(is_update_operation("echo 'data' >> file.txt"));
-
-        // Should NOT be update
-        assert!(!is_update_operation("ls -la"));
-        assert!(!is_update_operation("rm file.txt"));
-    }
-
-    #[test]
-    fn test_delete_operations() {
-        assert!(is_delete_operation("rm file.txt"));
-        assert!(is_delete_operation("rm -rf directory/"));
-        assert!(is_delete_operation("rmdir empty_directory"));
-        assert!(is_delete_operation("docker rm container_name"));
-        assert!(is_delete_operation("docker rmi image_name"));
-        assert!(is_delete_operation("git branch -d feature-branch"));
-        assert!(is_delete_operation("git clean -fd"));
-        assert!(is_delete_operation("npm uninstall package-name"));
-
-        // Should NOT be delete
-        assert!(!is_delete_operation("ls -la"));
-        assert!(!is_delete_operation("touch file.txt"));
-    }
 }

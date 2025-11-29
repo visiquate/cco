@@ -128,6 +128,7 @@ impl OrchestrationServer {
             .route("/api/events/wait/:event_type", get(subscribe_event_handler))
             // Agent management
             .route("/api/agents/spawn", post(spawn_agent_handler))
+            .route("/api/agents/:agent_id/status", get(get_agent_status_handler))
             // Cache management
             .route(
                 "/api/cache/context/:issue_id",
@@ -306,6 +307,17 @@ pub struct SpawnAgentResponse {
 pub struct ClearCacheResponse {
     cleared: bool,
     entries_removed: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AgentStatusResponse {
+    agent_id: String,
+    agent_type: String,
+    issue_id: String,
+    status: String,
+    spawned_at: DateTime<Utc>,
+    context_available: bool,
+    last_activity: Option<DateTime<Utc>>,
 }
 
 // ===== HANDLER FUNCTIONS =====
@@ -489,18 +501,123 @@ async fn subscribe_event_handler(
 }
 
 async fn spawn_agent_handler(
-    State(_state): State<HandlerState>,
-    Json(_request): Json<SpawnAgentRequest>,
+    State(state): State<HandlerState>,
+    Json(request): Json<SpawnAgentRequest>,
 ) -> Result<Json<SpawnAgentResponse>, AppError> {
     let agent_id = Uuid::new_v4().to_string();
 
-    // TODO: Implement actual agent spawning
+    // Gather context for the agent
+    let context = state
+        .orchestration
+        .context_injector
+        .gather_context(&request.agent_type, &request.issue_id)
+        .await
+        .map_err(|e| AppError::InternalError(format!("Failed to gather context: {}", e)))?;
+
+    // Publish agent spawn event with all metadata
+    // This event contains the full agent spawn information
+    let _event_id = state
+        .orchestration
+        .event_bus
+        .publish(
+            "agent_spawned",
+            &agent_id,
+            "orchestration",
+            serde_json::json!({
+                "agent_id": agent_id,
+                "agent_type": request.agent_type,
+                "issue_id": request.issue_id,
+                "task": request.task,
+                "context": context,
+                "environment": request.environment,
+                "timestamp": chrono::Utc::now().to_rfc3339(),
+                "status": "ready"
+            }),
+        )
+        .await
+        .map_err(|e| AppError::InternalError(format!("Failed to publish spawn event: {}", e)))?;
+
+    // Increment active agents counter
+    state.metrics.active_agents.fetch_add(1, Ordering::Relaxed);
+
+    tracing::info!(
+        "Agent spawned: {} (type: {}, issue: {})",
+        agent_id,
+        request.agent_type,
+        request.issue_id
+    );
+
     Ok(Json(SpawnAgentResponse {
         agent_id: agent_id.clone(),
-        spawned: false, // Not implemented yet
-        process_id: None,
-        context_injected: false,
+        spawned: true,
+        process_id: Some(std::process::id()), // This sidecar's PID - agents run in Claude Code context
+        context_injected: true,
         webhook_url: format!("/api/agents/{}/status", agent_id),
+    }))
+}
+
+async fn get_agent_status_handler(
+    State(state): State<HandlerState>,
+    Path(agent_id): Path<String>,
+) -> Result<Json<AgentStatusResponse>, AppError> {
+    // Wait for agent spawn event (should already exist)
+    let events = state
+        .orchestration
+        .event_bus
+        .wait_for_event("agent_spawned", 1000) // 1 second timeout
+        .await
+        .map_err(|e| AppError::NotFound(format!("Agent not found: {}", e)))?;
+
+    // Find the matching agent event
+    let agent_event = events
+        .iter()
+        .find(|e| e.data["agent_id"].as_str() == Some(&agent_id))
+        .ok_or_else(|| AppError::NotFound(format!("Agent {} not found", agent_id)))?;
+
+    let agent_data = &agent_event.data;
+
+    // Parse agent data
+    let agent_type = agent_data["agent_type"]
+        .as_str()
+        .ok_or_else(|| AppError::InternalError("Invalid agent data".to_string()))?
+        .to_string();
+
+    let issue_id = agent_data["issue_id"]
+        .as_str()
+        .ok_or_else(|| AppError::InternalError("Invalid agent data".to_string()))?
+        .to_string();
+
+    let spawned_at = agent_data["timestamp"]
+        .as_str()
+        .and_then(|s| s.parse::<DateTime<Utc>>().ok())
+        .ok_or_else(|| AppError::InternalError("Invalid timestamp".to_string()))?;
+
+    // Check if agent has submitted results
+    let has_results = state
+        .orchestration
+        .result_storage
+        .has_result(&issue_id, &agent_type)
+        .await
+        .unwrap_or(false);
+
+    let status = if has_results {
+        "completed"
+    } else {
+        "running"
+    };
+
+    Ok(Json(AgentStatusResponse {
+        agent_id,
+        agent_type,
+        issue_id,
+        status: status.to_string(),
+        spawned_at,
+        context_available: agent_data.get("context").is_some(),
+        last_activity: if has_results {
+            Some(Utc::now())
+        } else {
+            None
+        },
     }))
 }
 

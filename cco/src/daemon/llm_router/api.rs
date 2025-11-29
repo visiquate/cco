@@ -10,7 +10,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use super::{LlmClient, LlmOptions, LlmRouter, RoutingDecision};
+use super::{LlmClient, LlmOptions, LlmRouter};
 
 /// Shared state for LLM router API
 #[derive(Clone)]
@@ -142,11 +142,12 @@ mod tests {
     use crate::daemon::llm_router::{
         endpoints::{EndpointConfig, EndpointType},
         router::LlmRoutingConfig,
+        RoutingDecision,
     };
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
     use std::collections::HashMap;
-    use tower::ServiceExt;
+    use tower::util::ServiceExt;
 
     fn test_router_state() -> LlmRouterState {
         let mut endpoints = HashMap::new();

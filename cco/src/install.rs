@@ -72,6 +72,37 @@ fn is_newer_version(new_version: &str, old_version: &str) -> bool {
     }
 }
 
+/// Sign binary for macOS Gatekeeper (ad-hoc signature)
+#[cfg(target_os = "macos")]
+fn sign_binary(binary_path: &Path) -> Result<()> {
+    println!("→ Signing binary for macOS Gatekeeper...");
+
+    let output = Command::new("codesign")
+        .arg("--force")
+        .arg("--deep")
+        .arg("--sign")
+        .arg("-")
+        .arg(binary_path)
+        .output()
+        .context("Failed to execute codesign command")?;
+
+    if output.status.success() {
+        println!("  ✓ Binary signed successfully");
+        Ok(())
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        println!("  ⚠️  Code signing failed: {}", stderr);
+        println!("  Continuing anyway - you may need to allow the binary in System Preferences");
+        Ok(()) // Don't fail installation if signing fails
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn sign_binary(_binary_path: &Path) -> Result<()> {
+    // No-op on non-macOS platforms
+    Ok(())
+}
+
 /// Check if ~/.local/bin is already in PATH
 fn is_in_path() -> bool {
     if let Some(home) = dirs::home_dir() {
@@ -196,6 +227,9 @@ pub async fn run(force: bool) -> Result<()> {
         perms.set_mode(0o755);
         fs::set_permissions(&install_path, perms)?;
     }
+
+    // Sign the binary for macOS Gatekeeper
+    sign_binary(&install_path)?;
 
     // Detect shell and update PATH
     match detect_shell() {

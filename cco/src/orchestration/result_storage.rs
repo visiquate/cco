@@ -133,6 +133,17 @@ impl ResultStorage {
         Ok(results)
     }
 
+    /// Check if a result exists for a specific issue and agent
+    pub async fn has_result(&self, issue_id: &str, agent_type: &str) -> Result<bool> {
+        let result_path = self
+            .base_path
+            .join("results")
+            .join(issue_id)
+            .join(format!("{}.json", agent_type));
+
+        Ok(result_path.exists())
+    }
+
     /// Query results by timestamp range
     #[allow(dead_code)]
     pub async fn query_by_time_range(

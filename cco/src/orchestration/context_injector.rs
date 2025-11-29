@@ -300,24 +300,163 @@ impl ContextInjector {
     /// Gather git context
     async fn gather_git_context(
         &self,
-        _root: &Path,
+        root: &Path,
     ) -> Result<super::knowledge_broker::GitContext> {
-        // TODO: Implement git integration
+        use std::process::Command;
+
+        let git_dir = root.join(".git");
+        if !git_dir.exists() {
+            // Not a git repository
+            return Ok(super::knowledge_broker::GitContext {
+                branch: String::from("unknown"),
+                recent_commits: vec![],
+                uncommitted_changes: vec![],
+            });
+        }
+
+        // Get current branch
+        let branch = Command::new("git")
+            .current_dir(root)
+            .args(["rev-parse", "--abbrev-ref", "HEAD"])
+            .output()
+            .ok()
+            .and_then(|output| {
+                if output.status.success() {
+                    String::from_utf8(output.stdout).ok()
+                } else {
+                    None
+                }
+            })
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|| String::from("unknown"));
+
+        // Get recent commits (last 5)
+        let recent_commits = Command::new("git")
+            .current_dir(root)
+            .args([
+                "log",
+                "--format=%H%n%s%n%an%n%aI",
+                "-5",
+                "--no-merges",
+            ])
+            .output()
+            .ok()
+            .and_then(|output| {
+                if output.status.success() {
+                    String::from_utf8(output.stdout).ok()
+                } else {
+                    None
+                }
+            })
+            .map(|s| {
+                let mut commits = Vec::new();
+                let lines: Vec<&str> = s.lines().collect();
+
+                for chunk in lines.chunks(4) {
+                    if chunk.len() == 4 {
+                        commits.push(super::knowledge_broker::CommitInfo {
+                            hash: chunk[0].to_string(),
+                            message: chunk[1].to_string(),
+                            author: chunk[2].to_string(),
+                            timestamp: chunk[3].to_string(),
+                        });
+                    }
+                }
+
+                commits
+            })
+            .unwrap_or_default();
+
+        // Get uncommitted changes
+        let uncommitted_changes = Command::new("git")
+            .current_dir(root)
+            .args(["status", "--porcelain"])
+            .output()
+            .ok()
+            .and_then(|output| {
+                if output.status.success() {
+                    String::from_utf8(output.stdout).ok()
+                } else {
+                    None
+                }
+            })
+            .map(|s| {
+                s.lines()
+                    .map(|line| line.to_string())
+                    .collect()
+            })
+            .unwrap_or_default();
+
         Ok(super::knowledge_broker::GitContext {
-            branch: String::from("main"),
-            recent_commits: vec![],
-            uncommitted_changes: vec![],
+            branch,
+            recent_commits,
+            uncommitted_changes,
         })
     }
 
     /// Gather previous agent outputs
     async fn gather_previous_outputs(
         &self,
-        _root: &Path,
-        _issue_id: &str,
+        root: &Path,
+        issue_id: &str,
     ) -> Result<Vec<super::knowledge_broker::AgentOutput>> {
-        // TODO: Implement previous output gathering
-        Ok(vec![])
+        // Try to query the knowledge store via daemon API
+        // If daemon is not running, return empty results
+        let port = match crate::daemon::lifecycle::read_daemon_port() {
+            Ok(port) => port,
+            Err(_) => return Ok(vec![]), // Daemon not running
+        };
+
+        // Get project ID from git repo or directory name
+        let project_id = root
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown")
+            .to_string();
+
+        // Query knowledge store for agent outputs related to this issue
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(2))
+            .build()?;
+
+        // Search for agent outputs with the issue ID
+        let search_query = format!("issue:{} agent output", issue_id);
+
+        let payload = serde_json::json!({
+            "query": search_query,
+            "limit": 20,
+            "project_id": project_id,
+            "knowledge_type": "implementation",
+        });
+
+        let response = match client
+            .post(format!("http://localhost:{}/api/knowledge/search", port))
+            .json(&payload)
+            .send()
+            .await
+        {
+            Ok(resp) if resp.status().is_success() => resp,
+            _ => return Ok(vec![]), // Failed to query, return empty
+        };
+
+        let results: Vec<serde_json::Value> = match response.json().await {
+            Ok(r) => r,
+            Err(_) => return Ok(vec![]),
+        };
+
+        // Convert search results to AgentOutput format
+        let outputs = results
+            .iter()
+            .filter_map(|item| {
+                Some(super::knowledge_broker::AgentOutput {
+                    agent: item["agent"].as_str()?.to_string(),
+                    timestamp: item["timestamp"].as_str()?.to_string(),
+                    decision: item["text"].as_str()?.to_string(),
+                })
+            })
+            .collect();
+
+        Ok(outputs)
     }
 
     /// Gather project metadata
@@ -326,13 +465,183 @@ impl ContextInjector {
         root: &Path,
     ) -> Result<super::knowledge_broker::ProjectMetadata> {
         let project_type = self.detect_project_type(root);
+        let dependencies = self.extract_dependencies(root, &project_type);
 
         Ok(super::knowledge_broker::ProjectMetadata {
             project_type,
-            dependencies: vec![],
+            dependencies,
             test_coverage: None,
             last_build_status: None,
         })
+    }
+
+    /// Extract dependencies from project files
+    fn extract_dependencies(&self, root: &Path, project_type: &str) -> Vec<String> {
+        match project_type {
+            "rust" => self.extract_cargo_dependencies(root),
+            "javascript" => self.extract_npm_dependencies(root),
+            "python" => self.extract_python_dependencies(root),
+            "go" => self.extract_go_dependencies(root),
+            _ => vec![],
+        }
+    }
+
+    /// Extract Cargo dependencies
+    fn extract_cargo_dependencies(&self, root: &Path) -> Vec<String> {
+        let cargo_toml = root.join("Cargo.toml");
+        if !cargo_toml.exists() {
+            return vec![];
+        }
+
+        match fs::read_to_string(&cargo_toml) {
+            Ok(content) => {
+                // Simple TOML parsing for dependencies
+                let mut deps = Vec::new();
+                let mut in_dependencies = false;
+
+                for line in content.lines() {
+                    if line.starts_with("[dependencies]") {
+                        in_dependencies = true;
+                        continue;
+                    } else if line.starts_with('[') {
+                        in_dependencies = false;
+                    }
+
+                    if in_dependencies && !line.trim().is_empty() && !line.trim().starts_with('#') {
+                        if let Some(dep_name) = line.split('=').next() {
+                            deps.push(dep_name.trim().to_string());
+                        }
+                    }
+                }
+
+                deps
+            }
+            Err(_) => vec![],
+        }
+    }
+
+    /// Extract npm dependencies
+    fn extract_npm_dependencies(&self, root: &Path) -> Vec<String> {
+        let package_json = root.join("package.json");
+        if !package_json.exists() {
+            return vec![];
+        }
+
+        match fs::read_to_string(&package_json) {
+            Ok(content) => {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                    let mut deps = Vec::new();
+
+                    if let Some(dependencies) = json["dependencies"].as_object() {
+                        deps.extend(dependencies.keys().map(|k| k.to_string()));
+                    }
+
+                    if let Some(dev_dependencies) = json["devDependencies"].as_object() {
+                        deps.extend(dev_dependencies.keys().map(|k| k.to_string()));
+                    }
+
+                    deps
+                } else {
+                    vec![]
+                }
+            }
+            Err(_) => vec![],
+        }
+    }
+
+    /// Extract Python dependencies
+    fn extract_python_dependencies(&self, root: &Path) -> Vec<String> {
+        // Try requirements.txt first
+        let requirements_txt = root.join("requirements.txt");
+        if requirements_txt.exists() {
+            if let Ok(content) = fs::read_to_string(&requirements_txt) {
+                return content
+                    .lines()
+                    .filter(|line| !line.trim().is_empty() && !line.trim().starts_with('#'))
+                    .filter_map(|line| {
+                        // Extract package name (before ==, >=, etc.)
+                        line.split(|c| c == '=' || c == '>' || c == '<')
+                            .next()
+                            .map(|s| s.trim().to_string())
+                    })
+                    .collect();
+            }
+        }
+
+        // Try pyproject.toml
+        let pyproject_toml = root.join("pyproject.toml");
+        if pyproject_toml.exists() {
+            if let Ok(content) = fs::read_to_string(&pyproject_toml) {
+                let mut deps = Vec::new();
+                let mut in_dependencies = false;
+
+                for line in content.lines() {
+                    if line.contains("[tool.poetry.dependencies]")
+                        || line.contains("[project.dependencies]")
+                    {
+                        in_dependencies = true;
+                        continue;
+                    } else if line.starts_with('[') {
+                        in_dependencies = false;
+                    }
+
+                    if in_dependencies && !line.trim().is_empty() {
+                        if let Some(dep_name) = line.split('=').next() {
+                            let dep = dep_name.trim().trim_matches('"');
+                            if !dep.is_empty() && dep != "python" {
+                                deps.push(dep.to_string());
+                            }
+                        }
+                    }
+                }
+
+                return deps;
+            }
+        }
+
+        vec![]
+    }
+
+    /// Extract Go dependencies
+    fn extract_go_dependencies(&self, root: &Path) -> Vec<String> {
+        let go_mod = root.join("go.mod");
+        if !go_mod.exists() {
+            return vec![];
+        }
+
+        match fs::read_to_string(&go_mod) {
+            Ok(content) => {
+                let mut deps = Vec::new();
+                let mut in_require = false;
+
+                for line in content.lines() {
+                    let trimmed = line.trim();
+
+                    if trimmed.starts_with("require (") {
+                        in_require = true;
+                        continue;
+                    } else if trimmed == ")" {
+                        in_require = false;
+                        continue;
+                    }
+
+                    if in_require || trimmed.starts_with("require ") {
+                        let parts: Vec<&str> = trimmed.split_whitespace().collect();
+                        if parts.len() >= 2 {
+                            let dep = if parts[0] == "require" {
+                                parts[1]
+                            } else {
+                                parts[0]
+                            };
+                            deps.push(dep.to_string());
+                        }
+                    }
+                }
+
+                deps
+            }
+            Err(_) => vec![],
+        }
     }
 
     /// Detect project type from markers

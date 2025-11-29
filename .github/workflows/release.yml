@@ -47,7 +47,10 @@ jobs:
           # Create artifacts directory
           mkdir -p artifacts
 
-          # Build CCO for Linux x86_64 (current directory is already the cco project root)
+          # Change to cco subdirectory where Cargo.toml is located
+          cd cco
+
+          # Build CCO for Linux x86_64
           echo "Building CCO..."
           cargo build --release --verbose
 
@@ -56,11 +59,11 @@ jobs:
           BINARY_NAME="cco-v${VERSION}-${PLATFORM}"
 
           # Copy binary to artifacts with proper naming
-          cp target/release/cco "artifacts/${BINARY_NAME}"
-          chmod +x "artifacts/${BINARY_NAME}"
+          cp target/release/cco "../artifacts/${BINARY_NAME}"
+          chmod +x "../artifacts/${BINARY_NAME}"
 
           # Generate checksums
-          cd artifacts
+          cd ../artifacts
           sha256sum "${BINARY_NAME}" > checksums.txt
 
           echo ""

@@ -164,6 +164,26 @@ impl Default for PermissionConfig {
 /// Processes permission requests based on CRUD classification:
 /// - READ: Auto-approve (safe operations)
 /// - CREATE/UPDATE/DELETE: Queue for user confirmation or auto-approve if configured
+/// - DENYLIST: Hard-block critical commands regardless of configuration
+///
+/// # Command Denylist
+///
+/// The following commands are always denied, even when `dangerously_skip_confirmations` is enabled:
+///
+/// **Build artifact deletion:**
+/// - `cargo clean` - Deletes entire target directory
+/// - `rm -rf target` / `rm -rf target/` - Manual target deletion
+///
+/// **Git destructive operations:**
+/// - `git clean -fdx` - Removes all untracked files including ignored
+/// - `git clean -fd` - Removes untracked files and directories
+///
+/// **Docker destructive operations:**
+/// - `docker system prune -a` / `docker system prune --all` - Removes all unused data
+///
+/// **Node/Python build cleanup:**
+/// - `rm -rf node_modules` - Deletes Node.js dependencies
+/// - `rm -rf .venv` - Deletes Python virtual environment
 ///
 /// # Thread Safety
 ///
@@ -173,6 +193,23 @@ pub struct PermissionHandler {
     /// Configuration for permission handling
     config: Arc<RwLock<PermissionConfig>>,
 }
+
+/// Commands that are always denied, regardless of configuration
+const DENIED_COMMANDS: &[&str] = &[
+    // Build artifact deletion
+    "cargo clean",
+    "rm -rf target",
+    "rm -rf target/",
+    // Git destructive operations
+    "git clean -fdx",
+    "git clean -fd",
+    // Docker destructive operations
+    "docker system prune -a",
+    "docker system prune --all",
+    // Node/Python build cleanup
+    "rm -rf node_modules",
+    "rm -rf .venv",
+];
 
 impl PermissionHandler {
     /// Create a new permission handler with default configuration
@@ -201,16 +238,34 @@ impl PermissionHandler {
     ///
     /// # Behavior
     ///
+    /// - DENYLIST commands: Always denied (highest priority)
     /// - READ operations: Immediately approved
     /// - CREATE/UPDATE/DELETE with dangerously_skip_confirmations: Auto-approved with warning
     /// - CREATE/UPDATE/DELETE in interactive mode: Returns PENDING (waiting for user)
     pub async fn process_request(&self, request: PermissionRequest) -> PermissionResponse {
-        let config = self.config.read().await;
-
         debug!(
             "Processing permission request: {} (classification: {})",
             request.command, request.classification
         );
+
+        // Check denylist FIRST - overrides all other logic
+        for denied_cmd in DENIED_COMMANDS {
+            if request.command.contains(denied_cmd) {
+                warn!(
+                    "🚫 Command denied by denylist: {} (matched: {})",
+                    request.command, denied_cmd
+                );
+                return PermissionResponse::new(
+                    PermissionDecision::Denied,
+                    format!(
+                        "Command denied: '{}' would delete critical build artifacts or perform destructive operations",
+                        request.command
+                    ),
+                );
+            }
+        }
+
+        let config = self.config.read().await;
 
         // Auto-approve READ operations
         if request.is_safe() && config.auto_approve_read {
@@ -398,5 +453,158 @@ mod tests {
 
         assert_eq!(response.decision, PermissionDecision::Approved);
         assert_eq!(response.confidence, Some(0.95));
+    }
+
+    // ========================================================================
+    // Denylist Tests
+    // ========================================================================
+
+    #[tokio::test]
+    async fn test_denylist_blocks_cargo_clean() {
+        let handler = PermissionHandler::new();
+        let request = PermissionRequest::new("cargo clean", CrudClassification::Delete);
+        let response = handler.process_request(request).await;
+
+        assert_eq!(response.decision, PermissionDecision::Denied);
+        assert!(response.reasoning.contains("denied"));
+        assert!(response.reasoning.contains("cargo clean"));
+    }
+
+    #[tokio::test]
+    async fn test_denylist_blocks_cargo_clean_in_compound_command() {
+        let handler = PermissionHandler::new();
+        let request = PermissionRequest::new("cd /tmp && cargo clean", CrudClassification::Delete);
+        let response = handler.process_request(request).await;
+
+        assert_eq!(response.decision, PermissionDecision::Denied);
+        assert!(response.reasoning.contains("denied"));
+    }
+
+    #[tokio::test]
+    async fn test_denylist_blocks_even_with_skip_confirmations() {
+        let config = PermissionConfig {
+            dangerously_skip_confirmations: true,
+            ..Default::default()
+        };
+        let handler = PermissionHandler::with_config(config);
+        let request = PermissionRequest::new("cargo clean", CrudClassification::Delete);
+        let response = handler.process_request(request).await;
+
+        assert_eq!(response.decision, PermissionDecision::Denied);
+        assert!(response.reasoning.contains("denied"));
+    }
+
+    #[tokio::test]
+    async fn test_denylist_blocks_rm_target() {
+        let handler = PermissionHandler::new();
+
+        // Test without trailing slash
+        let request1 = PermissionRequest::new("rm -rf target", CrudClassification::Delete);
+        let response1 = handler.process_request(request1).await;
+        assert_eq!(response1.decision, PermissionDecision::Denied);
+
+        // Test with trailing slash
+        let request2 = PermissionRequest::new("rm -rf target/", CrudClassification::Delete);
+        let response2 = handler.process_request(request2).await;
+        assert_eq!(response2.decision, PermissionDecision::Denied);
+    }
+
+    #[tokio::test]
+    async fn test_denylist_blocks_git_clean() {
+        let handler = PermissionHandler::new();
+
+        // Test git clean -fdx
+        let request1 = PermissionRequest::new("git clean -fdx", CrudClassification::Delete);
+        let response1 = handler.process_request(request1).await;
+        assert_eq!(response1.decision, PermissionDecision::Denied);
+
+        // Test git clean -fd
+        let request2 = PermissionRequest::new("git clean -fd", CrudClassification::Delete);
+        let response2 = handler.process_request(request2).await;
+        assert_eq!(response2.decision, PermissionDecision::Denied);
+    }
+
+    #[tokio::test]
+    async fn test_denylist_blocks_docker_system_prune() {
+        let handler = PermissionHandler::new();
+
+        // Test with -a flag
+        let request1 = PermissionRequest::new("docker system prune -a", CrudClassification::Delete);
+        let response1 = handler.process_request(request1).await;
+        assert_eq!(response1.decision, PermissionDecision::Denied);
+
+        // Test with --all flag
+        let request2 = PermissionRequest::new("docker system prune --all", CrudClassification::Delete);
+        let response2 = handler.process_request(request2).await;
+        assert_eq!(response2.decision, PermissionDecision::Denied);
+    }
+
+    #[tokio::test]
+    async fn test_denylist_blocks_rm_node_modules() {
+        let handler = PermissionHandler::new();
+        let request = PermissionRequest::new("rm -rf node_modules", CrudClassification::Delete);
+        let response = handler.process_request(request).await;
+
+        assert_eq!(response.decision, PermissionDecision::Denied);
+        assert!(response.reasoning.contains("denied"));
+    }
+
+    #[tokio::test]
+    async fn test_denylist_blocks_rm_venv() {
+        let handler = PermissionHandler::new();
+        let request = PermissionRequest::new("rm -rf .venv", CrudClassification::Delete);
+        let response = handler.process_request(request).await;
+
+        assert_eq!(response.decision, PermissionDecision::Denied);
+        assert!(response.reasoning.contains("denied"));
+    }
+
+    #[tokio::test]
+    async fn test_safe_commands_still_work() {
+        let handler = PermissionHandler::new();
+
+        // cargo check should work (not cargo clean)
+        let request1 = PermissionRequest::new("cargo check", CrudClassification::Read);
+        let response1 = handler.process_request(request1).await;
+        assert_eq!(response1.decision, PermissionDecision::Approved);
+
+        // cargo build should work (not cargo clean)
+        let request2 = PermissionRequest::new("cargo build", CrudClassification::Create);
+        let response2 = handler.process_request(request2).await;
+        assert_eq!(response2.decision, PermissionDecision::Pending); // Requires confirmation, but not denied
+
+        // git status should work (not git clean)
+        let request3 = PermissionRequest::new("git status", CrudClassification::Read);
+        let response3 = handler.process_request(request3).await;
+        assert_eq!(response3.decision, PermissionDecision::Approved);
+    }
+
+    #[tokio::test]
+    async fn test_denylist_with_auto_approve_read() {
+        let handler = PermissionHandler::new();
+
+        // Even if classified as READ (incorrectly), denylist should still block
+        let request = PermissionRequest::new("cargo clean", CrudClassification::Read);
+        let response = handler.process_request(request).await;
+
+        assert_eq!(response.decision, PermissionDecision::Denied);
+    }
+
+    #[tokio::test]
+    async fn test_denylist_priority_over_all_config() {
+        // Denylist should block even when both skip_confirmations and auto_approve_read are true
+        let config = PermissionConfig {
+            dangerously_skip_confirmations: true,
+            auto_approve_read: true,
+            ..Default::default()
+        };
+        let handler = PermissionHandler::with_config(config);
+
+        let request = PermissionRequest::new("rm -rf target/", CrudClassification::Delete);
+        let response = handler.process_request(request).await;
+
+        assert_eq!(response.decision, PermissionDecision::Denied);
+        assert!(response.reasoning.contains("denied"));
+        assert!(response.reasoning.contains("critical build artifacts"));
     }
 }

@@ -272,7 +272,7 @@ impl TempFileManager {
     pub fn generate_settings(&self) -> Result<Vec<u8>> {
         // Get home directory for model path
         let home_dir = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/tmp"));
-        let model_path = home_dir.join(".cco/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf");
+        let model_path = home_dir.join(".cco/models/qwen2.5-coder-1.5b-instruct-q2_k.gguf");
 
         // Auto-discover daemon port (fallback to 3000 if not running)
         let daemon_port = super::read_daemon_port().unwrap_or(3000);
@@ -303,14 +303,14 @@ impl TempFileManager {
                 "timeout_ms": 5000,
                 "max_retries": 2,
                 "llm": {
-                    "model_type": "tinyllama",
-                    "model_name": "tinyllama-1.1b-chat-v1.0.Q4_K_M",
+                    "model_type": "qwen-coder",
+                    "model_name": "qwen2.5-coder-1.5b-instruct-q2_k",
                     "model_path": model_path.to_string_lossy(),
-                    "model_size_mb": 600,
-                    "quantization": "Q4_K_M",
+                    "model_size_mb": 577,
+                    "quantization": "Q2_K",
                     "loaded": false,
                     "inference_timeout_ms": 2000,
-                    "temperature": 0.1
+                    "temperature": 0.05
                 },
                 "permissions": {
                     "allow_command_modification": false,

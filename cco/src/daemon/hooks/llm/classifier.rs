@@ -14,7 +14,7 @@ use tracing::{debug, error, info};
 use super::model::ModelManager;
 use super::prompt::{build_crud_prompt, parse_classification};
 
-/// CRUD classifier using embedded TinyLLaMA
+/// CRUD classifier using embedded Qwen2.5-Coder
 ///
 /// Provides command classification with:
 /// - Timeout enforcement (default 2 seconds)
@@ -208,14 +208,14 @@ mod tests {
 
     fn test_config() -> HookLlmConfig {
         HookLlmConfig {
-            model_type: "tinyllama".to_string(),
+            model_type: "qwen-coder".to_string(),
             model_name: "test-model".to_string(),
             model_path: PathBuf::from("/tmp/test-model.gguf"),
-            model_size_mb: 600,
-            quantization: "Q4_K_M".to_string(),
+            model_size_mb: 577,
+            quantization: "Q2_K".to_string(),
             loaded: false,
             inference_timeout_ms: 2000,
-            temperature: 0.1,
+            temperature: 0.05,
         }
     }
 

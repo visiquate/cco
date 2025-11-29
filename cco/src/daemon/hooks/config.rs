@@ -66,7 +66,7 @@ pub struct HooksConfig {
 
 /// LLM configuration for embedded CRUD classification
 ///
-/// Uses embedded TinyLLaMA (1.1B) for CRUD classification.
+/// Uses embedded Qwen2.5-Coder (1.5B) for CRUD classification.
 /// The model is downloaded on first run and cached locally.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HookLlmConfig {
@@ -86,7 +86,7 @@ pub struct HookLlmConfig {
     #[serde(default = "default_model_size_mb")]
     pub model_size_mb: u32,
 
-    /// Quantization level (e.g., "Q4_K_M")
+    /// Quantization level (e.g., "Q2_K")
     #[serde(default = "default_quantization")]
     pub quantization: String,
 
@@ -172,35 +172,35 @@ fn default_false() -> bool {
     false
 }
 
-// LLM defaults for embedded TinyLLaMA
+// LLM defaults for embedded Qwen2.5-Coder
 fn default_model_type() -> String {
-    "tinyllama".to_string()
+    "qwen-coder".to_string()
 }
 
 fn default_model_name() -> String {
-    "tinyllama-1.1b-chat-v1.0.Q4_K_M".to_string()
+    "qwen2.5-coder-1.5b-instruct-q2_k".to_string()
 }
 
 fn default_model_path() -> std::path::PathBuf {
     dirs::home_dir()
         .unwrap_or_default()
-        .join(".cco/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf")
+        .join(".cco/models/qwen2.5-coder-1.5b-instruct-q2_k.gguf")
 }
 
 fn default_model_size_mb() -> u32 {
-    600
+    577 // Q2_K quantization - optimized for CRUD classification
 }
 
 fn default_quantization() -> String {
-    "Q4_K_M".to_string()
+    "Q2_K".to_string()
 }
 
 fn default_inference_timeout_ms() -> u64 {
-    2000 // 2 seconds
+    2000 // 2 seconds - Q2_K is fast enough for this timeout
 }
 
 fn default_llm_temperature() -> f32 {
-    0.5 // Balanced temperature for accurate classification with small models
+    0.05 // Very low temperature for deterministic CRUD classification
 }
 
 impl Default for HooksConfig {
@@ -319,7 +319,7 @@ mod tests {
         assert!(config.enabled);
         assert_eq!(config.timeout_ms, 5000);
         assert_eq!(config.max_retries, 2);
-        assert_eq!(config.llm.model_type, "tinyllama");
+        assert_eq!(config.llm.model_type, "qwen-coder");
         assert_eq!(config.llm.inference_timeout_ms, 2000);
     }
 
@@ -381,12 +381,12 @@ mod tests {
     #[test]
     fn test_llm_config_default() {
         let llm = HookLlmConfig::default();
-        assert_eq!(llm.model_type, "tinyllama");
-        assert_eq!(llm.model_name, "tinyllama-1.1b-chat-v1.0.Q4_K_M");
-        assert_eq!(llm.quantization, "Q4_K_M");
-        assert_eq!(llm.model_size_mb, 600);
+        assert_eq!(llm.model_type, "qwen-coder");
+        assert_eq!(llm.model_name, "qwen2.5-coder-1.5b-instruct-q2_k");
+        assert_eq!(llm.quantization, "Q2_K");
+        assert_eq!(llm.model_size_mb, 577);
         assert_eq!(llm.inference_timeout_ms, 2000);
-        assert_eq!(llm.temperature, 0.5);
+        assert_eq!(llm.temperature, 0.05);
         assert!(!llm.loaded);
     }
 
@@ -415,6 +415,6 @@ mod tests {
         assert!(config.enabled);
         assert_eq!(config.timeout_ms, 5000); // Default
         assert_eq!(config.max_retries, 2); // Default
-        assert_eq!(config.llm.model_type, "tinyllama"); // Default
+        assert_eq!(config.llm.model_type, "qwen-coder"); // Default
     }
 }

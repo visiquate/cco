@@ -1,6 +1,6 @@
 //! LLM integration for CRUD classification
 //!
-//! Provides embedded TinyLLaMA-based command classification using GGML inference.
+//! Provides embedded Qwen2.5-Coder-based command classification using GGML inference.
 //! This module handles:
 //! - Model download and caching
 //! - Lazy model loading

@@ -15,7 +15,7 @@ path = "src/main.rs"
 
 [dependencies]
 axum = { version = "0.7", features = ["ws"] }
-tower = "0.4"
+tower = { version = "0.4", features = ["util"] }
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 tokio = { version = "1.35", features = ["full"] }
 tokio-stream = "0.1"
@@ -67,6 +67,7 @@ notify = "6.1"
 llm = "0.1"
 indicatif = "0.17"
 rand = "0.8"
+num_cpus = "1.16"
 
 # LanceDB for embedded vector database (Issue #32)
 # Note: Arrow versions must match LanceDB's dependencies (v56.2.0)

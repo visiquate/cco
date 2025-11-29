@@ -248,6 +248,7 @@ pub struct TuiApp {
 }
 
 /// Load overall metrics from ~/.claude/metrics.json
+#[allow(dead_code)]
 async fn load_overall_metrics() -> Result<OverallSummary> {
     let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
     let metrics_path = PathBuf::from(&home).join(".claude").join("metrics.json");
@@ -304,6 +305,7 @@ async fn load_overall_metrics() -> Result<OverallSummary> {
 }
 
 /// Load project summaries from ~/.claude/projects/*/claude.jsonl
+#[allow(dead_code)]
 async fn load_project_summaries() -> Result<Vec<ProjectSummary>> {
     let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
     let projects_dir = PathBuf::from(&home).join(".claude").join("projects");
@@ -338,6 +340,7 @@ async fn load_project_summaries() -> Result<Vec<ProjectSummary>> {
 }
 
 /// Load a single project's metrics from its claude.jsonl file
+#[allow(dead_code)]
 async fn load_project_from_jsonl(
     jsonl_path: &PathBuf,
     project_dir: &PathBuf,
@@ -393,6 +396,7 @@ async fn load_project_from_jsonl(
 }
 
 /// Get model pricing for cost estimation (matches pricing from claude_history.rs)
+#[allow(dead_code)]
 fn get_model_pricing(model_name: &str) -> (f64, f64, f64, f64) {
     let normalized = normalize_model_name(model_name);
     match normalized.as_str() {
@@ -404,6 +408,7 @@ fn get_model_pricing(model_name: &str) -> (f64, f64, f64, f64) {
 }
 
 /// Normalize model name for pricing lookup
+#[allow(dead_code)]
 fn normalize_model_name(model_name: &str) -> String {
     let parts: Vec<&str> = model_name.split('-').collect();
     if parts.len() >= 3 {
@@ -1005,6 +1010,7 @@ impl TuiApp {
     }
 
     /// Extract token statistics per model from model_breakdown in chart_data
+    #[allow(dead_code)]
     fn extract_token_stats_per_model(
         &self,
         stats: &serde_json::Value,
