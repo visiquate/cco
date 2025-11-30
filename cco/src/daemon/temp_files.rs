@@ -222,6 +222,61 @@ impl TempFileManager {
         &self.settings_path
     }
 
+    /// Update the settings file with the actual bound port
+    ///
+    /// This must be called AFTER the daemon binds to a port to ensure
+    /// Claude Code can discover the correct port to connect to.
+    ///
+    /// # Arguments
+    /// * `actual_port` - The port the daemon actually bound to (especially important when port 0 is used)
+    pub fn update_settings_port(&self, actual_port: u16) -> Result<()> {
+        use std::fs;
+
+        // Read existing settings file
+        if !self.settings_path.exists() {
+            anyhow::bail!("Settings file not found - cannot update port");
+        }
+
+        let contents = fs::read_to_string(&self.settings_path)?;
+        let mut settings: serde_json::Value = serde_json::from_str(&contents)?;
+
+        // Update port in both daemon and orchestrator sections
+        if let Some(daemon) = settings.get_mut("daemon") {
+            daemon["port"] = serde_json::json!(actual_port);
+        }
+
+        if let Some(orchestrator) = settings.get_mut("orchestrator") {
+            orchestrator["api_url"] = serde_json::json!(format!("http://localhost:{}", actual_port));
+        }
+
+        // Update hook URLs with actual port
+        if let Some(hooks) = settings.get_mut("hooks") {
+            if let Some(session_start) = hooks.get_mut("SessionStart").and_then(|v| v.as_array_mut()) {
+                for hook in session_start {
+                    if let Some(url) = hook.get_mut("url") {
+                        *url = serde_json::json!(format!("http://localhost:{}/api/knowledge/session-start", actual_port));
+                    }
+                }
+            }
+
+            if let Some(pre_compact) = hooks.get_mut("PreCompact").and_then(|v| v.as_array_mut()) {
+                for hook in pre_compact {
+                    if let Some(url) = hook.get_mut("url") {
+                        *url = serde_json::json!(format!("http://localhost:{}/api/knowledge/pre-compaction", actual_port));
+                    }
+                }
+            }
+        }
+
+        // Write back to settings file
+        let settings_json = serde_json::to_string_pretty(&settings)?;
+        fs::write(&self.settings_path, settings_json)?;
+
+        tracing::info!("Updated settings file with actual port: {}", actual_port);
+
+        Ok(())
+    }
+
     /// Get the knowledge database base directory
     ///
     /// Returns: ~/.cco/knowledge/
@@ -593,6 +648,57 @@ mod tests {
                 .as_bool()
                 .unwrap(),
             true
+        );
+
+        // Cleanup
+        temp_manager.cleanup_files().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_update_settings_port() {
+        let config = DaemonConfig::default();
+        let temp_manager = TempFileManager::new();
+
+        // Write initial settings with port 0
+        temp_manager
+            .write_orchestrator_settings(&config)
+            .await
+            .unwrap();
+
+        // Verify initial port is 0
+        let settings_content = fs::read_to_string(temp_manager.settings_path()).unwrap();
+        let settings: serde_json::Value = serde_json::from_str(&settings_content).unwrap();
+        assert_eq!(settings["daemon"]["port"].as_u64().unwrap(), 0);
+
+        // Update port to actual bound port (simulate daemon binding)
+        let actual_port = 58620;
+        temp_manager.update_settings_port(actual_port).unwrap();
+
+        // Read updated settings
+        let updated_content = fs::read_to_string(temp_manager.settings_path()).unwrap();
+        let updated_settings: serde_json::Value = serde_json::from_str(&updated_content).unwrap();
+
+        // Verify port was updated correctly
+        assert_eq!(
+            updated_settings["daemon"]["port"].as_u64().unwrap(),
+            actual_port as u64
+        );
+        assert_eq!(
+            updated_settings["orchestrator"]["api_url"].as_str().unwrap(),
+            format!("http://localhost:{}", actual_port)
+        );
+
+        // Verify hook URLs were updated
+        let session_start = &updated_settings["hooks"]["SessionStart"][0];
+        assert_eq!(
+            session_start["url"].as_str().unwrap(),
+            format!("http://localhost:{}/api/knowledge/session-start", actual_port)
+        );
+
+        let pre_compact = &updated_settings["hooks"]["PreCompact"][0];
+        assert_eq!(
+            pre_compact["url"].as_str().unwrap(),
+            format!("http://localhost:{}/api/knowledge/pre-compaction", actual_port)
         );
 
         // Cleanup

@@ -830,8 +830,11 @@ async fn main() -> anyhow::Result<()> {
         }
 
         Commands::Daemon { action } => {
-            // Initialize tracing for other commands
-            tracing_subscriber::fmt::init();
+            // For DaemonAction::Run, tracing is initialized in the handler with file output
+            // For other daemon actions, initialize tracing to console
+            if !matches!(action, DaemonAction::Run) {
+                tracing_subscriber::fmt::init();
+            }
             match action {
                 DaemonAction::Start {
                     port,
@@ -990,6 +993,15 @@ async fn main() -> anyhow::Result<()> {
 
                     let version = DateVersion::current();
                     println!("Version: {}", version);
+
+                    // Initialize file-based logging BEFORE any daemon operations
+                    if let Err(e) = cco::daemon::init_daemon_logging() {
+                        eprintln!("Warning: Failed to initialize file logging: {}", e);
+                        eprintln!("Falling back to console logging");
+                        tracing_subscriber::fmt::init();
+                    } else {
+                        println!("✅ Logging configured: ~/.cco/logs/daemon.log");
+                    }
 
                     // Load daemon configuration
                     let config = cco::daemon::load_config().unwrap_or_else(|e| {

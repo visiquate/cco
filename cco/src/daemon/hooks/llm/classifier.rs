@@ -68,6 +68,19 @@ impl CrudClassifier {
         manager.ensure_model_available().await
     }
 
+    /// Eagerly load the model into memory
+    ///
+    /// Called during daemon startup to pre-load the model.
+    /// This eliminates 2s+ timeout on first classification request.
+    ///
+    /// # Errors
+    ///
+    /// Returns error if model cannot be loaded (e.g., file not found, corrupted)
+    pub async fn preload_model(&self) -> HookResult<()> {
+        let manager = self.model_manager.lock().await;
+        manager.load_model().await
+    }
+
     /// Classify a command with CRUD classification
     ///
     /// # Arguments

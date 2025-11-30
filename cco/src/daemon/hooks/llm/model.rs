@@ -1,14 +1,17 @@
 //! Model management for embedded LLM
 //!
 //! Handles downloading, caching, loading, and lifecycle management
-//! of the Qwen2.5-Coder GGML model for CRUD classification.
+//! of the Qwen2.5-Coder GGUF model for CRUD classification.
 
 use crate::daemon::hooks::config::HookLlmConfig;
 use crate::daemon::hooks::{HookError, HookResult};
 use anyhow::Result;
 use futures::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
-use llm::{Model, ModelArchitecture};
+use mistralrs::{
+    GgufModelBuilder, Model, PagedAttentionMetaBuilder, RequestBuilder, SamplingParams,
+    TextMessageRole,
+};
 use reqwest::Client;
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
@@ -18,10 +21,10 @@ use tracing::{debug, info, warn};
 
 /// Loaded LLM model wrapper
 ///
-/// Wraps the llm crate's model instance for CRUD classification
+/// Wraps the mistral.rs model instance for CRUD classification
 pub struct LlmModel {
-    /// The loaded model instance from llm crate
-    model: Box<dyn Model>,
+    /// The loaded model instance from mistral.rs
+    model: Model,
     /// Model configuration (kept for future extensibility)
     #[allow(dead_code)]
     config: HookLlmConfig,
@@ -266,7 +269,7 @@ impl ModelManager {
     /// Load model into memory
     ///
     /// Lazy loads the model on first inference request.
-    /// Uses tokio::spawn_blocking for the blocking I/O operation.
+    /// Uses mistral.rs's GgufModelBuilder for GGUF model loading.
     ///
     /// # Errors
     ///
@@ -289,58 +292,69 @@ impl ModelManager {
             ));
         }
 
-        // Load model in blocking task to avoid blocking async runtime
-        let model_path = self.model_path.clone();
+        // Extract model directory and filename
+        let model_dir = self
+            .model_path
+            .parent()
+            .ok_or_else(|| {
+                HookError::execution_failed(
+                    "model_load",
+                    format!("Invalid model path: {:?}", self.model_path),
+                )
+            })?
+            .to_path_buf();
+
+        let model_filename = self
+            .model_path
+            .file_name()
+            .ok_or_else(|| {
+                HookError::execution_failed(
+                    "model_load",
+                    format!("Invalid model filename: {:?}", self.model_path),
+                )
+            })?
+            .to_string_lossy()
+            .to_string();
+
+        // Construct chat template path
+        let chat_template_path = dirs::home_dir()
+            .ok_or_else(|| {
+                HookError::execution_failed("model_load", "Cannot determine home directory")
+            })?
+            .join(".cco/chat_templates/qwen2.json");
+
+        if !chat_template_path.exists() {
+            return Err(HookError::execution_failed(
+                "model_load",
+                format!(
+                    "Chat template not found at {:?}. Please create it with Qwen2 chat format.",
+                    chat_template_path
+                ),
+            ));
+        }
+
         let config = self.config.clone();
 
-        let loaded = tokio::task::spawn_blocking(move || -> Result<Arc<LlmModel>, HookError> {
-            info!("Loading GGUF model using llm crate...");
+        // Build the model using mistral.rs
+        info!("Building GGUF model with mistral.rs...");
 
-            // Load the model using llm crate with LLaMA architecture
-            let model = llm::load_dynamic(
-                ModelArchitecture::Llama,
-                &model_path,
-                Default::default(),
-                |progress| {
-                    match progress {
-                        llm::LoadProgress::HyperparametersLoaded => {
-                            debug!("Model hyperparameters loaded");
-                        }
-                        llm::LoadProgress::ContextSize { bytes } => {
-                            debug!("Context size: {} bytes", bytes);
-                        }
-                        llm::LoadProgress::TensorLoaded {
-                            current_tensor,
-                            tensor_count,
-                        } => {
-                            if current_tensor % 10 == 0 {
-                                debug!("Loading tensors: {}/{}", current_tensor, tensor_count);
-                            }
-                        }
-                        llm::LoadProgress::Loaded {
-                            file_size,
-                            tensor_count,
-                        } => {
-                            info!(
-                                "Model loaded: {} tensors, {} MB",
-                                tensor_count,
-                                file_size / (1024 * 1024)
-                            );
-                        }
-                    }
-                },
-            )
-            .map_err(|e| {
-                HookError::execution_failed("model_load", format!("Failed to load model: {}", e))
-            })?;
-
-            Ok(Arc::new(LlmModel { model, config }))
-        })
+        let model = GgufModelBuilder::new(
+            model_dir.to_string_lossy().to_string(),
+            vec![model_filename],
+        )
+        .with_chat_template(chat_template_path.to_string_lossy().to_string())
+        .with_logging()
+        .with_paged_attn(|| PagedAttentionMetaBuilder::default().build())
+        .map_err(|e| {
+            HookError::execution_failed("model_load", format!("Failed to configure PagedAttention: {}", e))
+        })?
+        .build()
         .await
         .map_err(|e| {
-            HookError::execution_failed("model_load", format!("Spawn blocking failed: {}", e))
-        })??;
+            HookError::execution_failed("model_load", format!("Failed to build model: {}", e))
+        })?;
 
+        let loaded = Arc::new(LlmModel { model, config });
         *model_guard = Some(loaded);
 
         info!("Model loaded successfully");
@@ -402,102 +416,66 @@ impl ModelManager {
             .as_ref()
             .ok_or_else(|| HookError::execution_failed("inference", "Model not loaded"))?
             .clone();
-        drop(model_guard); // Release lock before blocking operation
+        drop(model_guard); // Release lock before async operation
 
         let prompt_str = prompt.to_string();
         let temperature = self.config.temperature;
 
-        // Run inference in blocking task
-        let result = tokio::task::spawn_blocking(move || -> Result<String, HookError> {
-            info!("Running LLM inference for CRUD classification");
-            debug!("Prompt: {}", prompt_str);
+        info!("Running LLM inference for CRUD classification");
+        debug!("Prompt: {}", prompt_str);
 
-            // Create inference session
-            let mut session = model_arc.model.start_session(Default::default());
+        // Configure sampling parameters
+        let mut sampling_params = SamplingParams::deterministic();
+        sampling_params.temperature = Some(temperature as f64);
+        sampling_params.top_k = Some(40);
+        sampling_params.top_p = Some(0.95);
+        sampling_params.max_len = Some(10); // We only need 1 word (READ/CREATE/UPDATE/DELETE)
 
-            // Collect the output
-            let mut output = String::new();
+        // Build request with message and sampling parameters
+        let request = RequestBuilder::new()
+            .add_message(TextMessageRole::User, prompt_str)
+            .set_sampling(sampling_params);
 
-            // Create inference parameters with temperature control
-            let inference_params = llm::InferenceParameters {
-                n_threads: num_cpus::get(),
-                n_batch: 8,
-                top_k: 40,
-                top_p: 0.95,
-                repeat_penalty: 1.1,
-                temperature,
-                bias_tokens: Default::default(),
-                repetition_penalty_last_n: 64,
-            };
+        // Send request to model
+        let response = model_arc
+            .model
+            .send_chat_request(request)
+            .await
+            .map_err(|e| {
+                HookError::execution_failed("inference", format!("LLM inference failed: {}", e))
+            })?;
 
-            let request = llm::InferenceRequest {
-                prompt: prompt_str.as_str(),
-                parameters: Some(&inference_params),
-                play_back_previous_tokens: false,
-                maximum_token_count: Some(10), // We only need 1 word (READ/CREATE/UPDATE/DELETE)
-            };
+        // Extract response text
+        let output = response
+            .choices
+            .get(0)
+            .and_then(|choice| choice.message.content.as_ref())
+            .ok_or_else(|| {
+                HookError::execution_failed("inference", "No response from model")
+            })?;
 
-            // Run inference with the prompt
-            let inference_result = session.infer::<std::convert::Infallible>(
-                model_arc.model.as_ref(),
-                &mut rand::thread_rng(),
-                &request,
-                &mut Default::default(),
-                |token| {
-                    output.push_str(token);
-                    Ok(())
-                },
+        // Extract the classification from the output
+        // The model should output one of: READ, CREATE, UPDATE, DELETE
+        let output_trimmed = output.trim().to_uppercase();
+        let classification = if output_trimmed.contains("READ") {
+            "READ"
+        } else if output_trimmed.contains("CREATE") {
+            "CREATE"
+        } else if output_trimmed.contains("UPDATE") {
+            "UPDATE"
+        } else if output_trimmed.contains("DELETE") {
+            "DELETE"
+        } else {
+            // Fallback to CREATE if we can't parse the output
+            warn!(
+                "Could not parse classification from output: '{}', defaulting to CREATE",
+                output_trimmed
             );
+            "CREATE"
+        };
 
-            match inference_result {
-                Ok(stats) => {
-                    info!(
-                        "Inference completed: {} prompt tokens, {} predict tokens, feed_prompt: {}ms, predict: {}ms",
-                        stats.prompt_tokens,
-                        stats.predict_tokens,
-                        stats.feed_prompt_duration.as_millis(),
-                        stats.predict_duration.as_millis()
-                    );
-                }
-                Err(e) => {
-                    warn!("Inference error: {:?}", e);
-                    return Err(HookError::execution_failed(
-                        "inference",
-                        format!("LLM inference failed: {:?}", e),
-                    ));
-                }
-            }
-
-            // Extract the classification from the output
-            // The model should output one of: READ, CREATE, UPDATE, DELETE
-            let output_trimmed = output.trim().to_uppercase();
-            let classification = if output_trimmed.contains("READ") {
-                "READ"
-            } else if output_trimmed.contains("CREATE") {
-                "CREATE"
-            } else if output_trimmed.contains("UPDATE") {
-                "UPDATE"
-            } else if output_trimmed.contains("DELETE") {
-                "DELETE"
-            } else {
-                // Fallback to CREATE if we can't parse the output
-                warn!(
-                    "Could not parse classification from output: '{}', defaulting to CREATE",
-                    output_trimmed
-                );
-                "CREATE"
-            };
-
-            info!("LLM classification result: {}", classification);
-            Ok(classification.to_string())
-        })
-        .await
-        .map_err(|e| {
-            HookError::execution_failed("inference", format!("Spawn blocking failed: {}", e))
-        })??;
-
-        debug!("Inference result: {}", result);
-        Ok(result)
+        info!("LLM classification result: {}", classification);
+        Ok(classification.to_string())
     }
 }
 

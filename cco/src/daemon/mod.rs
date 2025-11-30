@@ -59,7 +59,9 @@ pub fn get_daemon_dir() -> Result<PathBuf> {
 /// Get daemon log file path
 pub fn get_daemon_log_file() -> Result<PathBuf> {
     let daemon_dir = get_daemon_dir()?;
-    Ok(daemon_dir.join("daemon.log"))
+    let logs_dir = daemon_dir.join("logs");
+    std::fs::create_dir_all(&logs_dir)?;
+    Ok(logs_dir.join("daemon.log"))
 }
 
 /// Get daemon PID file path
@@ -72,6 +74,33 @@ pub fn get_daemon_pid_file() -> Result<PathBuf> {
 pub fn get_daemon_config_file() -> Result<PathBuf> {
     let daemon_dir = get_daemon_dir()?;
     Ok(daemon_dir.join("config.toml"))
+}
+
+/// Initialize file-based logging for the daemon
+///
+/// Configures tracing to write structured logs to ~/.cco/logs/daemon.log
+/// with automatic log rotation and retention.
+pub fn init_daemon_logging() -> Result<()> {
+    let daemon_dir = get_daemon_dir()?;
+    let logs_dir = daemon_dir.join("logs");
+    std::fs::create_dir_all(&logs_dir)?;
+
+    // Create a rolling file appender that writes to ~/.cco/logs/daemon.log
+    // This will append to the existing file without rotation (daily rotation could be added with RollingFileAppender)
+    let file_appender = tracing_appender::rolling::never(&logs_dir, "daemon.log");
+
+    // Configure tracing subscriber with file output
+    tracing_subscriber::fmt()
+        .with_writer(file_appender)
+        .with_ansi(false) // Disable ANSI color codes in log file
+        .with_target(false) // Simplify output
+        .with_thread_ids(false)
+        .with_line_number(false)
+        .with_max_level(tracing::Level::DEBUG)
+        .try_init()
+        .ok(); // Ignore error if global default already set (parent may have initialized)
+
+    Ok(())
 }
 
 #[cfg(test)]

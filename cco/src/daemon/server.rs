@@ -135,6 +135,18 @@ impl DaemonState {
                         info!("✅ Model verified and ready");
                     }
 
+                    // Eagerly load model into memory for instant classification
+                    info!("📥 Loading CRUD classifier model into memory...");
+                    match classifier.preload_model().await {
+                        Ok(()) => {
+                            info!("✅ CRUD classifier model loaded and ready for instant classification");
+                        }
+                        Err(e) => {
+                            warn!("Failed to preload model: {}", e);
+                            warn!("Model will be lazy-loaded on first request (2s+ delay expected)");
+                        }
+                    }
+
                     Some(Arc::new(classifier))
                 }
                 Err(e) => {
@@ -362,6 +374,15 @@ async fn health(State(state): State<Arc<DaemonState>>) -> Json<HealthResponse> {
     // Get actual port from PID file (not config port which may be 0)
     let actual_port = super::read_daemon_port().unwrap_or(state.config.port);
 
+    // Log health check at debug level to avoid spam
+    debug!(
+        endpoint = "/health",
+        status = "ok",
+        uptime_seconds = %uptime,
+        port = %actual_port,
+        "Health check"
+    );
+
     Json(HealthResponse {
         status: "ok".to_string(),
         version: crate::version::DateVersion::current().to_string(),
@@ -382,21 +403,39 @@ async fn classify_command(
     State(state): State<Arc<DaemonState>>,
     Json(request): Json<ClassifyRequest>,
 ) -> Result<Json<ClassifyResponse>, AppError> {
-    info!("Classification request for command: {}", request.command);
-
-    // Get classifier from state
-    let classifier = state
-        .crud_classifier
-        .as_ref()
-        .ok_or(AppError::ClassifierUnavailable)?;
-
-    // Measure classification latency
     let start = std::time::Instant::now();
 
+    // Get classifier from state
+    let classifier = match state.crud_classifier.as_ref() {
+        Some(c) => c,
+        None => {
+            info!(
+                endpoint = "/api/classify",
+                command = %request.command,
+                error = "classifier unavailable",
+                "CLASSIFY request failed - classifier not available"
+            );
+            return Err(AppError::ClassifierUnavailable);
+        }
+    };
+
     // Classify the command
-    let result = classifier.classify(&request.command).await;
+    let result = match classifier.classify(&request.command).await {
+        result => result,
+    };
 
     let latency_ms = start.elapsed().as_millis() as u32;
+    let classification_str = format!("{:?}", result.classification);
+
+    // Log the classification result with structured fields
+    info!(
+        endpoint = "/api/classify",
+        command = %request.command,
+        classification = %classification_str,
+        confidence = %result.confidence,
+        latency_ms = %latency_ms,
+        "CLASSIFY request completed"
+    );
 
     // Update latency tracking
     if let Ok(mut last_ms) = state.last_classification_ms.lock() {
@@ -404,7 +443,6 @@ async fn classify_command(
     }
 
     // Track decision (auto-approved for now)
-    let classification_str = format!("{:?}", result.classification);
     let decision = ClassificationDecision {
         command: request.command.clone(),
         classification: classification_str.clone(),
@@ -454,36 +492,63 @@ async fn permission_request(
     State(state): State<Arc<DaemonState>>,
     Json(payload): Json<PermissionRequestPayload>,
 ) -> Result<Json<PermissionResponse>, AppError> {
-    debug!(
-        "Permission request for command: {} (classification: {})",
-        payload.command, payload.classification
-    );
+    let start = std::time::Instant::now();
 
     // Parse classification
-    let classification: CrudClassification = payload
-        .classification
-        .parse()
-        .map_err(|e| AppError::ClassificationFailed(format!("Invalid classification: {}", e)))?;
+    let classification: CrudClassification = match payload.classification.parse() {
+        Ok(c) => c,
+        Err(e) => {
+            info!(
+                endpoint = "/api/hooks/permission-request",
+                command = %payload.command,
+                classification = %payload.classification,
+                error = %e,
+                "PERMISSION request failed - invalid classification"
+            );
+            return Err(AppError::ClassificationFailed(format!(
+                "Invalid classification: {}",
+                e
+            )));
+        }
+    };
 
     // Get classifier to get confidence score
-    let classifier = state
-        .crud_classifier
-        .as_ref()
-        .ok_or(AppError::ClassifierUnavailable)?;
-
-    // Measure response time
-    let start = std::time::Instant::now();
+    let classifier = match state.crud_classifier.as_ref() {
+        Some(c) => c,
+        None => {
+            info!(
+                endpoint = "/api/hooks/permission-request",
+                command = %payload.command,
+                classification = %classification,
+                error = "classifier unavailable",
+                "PERMISSION request failed - classifier not available"
+            );
+            return Err(AppError::ClassifierUnavailable);
+        }
+    };
 
     // Classify the command to get confidence
     let classification_result = classifier.classify(&payload.command).await;
 
-    let response_time_ms = start.elapsed().as_millis() as i32;
+    let latency_ms = start.elapsed().as_millis() as u32;
 
     // Process permission request
     let response = state
         .permission_handler
         .process_classification(&payload.command, classification_result.clone())
         .await;
+
+    // Log permission decision with structured fields
+    info!(
+        endpoint = "/api/hooks/permission-request",
+        command = %payload.command,
+        classification = %classification,
+        decision = %response.decision,
+        confidence = %response.confidence.unwrap_or(0.0),
+        latency_ms = %latency_ms,
+        denied = %(response.decision == super::hooks::PermissionDecision::Denied),
+        "PERMISSION request completed"
+    );
 
     // Store decision in audit database (async, non-blocking)
     if let Some(ref audit_db) = state.audit_db {
@@ -495,7 +560,7 @@ async fn permission_request(
             user_decision: response.decision,
             reasoning: Some(response.reasoning.clone()),
             confidence_score: response.confidence,
-            response_time_ms: Some(response_time_ms),
+            response_time_ms: Some(latency_ms as i32),
         };
 
         // Spawn async task to store decision (don't block response)
@@ -506,11 +571,6 @@ async fn permission_request(
             }
         });
     }
-
-    info!(
-        "Permission decision: {} for {} ({})",
-        response.decision, payload.command, classification
-    );
 
     Ok(Json(response))
 }
@@ -642,11 +702,10 @@ async fn get_stats(
     State(_state): State<Arc<DaemonState>>,
     Query(params): Query<StatsQuery>,
 ) -> Result<Json<StatsResponse>, AppError> {
-    use tracing::info;
+    let start = std::time::Instant::now();
 
     // Parse time_range parameter with default to "all"
     let time_range = params.time_range.as_deref().unwrap_or("all");
-    info!("Stats request with time_range: {}", time_range);
 
     // Calculate date cutoff based on time range
     let cutoff_date = match time_range {
@@ -746,6 +805,8 @@ async fn get_stats(
         })
     });
 
+    let latency_ms = start.elapsed().as_millis() as u32;
+
     // Build response
     let response = StatsResponse {
         project: ProjectStats {
@@ -762,6 +823,17 @@ async fn get_stats(
         models: model_summaries,
         history_start_date: history_start_date_str,
     };
+
+    // Log stats request
+    info!(
+        endpoint = "/api/stats",
+        time_range = %time_range,
+        project_count = %response.projects.len(),
+        model_count = %response.models.len(),
+        total_cost = %response.project.cost,
+        latency_ms = %latency_ms,
+        "STATS request completed"
+    );
 
     Ok(Json(response))
 }
@@ -1027,6 +1099,16 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
         warn!("Clients may not be able to discover daemon port");
     } else {
         info!("✅ PID file updated with actual port: {}", actual_port);
+    }
+
+    // CRITICAL: Update settings file with actual port for Claude Code hooks
+    // Claude Code reads .cco-orchestrator-settings to discover the daemon port
+    let temp_manager = super::TempFileManager::new();
+    if let Err(e) = temp_manager.update_settings_port(actual_port) {
+        warn!("Failed to update settings file with actual port: {}", e);
+        warn!("Claude Code hooks may fail to connect");
+    } else {
+        info!("✅ Settings file updated with actual port: {}", actual_port);
     }
 
     info!("✅ Daemon server listening on http://{}", actual_addr);
