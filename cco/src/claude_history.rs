@@ -167,8 +167,8 @@ pub fn get_model_pricing(model_name: &str) -> (f64, f64, f64, f64) {
             let cache_read = 0.10; // 90% discount (10% of input)
             (input, output, cache_write, cache_read)
         }
-        // Opus 4 variants
-        "claude-opus-4" | "claude-opus-4-1" => {
+        // Opus 4 variants (includes Opus 4.5)
+        "claude-opus-4" | "claude-opus-4-1" | "claude-opus-4-5" => {
             let input = 15.0;
             let output = 75.0;
             let cache_write = 18.75; // 25% premium over input
@@ -195,6 +195,7 @@ pub fn get_model_pricing(model_name: &str) -> (f64, f64, f64, f64) {
 ///   "claude-3-5-sonnet-20241022" → "claude-3-5-sonnet"
 ///   "claude-opus-4-20250514" → "claude-opus-4"
 ///   "claude-opus-4-1" → "claude-opus-4-1"
+///   "claude-opus-4-5-20250929" → "claude-opus-4-5"
 ///   "claude-haiku-4-5-20251001" → "claude-haiku-4-5"
 ///   "claude-3-5-haiku-20241022" → "claude-3-5-haiku"
 pub fn normalize_model_name(model_name: &str) -> String {
@@ -206,6 +207,7 @@ pub fn normalize_model_name(model_name: &str) -> String {
     // claude-3-5-sonnet-20241022 → claude-3-5-sonnet
     // claude-opus-4-20250514 → claude-opus-4
     // claude-opus-4-1 → claude-opus-4-1 (no date, keep as-is)
+    // claude-opus-4-5-20250929 → claude-opus-4-5
     // claude-haiku-4-5-20251001 → claude-haiku-4-5
     // claude-3-5-haiku-20241022 → claude-3-5-haiku
 
@@ -1551,6 +1553,20 @@ mod tests {
 
         // Test opus-4-1 variant
         let (input, output, cache_write, cache_read) = get_model_pricing("claude-opus-4-1");
+        assert_eq!(input, 15.0);
+        assert_eq!(output, 75.0);
+        assert_eq!(cache_write, 18.75);
+        assert_eq!(cache_read, 1.50);
+
+        // Test opus-4-5 variant (Opus pricing)
+        let (input, output, cache_write, cache_read) = get_model_pricing("claude-opus-4-5");
+        assert_eq!(input, 15.0);
+        assert_eq!(output, 75.0);
+        assert_eq!(cache_write, 18.75);
+        assert_eq!(cache_read, 1.50);
+
+        // Test opus-4-5 with date suffix
+        let (input, output, cache_write, cache_read) = get_model_pricing("claude-opus-4-5-20250929");
         assert_eq!(input, 15.0);
         assert_eq!(output, 75.0);
         assert_eq!(cache_write, 18.75);

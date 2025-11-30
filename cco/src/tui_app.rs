@@ -155,7 +155,7 @@ impl TimeRange {
 
 impl Default for TimeRange {
     fn default() -> Self {
-        TimeRange::AllTime
+        TimeRange::Today
     }
 }
 
@@ -402,7 +402,7 @@ fn get_model_pricing(model_name: &str) -> (f64, f64, f64, f64) {
     match normalized.as_str() {
         "claude-sonnet-4-5" | "claude-3-5-sonnet" => (3.0, 15.0, 3.75, 0.30),
         "claude-haiku-4-5" | "claude-3-5-haiku" => (1.0, 5.0, 1.25, 0.10),
-        "claude-opus-4" | "claude-opus-4-1" => (15.0, 75.0, 18.75, 1.50),
+        "claude-opus-4" | "claude-opus-4-1" | "claude-opus-4-5" => (15.0, 75.0, 18.75, 1.50),
         _ => (3.0, 15.0, 3.75, 0.30), // Default to Sonnet
     }
 }
@@ -473,7 +473,7 @@ impl TuiApp {
         self.time_range_tx = Some(time_range_tx);
 
         tokio::spawn(async move {
-            let mut current_time_range = TimeRange::AllTime;
+            let mut current_time_range = TimeRange::Today;
             let mut interval = interval(Duration::from_secs(3));
 
             loop {
@@ -628,11 +628,11 @@ impl TuiApp {
         // Fetch data from daemon API
         let health = self.client.health().await;
 
-        // Extract current time range if in Connected state, default to AllTime
+        // Extract current time range if in Connected state, default to Today
         let time_range = if let AppState::Connected { time_range, .. } = self.state {
             time_range
         } else {
-            TimeRange::AllTime
+            TimeRange::Today
         };
 
         let time_range_param = time_range.as_query_param();

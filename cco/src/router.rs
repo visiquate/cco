@@ -62,6 +62,19 @@ impl Default for RouterConfig {
             },
         );
 
+        // Claude Opus 4.5 (new naming convention)
+        pricing.insert(
+            "claude-opus-4-5".to_string(),
+            ModelPricing {
+                model: "claude-opus-4-5".to_string(),
+                provider: "anthropic".to_string(),
+                input_cost: 15.0,
+                output_cost: 75.0,
+                cache_write_cost: 18.75,
+                cache_read_cost: 1.5,
+            },
+        );
+
         // Claude Sonnet 4.5 (new naming convention)
         pricing.insert(
             "claude-sonnet-4".to_string(),
