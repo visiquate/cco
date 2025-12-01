@@ -14,10 +14,21 @@ use mistralrs::{
 };
 use reqwest::Client;
 use sha2::{Digest, Sha256};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{debug, info, warn};
+
+/// Embedded Qwen2 chat template for CRUD classification
+///
+/// This is embedded in the binary so users don't need to create external files.
+/// The template follows Qwen2/ChatML format with our custom system prompt.
+const QWEN2_CHAT_TEMPLATE: &str = r#"{
+  "bos_token": "<|im_start|>",
+  "eos_token": "<|im_end|>",
+  "chat_template": "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}<|im_start|>system\nYou classify shell commands. Respond with exactly ONE word: READ, CREATE, UPDATE, or DELETE.\n\nRules:\n- READ: Lists files, shows content, searches (ls, cat, grep, find)\n- CREATE: Makes new files or dirs (touch, mkdir, > redirect)\n- UPDATE: Modifies existing (chmod, sed -i, >> append)\n- DELETE: Removes files or dirs (rm, rmdir)\n\nRespond with only the classification word.<|im_end|>\n{% endif %}<|im_start|>{{ message['role'] }}\n{{ message['content'] }}<|im_end|>\n{% endfor %}{% if add_generation_prompt %}<|im_start|>assistant\n{% endif %}"
+}"#;
 
 /// Loaded LLM model wrapper
 ///
@@ -203,10 +214,16 @@ impl ModelManager {
     }
 
     /// Get HuggingFace download URL for Qwen2.5-Coder
+    ///
+    /// Uses the model name from config to construct the URL.
+    /// Default: Q4_K_M quantization (~1GB) for better numerical stability.
     fn get_huggingface_url(&self) -> String {
-        // Qwen2.5-Coder 1.5B Instruct Q2_K from HuggingFace
-        // Q2_K quantization: 577MB, optimized for CRUD classification
-        "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q2_k.gguf".to_string()
+        // Qwen2.5-Coder 1.5B Instruct from HuggingFace
+        // Model name comes from config (default: qwen2.5-coder-1.5b-instruct-q4_k_m)
+        format!(
+            "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/{}.gguf",
+            self.config.model_name
+        )
     }
 
     /// Verify model file hash
@@ -316,22 +333,25 @@ impl ModelManager {
             .to_string_lossy()
             .to_string();
 
-        // Construct chat template path
-        let chat_template_path = dirs::home_dir()
-            .ok_or_else(|| {
-                HookError::execution_failed("model_load", "Cannot determine home directory")
-            })?
-            .join(".cco/chat_templates/qwen2.json");
-
-        if !chat_template_path.exists() {
-            return Err(HookError::execution_failed(
+        // Write embedded chat template to a temp file
+        // (mistral.rs requires a file path ending in .json or .jinja)
+        // Uses same temp directory as other CCO files (.cco-* naming convention)
+        let chat_template_path = std::env::temp_dir().join(".cco-chat-template.json");
+        let mut template_file = std::fs::File::create(&chat_template_path).map_err(|e| {
+            HookError::execution_failed(
                 "model_load",
-                format!(
-                    "Chat template not found at {:?}. Please create it with Qwen2 chat format.",
-                    chat_template_path
-                ),
-            ));
-        }
+                format!("Failed to create chat template file: {}", e),
+            )
+        })?;
+        template_file
+            .write_all(QWEN2_CHAT_TEMPLATE.as_bytes())
+            .map_err(|e| {
+                HookError::execution_failed(
+                    "model_load",
+                    format!("Failed to write chat template: {}", e),
+                )
+            })?;
+        debug!("Wrote embedded chat template to {:?}", chat_template_path);
 
         let config = self.config.clone();
 
@@ -454,6 +474,9 @@ impl ModelManager {
                 HookError::execution_failed("inference", "No response from model")
             })?;
 
+        // Log raw model output for debugging
+        debug!("Raw LLM output: '{}'", output);
+
         // Extract the classification from the output
         // The model should output one of: READ, CREATE, UPDATE, DELETE
         let output_trimmed = output.trim().to_uppercase();
@@ -531,13 +554,13 @@ mod tests {
     async fn test_model_manager_creation() {
         let config = HookLlmConfig {
             model_type: "qwen-coder".to_string(),
-            model_name: "test-model".to_string(),
+            model_name: DEFAULT_MODEL_NAME.to_string(),
             model_path: PathBuf::from("/tmp/test-model.gguf"),
-            model_size_mb: 577,
-            quantization: "Q2_K".to_string(),
+            model_size_mb: DEFAULT_MODEL_SIZE_MB,
+            quantization: DEFAULT_QUANTIZATION.to_string(),
             loaded: false,
             inference_timeout_ms: 2000,
-            temperature: 0.05,
+            temperature: DEFAULT_LLM_TEMPERATURE,
         };
 
         let manager = ModelManager::new(config).await.unwrap();
@@ -548,13 +571,13 @@ mod tests {
     async fn test_model_unload() {
         let config = HookLlmConfig {
             model_type: "qwen-coder".to_string(),
-            model_name: "test-model".to_string(),
+            model_name: DEFAULT_MODEL_NAME.to_string(),
             model_path: PathBuf::from("/tmp/test-model.gguf"),
-            model_size_mb: 577,
-            quantization: "Q2_K".to_string(),
+            model_size_mb: DEFAULT_MODEL_SIZE_MB,
+            quantization: DEFAULT_QUANTIZATION.to_string(),
             loaded: false,
             inference_timeout_ms: 2000,
-            temperature: 0.05,
+            temperature: DEFAULT_LLM_TEMPERATURE,
         };
 
         let manager = ModelManager::new(config).await.unwrap();

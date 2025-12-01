@@ -18,6 +18,10 @@ use std::fs;
 use std::path::PathBuf;
 
 use super::config::DaemonConfig;
+use super::hooks::config::{
+    DEFAULT_INFERENCE_TIMEOUT_MS, DEFAULT_LLM_TEMPERATURE, DEFAULT_MODEL_NAME,
+    DEFAULT_MODEL_SIZE_MB, DEFAULT_MODEL_TYPE, DEFAULT_QUANTIZATION,
+};
 
 /// Temp file manager for orchestrator resources
 pub struct TempFileManager {
@@ -358,14 +362,14 @@ impl TempFileManager {
                 "timeout_ms": 5000,
                 "max_retries": 2,
                 "llm": {
-                    "model_type": "qwen-coder",
-                    "model_name": "qwen2.5-coder-1.5b-instruct-q2_k",
+                    "model_type": DEFAULT_MODEL_TYPE,
+                    "model_name": DEFAULT_MODEL_NAME,
                     "model_path": model_path.to_string_lossy(),
-                    "model_size_mb": 577,
-                    "quantization": "Q2_K",
+                    "model_size_mb": DEFAULT_MODEL_SIZE_MB,
+                    "quantization": DEFAULT_QUANTIZATION,
                     "loaded": false,
-                    "inference_timeout_ms": 2000,
-                    "temperature": 0.05
+                    "inference_timeout_ms": DEFAULT_INFERENCE_TIMEOUT_MS,
+                    "temperature": DEFAULT_LLM_TEMPERATURE
                 },
                 "permissions": {
                     "allow_command_modification": false,

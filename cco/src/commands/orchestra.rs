@@ -3,7 +3,7 @@
 //! Provides CLI wrapper for orchestra conductor functionality.
 //! Reads orchestra-config.json directly and generates workflow instructions.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use cco::orchestra::{OrchestraConfig, Agent};
 use std::path::PathBuf;
 

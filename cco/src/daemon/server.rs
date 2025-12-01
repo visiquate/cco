@@ -702,8 +702,6 @@ async fn get_stats(
     State(_state): State<Arc<DaemonState>>,
     Query(params): Query<StatsQuery>,
 ) -> Result<Json<StatsResponse>, AppError> {
-    let start = std::time::Instant::now();
-
     // Parse time_range parameter with default to "all"
     let time_range = params.time_range.as_deref().unwrap_or("all");
 

@@ -8,6 +8,34 @@ use std::time::Duration;
 
 use super::error::{HookError, HookResult};
 
+// ============================================================================
+// LLM CONFIGURATION CONSTANTS
+// Define all LLM-related constants here for single point of change
+// ============================================================================
+
+/// Default temperature for LLM inference.
+/// Lower values (0.1) provide more deterministic, consistent results.
+/// Q4_K_M quantization is stable enough for low temperature.
+pub const DEFAULT_LLM_TEMPERATURE: f32 = 0.1;
+
+/// Default model type for CRUD classification
+pub const DEFAULT_MODEL_TYPE: &str = "qwen-coder";
+
+/// Default model name (Qwen2.5-Coder 1.5B with Q4_K_M quantization)
+/// Q4_K_M provides better numerical stability than Q2_K while still being fast
+pub const DEFAULT_MODEL_NAME: &str = "qwen2.5-coder-1.5b-instruct-q4_k_m";
+
+/// Default model size in megabytes (Q4_K_M is ~1GB)
+pub const DEFAULT_MODEL_SIZE_MB: u32 = 1000;
+
+/// Default quantization level
+/// Q4_K_M: 4-bit quantization with medium quality - good balance of speed and accuracy
+pub const DEFAULT_QUANTIZATION: &str = "Q4_K_M";
+
+/// Default inference timeout in milliseconds
+/// Q4_K_M model needs more time than Q2_K - 5 seconds should be sufficient
+pub const DEFAULT_INFERENCE_TIMEOUT_MS: u64 = 5000;
+
 /// Main configuration for the hooks system
 ///
 /// This structure is embedded in the daemon configuration file
@@ -178,29 +206,29 @@ fn default_model_type() -> String {
 }
 
 fn default_model_name() -> String {
-    "qwen2.5-coder-1.5b-instruct-q2_k".to_string()
+    DEFAULT_MODEL_NAME.to_string()
 }
 
 fn default_model_path() -> std::path::PathBuf {
     dirs::home_dir()
         .unwrap_or_default()
-        .join(".cco/models/qwen2.5-coder-1.5b-instruct-q2_k.gguf")
+        .join(format!(".cco/models/{}.gguf", DEFAULT_MODEL_NAME))
 }
 
 fn default_model_size_mb() -> u32 {
-    577 // Q2_K quantization - optimized for CRUD classification
+    DEFAULT_MODEL_SIZE_MB
 }
 
 fn default_quantization() -> String {
-    "Q2_K".to_string()
+    DEFAULT_QUANTIZATION.to_string()
 }
 
 fn default_inference_timeout_ms() -> u64 {
-    2000 // 2 seconds - Q2_K is fast enough for this timeout
+    DEFAULT_INFERENCE_TIMEOUT_MS
 }
 
 fn default_llm_temperature() -> f32 {
-    0.05 // Very low temperature for deterministic CRUD classification
+    DEFAULT_LLM_TEMPERATURE
 }
 
 impl Default for HooksConfig {
@@ -381,12 +409,12 @@ mod tests {
     #[test]
     fn test_llm_config_default() {
         let llm = HookLlmConfig::default();
-        assert_eq!(llm.model_type, "qwen-coder");
-        assert_eq!(llm.model_name, "qwen2.5-coder-1.5b-instruct-q2_k");
-        assert_eq!(llm.quantization, "Q2_K");
-        assert_eq!(llm.model_size_mb, 577);
-        assert_eq!(llm.inference_timeout_ms, 2000);
-        assert_eq!(llm.temperature, 0.05);
+        assert_eq!(llm.model_type, DEFAULT_MODEL_TYPE);
+        assert_eq!(llm.model_name, DEFAULT_MODEL_NAME);
+        assert_eq!(llm.quantization, DEFAULT_QUANTIZATION);
+        assert_eq!(llm.model_size_mb, DEFAULT_MODEL_SIZE_MB);
+        assert_eq!(llm.inference_timeout_ms, DEFAULT_INFERENCE_TIMEOUT_MS);
+        assert_eq!(llm.temperature, DEFAULT_LLM_TEMPERATURE);
         assert!(!llm.loaded);
     }
 
