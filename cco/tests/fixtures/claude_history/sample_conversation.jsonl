@@ -1,5 +1,0 @@
-{"type":"assistant","message":{"model":"claude-sonnet-4-5-20250929","usage":{"input_tokens":1234,"output_tokens":5678,"cache_creation_input_tokens":100,"cache_read_input_tokens":500}},"timestamp":"2025-11-26T10:30:45.123Z"}
-{"type":"summary","summary":"User asked about testing strategies"}
-{"type":"assistant","message":{"model":"claude-opus-4-20250514","usage":{"input_tokens":2000,"output_tokens":1000,"cache_creation_input_tokens":5000}},"timestamp":"2025-11-26T10:35:22.456Z"}
-{"type":"user","content":"Can you explain TDD?"}
-{"type":"assistant","message":{"model":"claude-haiku-4-5-20251001","usage":{"input_tokens":500,"output_tokens":250}},"timestamp":"2025-11-26T10:40:11.789Z"}

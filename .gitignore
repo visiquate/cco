@@ -35,6 +35,9 @@ secrets/
 # Config with sensitive data
 config/credential-inventory.json
 
+# Build-generated files
+config/orchestrator-prompt.bin
+
 # Temporary files
 *.tmp
 *.log

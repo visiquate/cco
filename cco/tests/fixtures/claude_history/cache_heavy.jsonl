@@ -1,3 +1,0 @@
-{"type":"assistant","message":{"model":"claude-sonnet-4-5-20250929","usage":{"input_tokens":5000,"output_tokens":2500,"cache_creation_input_tokens":10000,"cache_read_input_tokens":50000}},"timestamp":"2025-11-26T10:00:00Z"}
-{"type":"assistant","message":{"model":"claude-opus-4-20250514","usage":{"input_tokens":3000,"output_tokens":15000,"cache_creation_input_tokens":20000,"cache_read_input_tokens":100000}},"timestamp":"2025-11-26T11:00:00Z"}
-{"type":"assistant","message":{"model":"claude-haiku-4-5-20251001","usage":{"input_tokens":8000,"output_tokens":4000,"cache_read_input_tokens":200000}},"timestamp":"2025-11-26T12:00:00Z"}

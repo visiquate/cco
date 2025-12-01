@@ -1,3 +1,0 @@
-# This file tells cargo to rebuild when .git/HEAD changes
-[build]
-rerun-if-changed = [".git/HEAD", ".git/refs/heads/main"]
