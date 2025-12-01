@@ -43,12 +43,22 @@ jobs:
         run: cargo install cargo-sbom
 
       - name: Build CCO binaries
+        env:
+          # Azure API key for model router (embedded at build time)
+          AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
         run: |
           VERSION="${{ steps.get_version.outputs.VERSION }}"
           echo "Building CCO version $VERSION..."
 
           # Create artifacts directory
           mkdir -p artifacts
+
+          # Check if Azure credential will be embedded
+          if [ -n "$AZURE_API_KEY" ]; then
+            echo "Azure API key available - will be embedded in binary"
+          else
+            echo "Warning: AZURE_API_KEY not set - model routing will use fallback chain"
+          fi
 
           # Build CCO for Linux x86_64
           echo "Building CCO..."

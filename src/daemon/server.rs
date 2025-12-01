@@ -73,6 +73,7 @@ pub struct DaemonState {
     pub persistence: Option<Arc<crate::persistence::PersistenceLayer>>,
     pub metrics_cache: Arc<super::metrics_cache::MetricsCache>,
     pub llm_router_state: Option<super::llm_router::api::LlmRouterState>,
+    pub proxy_port: Arc<Mutex<Option<u16>>>,
 }
 
 impl DaemonState {
@@ -265,6 +266,7 @@ impl DaemonState {
             persistence,
             metrics_cache,
             llm_router_state,
+            proxy_port: Arc::new(Mutex::new(None)),
         })
     }
 }
@@ -1109,6 +1111,31 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
         info!("✅ Settings file updated with actual port: {}", actual_port);
     }
 
+    // Start the HTTP proxy server for model routing (random port)
+    // This proxies Claude API requests and routes reviewer/tester agents to Azure
+    let proxy_addr = "127.0.0.1:0"; // Random port
+    match super::proxy::start_proxy_server(proxy_addr).await {
+        Ok(proxy_port) => {
+            info!("✅ Proxy server started on port {}", proxy_port);
+
+            // Store proxy port in state
+            if let Ok(mut port_guard) = state.proxy_port.lock() {
+                *port_guard = Some(proxy_port);
+            }
+
+            // Update PID file with proxy port for launcher discovery
+            if let Err(e) = super::update_proxy_port(proxy_port) {
+                warn!("Failed to update PID file with proxy port: {}", e);
+            } else {
+                info!("✅ PID file updated with proxy port: {}", proxy_port);
+            }
+        }
+        Err(e) => {
+            warn!("Failed to start proxy server: {}", e);
+            warn!("Model routing will be disabled - all requests go to Claude");
+        }
+    }
+
     info!("✅ Daemon server listening on http://{}", actual_addr);
     info!("   Actual Port: {}", actual_port);
     info!("   Health: http://{}/health", actual_addr);
@@ -1138,6 +1165,16 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
             info!("     (All knowledge routes require Bearer token authentication)");
         } else {
             info!("     (WARNING: Authentication disabled - no token manager)");
+        }
+    }
+
+    // Display proxy port if available
+    if let Ok(port_guard) = state.proxy_port.lock() {
+        if let Some(proxy_port) = *port_guard {
+            info!(
+                "   Proxy: http://127.0.0.1:{} (model router for Azure)",
+                proxy_port
+            );
         }
     }
 

@@ -110,10 +110,15 @@ impl TempFileManager {
                 "UserPromptSubmit": [],
                 "SessionStart": [
                     json!({
-                        "type": "http",
-                        "url": format!("http://{}:{}/api/knowledge/session-start", daemon_config.host, daemon_config.port),
-                        "method": "POST",
-                        "timeout_ms": 5000,
+                        "matcher": {},
+                        "hooks": [
+                            {
+                                "type": "http",
+                                "url": format!("http://{}:{}/api/knowledge/session-start", daemon_config.host, daemon_config.port),
+                                "method": "POST",
+                                "timeout_ms": 5000,
+                            }
+                        ]
                     })
                 ],
                 "SessionEnd": [],
@@ -122,10 +127,15 @@ impl TempFileManager {
                 "SubagentStop": [],
                 "PreCompact": [
                     json!({
-                        "type": "http",
-                        "url": format!("http://{}:{}/api/knowledge/pre-compaction", daemon_config.host, daemon_config.port),
-                        "method": "POST",
-                        "timeout_ms": 10000,
+                        "matcher": {},
+                        "hooks": [
+                            {
+                                "type": "http",
+                                "url": format!("http://{}:{}/api/knowledge/pre-compaction", daemon_config.host, daemon_config.port),
+                                "method": "POST",
+                                "timeout_ms": 10000,
+                            }
+                        ]
                     })
                 ],
                 "PermissionRequest": []
@@ -253,20 +263,30 @@ impl TempFileManager {
             orchestrator["api_url"] = serde_json::json!(format!("http://localhost:{}", actual_port));
         }
 
-        // Update hook URLs with actual port
+        // Update hook URLs with actual port (new Claude Code format with matcher/hooks wrapper)
         if let Some(hooks) = settings.get_mut("hooks") {
             if let Some(session_start) = hooks.get_mut("SessionStart").and_then(|v| v.as_array_mut()) {
-                for hook in session_start {
-                    if let Some(url) = hook.get_mut("url") {
-                        *url = serde_json::json!(format!("http://localhost:{}/api/knowledge/session-start", actual_port));
+                for matcher_entry in session_start {
+                    // Navigate into hooks array within the matcher entry
+                    if let Some(inner_hooks) = matcher_entry.get_mut("hooks").and_then(|v| v.as_array_mut()) {
+                        for hook in inner_hooks {
+                            if let Some(url) = hook.get_mut("url") {
+                                *url = serde_json::json!(format!("http://localhost:{}/api/knowledge/session-start", actual_port));
+                            }
+                        }
                     }
                 }
             }
 
             if let Some(pre_compact) = hooks.get_mut("PreCompact").and_then(|v| v.as_array_mut()) {
-                for hook in pre_compact {
-                    if let Some(url) = hook.get_mut("url") {
-                        *url = serde_json::json!(format!("http://localhost:{}/api/knowledge/pre-compaction", actual_port));
+                for matcher_entry in pre_compact {
+                    // Navigate into hooks array within the matcher entry
+                    if let Some(inner_hooks) = matcher_entry.get_mut("hooks").and_then(|v| v.as_array_mut()) {
+                        for hook in inner_hooks {
+                            if let Some(url) = hook.get_mut("url") {
+                                *url = serde_json::json!(format!("http://localhost:{}/api/knowledge/pre-compaction", actual_port));
+                            }
+                        }
                     }
                 }
             }

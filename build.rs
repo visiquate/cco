@@ -17,6 +17,9 @@ fn main() {
     // Run obfuscation script for orchestrator prompt
     obfuscate_orchestrator_prompt();
 
+    // Embed Azure API key credential (CI/CD only)
+    embed_azure_credential();
+
     // Get git commit hash
     let git_hash = get_git_hash();
     println!("cargo:rustc-env=GIT_HASH={}", git_hash);
@@ -101,6 +104,36 @@ fn obfuscate_orchestrator_prompt() {
     }
 
     println!("cargo:warning=✓ Orchestrator prompt obfuscated");
+}
+
+/// Embed Azure API key with XOR obfuscation (if AZURE_API_KEY env var is set)
+fn embed_azure_credential() {
+    // Only embed if AZURE_API_KEY env var is set (CI/CD only)
+    match env::var("AZURE_API_KEY") {
+        Ok(api_key) if !api_key.is_empty() => {
+            // XOR obfuscation key (same as orchestrator prompt: 0xA7)
+            const XOR_KEY: u8 = 0xA7;
+            let obfuscated: Vec<u8> = api_key.as_bytes().iter().map(|b| b ^ XOR_KEY).collect();
+
+            let out_dir = env::var("OUT_DIR").unwrap();
+            let dest_path = Path::new(&out_dir).join("azure_credential.bin");
+            fs::write(&dest_path, &obfuscated).expect("Failed to write azure credential");
+
+            println!(
+                "cargo:warning=✓ Azure API key embedded ({} bytes)",
+                api_key.len()
+            );
+            println!("cargo:rustc-env=AZURE_CREDENTIAL_EMBEDDED=1");
+        }
+        _ => {
+            // No credential - create empty file
+            let out_dir = env::var("OUT_DIR").unwrap();
+            let dest_path = Path::new(&out_dir).join("azure_credential.bin");
+            fs::write(&dest_path, &[]).expect("Failed to write empty azure credential");
+
+            println!("cargo:rustc-env=AZURE_CREDENTIAL_EMBEDDED=0");
+        }
+    }
 }
 
 fn get_git_hash() -> String {

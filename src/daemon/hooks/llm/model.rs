@@ -530,6 +530,9 @@ fn expand_model_path(path: &Path) -> Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::daemon::hooks::config::{
+        DEFAULT_LLM_TEMPERATURE, DEFAULT_MODEL_NAME, DEFAULT_MODEL_SIZE_MB, DEFAULT_QUANTIZATION,
+    };
     use std::path::PathBuf;
 
     #[test]

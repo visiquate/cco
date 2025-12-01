@@ -33,10 +33,20 @@ jobs:
       - name: Build CCO
         env:
           VERSION_DATE: ${{ github.event.repository.updated_at }}
+          # Azure API key for model router (embedded at build time)
+          AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
         run: |
           # Generate version date in YYYY.MM.DD format
           VERSION_DATE=$(date +%Y.%m.%-d)
           echo "Building CCO with VERSION_DATE=$VERSION_DATE..."
+
+          # Check if Azure credential will be embedded
+          if [ -n "$AZURE_API_KEY" ]; then
+            echo "Azure API key available - will be embedded in binary"
+          else
+            echo "Warning: AZURE_API_KEY not set - model routing will use fallback chain"
+          fi
+
           VERSION_DATE=$VERSION_DATE cargo build --release --verbose
 
       - name: Generate build artifacts

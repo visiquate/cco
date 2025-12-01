@@ -509,6 +509,19 @@ async fn launch_claude_code_process(settings_path: &PathBuf, args: Vec<String>) 
     cmd.stdout(std::process::Stdio::inherit());
     cmd.stderr(std::process::Stdio::inherit());
 
+    // Inject proxy configuration if proxy is running
+    match cco::daemon::read_proxy_port() {
+        Ok(proxy_port) => {
+            let proxy_url = format!("http://localhost:{}", proxy_port);
+            cmd.env("HTTPS_PROXY", &proxy_url);
+            cmd.env("HTTP_PROXY", &proxy_url);
+            println!("   Proxy: {} (model router enabled)", proxy_url);
+        }
+        Err(e) => {
+            tracing::warn!("Proxy port not found, model routing disabled: {}", e);
+        }
+    }
+
     // Add settings flag pointing to orchestrator configuration
     cmd.arg("--settings");
     cmd.arg(settings_path);

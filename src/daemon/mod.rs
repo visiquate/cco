@@ -17,6 +17,7 @@ pub mod metrics_cache;
 pub mod model_cache;
 pub mod orchestra;
 pub mod parse_tracker;
+pub mod proxy;
 pub mod security;
 pub mod server;
 pub mod service;
@@ -24,7 +25,7 @@ pub mod temp_files;
 
 pub use config::{load_config, save_config, DaemonConfig};
 pub use hooks::{HookExecutor, HookPayload, HookRegistry, HookType, HooksConfig};
-pub use lifecycle::{read_daemon_port, update_daemon_port, DaemonManager, DaemonStatus};
+pub use lifecycle::{read_daemon_port, read_proxy_port, update_daemon_port, update_proxy_port, DaemonManager, DaemonStatus};
 pub use llm_router::{
     llm_router_routes, EndpointConfig, EndpointType, LlmClient, LlmOptions, LlmResponse,
     LlmRouter, RoutingDecision,
