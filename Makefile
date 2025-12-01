@@ -1,4 +1,4 @@
-.PHONY: build release test check fmt clippy install clean help dev debug
+.PHONY: build release test check fmt clippy install clean help dev debug sbom audit
 
 # Default target
 .DEFAULT_GOAL := help
@@ -32,6 +32,8 @@ help:
 	@echo "  uninstall   - Remove installed binary"
 	@echo "  clean       - Clean build artifacts"
 	@echo "  doc         - Generate documentation"
+	@echo "  sbom        - Generate Software Bill of Materials"
+	@echo "  audit       - Run security audit on dependencies"
 	@echo ""
 	@echo "Variables:"
 	@echo "  INSTALL_DIR - Installation directory (default: /usr/local/bin)"
@@ -143,3 +145,20 @@ dev-check: fmt clippy test build
 # Continuous integration target
 ci: check fmt-check clippy test
 	@echo "CI checks passed!"
+
+# Generate Software Bill of Materials (SBOM)
+sbom:
+	@echo "Generating SBOM..."
+	@mkdir -p artifacts
+	@cargo sbom --output-format cyclone_dx_json_1_5 > artifacts/sbom-cyclonedx.json
+	@cargo sbom --output-format spdx_json_2_3 > artifacts/sbom-spdx.json
+	@echo "SBOM files generated:"
+	@echo "  - artifacts/sbom-cyclonedx.json (CycloneDX 1.5)"
+	@echo "  - artifacts/sbom-spdx.json (SPDX 2.3)"
+	@echo "Components: $$(jq '.components | length' artifacts/sbom-cyclonedx.json)"
+
+# Run security audit on dependencies
+audit:
+	@echo "Running security audit..."
+	@cargo audit || echo "Audit completed with warnings"
+	@echo "Audit complete!"

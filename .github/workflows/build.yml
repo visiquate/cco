@@ -1,4 +1,4 @@
-name: Test Build on Self-Hosted
+name: Build CCO
 
 on:
   workflow_dispatch:
@@ -31,7 +31,6 @@ jobs:
           cache: false
 
       - name: Build CCO
-        working-directory: ./cco
         env:
           VERSION_DATE: ${{ github.event.repository.updated_at }}
         run: |
@@ -41,17 +40,16 @@ jobs:
           VERSION_DATE=$VERSION_DATE cargo build --release --verbose
 
       - name: Generate build artifacts
-        working-directory: ./cco
         run: |
           # Create artifacts directory
-          mkdir -p ../artifacts
+          mkdir -p artifacts
 
           # Copy binary with platform suffix
           PLATFORM="$(uname -s)-$(uname -m)"
-          cp target/release/cco ../artifacts/cco-${PLATFORM}
+          cp target/release/cco artifacts/cco-${PLATFORM}
 
           # Generate checksums
-          cd ../artifacts
+          cd artifacts
           sha256sum cco-${PLATFORM} > checksums.txt
 
           echo "Build artifacts created:"
@@ -77,8 +75,8 @@ jobs:
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ Self-hosted runner build: SUCCESS"
+            echo "Self-hosted runner build: SUCCESS"
           else
-            echo "❌ Self-hosted runner build: FAILED"
+            echo "Self-hosted runner build: FAILED"
             exit 1
           fi

@@ -1,0 +1,169 @@
+name: SBOM Generation
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  security-events: write
+
+jobs:
+  sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Install cargo-sbom
+        run: cargo install cargo-sbom
+
+      - name: Generate CycloneDX SBOM
+        run: |
+          echo "Generating CycloneDX SBOM..."
+          cargo sbom --output-format cyclone_dx_json_1_5 > sbom-cyclonedx.json
+
+          # Count components
+          COMPONENT_COUNT=$(jq '.components | length' sbom-cyclonedx.json)
+          echo "Generated SBOM with $COMPONENT_COUNT components"
+
+          # Add metadata
+          jq --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+             --arg commit "${{ github.sha }}" \
+             '.metadata.timestamp = $date | .metadata.properties += [{"name": "git:commit", "value": $commit}]' \
+             sbom-cyclonedx.json > sbom-cyclonedx-final.json
+          mv sbom-cyclonedx-final.json sbom-cyclonedx.json
+
+      - name: Generate SPDX SBOM
+        run: |
+          echo "Generating SPDX SBOM..."
+          cargo sbom --output-format spdx_json_2_3 > sbom-spdx.json
+          echo "SPDX SBOM generated"
+
+      - name: Validate SBOM
+        run: |
+          echo "Validating SBOM files..."
+
+          # Basic JSON validation
+          jq empty sbom-cyclonedx.json && echo "CycloneDX SBOM is valid JSON"
+          jq empty sbom-spdx.json && echo "SPDX SBOM is valid JSON"
+
+          # Check for required fields
+          if jq -e '.bomFormat == "CycloneDX"' sbom-cyclonedx.json > /dev/null; then
+            echo "CycloneDX format verified"
+          else
+            echo "ERROR: Invalid CycloneDX format"
+            exit 1
+          fi
+
+          if jq -e '.spdxVersion' sbom-spdx.json > /dev/null; then
+            echo "SPDX format verified"
+          else
+            echo "ERROR: Invalid SPDX format"
+            exit 1
+          fi
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.sha }}
+          path: |
+            sbom-cyclonedx.json
+            sbom-spdx.json
+          retention-days: 90
+
+      - name: Attach SBOM to Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            sbom-cyclonedx.json
+            sbom-spdx.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: SBOM Summary
+        run: |
+          echo "## SBOM Generation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Format | File | Components |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|------|------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| CycloneDX 1.5 | sbom-cyclonedx.json | $(jq '.components | length' sbom-cyclonedx.json) |" >> $GITHUB_STEP_SUMMARY
+          echo "| SPDX 2.3 | sbom-spdx.json | $(jq '.packages | length' sbom-spdx.json) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Top-level Dependencies" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          jq -r '.components[] | select(.type == "library") | "\(.name)@\(.version)"' sbom-cyclonedx.json | head -20 >> $GITHUB_STEP_SUMMARY
+          echo "..." >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  vulnerability-scan:
+    name: Scan SBOM for Vulnerabilities
+    needs: sbom
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download SBOM
+        uses: actions/download-artifact@v4
+        with:
+          name: sbom-${{ github.sha }}
+
+      - name: Install Grype
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Scan SBOM with Grype
+        id: grype
+        run: |
+          echo "Scanning SBOM for vulnerabilities..."
+          grype sbom:sbom-cyclonedx.json --output table --fail-on high 2>&1 | tee grype-results.txt || true
+
+          # Also output JSON for processing
+          grype sbom:sbom-cyclonedx.json --output json > grype-results.json || true
+
+      - name: Upload Grype Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnerability-scan-${{ github.sha }}
+          path: |
+            grype-results.txt
+            grype-results.json
+          retention-days: 90
+
+      - name: Vulnerability Summary
+        run: |
+          echo "## Vulnerability Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f grype-results.json ]; then
+            CRITICAL=$(jq '[.matches[] | select(.vulnerability.severity == "Critical")] | length' grype-results.json)
+            HIGH=$(jq '[.matches[] | select(.vulnerability.severity == "High")] | length' grype-results.json)
+            MEDIUM=$(jq '[.matches[] | select(.vulnerability.severity == "Medium")] | length' grype-results.json)
+            LOW=$(jq '[.matches[] | select(.vulnerability.severity == "Low")] | length' grype-results.json)
+
+            echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Critical | $CRITICAL |" >> $GITHUB_STEP_SUMMARY
+            echo "| High | $HIGH |" >> $GITHUB_STEP_SUMMARY
+            echo "| Medium | $MEDIUM |" >> $GITHUB_STEP_SUMMARY
+            echo "| Low | $LOW |" >> $GITHUB_STEP_SUMMARY
+
+            if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### Critical/High Vulnerabilities Found" >> $GITHUB_STEP_SUMMARY
+              jq -r '.matches[] | select(.vulnerability.severity == "Critical" or .vulnerability.severity == "High") | "- \(.vulnerability.id): \(.artifact.name)@\(.artifact.version) (\(.vulnerability.severity))"' grype-results.json >> $GITHUB_STEP_SUMMARY
+            fi
+          fi

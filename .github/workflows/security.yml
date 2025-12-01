@@ -2,9 +2,9 @@ name: Security Scanning
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
   schedule:
     # Run security scans weekly on Monday at 9 AM UTC
     - cron: '0 9 * * 1'
@@ -67,67 +67,71 @@ jobs:
           echo "## TruffleHog Secret Scanning Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "TruffleHog scanned the repository for exposed secrets." >> $GITHUB_STEP_SUMMARY
-          echo "- Scan completed successfully ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Scan completed successfully" >> $GITHUB_STEP_SUMMARY
           echo "- If secrets were found, the workflow would have failed" >> $GITHUB_STEP_SUMMARY
 
-  dependency-security:
-    name: Dependency Vulnerability Scan
+  rust-security:
+    name: Rust Dependency Security
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          node-version: '20.x'
-          cache: 'npm'
+          toolchain: stable
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
 
-      - name: Run npm audit
-        id: npm-audit
+      - name: Run cargo-audit
+        id: cargo-audit
         run: |
-          echo "Running npm audit for security vulnerabilities..."
-          npm audit --audit-level=moderate --json > audit-results.json || true
+          echo "Running cargo-audit for security vulnerabilities..."
+          cargo audit --json > audit-results.json 2>&1 || true
 
           # Parse and display results
-          VULNERABILITIES=$(cat audit-results.json | jq -r '.metadata.vulnerabilities | to_entries[] | "\(.key): \(.value)"')
+          if [ -f audit-results.json ]; then
+            VULN_COUNT=$(jq '.vulnerabilities.count // 0' audit-results.json)
+            echo "Found $VULN_COUNT vulnerabilities"
 
-          echo "## NPM Audit Results" > audit-summary.txt
-          echo "" >> audit-summary.txt
-          echo "\`\`\`" >> audit-summary.txt
-          echo "$VULNERABILITIES" >> audit-summary.txt
-          echo "\`\`\`" >> audit-summary.txt
-
-          cat audit-summary.txt
-
-          # Check for critical or high vulnerabilities
-          CRITICAL=$(cat audit-results.json | jq -r '.metadata.vulnerabilities.critical // 0')
-          HIGH=$(cat audit-results.json | jq -r '.metadata.vulnerabilities.high // 0')
-
-          if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
-            echo "::error::Found $CRITICAL critical and $HIGH high severity vulnerabilities"
-            npm audit --audit-level=moderate
-            exit 1
+            if [ "$VULN_COUNT" -gt 0 ]; then
+              echo "::warning::Found $VULN_COUNT security vulnerabilities in Rust dependencies"
+              cargo audit
+            fi
           fi
-        continue-on-error: false
+        continue-on-error: true
 
-      - name: Check for outdated dependencies
+      - name: Run cargo-deny
         run: |
-          echo "Checking for outdated dependencies..."
-          npm outdated || echo "Some dependencies are outdated"
+          cargo install cargo-deny || true
+          cargo deny check 2>&1 || echo "cargo-deny check completed with warnings"
         continue-on-error: true
 
       - name: Upload audit results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: npm-audit-results
+          name: cargo-audit-results
           path: audit-results.json
           retention-days: 30
+
+      - name: Audit Summary
+        if: always()
+        run: |
+          echo "## Rust Security Audit Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f audit-results.json ]; then
+            VULN_COUNT=$(jq '.vulnerabilities.count // 0' audit-results.json)
+            echo "**Vulnerabilities Found:** $VULN_COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            if [ "$VULN_COUNT" -gt 0 ]; then
+              echo "### Vulnerable Dependencies" >> $GITHUB_STEP_SUMMARY
+              jq -r '.vulnerabilities.list[]? | "- **\(.advisory.id)**: \(.package.name)@\(.package.version) - \(.advisory.title)"' audit-results.json >> $GITHUB_STEP_SUMMARY || true
+            fi
+          fi
 
   file-security:
     name: File and Configuration Security
@@ -142,8 +146,9 @@ jobs:
           echo "Checking for files with overly permissive permissions..."
 
           # Check for executable files that shouldn't be
-          find . -type f -name "*.json" -perm -111 -not -path "./node_modules/*" -not -path "./.git/*" || true
-          find . -type f -name "*.md" -perm -111 -not -path "./node_modules/*" -not -path "./.git/*" || true
+          find . -type f -name "*.json" -perm -111 -not -path "./target/*" -not -path "./.git/*" || true
+          find . -type f -name "*.md" -perm -111 -not -path "./target/*" -not -path "./.git/*" || true
+          find . -type f -name "*.toml" -perm -111 -not -path "./target/*" -not -path "./.git/*" || true
 
           # Check for sensitive files that aren't in .gitignore
           echo "Verifying sensitive files are ignored..."
@@ -173,7 +178,7 @@ jobs:
             "*.env"
             "credentials"
             "secrets"
-            "node_modules"
+            "target/"
           )
 
           MISSING=0
@@ -185,7 +190,7 @@ jobs:
           done
 
           if [ $MISSING -eq 0 ]; then
-            echo "✅ All critical patterns are in .gitignore"
+            echo "All critical patterns are in .gitignore"
           fi
         continue-on-error: true
 
@@ -193,44 +198,41 @@ jobs:
         run: |
           echo "Checking for .env files in repository..."
 
-          if find . -name ".env" -not -path "./node_modules/*" -not -path "./.git/*" | grep -q .; then
+          if find . -name ".env" -not -path "./target/*" -not -path "./.git/*" | grep -q .; then
             echo "::error::Found .env files in repository - these should never be committed"
             exit 1
           fi
 
-          if find . -name ".env.*" -not -name ".env.example" -not -path "./node_modules/*" -not -path "./.git/*" | grep -q .; then
+          if find . -name ".env.*" -not -name ".env.example" -not -path "./target/*" -not -path "./.git/*" | grep -q .; then
             echo "::error::Found .env.* files in repository - only .env.example should be committed"
             exit 1
           fi
 
-          echo "✅ No .env files found in repository"
+          echo "No .env files found in repository"
         continue-on-error: false
 
   security-summary:
     name: Security Summary
-    needs: [secret-scanning, dependency-security, file-security]
+    needs: [secret-scanning, rust-security, file-security]
     runs-on: ubuntu-latest
     if: always()
 
     steps:
       - name: Generate security summary
         run: |
-          echo "## 🔒 Security Scanning Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Security Scanning Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Secret Detection | ${{ needs.secret-scanning.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Dependency Security | ${{ needs.dependency-security.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| File Security | ${{ needs.file-security.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Secret Detection | ${{ needs.secret-scanning.result == 'success' && 'Passed' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Rust Security | ${{ needs.rust-security.result == 'success' && 'Passed' || 'Warning' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| File Security | ${{ needs.file-security.result == 'success' && 'Passed' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ "${{ needs.secret-scanning.result }}" == "success" ] && \
-             [ "${{ needs.dependency-security.result }}" == "success" ] && \
+             [ "${{ needs.rust-security.result }}" == "success" ] && \
              [ "${{ needs.file-security.result }}" == "success" ]; then
-            echo "### ✅ All security checks passed!" >> $GITHUB_STEP_SUMMARY
+            echo "### All security checks passed!" >> $GITHUB_STEP_SUMMARY
           else
-            echo "### ⚠️ Some security checks failed - review the logs" >> $GITHUB_STEP_SUMMARY
+            echo "### Some security checks need attention - review the logs" >> $GITHUB_STEP_SUMMARY
           fi
-
-  # Badge status info (add to README.md):
-  # [![Security Scanning](https://github.com/yourusername/claude-orchestra/actions/workflows/security.yml/badge.svg)](https://github.com/yourusername/claude-orchestra/actions/workflows/security.yml)

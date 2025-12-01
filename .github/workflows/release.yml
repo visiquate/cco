@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag (e.g., v2025.11.19.1)'
+        description: 'Version tag (e.g., v2025.12.1)'
         required: true
         type: string
 
@@ -39,6 +39,9 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Install cargo-sbom
+        run: cargo install cargo-sbom
+
       - name: Build CCO binaries
         run: |
           VERSION="${{ steps.get_version.outputs.VERSION }}"
@@ -47,35 +50,56 @@ jobs:
           # Create artifacts directory
           mkdir -p artifacts
 
-          # Change to cco subdirectory where Cargo.toml is located
-          cd cco
-
           # Build CCO for Linux x86_64
           echo "Building CCO..."
           cargo build --release --verbose
 
           # Get platform string
           PLATFORM="linux-x86_64"
-          BINARY_NAME="cco-v${VERSION}-${PLATFORM}"
+          BINARY_NAME="cco-${VERSION}-${PLATFORM}"
 
           # Copy binary to artifacts with proper naming
-          cp target/release/cco "../artifacts/${BINARY_NAME}"
-          chmod +x "../artifacts/${BINARY_NAME}"
+          cp target/release/cco "artifacts/${BINARY_NAME}"
+          chmod +x "artifacts/${BINARY_NAME}"
 
           # Generate checksums
-          cd ../artifacts
+          cd artifacts
           sha256sum "${BINARY_NAME}" > checksums.txt
 
           echo ""
-          echo "✓ Build completed"
+          echo "Build completed"
           echo "Artifacts created:"
           ls -lh
+
+      - name: Generate SBOM
+        run: |
+          echo "Generating Software Bill of Materials..."
+
+          # CycloneDX format (preferred for vulnerability scanning)
+          cargo sbom --output-format cyclone_dx_json_1_5 > artifacts/sbom-cyclonedx.json
+
+          # SPDX format (for compliance)
+          cargo sbom --output-format spdx_json_2_3 > artifacts/sbom-spdx.json
+
+          # Add version metadata to SBOM
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          jq --arg version "$VERSION" \
+             --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+             '.metadata.component.version = $version | .metadata.timestamp = $date' \
+             artifacts/sbom-cyclonedx.json > artifacts/sbom-cyclonedx-tmp.json
+          mv artifacts/sbom-cyclonedx-tmp.json artifacts/sbom-cyclonedx.json
+
+          COMPONENT_COUNT=$(jq '.components | length' artifacts/sbom-cyclonedx.json)
+          echo "SBOM generated with $COMPONENT_COUNT components"
 
       - name: Generate release notes
         id: release_notes
         run: |
-          cat > release_notes.md <<'EOF'
-          # CCO Release ${{ steps.get_version.outputs.VERSION }}
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          COMPONENT_COUNT=$(jq '.components | length' artifacts/sbom-cyclonedx.json)
+
+          cat > release_notes.md <<EOF
+          # CCO Release ${VERSION}
 
           ## Installation
 
@@ -83,17 +107,23 @@ jobs:
 
           ### Quick Install
 
-          ```bash
+          \`\`\`bash
           # Download for your platform
-          curl -LO https://github.com/brentley/cco/releases/download/${{ steps.get_version.outputs.VERSION }}/cco-<platform>
-          chmod +x cco-<platform>
-          mv cco-<platform> /usr/local/bin/cco
-          ```
+          curl -LO https://github.com/${{ github.repository }}/releases/download/${VERSION}/cco-${VERSION}-linux-x86_64
+          chmod +x cco-${VERSION}-linux-x86_64
+          mv cco-${VERSION}-linux-x86_64 /usr/local/bin/cco
+          \`\`\`
 
           ## What's New
 
           - CCO command-line tool release
           - Full feature set as documented in README
+
+          ## Security & Compliance
+
+          - **SBOM included**: Software Bill of Materials in CycloneDX and SPDX formats
+          - **Dependencies**: ${COMPONENT_COUNT} components documented
+          - Verify checksums with \`sha256sum -c checksums.txt\`
 
           ## Documentation
 
@@ -121,7 +151,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install jq
-        run: apt-get update && apt-get install -y jq
+        run: apt-get update && apt-get install -y jq || true
 
       - name: Delete source code archive assets
         run: |
@@ -136,7 +166,7 @@ jobs:
             | jq -r '.assets[] | select(.name | endswith(".zip") or endswith(".tar.gz")) | select(.name | test("^[v]?[0-9]+\\.[0-9]+\\.[0-9]+")) | .id')
 
           if [ -z "$ASSETS" ]; then
-            echo "✓ No source code archives found"
+            echo "No source code archives found"
           else
             echo "Found source code archives, deleting..."
             for ASSET_ID in $ASSETS; do
@@ -147,7 +177,7 @@ jobs:
                 "https://api.github.com/repos/${{ github.repository }}/releases/assets/$ASSET_ID"
               echo ""
             done
-            echo "✓ Source code archives removed"
+            echo "Source code archives removed"
           fi
 
       - name: Release summary
@@ -155,3 +185,9 @@ jobs:
           echo "### Release ${{ steps.get_version.outputs.VERSION }} Created" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Artifacts:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Binary: cco-${{ steps.get_version.outputs.VERSION }}-linux-x86_64" >> $GITHUB_STEP_SUMMARY
+          echo "- SBOM (CycloneDX): sbom-cyclonedx.json" >> $GITHUB_STEP_SUMMARY
+          echo "- SBOM (SPDX): sbom-spdx.json" >> $GITHUB_STEP_SUMMARY
+          echo "- Checksums: checksums.txt" >> $GITHUB_STEP_SUMMARY
