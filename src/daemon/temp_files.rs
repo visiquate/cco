@@ -88,7 +88,30 @@ impl TempFileManager {
     /// This is the preferred method for daemon startup as it includes
     /// the full hooks configuration from the daemon config.
     pub async fn write_orchestrator_settings(&self, daemon_config: &DaemonConfig) -> Result<()> {
-        let settings = json!({
+        // Build hooks with dynamic commands using serde_json::json! for proper value construction
+        let session_start_hook = serde_json::json!({
+            "matcher": "",
+            "hooks": [
+                {
+                    "type": "command",
+                    "command": format!("curl -s -X POST http://{}:{}/api/knowledge/session-start", daemon_config.host, daemon_config.port),
+                    "timeout": 5,
+                }
+            ]
+        });
+
+        let pre_compact_hook = serde_json::json!({
+            "matcher": "",
+            "hooks": [
+                {
+                    "type": "command",
+                    "command": format!("curl -s -X POST http://{}:{}/api/knowledge/pre-compaction", daemon_config.host, daemon_config.port),
+                    "timeout": 10,
+                }
+            ]
+        });
+
+        let mut settings = json!({
             "version": env!("CARGO_PKG_VERSION"),
             "timestamp": chrono::Utc::now().to_rfc3339(),
 
@@ -108,36 +131,12 @@ impl TempFileManager {
                 "PostToolUse": [],
                 "Notification": [],
                 "UserPromptSubmit": [],
-                "SessionStart": [
-                    json!({
-                        "matcher": {},
-                        "hooks": [
-                            {
-                                "type": "http",
-                                "url": format!("http://{}:{}/api/knowledge/session-start", daemon_config.host, daemon_config.port),
-                                "method": "POST",
-                                "timeout_ms": 5000,
-                            }
-                        ]
-                    })
-                ],
+                "SessionStart": [],
                 "SessionEnd": [],
                 "Stop": [],
                 "SubagentStart": [],
                 "SubagentStop": [],
-                "PreCompact": [
-                    json!({
-                        "matcher": {},
-                        "hooks": [
-                            {
-                                "type": "http",
-                                "url": format!("http://{}:{}/api/knowledge/pre-compaction", daemon_config.host, daemon_config.port),
-                                "method": "POST",
-                                "timeout_ms": 10000,
-                            }
-                        ]
-                    })
-                ],
+                "PreCompact": [],
                 "PermissionRequest": []
             },
 
@@ -167,6 +166,12 @@ impl TempFileManager {
 
             "temp_dir": env::temp_dir().to_string_lossy()
         });
+
+        // Insert the hooks values into the settings object
+        if let Some(hooks_obj) = settings.get_mut("hooks").and_then(|v| v.as_object_mut()) {
+            hooks_obj.insert("SessionStart".to_string(), serde_json::json!([session_start_hook]));
+            hooks_obj.insert("PreCompact".to_string(), serde_json::json!([pre_compact_hook]));
+        }
 
         let settings_json = serde_json::to_string_pretty(&settings)?;
         fs::write(&self.settings_path, settings_json)?;
@@ -263,15 +268,15 @@ impl TempFileManager {
             orchestrator["api_url"] = serde_json::json!(format!("http://localhost:{}", actual_port));
         }
 
-        // Update hook URLs with actual port (new Claude Code format with matcher/hooks wrapper)
+        // Update hook commands with actual port (Claude Code 2.0.55+ format)
         if let Some(hooks) = settings.get_mut("hooks") {
             if let Some(session_start) = hooks.get_mut("SessionStart").and_then(|v| v.as_array_mut()) {
                 for matcher_entry in session_start {
                     // Navigate into hooks array within the matcher entry
                     if let Some(inner_hooks) = matcher_entry.get_mut("hooks").and_then(|v| v.as_array_mut()) {
                         for hook in inner_hooks {
-                            if let Some(url) = hook.get_mut("url") {
-                                *url = serde_json::json!(format!("http://localhost:{}/api/knowledge/session-start", actual_port));
+                            if let Some(command) = hook.get_mut("command") {
+                                *command = serde_json::json!(format!("curl -s -X POST http://localhost:{}/api/knowledge/session-start", actual_port));
                             }
                         }
                     }
@@ -283,8 +288,8 @@ impl TempFileManager {
                     // Navigate into hooks array within the matcher entry
                     if let Some(inner_hooks) = matcher_entry.get_mut("hooks").and_then(|v| v.as_array_mut()) {
                         for hook in inner_hooks {
-                            if let Some(url) = hook.get_mut("url") {
-                                *url = serde_json::json!(format!("http://localhost:{}/api/knowledge/pre-compaction", actual_port));
+                            if let Some(command) = hook.get_mut("command") {
+                                *command = serde_json::json!(format!("curl -s -X POST http://localhost:{}/api/knowledge/pre-compaction", actual_port));
                             }
                         }
                     }
@@ -712,17 +717,19 @@ mod tests {
             format!("http://localhost:{}", actual_port)
         );
 
-        // Verify hook URLs were updated
+        // Verify hook commands were updated (new Claude Code format with command field)
         let session_start = &updated_settings["hooks"]["SessionStart"][0];
+        let session_start_hooks = session_start["hooks"].as_array().unwrap();
         assert_eq!(
-            session_start["url"].as_str().unwrap(),
-            format!("http://localhost:{}/api/knowledge/session-start", actual_port)
+            session_start_hooks[0]["command"].as_str().unwrap(),
+            format!("curl -s -X POST http://localhost:{}/api/knowledge/session-start", actual_port)
         );
 
         let pre_compact = &updated_settings["hooks"]["PreCompact"][0];
+        let pre_compact_hooks = pre_compact["hooks"].as_array().unwrap();
         assert_eq!(
-            pre_compact["url"].as_str().unwrap(),
-            format!("http://localhost:{}/api/knowledge/pre-compaction", actual_port)
+            pre_compact_hooks[0]["command"].as_str().unwrap(),
+            format!("curl -s -X POST http://localhost:{}/api/knowledge/pre-compaction", actual_port)
         );
 
         // Cleanup

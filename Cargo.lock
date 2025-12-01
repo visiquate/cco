@@ -1531,7 +1531,7 @@ dependencies = [
 
 [[package]]
 name = "cco"
-version = "2025.11.30"
+version = "2025.12.1"
 dependencies = [
  "aes-gcm",
  "anyhow",
