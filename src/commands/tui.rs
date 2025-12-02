@@ -103,8 +103,6 @@ pub async fn launch_tui() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     // Note: Full integration tests for TUI are in tests/tui_integration_tests.rs
     // These are just unit tests for helper functions
 

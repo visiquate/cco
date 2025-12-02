@@ -50,7 +50,9 @@ fn get_daemon_lock_file() -> Result<std::path::PathBuf> {
 
 /// Lockfile guard that releases the lock when dropped
 pub struct LockFileGuard {
-    #[allow(dead_code)]
+    /// The file handle is kept open to maintain the flock() lock.
+    /// When this guard is dropped, the file is closed and the lock is released.
+    #[allow(dead_code)] // Intentionally unused - keeps flock active
     file: File,
     path: std::path::PathBuf,
 }
@@ -121,8 +123,28 @@ fn is_cco_daemon_process(pid: u32) -> bool {
     }
 }
 
-/// Find and kill all stale cco daemon processes
-/// Returns the number of processes killed
+/// Find and kill all stale cco daemon processes.
+///
+/// This is a **manual cleanup utility** - it is NOT called automatically during
+/// normal daemon start/stop operations. Use this when you need to forcefully
+/// clean up orphaned daemon processes, e.g., after a system crash or when the
+/// normal `cco daemon stop` command fails.
+///
+/// # Safety
+/// This function will kill ANY process that has "cco" in its name or executable
+/// path, excluding the current process. Use with caution.
+///
+/// # Returns
+/// The number of processes killed.
+///
+/// # Example
+/// ```ignore
+/// // Clean up orphaned daemons before starting fresh
+/// let killed = kill_stale_daemons()?;
+/// if killed > 0 {
+///     println!("Killed {} stale daemon processes", killed);
+/// }
+/// ```
 pub fn kill_stale_daemons() -> Result<usize> {
     let mut system = System::new();
     system.refresh_processes();
@@ -463,7 +485,7 @@ impl DaemonManager {
             .context("Failed to send SIGTERM")?;
 
         // Wait for graceful shutdown (up to 10 seconds)
-        for _ in 0..20 {
+        for i in 0..20 {
             tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
             if !self.is_process_running(status.pid) {
@@ -478,6 +500,12 @@ impl DaemonManager {
                     .context("Failed to cleanup orchestrator temp files")?;
 
                 return Ok(());
+            }
+
+            // Log progress every 2 seconds
+            if (i + 1) % 4 == 0 {
+                let elapsed = (i + 1) / 2;
+                info!("Waiting for daemon to shut down... ({}s elapsed)", elapsed);
             }
         }
 

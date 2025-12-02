@@ -21,11 +21,8 @@ use ratatui::{
     Frame, Terminal,
 };
 use std::io;
-use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
-use tokio::fs;
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::sync::mpsc;
+use tokio::sync::mpsc::{self, error::TryRecvError};
 use tokio::time::{interval, sleep};
 
 use crate::api_client::{ApiClient, HealthResponse};
@@ -259,180 +256,6 @@ pub struct TuiApp {
     quit_reason: Option<String>,
 }
 
-/// Load overall metrics from ~/.claude/metrics.json
-#[allow(dead_code)]
-async fn load_overall_metrics() -> Result<OverallSummary> {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
-    let metrics_path = PathBuf::from(&home).join(".claude").join("metrics.json");
-
-    if !metrics_path.exists() {
-        return Ok(OverallSummary::default());
-    }
-
-    let content = fs::read_to_string(&metrics_path).await?;
-    let metrics: serde_json::Value = serde_json::from_str(&content)?;
-
-    let summary = OverallSummary {
-        total_cost: metrics
-            .get("total_cost")
-            .and_then(|v| v.as_f64())
-            .unwrap_or(0.0),
-        total_tokens: metrics
-            .get("total_tokens")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0),
-        total_input_tokens: metrics
-            .get("total_input_tokens")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0),
-        total_output_tokens: metrics
-            .get("total_output_tokens")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0),
-        total_calls: metrics
-            .get("messages_count")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0),
-        opus_cost: metrics
-            .get("model_breakdown")
-            .and_then(|mb| mb.get("claude-opus-4"))
-            .and_then(|m| m.get("total_cost"))
-            .and_then(|v| v.as_f64())
-            .unwrap_or(0.0),
-        sonnet_cost: metrics
-            .get("model_breakdown")
-            .and_then(|mb| mb.get("claude-sonnet-4-5"))
-            .and_then(|m| m.get("total_cost"))
-            .and_then(|v| v.as_f64())
-            .unwrap_or(0.0),
-        haiku_cost: metrics
-            .get("model_breakdown")
-            .and_then(|mb| mb.get("claude-haiku-4-5"))
-            .and_then(|m| m.get("total_cost"))
-            .and_then(|v| v.as_f64())
-            .unwrap_or(0.0),
-    };
-
-    Ok(summary)
-}
-
-/// Load project summaries from ~/.claude/projects/*/claude.jsonl
-#[allow(dead_code)]
-async fn load_project_summaries() -> Result<Vec<ProjectSummary>> {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
-    let projects_dir = PathBuf::from(&home).join(".claude").join("projects");
-
-    if !projects_dir.exists() {
-        return Ok(Vec::new());
-    }
-
-    let mut projects = Vec::new();
-    let mut entries = fs::read_dir(&projects_dir).await?;
-
-    while let Some(entry) = entries.next_entry().await? {
-        let path = entry.path();
-        if path.is_dir() {
-            let claude_jsonl = path.join("claude.jsonl");
-            if claude_jsonl.exists() {
-                if let Ok(summary) = load_project_from_jsonl(&claude_jsonl, &path).await {
-                    projects.push(summary);
-                }
-            }
-        }
-    }
-
-    // Sort by cost descending
-    projects.sort_by(|a, b| {
-        b.cost
-            .partial_cmp(&a.cost)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-
-    Ok(projects)
-}
-
-/// Load a single project's metrics from its claude.jsonl file
-#[allow(dead_code)]
-async fn load_project_from_jsonl(
-    jsonl_path: &PathBuf,
-    project_dir: &PathBuf,
-) -> Result<ProjectSummary> {
-    let file = fs::File::open(jsonl_path).await?;
-    let reader = BufReader::new(file);
-    let mut lines = reader.lines();
-
-    let mut total_cost = 0.0;
-    let mut total_tokens = 0u64;
-    let mut calls = 0u64;
-
-    while let Some(line) = lines.next_line().await? {
-        if let Ok(msg) = serde_json::from_str::<serde_json::Value>(&line) {
-            if let Some(message) = msg.get("message") {
-                if let Some(usage) = message.get("usage") {
-                    calls += 1;
-
-                    let input_tokens = usage
-                        .get("input_tokens")
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(0);
-                    let output_tokens = usage
-                        .get("output_tokens")
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(0);
-
-                    total_tokens += input_tokens + output_tokens;
-
-                    // Extract model name and estimate cost
-                    if let Some(model) = message.get("model").and_then(|m| m.as_str()) {
-                        let (input_price, output_price, _, _) = get_model_pricing(model);
-                        total_cost += (input_tokens as f64 / 1_000_000.0) * input_price;
-                        total_cost += (output_tokens as f64 / 1_000_000.0) * output_price;
-                    }
-                }
-            }
-        }
-    }
-
-    let project_name = project_dir
-        .file_name()
-        .and_then(|n| n.to_str())
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| "Unknown".to_string());
-
-    Ok(ProjectSummary {
-        name: project_name,
-        cost: total_cost,
-        tokens: total_tokens,
-        calls,
-    })
-}
-
-/// Get model pricing for cost estimation (matches pricing from claude_history.rs)
-#[allow(dead_code)]
-fn get_model_pricing(model_name: &str) -> (f64, f64, f64, f64) {
-    let normalized = normalize_model_name(model_name);
-    match normalized.as_str() {
-        "claude-sonnet-4-5" | "claude-3-5-sonnet" => (3.0, 15.0, 3.75, 0.30),
-        "claude-haiku-4-5" | "claude-3-5-haiku" => (1.0, 5.0, 1.25, 0.10),
-        "claude-opus-4" | "claude-opus-4-1" | "claude-opus-4-5" => (15.0, 75.0, 18.75, 1.50),
-        _ => (3.0, 15.0, 3.75, 0.30), // Default to Sonnet
-    }
-}
-
-/// Normalize model name for pricing lookup
-#[allow(dead_code)]
-fn normalize_model_name(model_name: &str) -> String {
-    let parts: Vec<&str> = model_name.split('-').collect();
-    if parts.len() >= 3 {
-        if let Some(last) = parts.last() {
-            if last.len() == 8 && last.chars().all(|c| c.is_ascii_digit()) {
-                return parts[..parts.len() - 1].join("-");
-            }
-        }
-    }
-    model_name.to_string()
-}
-
 impl TuiApp {
     /// Create a new TUI application instance
     pub async fn new() -> Result<Self> {
@@ -549,28 +372,41 @@ impl TuiApp {
             }
 
             // Check for stats updates from background task
-            if let Ok(message) = stats_rx.try_recv() {
-                match message {
-                    StatsMessage::Update(update) => {
-                        self.connection_lost_count = 0; // Reset on successful update
-                        self.update_state_from_stats(update);
-                    }
-                    StatsMessage::ConnectionLost { consecutive_failures } => {
-                        self.connection_lost_count = consecutive_failures;
-                        self.status_message = format!(
-                            "⚠️  Connection lost ({}/10 failures)",
-                            consecutive_failures
-                        );
-
-                        // After 10 consecutive failures, quit with explanation
-                        if consecutive_failures >= 10 {
-                            self.quit_reason = Some(
-                                "Daemon connection lost after 10 consecutive failures. \
-                                The daemon may have crashed or been stopped.".to_string()
+            match stats_rx.try_recv() {
+                Ok(message) => {
+                    match message {
+                        StatsMessage::Update(update) => {
+                            self.connection_lost_count = 0; // Reset on successful update
+                            self.update_state_from_stats(update);
+                        }
+                        StatsMessage::ConnectionLost { consecutive_failures } => {
+                            self.connection_lost_count = consecutive_failures;
+                            self.status_message = format!(
+                                "⚠️  Connection lost ({}/10 failures)",
+                                consecutive_failures
                             );
-                            self.should_quit = true;
+
+                            // After 10 consecutive failures, quit with explanation
+                            if consecutive_failures >= 10 {
+                                self.quit_reason = Some(
+                                    "Daemon connection lost after 10 consecutive failures. \
+                                    The daemon may have crashed or been stopped.".to_string()
+                                );
+                                self.should_quit = true;
+                            }
                         }
                     }
+                }
+                Err(TryRecvError::Empty) => {
+                    // No message available, continue polling
+                }
+                Err(TryRecvError::Disconnected) => {
+                    // Background task crashed or was dropped
+                    self.quit_reason = Some(
+                        "Background stats task disconnected unexpectedly. \
+                        This may indicate an internal error.".to_string()
+                    );
+                    self.should_quit = true;
                 }
             }
 
@@ -1062,16 +898,6 @@ impl TuiApp {
         (sonnet_stats, opus_stats, haiku_stats)
     }
 
-    /// Extract token statistics per model from model_breakdown in chart_data
-    #[allow(dead_code)]
-    fn extract_token_stats_per_model(
-        &self,
-        stats: &serde_json::Value,
-        total_tokens: u64,
-    ) -> (TokenStats, TokenStats, TokenStats) {
-        Self::extract_token_stats_per_model_static(stats, total_tokens)
-    }
-
     /// Parse recent API calls from activity events (static version)
     fn parse_recent_calls_static(stats: &serde_json::Value) -> Vec<RecentCall> {
         let mut calls = Vec::new();
@@ -1192,12 +1018,25 @@ impl TuiApp {
                 }
             }
             KeyCode::Char('t') | KeyCode::Char('T') => {
-                // Cycle through time ranges
-                if let AppState::Connected { time_range, .. } = self.state {
+                // Cycle through time ranges - single destructure with immediate rebuild
+                if let AppState::Connected {
+                    cost_by_tier,
+                    recent_calls,
+                    health,
+                    is_active,
+                    overall_summary,
+                    project_summaries,
+                    model_summaries,
+                    last_updated,
+                    time_range,
+                    history_start_date,
+                } = std::mem::replace(&mut self.state, AppState::Initializing {
+                    message: "Updating time range...".to_string(),
+                }) {
                     let new_time_range = time_range.next();
 
-                    // Update the state with new time range
-                    if let AppState::Connected {
+                    // Restore state with updated time range
+                    self.state = AppState::Connected {
                         cost_by_tier,
                         recent_calls,
                         health,
@@ -1206,23 +1045,9 @@ impl TuiApp {
                         project_summaries,
                         model_summaries,
                         last_updated,
+                        time_range: new_time_range,
                         history_start_date,
-                        ..
-                    } = self.state.clone()
-                    {
-                        self.state = AppState::Connected {
-                            cost_by_tier,
-                            recent_calls,
-                            health,
-                            is_active,
-                            overall_summary,
-                            project_summaries,
-                            model_summaries,
-                            last_updated,
-                            time_range: new_time_range,
-                            history_start_date,
-                        };
-                    }
+                    };
 
                     self.status_message =
                         format!("Loading {} data...", new_time_range.display_name());

@@ -24,8 +24,6 @@ pub trait Component {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_components_module_compiles() {
         // Ensure all components are accessible

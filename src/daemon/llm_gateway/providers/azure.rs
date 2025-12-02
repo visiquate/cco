@@ -114,11 +114,9 @@ impl AzureProvider {
                     .collect();
 
                 if parts.len() == 1 {
-                    if let AzureContentPart::Text { text } = &parts[0] {
-                        AzureContent::Text(text.clone())
-                    } else {
-                        AzureContent::Parts(parts)
-                    }
+                    // All parts from filter_map above are Text variants
+                    let AzureContentPart::Text { text } = &parts[0];
+                    AzureContent::Text(text.clone())
                 } else {
                     AzureContent::Parts(parts)
                 }

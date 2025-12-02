@@ -185,7 +185,6 @@ impl RateLimiter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::time::{sleep, Duration as TokioDuration};
 
     #[test]
     fn test_token_bucket_creation() {

@@ -104,11 +104,9 @@ impl DeepSeekProvider {
                     .collect();
 
                 if parts.len() == 1 {
-                    if let OpenAIContentPart::Text { text } = &parts[0] {
-                        OpenAIContent::Text(text.clone())
-                    } else {
-                        OpenAIContent::Parts(parts)
-                    }
+                    // All parts from filter_map above are Text variants
+                    let OpenAIContentPart::Text { text } = &parts[0];
+                    OpenAIContent::Text(text.clone())
                 } else {
                     OpenAIContent::Parts(parts)
                 }
@@ -340,8 +338,6 @@ struct OpenAIUsage {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_api_url() {
         let base_url = "https://api.deepseek.com";

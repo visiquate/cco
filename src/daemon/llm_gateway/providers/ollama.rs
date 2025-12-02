@@ -467,8 +467,6 @@ struct OllamaNativeResponse {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_api_url() {
         let base_url = "http://localhost:11434";

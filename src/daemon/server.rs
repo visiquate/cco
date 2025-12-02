@@ -35,7 +35,7 @@ use super::log_watcher::LogWatcher;
 use super::orchestration_routes::{
     create_orchestration_router, init_orchestration_state, OrchestrationHandlerState,
 };
-use super::security::{CredentialDetector, TokenManager};
+use super::security::TokenManager;
 use crate::orchestration::OrchestrationState;
 
 /// Classification decision tracking
@@ -73,7 +73,9 @@ pub struct DaemonState {
     pub last_classification_ms: Arc<Mutex<Option<u32>>>,
     pub knowledge_store: Option<KnowledgeState>,
     pub token_manager: Option<Arc<TokenManager>>,
-    pub credential_detector: Arc<CredentialDetector>,
+    // Note: CredentialDetector is created on-demand in knowledge/api.rs and hooks/audit.rs
+    // rather than shared from DaemonState. Each instance compiles regex patterns, so this
+    // could be optimized by sharing a single instance if performance becomes an issue.
     pub persistence: Option<Arc<crate::persistence::PersistenceLayer>>,
     pub metrics_cache: Arc<super::metrics_cache::MetricsCache>,
     pub llm_router_state: Option<super::llm_router::api::LlmRouterState>,
@@ -188,10 +190,6 @@ impl DaemonState {
             }
         };
 
-        // Initialize credential detector
-        let credential_detector = Arc::new(CredentialDetector::new());
-        info!("✅ Credential detector initialized");
-
         // Initialize knowledge store
         let knowledge_store = {
             let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
@@ -304,7 +302,6 @@ impl DaemonState {
             last_classification_ms: Arc::new(Mutex::new(None)),
             knowledge_store,
             token_manager,
-            credential_detector,
             persistence,
             metrics_cache,
             llm_router_state,
@@ -430,6 +427,13 @@ async fn health(State(state): State<Arc<DaemonState>>) -> Json<HealthResponse> {
         "Health check"
     );
 
+    // Get last classification latency from state
+    let classification_latency_ms = state
+        .last_classification_ms
+        .lock()
+        .ok()
+        .and_then(|guard| *guard);
+
     Json(HealthResponse {
         status: "ok".to_string(),
         version: crate::version::DateVersion::current().to_string(),
@@ -440,7 +444,7 @@ async fn health(State(state): State<Arc<DaemonState>>) -> Json<HealthResponse> {
             classifier_available,
             model_loaded,
             model_name,
-            classification_latency_ms: None, // TODO: Track metrics
+            classification_latency_ms,
         },
     })
 }
@@ -1209,24 +1213,30 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
 
         match TcpListener::bind(gateway_addr).await {
             Ok(gateway_listener) => {
-                let gateway_actual_addr = gateway_listener.local_addr()
-                    .expect("Failed to get gateway local address");
-                let gateway_port = gateway_actual_addr.port();
+                match gateway_listener.local_addr() {
+                    Ok(gateway_actual_addr) => {
+                        let gateway_port = gateway_actual_addr.port();
 
-                // Store gateway port in state
-                if let Ok(mut port_guard) = state.gateway_port.lock() {
-                    *port_guard = Some(gateway_port);
-                }
+                        // Store gateway port in state
+                        if let Ok(mut port_guard) = state.gateway_port.lock() {
+                            *port_guard = Some(gateway_port);
+                        }
 
-                info!("✅ LLM Gateway started on port {}", gateway_port);
-                info!("   Set ANTHROPIC_BASE_URL=http://127.0.0.1:{} to use", gateway_port);
+                        info!("✅ LLM Gateway started on port {}", gateway_port);
+                        info!("   Set ANTHROPIC_BASE_URL=http://127.0.0.1:{} to use", gateway_port);
 
-                // Spawn gateway server in background
-                tokio::spawn(async move {
-                    if let Err(e) = axum::serve(gateway_listener, gateway_app).await {
-                        warn!("LLM Gateway server error: {}", e);
+                        // Spawn gateway server in background
+                        tokio::spawn(async move {
+                            if let Err(e) = axum::serve(gateway_listener, gateway_app).await {
+                                warn!("LLM Gateway server error: {}", e);
+                            }
+                        });
                     }
-                });
+                    Err(e) => {
+                        warn!("Failed to get gateway local address: {}", e);
+                        warn!("LLM Gateway will not be available");
+                    }
+                }
             }
             Err(e) => {
                 warn!("Failed to start LLM Gateway server: {}", e);

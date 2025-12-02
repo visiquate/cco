@@ -212,8 +212,6 @@ impl Drop for Terminal {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_terminal_creation() {
         // Terminal creation is tested during TUI runtime
