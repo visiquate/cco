@@ -2474,5 +2474,74 @@
       "requiresUserCheckpoint": true,
       "requiresDocumentation": true
     }
+  },
+  "llmGateway": {
+    "providers": {
+      "anthropic": {
+        "enabled": true,
+        "providerType": "anthropic",
+        "baseUrl": "https://api.anthropic.com",
+        "apiKeyRef": "env:ANTHROPIC_API_KEY",
+        "defaultModel": "claude-sonnet-4-20250514",
+        "maxRetries": 3,
+        "timeoutSecs": 120
+      },
+      "azure": {
+        "enabled": false,
+        "providerType": "azure",
+        "baseUrl": "https://your-resource.openai.azure.com",
+        "apiKeyRef": "env:AZURE_OPENAI_API_KEY",
+        "apiVersion": "2024-02-15-preview",
+        "defaultModel": "gpt-4-turbo",
+        "maxRetries": 3,
+        "timeoutSecs": 120
+      },
+      "deepseek": {
+        "enabled": false,
+        "providerType": "deepseek",
+        "baseUrl": "https://api.deepseek.com",
+        "apiKeyRef": "env:DEEPSEEK_API_KEY",
+        "defaultModel": "deepseek-chat",
+        "maxRetries": 3,
+        "timeoutSecs": 180
+      },
+      "ollama": {
+        "enabled": false,
+        "providerType": "ollama",
+        "baseUrl": "http://localhost:11434",
+        "apiKeyRef": "",
+        "defaultModel": "llama3.2",
+        "maxRetries": 2,
+        "timeoutSecs": 300
+      }
+    },
+    "routing": {
+      "defaultProvider": "anthropic",
+      "agentRules": {
+        "chief-architect": "anthropic",
+        "code-reviewer": "anthropic",
+        "security-auditor": "anthropic",
+        "test-engineer": "anthropic"
+      },
+      "modelTierRules": {
+        "opus": "anthropic",
+        "sonnet": "anthropic",
+        "haiku": "anthropic",
+        "gpt4": "azure",
+        "gpt35": "azure",
+        "deepseek": "deepseek"
+      },
+      "fallbackChain": ["anthropic", "azure", "deepseek", "ollama"]
+    },
+    "costTracking": {
+      "enabled": true
+    },
+    "audit": {
+      "enabled": true,
+      "logRequestBodies": true,
+      "logResponseBodies": true,
+      "retentionDays": 30,
+      "dbPath": "data/audit/llm_gateway.db"
+    }
   }
 }

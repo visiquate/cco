@@ -79,6 +79,8 @@ pub struct DaemonState {
     pub llm_router_state: Option<super::llm_router::api::LlmRouterState>,
     pub proxy_port: Arc<Mutex<Option<u16>>>,
     pub orchestration_state: Option<Arc<OrchestrationState>>,
+    pub llm_gateway: Option<super::llm_gateway::GatewayState>,
+    pub gateway_port: Arc<Mutex<Option<u16>>>,
 }
 
 impl DaemonState {
@@ -267,6 +269,28 @@ impl DaemonState {
             }
         };
 
+        // Initialize LLM Gateway (unified gateway for all LLM requests)
+        let llm_gateway = match super::llm_gateway::config::load_from_orchestra_config(None) {
+            Ok(gateway_config) => {
+                match super::llm_gateway::LlmGateway::new(gateway_config).await {
+                    Ok(gateway) => {
+                        info!("✅ LLM Gateway initialized successfully");
+                        Some(Arc::new(gateway))
+                    }
+                    Err(e) => {
+                        warn!("Failed to initialize LLM Gateway: {}", e);
+                        warn!("LLM Gateway API endpoints will not be available");
+                        None
+                    }
+                }
+            }
+            Err(e) => {
+                info!("ℹ️  LLM Gateway config not found: {}", e);
+                info!("   LLM Gateway will not be available (add llmGateway section to orchestra-config.json)");
+                None
+            }
+        };
+
         Ok(Self {
             config,
             hooks_registry,
@@ -286,6 +310,8 @@ impl DaemonState {
             llm_router_state,
             proxy_port: Arc::new(Mutex::new(None)),
             orchestration_state,
+            llm_gateway,
+            gateway_port: Arc::new(Mutex::new(None)),
         })
     }
 }
@@ -1091,6 +1117,9 @@ fn create_router(state: Arc<DaemonState>) -> Router {
         info!("Orchestration system not available - skipping orchestration API routes");
     }
 
+    // Note: LLM Gateway runs on a separate port for Claude Code compatibility
+    // See run_daemon_server() where it's started alongside the main daemon
+
     router.with_state(state)
 }
 
@@ -1169,6 +1198,40 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
         Err(e) => {
             warn!("Failed to start proxy server: {}", e);
             warn!("Model routing will be disabled - all requests go to Claude");
+        }
+    }
+
+    // Start the LLM Gateway server if available (random port)
+    // This provides Anthropic-compatible API with cost tracking and audit logging
+    if let Some(ref llm_gateway) = state.llm_gateway {
+        let gateway_addr = "127.0.0.1:0";
+        let gateway_app = super::llm_gateway::api::gateway_router_with_state(Arc::clone(llm_gateway));
+
+        match TcpListener::bind(gateway_addr).await {
+            Ok(gateway_listener) => {
+                let gateway_actual_addr = gateway_listener.local_addr()
+                    .expect("Failed to get gateway local address");
+                let gateway_port = gateway_actual_addr.port();
+
+                // Store gateway port in state
+                if let Ok(mut port_guard) = state.gateway_port.lock() {
+                    *port_guard = Some(gateway_port);
+                }
+
+                info!("✅ LLM Gateway started on port {}", gateway_port);
+                info!("   Set ANTHROPIC_BASE_URL=http://127.0.0.1:{} to use", gateway_port);
+
+                // Spawn gateway server in background
+                tokio::spawn(async move {
+                    if let Err(e) = axum::serve(gateway_listener, gateway_app).await {
+                        warn!("LLM Gateway server error: {}", e);
+                    }
+                });
+            }
+            Err(e) => {
+                warn!("Failed to start LLM Gateway server: {}", e);
+                warn!("LLM Gateway will not be available");
+            }
         }
     }
 

@@ -11,6 +11,7 @@ pub mod credentials;
 pub mod hooks;
 pub mod knowledge;
 pub mod lifecycle;
+pub mod llm_gateway;
 pub mod llm_router;
 pub mod log_watcher;
 pub mod metrics_cache;
