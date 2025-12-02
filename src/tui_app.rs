@@ -218,6 +218,14 @@ pub enum AppState {
 
 /// Stats update message for background refresh
 #[derive(Debug, Clone)]
+enum StatsMessage {
+    /// Successful stats update
+    Update(StatsUpdate),
+    /// Connection failure with consecutive failure count
+    ConnectionLost { consecutive_failures: u32 },
+}
+
+#[derive(Debug, Clone)]
 struct StatsUpdate {
     cost_by_tier: CostByTier,
     recent_calls: Vec<RecentCall>,
@@ -245,6 +253,10 @@ pub struct TuiApp {
     status_message: String,
     /// Channel to send time_range updates to background task
     time_range_tx: Option<mpsc::Sender<TimeRange>>,
+    /// Connection lost indicator (consecutive failures)
+    connection_lost_count: u32,
+    /// Reason for quitting (if due to connection loss)
+    quit_reason: Option<String>,
 }
 
 /// Load overall metrics from ~/.claude/metrics.json
@@ -453,6 +465,8 @@ impl TuiApp {
             should_quit: false,
             status_message: String::new(),
             time_range_tx: None,
+            connection_lost_count: 0,
+            quit_reason: None,
         })
     }
 
@@ -465,7 +479,7 @@ impl TuiApp {
         self.load_agents_and_stats().await?;
 
         // 3. Spawn background stats fetcher task with time_range channel
-        let (stats_tx, mut stats_rx) = mpsc::channel::<StatsUpdate>(10);
+        let (stats_tx, mut stats_rx) = mpsc::channel::<StatsMessage>(10);
         let (time_range_tx, mut time_range_rx) = mpsc::channel::<TimeRange>(10);
         let client_clone = self.client.clone();
 
@@ -475,26 +489,44 @@ impl TuiApp {
         tokio::spawn(async move {
             let mut current_time_range = TimeRange::Today;
             let mut interval = interval(Duration::from_secs(3));
+            let mut consecutive_failures: u32 = 0;
 
             loop {
                 tokio::select! {
                     _ = interval.tick() => {
                         // Fetch stats with current time range
-                        if let Ok(update) = Self::fetch_stats_update(&client_clone, current_time_range).await {
-                            // Send update (non-blocking)
-                            if stats_tx.send(update).await.is_err() {
-                                // Receiver dropped, exit task
-                                break;
+                        match Self::fetch_stats_update(&client_clone, current_time_range).await {
+                            Ok(update) => {
+                                consecutive_failures = 0; // Reset on success
+                                if stats_tx.send(StatsMessage::Update(update)).await.is_err() {
+                                    // Receiver dropped, exit task
+                                    break;
+                                }
+                            }
+                            Err(_) => {
+                                consecutive_failures += 1;
+                                // Send connection lost message
+                                if stats_tx.send(StatsMessage::ConnectionLost { consecutive_failures }).await.is_err() {
+                                    break;
+                                }
                             }
                         }
-                        // If fetch fails, silently continue - will retry in 3 seconds
                     }
                     Some(new_range) = time_range_rx.recv() => {
                         // Update time range and fetch immediately
                         current_time_range = new_range;
-                        if let Ok(update) = Self::fetch_stats_update(&client_clone, current_time_range).await {
-                            if stats_tx.send(update).await.is_err() {
-                                break;
+                        match Self::fetch_stats_update(&client_clone, current_time_range).await {
+                            Ok(update) => {
+                                consecutive_failures = 0;
+                                if stats_tx.send(StatsMessage::Update(update)).await.is_err() {
+                                    break;
+                                }
+                            }
+                            Err(_) => {
+                                consecutive_failures += 1;
+                                if stats_tx.send(StatsMessage::ConnectionLost { consecutive_failures }).await.is_err() {
+                                    break;
+                                }
                             }
                         }
                     }
@@ -517,8 +549,29 @@ impl TuiApp {
             }
 
             // Check for stats updates from background task
-            if let Ok(update) = stats_rx.try_recv() {
-                self.update_state_from_stats(update);
+            if let Ok(message) = stats_rx.try_recv() {
+                match message {
+                    StatsMessage::Update(update) => {
+                        self.connection_lost_count = 0; // Reset on successful update
+                        self.update_state_from_stats(update);
+                    }
+                    StatsMessage::ConnectionLost { consecutive_failures } => {
+                        self.connection_lost_count = consecutive_failures;
+                        self.status_message = format!(
+                            "⚠️  Connection lost ({}/10 failures)",
+                            consecutive_failures
+                        );
+
+                        // After 10 consecutive failures, quit with explanation
+                        if consecutive_failures >= 10 {
+                            self.quit_reason = Some(
+                                "Daemon connection lost after 10 consecutive failures. \
+                                The daemon may have crashed or been stopped.".to_string()
+                            );
+                            self.should_quit = true;
+                        }
+                    }
+                }
             }
 
             // Check if we should quit
@@ -1894,6 +1947,12 @@ impl TuiApp {
         disable_raw_mode()?;
         execute!(self.terminal.backend_mut(), LeaveAlternateScreen)?;
         self.terminal.show_cursor()?;
+
+        // Print quit reason if there is one (after terminal is restored)
+        if let Some(reason) = &self.quit_reason {
+            eprintln!("\n\x1b[31mError:\x1b[0m {}", reason);
+            eprintln!("\nTo restart the daemon, run: \x1b[36mcco daemon start\x1b[0m");
+        }
 
         Ok(())
     }
