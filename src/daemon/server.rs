@@ -1225,6 +1225,13 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
                         info!("✅ LLM Gateway started on port {}", gateway_port);
                         info!("   Set ANTHROPIC_BASE_URL=http://127.0.0.1:{} to use", gateway_port);
 
+                        // Update PID file with gateway port for launcher discovery
+                        if let Err(e) = super::update_gateway_port(gateway_port) {
+                            warn!("Failed to update PID file with gateway port: {}", e);
+                        } else {
+                            info!("✅ PID file updated with gateway port: {}", gateway_port);
+                        }
+
                         // Spawn gateway server in background
                         tokio::spawn(async move {
                             if let Err(e) = axum::serve(gateway_listener, gateway_app).await {

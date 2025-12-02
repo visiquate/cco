@@ -400,16 +400,28 @@ async fn launch_claude_code_process(settings_path: &PathBuf, args: Vec<String>) 
     cmd.stdout(std::process::Stdio::inherit());
     cmd.stderr(std::process::Stdio::inherit());
 
-    // Inject proxy configuration if proxy is running
-    match cco::daemon::read_proxy_port() {
-        Ok(proxy_port) => {
-            let proxy_url = format!("http://localhost:{}", proxy_port);
-            cmd.env("HTTPS_PROXY", &proxy_url);
-            cmd.env("HTTP_PROXY", &proxy_url);
-            println!("   Proxy: {} (model router enabled)", proxy_url);
+    // Inject LLM Gateway configuration if available (preferred)
+    // This provides an Anthropic-compatible API with cost tracking and audit logging
+    match cco::daemon::read_gateway_port() {
+        Ok(gateway_port) => {
+            let gateway_url = format!("http://127.0.0.1:{}", gateway_port);
+            cmd.env("ANTHROPIC_BASE_URL", &gateway_url);
+            println!("   Gateway: {} (LLM routing enabled)", gateway_url);
         }
         Err(e) => {
-            tracing::warn!("Proxy port not found, model routing disabled: {}", e);
+            tracing::debug!("Gateway port not found: {}", e);
+            // Fall back to HTTP proxy if gateway not available
+            match cco::daemon::read_proxy_port() {
+                Ok(proxy_port) => {
+                    let proxy_url = format!("http://127.0.0.1:{}", proxy_port);
+                    cmd.env("HTTPS_PROXY", &proxy_url);
+                    cmd.env("HTTP_PROXY", &proxy_url);
+                    println!("   Proxy: {} (HTTP proxy mode)", proxy_url);
+                }
+                Err(e) => {
+                    tracing::warn!("No proxy or gateway available: {}", e);
+                }
+            }
         }
     }
 
