@@ -1433,6 +1433,17 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
         .await
         .map_err(|e| anyhow::anyhow!("Server error: {}", e))?;
 
+    // Clean up PID file on graceful shutdown
+    if let Ok(pid_file) = super::get_daemon_pid_file() {
+        if pid_file.exists() {
+            if let Err(e) = std::fs::remove_file(&pid_file) {
+                warn!("Failed to remove PID file on shutdown: {}", e);
+            } else {
+                info!("Cleaned up PID file on shutdown");
+            }
+        }
+    }
+
     info!("Daemon server shut down gracefully");
     Ok(actual_port)
 }
