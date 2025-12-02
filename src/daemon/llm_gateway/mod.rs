@@ -5,23 +5,28 @@
 //! - Audit logging with request/response bodies
 //! - Multi-provider support (Anthropic, Azure, DeepSeek, Ollama)
 //! - Intelligent routing based on agent type and model tier
+//! - SSE streaming support for real-time responses
 
 pub mod api;
 pub mod audit;
 pub mod config;
+pub mod litellm_client;
 pub mod metrics;
 pub mod providers;
 pub mod router;
 
+use std::pin::Pin;
 use std::sync::Arc;
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
+use futures::Stream;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
 use self::audit::AuditLogger;
 use self::config::GatewayConfig;
+use self::litellm_client::LiteLLMClient;
 use self::metrics::CostTracker;
 use self::providers::ProviderRegistry;
 use self::router::RoutingEngine;
@@ -33,10 +38,11 @@ pub struct LlmGateway {
     pub providers: ProviderRegistry,
     pub cost_tracker: Arc<CostTracker>,
     pub audit_logger: Arc<RwLock<AuditLogger>>,
+    pub litellm_client: Option<LiteLLMClient>,
 }
 
 impl LlmGateway {
-    /// Create a new LLM Gateway from configuration
+    /// Create a new LLM Gateway from configuration (uses providers directly)
     pub async fn new(config: GatewayConfig) -> Result<Self> {
         let router = RoutingEngine::new(config.routing.clone());
         let providers = ProviderRegistry::from_config(&config.providers).await?;
@@ -51,34 +57,68 @@ impl LlmGateway {
             providers,
             cost_tracker,
             audit_logger,
+            litellm_client: None,
+        })
+    }
+
+    /// Create a new LLM Gateway that routes through LiteLLM
+    pub async fn new_with_litellm(config: GatewayConfig, litellm_url: &str) -> Result<Self> {
+        let router = RoutingEngine::new(config.routing.clone());
+        let providers = ProviderRegistry::from_config(&config.providers).await?;
+        let cost_tracker = Arc::new(CostTracker::new());
+        let audit_logger = Arc::new(RwLock::new(
+            AuditLogger::new(&config.audit).await?,
+        ));
+        let litellm_client = Some(LiteLLMClient::new(litellm_url)?);
+
+        tracing::info!(litellm_url = %litellm_url, "Gateway configured to use LiteLLM");
+
+        Ok(Self {
+            config,
+            router,
+            providers,
+            cost_tracker,
+            audit_logger,
+            litellm_client,
         })
     }
 
     /// Process a completion request through the gateway
-    pub async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse> {
+    pub async fn complete(&self, request: CompletionRequest, client_auth: Option<String>, client_beta: Option<String>) -> Result<CompletionResponse> {
         let start = std::time::Instant::now();
         let request_id = uuid::Uuid::new_v4().to_string();
 
-        // Determine routing
+        // Determine routing (still use routing engine for agent-type decisions)
         let route = self.router.route(&request);
         tracing::info!(
             request_id = %request_id,
             agent_type = ?request.agent_type,
             provider = %route.provider,
             reason = %route.reason,
+            using_litellm = self.litellm_client.is_some(),
             "Routing request"
         );
 
-        // Get provider and execute
-        let provider = self.providers.get(&route.provider)?;
-        let result = provider.complete(request.clone()).await;
+        // Execute request - use LiteLLM if available, otherwise fall back to direct provider
+        let result = if let Some(ref litellm) = self.litellm_client {
+            tracing::debug!("Using LiteLLM client for request");
+            litellm.complete(request.clone(), client_auth, client_beta).await
+        } else {
+            tracing::debug!(provider = %route.provider, "Using direct provider");
+            let provider = self.providers.get(&route.provider)?;
+            provider.complete(request.clone(), client_auth, client_beta).await
+        };
 
         let latency_ms = start.elapsed().as_millis() as u64;
 
         match result {
             Ok((mut response, metrics)) => {
                 // Enrich response with gateway metadata
-                response.provider = route.provider.clone();
+                response.provider = if self.litellm_client.is_some() {
+                    "litellm".to_string()
+                } else {
+                    route.provider.clone()
+                };
                 response.latency_ms = latency_ms;
                 response.cost_usd = metrics.cost_usd;
 
@@ -102,10 +142,15 @@ impl LlmGateway {
                 // Audit log error
                 {
                     let logger = self.audit_logger.read().await;
+                    let provider = if self.litellm_client.is_some() {
+                        "litellm"
+                    } else {
+                        &route.provider
+                    };
                     logger.log_error(
                         &request_id,
                         &request,
-                        &route.provider,
+                        provider,
                         &e.to_string(),
                         latency_ms,
                     ).await?;
@@ -133,9 +178,9 @@ pub struct CompletionRequest {
     /// Maximum tokens to generate
     pub max_tokens: u32,
 
-    /// System prompt (optional)
+    /// System prompt (optional) - can be string or array of content blocks with cache_control
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub system: Option<String>,
+    pub system: Option<serde_json::Value>,
 
     /// Temperature (0.0 - 1.0)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -233,7 +278,7 @@ pub enum MessageContent {
     Blocks(Vec<ContentBlock>),
 }
 
-/// Content block in a response
+/// Content block in a message - supports text, images, tool use, and tool results
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum ContentBlock {
@@ -242,6 +287,11 @@ pub enum ContentBlock {
     Text {
         text: String,
     },
+    /// Image content (base64 or URL)
+    #[serde(rename = "image")]
+    Image {
+        source: ImageSource,
+    },
     /// Tool use (function call)
     #[serde(rename = "tool_use")]
     ToolUse {
@@ -249,12 +299,84 @@ pub enum ContentBlock {
         name: String,
         input: serde_json::Value,
     },
-    /// Tool result
+    /// Tool result - content can be string or array of content blocks
     #[serde(rename = "tool_result")]
     ToolResult {
         tool_use_id: String,
-        content: String,
+        #[serde(default)]
+        content: ToolResultContent,
+        #[serde(default)]
+        is_error: bool,
     },
+    /// Thinking block (extended thinking)
+    #[serde(rename = "thinking")]
+    Thinking {
+        thinking: String,
+        #[serde(default)]
+        signature: Option<String>,
+    },
+    /// Document content (PDF, etc)
+    #[serde(rename = "document")]
+    Document {
+        source: DocumentSource,
+    },
+    /// Catch-all for unknown content types to prevent deserialization failures
+    #[serde(other)]
+    Unknown,
+}
+
+/// Image source for image content blocks
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum ImageSource {
+    #[serde(rename = "base64")]
+    Base64 {
+        media_type: String,
+        data: String,
+    },
+    #[serde(rename = "url")]
+    Url {
+        url: String,
+    },
+}
+
+/// Document source for document content blocks
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum DocumentSource {
+    #[serde(rename = "base64")]
+    Base64 {
+        media_type: String,
+        data: String,
+    },
+}
+
+/// Tool result content - can be string or array of content blocks
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ToolResultContent {
+    /// Simple text result
+    Text(String),
+    /// Array of content blocks (for images, etc in tool results)
+    Blocks(Vec<ToolResultBlock>),
+}
+
+impl Default for ToolResultContent {
+    fn default() -> Self {
+        ToolResultContent::Text(String::new())
+    }
+}
+
+/// Content block inside a tool result (subset of full ContentBlock)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum ToolResultBlock {
+    #[serde(rename = "text")]
+    Text { text: String },
+    #[serde(rename = "image")]
+    Image { source: ImageSource },
+    #[serde(other)]
+    Unknown,
 }
 
 /// Token usage statistics
@@ -325,6 +447,154 @@ impl RequestMetrics {
     pub fn with_project_id(mut self, project_id: Option<String>) -> Self {
         self.project_id = project_id;
         self
+    }
+}
+
+// ============================================================================
+// Streaming Types (Anthropic SSE Format)
+// ============================================================================
+
+/// Type alias for a boxed stream of streaming events
+pub type StreamEventStream = Pin<Box<dyn Stream<Item = Result<StreamEvent>> + Send>>;
+
+/// Anthropic streaming event types
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum StreamEvent {
+    /// Message start event - contains initial message metadata
+    #[serde(rename = "message_start")]
+    MessageStart {
+        message: StreamMessage,
+    },
+
+    /// Content block start event
+    #[serde(rename = "content_block_start")]
+    ContentBlockStart {
+        index: u32,
+        content_block: ContentBlockDelta,
+    },
+
+    /// Ping event (keep-alive)
+    #[serde(rename = "ping")]
+    Ping {},
+
+    /// Content block delta - contains actual content
+    #[serde(rename = "content_block_delta")]
+    ContentBlockDelta {
+        index: u32,
+        delta: ContentBlockDelta,
+    },
+
+    /// Content block stop event
+    #[serde(rename = "content_block_stop")]
+    ContentBlockStop {
+        index: u32,
+    },
+
+    /// Message delta - contains usage and stop reason updates
+    #[serde(rename = "message_delta")]
+    MessageDelta {
+        delta: MessageDeltaContent,
+        usage: Option<StreamUsage>,
+    },
+
+    /// Message stop event
+    #[serde(rename = "message_stop")]
+    MessageStop {},
+
+    /// Error event
+    #[serde(rename = "error")]
+    Error {
+        error: StreamError,
+    },
+}
+
+/// Message metadata in stream
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamMessage {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub message_type: String,
+    pub role: String,
+    pub model: String,
+    pub content: Vec<serde_json::Value>,
+    pub stop_reason: Option<String>,
+    pub stop_sequence: Option<String>,
+    pub usage: StreamUsage,
+}
+
+/// Content block delta (can be text, tool_use input, or thinking)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum ContentBlockDelta {
+    #[serde(rename = "text_delta")]
+    TextDelta {
+        text: String,
+    },
+    #[serde(rename = "text")]
+    Text {
+        text: String,
+    },
+    #[serde(rename = "input_json_delta")]
+    InputJsonDelta {
+        partial_json: String,
+    },
+    #[serde(rename = "tool_use")]
+    ToolUse {
+        id: String,
+        name: String,
+        input: serde_json::Value,
+    },
+    #[serde(rename = "thinking_delta")]
+    ThinkingDelta {
+        thinking: String,
+    },
+    #[serde(rename = "thinking")]
+    Thinking {
+        thinking: String,
+    },
+    #[serde(rename = "signature_delta")]
+    SignatureDelta {
+        signature: String,
+    },
+}
+
+/// Message delta content (stop reason, etc)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MessageDeltaContent {
+    pub stop_reason: Option<String>,
+    pub stop_sequence: Option<String>,
+}
+
+/// Usage info in stream events
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct StreamUsage {
+    #[serde(default)]
+    pub input_tokens: u32,
+    #[serde(default)]
+    pub output_tokens: u32,
+    #[serde(default)]
+    pub cache_creation_input_tokens: Option<u32>,
+    #[serde(default)]
+    pub cache_read_input_tokens: Option<u32>,
+}
+
+/// Stream error
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamError {
+    #[serde(rename = "type")]
+    pub error_type: String,
+    pub message: String,
+}
+
+impl From<StreamUsage> for Usage {
+    fn from(s: StreamUsage) -> Self {
+        Usage {
+            input_tokens: s.input_tokens,
+            output_tokens: s.output_tokens,
+            cache_creation_input_tokens: s.cache_creation_input_tokens,
+            cache_read_input_tokens: s.cache_read_input_tokens,
+        }
     }
 }
 

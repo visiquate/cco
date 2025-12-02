@@ -400,7 +400,7 @@ async fn launch_claude_code_process(settings_path: &PathBuf, args: Vec<String>) 
     cmd.stdout(std::process::Stdio::inherit());
     cmd.stderr(std::process::Stdio::inherit());
 
-    // Inject LLM Gateway configuration if available (preferred)
+    // Inject LLM Gateway configuration
     // This provides an Anthropic-compatible API with cost tracking and audit logging
     match cco::daemon::read_gateway_port() {
         Ok(gateway_port) => {
@@ -409,19 +409,8 @@ async fn launch_claude_code_process(settings_path: &PathBuf, args: Vec<String>) 
             println!("   Gateway: {} (LLM routing enabled)", gateway_url);
         }
         Err(e) => {
-            tracing::debug!("Gateway port not found: {}", e);
-            // Fall back to HTTP proxy if gateway not available
-            match cco::daemon::read_proxy_port() {
-                Ok(proxy_port) => {
-                    let proxy_url = format!("http://127.0.0.1:{}", proxy_port);
-                    cmd.env("HTTPS_PROXY", &proxy_url);
-                    cmd.env("HTTP_PROXY", &proxy_url);
-                    println!("   Proxy: {} (HTTP proxy mode)", proxy_url);
-                }
-                Err(e) => {
-                    tracing::warn!("No proxy or gateway available: {}", e);
-                }
-            }
+            tracing::warn!("Gateway port not found: {}", e);
+            tracing::warn!("Claude Code will use direct API access");
         }
     }
 
@@ -582,4 +571,5 @@ mod tests {
         assert!(!is_daemon_version_older("2025.11.1", "invalid.version"));
         assert!(!is_daemon_version_older("invalid", "invalid"));
     }
+
 }

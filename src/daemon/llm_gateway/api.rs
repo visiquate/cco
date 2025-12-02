@@ -1,22 +1,24 @@
 //! HTTP API endpoints for the LLM Gateway
 //!
 //! Provides Anthropic-compatible API endpoints:
-//! - POST /v1/messages - Main completion endpoint
+//! - POST /v1/messages - Main completion endpoint (supports streaming via SSE)
 //! - GET /gateway/health - Gateway health check
 //! - GET /gateway/metrics - Cost metrics and statistics
 //! - GET /gateway/audit - Search audit logs
 
 use axum::{
+    body::Body,
     extract::{Json, Query, State},
-    http::StatusCode,
+    http::{header, HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
     Router,
 };
+use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use super::{CompletionRequest, CompletionResponse, GatewayState, LlmGateway};
+use super::{CompletionRequest, GatewayState, LlmGateway};
 
 /// Create the gateway router
 pub fn gateway_router() -> Router<GatewayState> {
@@ -41,22 +43,114 @@ pub fn gateway_router_with_state(gateway: Arc<LlmGateway>) -> Router {
 // ============================================================================
 
 /// Main completion endpoint (Anthropic Messages API compatible)
+/// Supports both streaming (SSE) and non-streaming (JSON) responses
 async fn complete_handler(
     State(gateway): State<GatewayState>,
+    headers: HeaderMap,
     Json(request): Json<CompletionRequest>,
-) -> Result<Json<CompletionResponse>, GatewayError> {
-    tracing::debug!(
+) -> Response {
+    // Log incoming headers for debugging
+    let auth_from_authorization = headers.get("authorization").and_then(|v| v.to_str().ok());
+    let auth_from_x_api_key = headers.get("x-api-key").and_then(|v| v.to_str().ok());
+    let anthropic_beta = headers.get("anthropic-beta").and_then(|v| v.to_str().ok());
+
+    tracing::info!(
         model = %request.model,
         agent_type = ?request.agent_type,
-        "Received completion request"
+        stream = request.stream,
+        has_authorization = auth_from_authorization.is_some(),
+        has_x_api_key = auth_from_x_api_key.is_some(),
+        has_anthropic_beta = anthropic_beta.is_some(),
+        anthropic_beta = ?anthropic_beta,
+        authorization_prefix = auth_from_authorization.map(|s| &s[..s.len().min(20)]),
+        "Received completion request with auth headers"
     );
 
-    let response = gateway.complete(request).await.map_err(|e| {
-        tracing::error!(error = %e, "Completion request failed");
-        GatewayError::ProviderError(e.to_string())
-    })?;
+    // Extract headers for passthrough
+    let auth_header = auth_from_authorization
+        .or(auth_from_x_api_key)
+        .map(|s| s.to_string());
+    let beta_header = anthropic_beta.map(|s| s.to_string());
 
-    Ok(Json(response))
+    // Check if streaming is requested
+    if request.stream {
+        return handle_streaming_request(gateway, request, auth_header, beta_header).await;
+    }
+
+    // Non-streaming path
+    match gateway.complete(request, auth_header, beta_header).await {
+        Ok(response) => Json(response).into_response(),
+        Err(e) => {
+            tracing::error!(error = %e, "Completion request failed");
+            GatewayError::ProviderError(e.to_string()).into_response()
+        }
+    }
+}
+
+/// Handle streaming completion requests
+/// Returns SSE (Server-Sent Events) response forwarded from the provider or LiteLLM
+async fn handle_streaming_request(
+    gateway: GatewayState,
+    request: CompletionRequest,
+    auth_header: Option<String>,
+    beta_header: Option<String>,
+) -> Response {
+    // Get the byte stream - use LiteLLM if available, otherwise direct provider
+    let byte_stream = if let Some(ref litellm) = gateway.litellm_client {
+        tracing::debug!("Using LiteLLM client for streaming request");
+        match litellm.complete_stream(request, auth_header, beta_header).await {
+            Ok(stream) => stream,
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to start LiteLLM streaming");
+                return GatewayError::ProviderError(e.to_string()).into_response();
+            }
+        }
+    } else {
+        // Get the provider for this request
+        let route = gateway.router.route(&request);
+        tracing::debug!(provider = %route.provider, "Using direct provider for streaming");
+
+        let provider = match gateway.providers.get(&route.provider) {
+            Ok(p) => p,
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to get provider for streaming");
+                return GatewayError::ProviderError(e.to_string()).into_response();
+            }
+        };
+
+        // Get the byte stream from the provider
+        match provider.complete_stream(request, auth_header, beta_header).await {
+            Ok(stream) => stream,
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to start streaming");
+                return GatewayError::ProviderError(e.to_string()).into_response();
+            }
+        }
+    };
+
+    tracing::info!(
+        using_litellm = gateway.litellm_client.is_some(),
+        "Streaming response started"
+    );
+
+    // Convert the byte stream to an axum Body stream
+    // Map reqwest errors to std::io::Error for compatibility
+    let body_stream = byte_stream.map(|result| {
+        result.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+    });
+
+    // Build SSE response with proper headers
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "text/event-stream")
+        .header(header::CACHE_CONTROL, "no-cache")
+        .header(header::CONNECTION, "keep-alive")
+        .header("x-accel-buffering", "no") // Disable nginx buffering
+        .body(Body::from_stream(body_stream))
+        .unwrap_or_else(|e| {
+            tracing::error!(error = %e, "Failed to build streaming response");
+            GatewayError::ProviderError(e.to_string()).into_response()
+        })
 }
 
 /// Gateway health check

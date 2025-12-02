@@ -58,9 +58,20 @@ impl DeepSeekProvider {
 
         // Add system message if present
         if let Some(system) = &request.system {
+            let system_text = match system {
+                serde_json::Value::String(s) => s.clone(),
+                serde_json::Value::Array(arr) => {
+                    // Extract text from array of content blocks
+                    arr.iter()
+                        .filter_map(|v| v.get("text").and_then(|t| t.as_str()))
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                }
+                _ => system.to_string(),
+            };
             messages.push(OpenAIMessage {
                 role: "system".to_string(),
-                content: OpenAIContent::Text(system.clone()),
+                content: OpenAIContent::Text(system_text),
             });
         }
 
@@ -211,6 +222,8 @@ impl Provider for DeepSeekProvider {
     async fn complete(
         &self,
         request: CompletionRequest,
+        _client_auth: Option<String>,
+        _client_beta: Option<String>,
     ) -> Result<(CompletionResponse, RequestMetrics)> {
         let start = std::time::Instant::now();
         let request_id = uuid::Uuid::new_v4().to_string();

@@ -13,9 +13,14 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+use bytes::Bytes;
+use futures::Stream;
 
 use super::config::{ProviderConfig, ProviderType};
 use super::{CompletionRequest, CompletionResponse, RequestMetrics};
+
+/// Type alias for a byte stream (SSE response body)
+pub type ByteStream = std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, reqwest::Error>> + Send>>;
 
 /// Provider trait for LLM backends
 #[async_trait]
@@ -34,7 +39,21 @@ pub trait Provider: Send + Sync {
     async fn complete(
         &self,
         request: CompletionRequest,
+        client_auth: Option<String>,
+        client_beta: Option<String>,
     ) -> Result<(CompletionResponse, RequestMetrics)>;
+
+    /// Execute a streaming completion request
+    /// Returns a byte stream that yields SSE events
+    /// Default implementation returns an error (not all providers support streaming)
+    async fn complete_stream(
+        &self,
+        _request: CompletionRequest,
+        _client_auth: Option<String>,
+        _client_beta: Option<String>,
+    ) -> Result<ByteStream> {
+        Err(anyhow!("Streaming not supported by provider: {}", self.name()))
+    }
 
     /// Get the resolved model name (handling aliases)
     fn resolve_model(&self, model: &str) -> String;
@@ -127,25 +146,39 @@ impl Default for ProviderRegistry {
 }
 
 /// Helper to resolve API key from environment or config
+///
+/// For Anthropic provider, falls back to CLAUDE_CODE_OAUTH_TOKEN if ANTHROPIC_API_KEY
+/// is not set. This allows seamless integration when running under Claude Code.
 pub fn resolve_api_key(api_key_ref: &str) -> Result<String> {
     if api_key_ref.is_empty() {
         return Ok(String::new());
     }
 
-    // Check if it's an environment variable reference
-    if api_key_ref.starts_with("env:") {
-        let var_name = &api_key_ref[4..];
-        std::env::var(var_name)
-            .map_err(|_| anyhow!("Environment variable {} not found", var_name))
+    // Extract the actual variable name
+    let var_name = if api_key_ref.starts_with("env:") {
+        &api_key_ref[4..]
     } else if api_key_ref.starts_with('$') {
-        // Also support $VAR_NAME format
-        let var_name = &api_key_ref[1..];
-        std::env::var(var_name)
-            .map_err(|_| anyhow!("Environment variable {} not found", var_name))
+        &api_key_ref[1..]
     } else {
-        // Assume it's a direct environment variable name
-        std::env::var(api_key_ref)
-            .map_err(|_| anyhow!("Environment variable {} not found", api_key_ref))
+        api_key_ref
+    };
+
+    // Try to get the primary environment variable
+    match std::env::var(var_name) {
+        Ok(value) if !value.is_empty() => Ok(value),
+        _ => {
+            // Special fallback: if ANTHROPIC_API_KEY not found or empty, try CLAUDE_CODE_OAUTH_TOKEN
+            // This allows the gateway to work seamlessly when running under Claude Code
+            if var_name == "ANTHROPIC_API_KEY" {
+                if let Ok(oauth_token) = std::env::var("CLAUDE_CODE_OAUTH_TOKEN") {
+                    if !oauth_token.is_empty() {
+                        tracing::info!("ANTHROPIC_API_KEY not set, using CLAUDE_CODE_OAUTH_TOKEN");
+                        return Ok(oauth_token);
+                    }
+                }
+            }
+            Err(anyhow!("Environment variable {} not found", var_name))
+        }
     }
 }
 

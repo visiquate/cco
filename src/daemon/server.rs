@@ -79,10 +79,10 @@ pub struct DaemonState {
     pub persistence: Option<Arc<crate::persistence::PersistenceLayer>>,
     pub metrics_cache: Arc<super::metrics_cache::MetricsCache>,
     pub llm_router_state: Option<super::llm_router::api::LlmRouterState>,
-    pub proxy_port: Arc<Mutex<Option<u16>>>,
     pub orchestration_state: Option<Arc<OrchestrationState>>,
     pub llm_gateway: Option<super::llm_gateway::GatewayState>,
     pub gateway_port: Arc<Mutex<Option<u16>>>,
+    pub litellm_process: Arc<Mutex<Option<super::litellm::LiteLLMProcess>>>,
 }
 
 impl DaemonState {
@@ -268,11 +268,12 @@ impl DaemonState {
         };
 
         // Initialize LLM Gateway (unified gateway for all LLM requests)
+        // Note: LiteLLM integration happens in run_daemon_server() after startup
         let llm_gateway = match super::llm_gateway::config::load_from_orchestra_config(None) {
             Ok(gateway_config) => {
                 match super::llm_gateway::LlmGateway::new(gateway_config).await {
                     Ok(gateway) => {
-                        info!("✅ LLM Gateway initialized successfully");
+                        info!("✅ LLM Gateway initialized successfully (direct provider mode)");
                         Some(Arc::new(gateway))
                     }
                     Err(e) => {
@@ -305,10 +306,10 @@ impl DaemonState {
             persistence,
             metrics_cache,
             llm_router_state,
-            proxy_port: Arc::new(Mutex::new(None)),
             orchestration_state,
             llm_gateway,
             gateway_port: Arc::new(Mutex::new(None)),
+            litellm_process: Arc::new(Mutex::new(None)),
         })
     }
 }
@@ -1141,7 +1142,55 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
     info!("   Hooks enabled: {}", config.hooks.is_enabled());
 
     // Initialize daemon state
-    let state = Arc::new(DaemonState::new(config.clone()).await?);
+    let mut state = DaemonState::new(config.clone()).await?;
+
+    // Try to start LiteLLM subprocess if PEX is available
+    if let Ok(mut litellm) = super::litellm::LiteLLMProcess::with_defaults() {
+        info!("🔄 Starting LiteLLM subprocess...");
+        match litellm.start().await {
+            Ok(()) => {
+                let url = litellm.endpoint_url();
+                info!("✅ LiteLLM subprocess started successfully: {}", url);
+
+                // Replace gateway with LiteLLM-enabled version if we have a gateway config
+                if state.llm_gateway.is_some() {
+                    match super::llm_gateway::config::load_from_orchestra_config(None) {
+                        Ok(gateway_config) => {
+                            match super::llm_gateway::LlmGateway::new_with_litellm(
+                                gateway_config,
+                                &url
+                            ).await {
+                                Ok(new_gateway) => {
+                                    info!("✅ LLM Gateway reconfigured to use LiteLLM");
+                                    state.llm_gateway = Some(Arc::new(new_gateway));
+                                }
+                                Err(e) => {
+                                    warn!("Failed to create LiteLLM-enabled gateway: {}", e);
+                                    warn!("Falling back to direct provider mode");
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            warn!("Failed to reload gateway config: {}", e);
+                        }
+                    }
+                }
+
+                // Store the process for cleanup
+                if let Ok(mut process_guard) = state.litellm_process.lock() {
+                    *process_guard = Some(litellm);
+                }
+            }
+            Err(e) => {
+                info!("ℹ️  LiteLLM subprocess failed to start: {}", e);
+                info!("   Falling back to direct provider mode");
+            }
+        }
+    } else {
+        info!("ℹ️  LiteLLM PEX not available, using direct provider mode");
+    }
+
+    let state = Arc::new(state);
 
     // Create router (clone state for router while keeping reference for logging)
     let app = create_router(Arc::clone(&state));
@@ -1178,31 +1227,6 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
         warn!("Claude Code hooks may fail to connect");
     } else {
         info!("✅ Settings file updated with actual port: {}", actual_port);
-    }
-
-    // Start the HTTP proxy server for model routing (random port)
-    // This proxies Claude API requests and routes reviewer/tester agents to Azure
-    let proxy_addr = "127.0.0.1:0"; // Random port
-    match super::proxy::start_proxy_server(proxy_addr).await {
-        Ok(proxy_port) => {
-            info!("✅ Proxy server started on port {}", proxy_port);
-
-            // Store proxy port in state
-            if let Ok(mut port_guard) = state.proxy_port.lock() {
-                *port_guard = Some(proxy_port);
-            }
-
-            // Update PID file with proxy port for launcher discovery
-            if let Err(e) = super::update_proxy_port(proxy_port) {
-                warn!("Failed to update PID file with proxy port: {}", e);
-            } else {
-                info!("✅ PID file updated with proxy port: {}", proxy_port);
-            }
-        }
-        Err(e) => {
-            warn!("Failed to start proxy server: {}", e);
-            warn!("Model routing will be disabled - all requests go to Claude");
-        }
     }
 
     // Start the LLM Gateway server if available (random port)
@@ -1281,16 +1305,6 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
             info!("     (All knowledge routes require Bearer token authentication)");
         } else {
             info!("     (WARNING: Authentication disabled - no token manager)");
-        }
-    }
-
-    // Display proxy port if available
-    if let Ok(port_guard) = state.proxy_port.lock() {
-        if let Some(proxy_port) = *port_guard {
-            info!(
-                "   Proxy: http://127.0.0.1:{} (model router for Azure)",
-                proxy_port
-            );
         }
     }
 
@@ -1449,6 +1463,18 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
         .with_graceful_shutdown(shutdown_signal())
         .await
         .map_err(|e| anyhow::anyhow!("Server error: {}", e))?;
+
+    // Stop LiteLLM subprocess if running
+    if let Ok(mut process_guard) = state.litellm_process.lock() {
+        if let Some(mut litellm) = process_guard.take() {
+            info!("Stopping LiteLLM subprocess...");
+            if let Err(e) = litellm.stop().await {
+                warn!("Failed to stop LiteLLM subprocess: {}", e);
+            } else {
+                info!("✅ LiteLLM subprocess stopped");
+            }
+        }
+    }
 
     // Clean up PID file on graceful shutdown
     if let Ok(pid_file) = super::get_daemon_pid_file() {

@@ -38,8 +38,6 @@ pub struct PidFileContent {
     pub started_at: DateTime<Utc>,
     pub port: u16,
     #[serde(default)]
-    pub proxy_port: Option<u16>,
-    #[serde(default)]
     pub gateway_port: Option<u16>,
     pub version: String,
 }
@@ -223,27 +221,6 @@ pub fn read_daemon_port() -> Result<u16> {
     Ok(pid_content.port)
 }
 
-/// Read the proxy port from the PID file
-///
-/// This function allows clients to discover the proxy port for model routing.
-/// Returns an error if the daemon is not running, PID file is invalid, or proxy port is not set.
-pub fn read_proxy_port() -> Result<u16> {
-    let pid_file = super::get_daemon_pid_file()?;
-
-    if !pid_file.exists() {
-        bail!("Daemon is not running (no PID file found)");
-    }
-
-    let contents = fs::read_to_string(&pid_file).context("Failed to read PID file")?;
-
-    let pid_content: PidFileContent =
-        serde_json::from_str(&contents).context("Failed to parse PID file")?;
-
-    match pid_content.proxy_port {
-        Some(port) => Ok(port),
-        None => bail!("Proxy port not set in PID file (proxy not running)"),
-    }
-}
 
 /// Update the daemon PID file with the actual bound port
 ///
@@ -274,33 +251,6 @@ pub fn update_daemon_port(actual_port: u16) -> Result<()> {
     Ok(())
 }
 
-/// Update the daemon PID file with the proxy port
-///
-/// This is called by the daemon or proxy startup code to record the proxy port.
-pub fn update_proxy_port(proxy_port: u16) -> Result<()> {
-    let pid_file = super::get_daemon_pid_file()?;
-
-    if !pid_file.exists() {
-        bail!("PID file not found - cannot update proxy port");
-    }
-
-    // Read existing PID file
-    let contents = fs::read_to_string(&pid_file).context("Failed to read PID file")?;
-
-    let mut pid_content: PidFileContent =
-        serde_json::from_str(&contents).context("Failed to parse PID file")?;
-
-    // Update proxy port
-    pid_content.proxy_port = Some(proxy_port);
-
-    // Write back to PID file
-    let pid_json = serde_json::to_string_pretty(&pid_content)?;
-    fs::write(&pid_file, pid_json).context("Failed to update PID file")?;
-
-    info!("Updated PID file with proxy port: {}", proxy_port);
-
-    Ok(())
-}
 
 /// Update the daemon PID file with the LLM gateway port
 ///
@@ -474,7 +424,6 @@ impl DaemonManager {
             pid,
             started_at: Utc::now(),
             port: self.config.port,
-            proxy_port: None,
             gateway_port: None,
             version: crate::version::DateVersion::current().to_string(),
         };
@@ -705,7 +654,6 @@ mod tests {
             pid: 1234,
             started_at: Utc::now(),
             port: 3000,
-            proxy_port: None,
             gateway_port: None,
             version: "2025.11.1".to_string(),
         };

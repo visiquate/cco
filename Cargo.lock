@@ -1541,6 +1541,7 @@ dependencies = [
  "async-trait",
  "axum",
  "base64 0.21.7",
+ "bytes",
  "chrono",
  "clap",
  "console_error_panic_hook",

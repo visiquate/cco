@@ -91,9 +91,13 @@ impl ProxyServer {
     }
 
     /// Get API key from environment
+    ///
+    /// For anthropic, falls back to CLAUDE_CODE_OAUTH_TOKEN if ANTHROPIC_API_KEY is not set.
     fn get_api_key(&self, provider: &str) -> Option<String> {
         match provider {
-            "anthropic" => std::env::var("ANTHROPIC_API_KEY").ok(),
+            "anthropic" => std::env::var("ANTHROPIC_API_KEY")
+                .or_else(|_| std::env::var("CLAUDE_CODE_OAUTH_TOKEN"))
+                .ok(),
             "azure" => std::env::var("AZURE_OPENAI_API_KEY").ok(),
             "deepseek" => std::env::var("DEEPSEEK_API_KEY").ok(),
             "custom" => std::env::var("CODER_LLM_TOKEN").ok(),

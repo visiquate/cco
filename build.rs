@@ -443,28 +443,6 @@ fn load_agents_from_orchestra_config() -> Vec<AgentData> {
         }
     }
 
-    // Extract coding agents
-    if let Some(coding_agents) = json.get("codingAgents").and_then(|v| v.as_array()) {
-        for agent_obj in coding_agents {
-            if let Some(type_name) = agent_obj.get("type").and_then(|v| v.as_str()) {
-                if let Some(agent) = extract_agent_from_json(agent_obj, type_name) {
-                    agents.push(agent);
-                }
-            }
-        }
-    }
-
-    // Extract integration agents
-    if let Some(int_agents) = json.get("integrationAgents").and_then(|v| v.as_array()) {
-        for agent_obj in int_agents {
-            if let Some(type_name) = agent_obj.get("type").and_then(|v| v.as_str()) {
-                if let Some(agent) = extract_agent_from_json(agent_obj, type_name) {
-                    agents.push(agent);
-                }
-            }
-        }
-    }
-
     // Extract ALL agent categories from the config
     let agent_categories = [
         "codingAgents",

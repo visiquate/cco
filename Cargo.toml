@@ -9,6 +9,12 @@ edition = "2021"
 # Example: 2025.11.17+e37b7c0
 display_version = "auto"
 
+[features]
+default = []
+# Enable this feature to embed litellm.pex in the binary
+# Build with: cargo build --features embedded_litellm
+embedded_litellm = []
+
 [[bin]]
 name = "cco"
 path = "src/main.rs"
@@ -23,6 +29,7 @@ async-trait = "0.1"
 async-stream = "0.3"
 futures = "0.3"
 moka = { version = "0.12", features = ["future"] }
+bytes = "1.5"
 reqwest = { version = "0.11", features = ["json", "rustls-tls", "stream"] }
 reqwest-eventsource = "0.4"
 sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite"] }

@@ -1,0 +1,126 @@
+# LiteLLM Configuration for Claude Code OAuth Passthrough
+#
+# This config enables:
+# - OAuth token passthrough to Anthropic (Max subscription billing)
+# - Cost tracking
+# - Anthropic-compatible API endpoint
+#
+# Usage:
+#   litellm --config config/litellm_config.yaml --port 4000
+#
+# Then set:
+#   export ANTHROPIC_BASE_URL="http://localhost:4000"
+
+model_list:
+  # Anthropic models with OAuth passthrough
+  - model_name: claude-sonnet-4-5-20250929
+    litellm_params:
+      model: anthropic/claude-sonnet-4-5-20250929
+      api_key: os.environ/CLAUDE_CODE_OAUTH_TOKEN
+      # Pass through all headers including anthropic-beta for OAuth
+      extra_headers:
+        anthropic-beta: "oauth-2025-04-20,interleaved-thinking-2025-05-14,prompt-caching-2024-07-31,pdfs-2024-09-25,token-efficient-tools-2025-02-19"
+
+  - model_name: claude-opus-4-5-20251101
+    litellm_params:
+      model: anthropic/claude-opus-4-5-20251101
+      api_key: os.environ/CLAUDE_CODE_OAUTH_TOKEN
+      extra_headers:
+        anthropic-beta: "oauth-2025-04-20,interleaved-thinking-2025-05-14,prompt-caching-2024-07-31,pdfs-2024-09-25,token-efficient-tools-2025-02-19"
+
+  - model_name: claude-haiku-4-5-20251001
+    litellm_params:
+      model: anthropic/claude-haiku-4-5-20251001
+      api_key: os.environ/CLAUDE_CODE_OAUTH_TOKEN
+      extra_headers:
+        anthropic-beta: "oauth-2025-04-20,interleaved-thinking-2025-05-14,prompt-caching-2024-07-31,pdfs-2024-09-25,token-efficient-tools-2025-02-19"
+
+  # Wildcard fallback for any other claude model
+  - model_name: claude-*
+    litellm_params:
+      model: anthropic/claude-*
+      api_key: os.environ/CLAUDE_CODE_OAUTH_TOKEN
+      extra_headers:
+        anthropic-beta: "oauth-2025-04-20,interleaved-thinking-2025-05-14,prompt-caching-2024-07-31,pdfs-2024-09-25,token-efficient-tools-2025-02-19"
+
+  # Azure AI Foundry models
+  # Use for cost-effective alternatives to Anthropic for code review/testing
+  - model_name: azure-gpt4
+    litellm_params:
+      model: azure/gpt-4-deployment
+      api_key: os.environ/AZURE_FOUNDRY_API_KEY
+      api_base: os.environ/AZURE_FOUNDRY_ENDPOINT
+      api_version: "2024-02-15-preview"
+
+  - model_name: azure-gpt35-turbo
+    litellm_params:
+      model: azure/gpt-35-turbo-deployment
+      api_key: os.environ/AZURE_FOUNDRY_API_KEY
+      api_base: os.environ/AZURE_FOUNDRY_ENDPOINT
+      api_version: "2024-02-15-preview"
+
+  # Self-hosted DeepSeek
+  # Use for PHI/PII-sensitive workloads (healthcare, legal)
+  - model_name: deepseek-coder
+    litellm_params:
+      model: deepseek/deepseek-coder
+      api_key: os.environ/DEEPSEEK_API_KEY
+      api_base: os.environ/DEEPSEEK_ENDPOINT
+
+  - model_name: deepseek-chat
+    litellm_params:
+      model: deepseek/deepseek-chat
+      api_key: os.environ/DEEPSEEK_API_KEY
+      api_base: os.environ/DEEPSEEK_ENDPOINT
+
+  # Local Ollama models
+  # Use for offline development and local testing
+  - model_name: ollama-llama2
+    litellm_params:
+      model: ollama/llama2
+      api_base: http://localhost:11434
+
+  - model_name: ollama-codellama
+    litellm_params:
+      model: ollama/codellama
+      api_base: http://localhost:11434
+
+  - model_name: ollama-mistral
+    litellm_params:
+      model: ollama/mistral
+      api_base: http://localhost:11434
+
+litellm_settings:
+  # Enable cost tracking
+  success_callback: ["langfuse"]  # Optional: for detailed analytics
+
+  # Request/response logging
+  set_verbose: false
+  json_logs: true
+
+  # Cache settings (optional)
+  cache: false
+
+  # Timeout settings
+  request_timeout: 600  # 10 minutes for long requests
+
+general_settings:
+  # Master key for admin access
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+  # Database for cost tracking (SQLite for local use)
+  database_url: "sqlite:///litellm_costs.db"
+
+  # Store spend data
+  store_model_in_db: true
+
+# Anthropic-specific passthrough settings
+router_settings:
+  # Pass through headers from client
+  pass_through_endpoints:
+    - path: "/v1/messages"
+      target: "https://api.anthropic.com/v1/messages"
+      headers:
+        - "anthropic-beta"
+        - "authorization"
+        - "x-api-key"

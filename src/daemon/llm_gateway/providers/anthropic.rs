@@ -1,13 +1,14 @@
 //! Anthropic provider implementation
 //!
 //! Native format for the gateway - minimal translation needed.
+//! Supports both synchronous and SSE streaming completions.
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use super::{resolve_api_key, Provider};
+use super::{resolve_api_key, ByteStream, Provider};
 use crate::daemon::llm_gateway::config::{ProviderConfig, ProviderType};
 use crate::daemon::llm_gateway::metrics::PricingTable;
 use crate::daemon::llm_gateway::{
@@ -45,6 +46,18 @@ impl AnthropicProvider {
     fn api_url(&self) -> String {
         format!("{}/v1/messages", self.config.base_url.trim_end_matches('/'))
     }
+
+    /// Get authentication header from configured API key
+    /// Returns (header_name, header_value)
+    fn get_configured_auth(&self) -> (&'static str, String) {
+        if self.api_key.starts_with("sk-ant-oat") {
+            // OAuth access token - use Bearer auth
+            ("Authorization", format!("Bearer {}", self.api_key))
+        } else {
+            // Standard API key
+            ("x-api-key", self.api_key.clone())
+        }
+    }
 }
 
 #[async_trait]
@@ -81,6 +94,8 @@ impl Provider for AnthropicProvider {
     async fn complete(
         &self,
         request: CompletionRequest,
+        client_auth: Option<String>,
+        client_beta: Option<String>,
     ) -> Result<(CompletionResponse, RequestMetrics)> {
         let start = std::time::Instant::now();
         let request_id = uuid::Uuid::new_v4().to_string();
@@ -100,12 +115,47 @@ impl Provider for AnthropicProvider {
         };
 
         // Make the API request
-        let response = self
+        // Determine auth to use: client passthrough > env var > configured key
+        let mut request_builder = self
             .client
             .post(self.api_url())
-            .header("x-api-key", &self.api_key)
             .header("anthropic-version", "2023-06-01")
-            .header("content-type", "application/json")
+            .header("content-type", "application/json");
+
+        let (auth_header_name, auth_header_value) = if let Some(auth) = client_auth {
+            // 1. Client passthrough (highest priority)
+            if auth.to_lowercase().starts_with("bearer ") {
+                tracing::debug!("Using client passthrough authentication (Bearer)");
+                ("Authorization", auth)
+            } else {
+                tracing::debug!("Using client passthrough authentication (API key)");
+                ("x-api-key", auth)
+            }
+        } else if let Ok(oauth_token) = std::env::var("CLAUDE_CODE_OAUTH_TOKEN") {
+            // 2. Environment variable (Claude Code's OAuth token)
+            if !oauth_token.is_empty() {
+                tracing::debug!("Using CLAUDE_CODE_OAUTH_TOKEN from environment");
+                ("Authorization", format!("Bearer {}", oauth_token))
+            } else {
+                // Fall through to configured key
+                tracing::debug!("CLAUDE_CODE_OAUTH_TOKEN is empty, using configured authentication");
+                self.get_configured_auth()
+            }
+        } else {
+            // 3. Configured API key (fallback)
+            tracing::debug!("Using configured authentication");
+            self.get_configured_auth()
+        };
+
+        request_builder = request_builder.header(auth_header_name, auth_header_value);
+
+        // Add anthropic-beta header if provided by client
+        if let Some(beta) = client_beta {
+            request_builder = request_builder.header("anthropic-beta", beta);
+            tracing::debug!("Using client anthropic-beta header");
+        }
+
+        let response = request_builder
             .json(&api_request)
             .send()
             .await?;
@@ -169,6 +219,91 @@ impl Provider for AnthropicProvider {
 
         Ok((response, metrics))
     }
+
+    /// Execute a streaming completion request
+    /// Returns a byte stream that yields SSE events directly from Anthropic
+    async fn complete_stream(
+        &self,
+        request: CompletionRequest,
+        client_auth: Option<String>,
+        client_beta: Option<String>,
+    ) -> Result<ByteStream> {
+        let model = self.resolve_model(&request.model);
+
+        // Build the Anthropic API request with stream: true
+        let api_request = AnthropicRequest {
+            model: model.clone(),
+            messages: request.messages.iter().map(|m| m.clone().into()).collect(),
+            max_tokens: request.max_tokens,
+            system: request.system.clone(),
+            temperature: request.temperature,
+            top_p: request.top_p,
+            top_k: request.top_k,
+            stop_sequences: request.stop_sequences.clone(),
+            stream: true, // Always stream for this method
+        };
+
+        // Build request with auth passthrough
+        // Determine auth to use: client passthrough > env var > configured key
+        let mut request_builder = self
+            .client
+            .post(self.api_url())
+            .header("anthropic-version", "2023-06-01")
+            .header("content-type", "application/json");
+
+        let (auth_header_name, auth_header_value) = if let Some(auth) = client_auth {
+            // 1. Client passthrough (highest priority)
+            if auth.to_lowercase().starts_with("bearer ") {
+                tracing::debug!("Streaming: Using client passthrough authentication (Bearer)");
+                ("Authorization", auth)
+            } else {
+                tracing::debug!("Streaming: Using client passthrough authentication (API key)");
+                ("x-api-key", auth)
+            }
+        } else if let Ok(oauth_token) = std::env::var("CLAUDE_CODE_OAUTH_TOKEN") {
+            // 2. Environment variable (Claude Code's OAuth token)
+            if !oauth_token.is_empty() {
+                tracing::debug!("Streaming: Using CLAUDE_CODE_OAUTH_TOKEN from environment");
+                ("Authorization", format!("Bearer {}", oauth_token))
+            } else {
+                // Fall through to configured key
+                tracing::debug!("Streaming: CLAUDE_CODE_OAUTH_TOKEN is empty, using configured authentication");
+                self.get_configured_auth()
+            }
+        } else {
+            // 3. Configured API key (fallback)
+            tracing::debug!("Streaming: Using configured authentication");
+            self.get_configured_auth()
+        };
+
+        request_builder = request_builder.header(auth_header_name, auth_header_value);
+
+        // Add anthropic-beta header if provided by client
+        if let Some(beta) = client_beta {
+            request_builder = request_builder.header("anthropic-beta", beta);
+            tracing::debug!("Streaming: Using client anthropic-beta header");
+        }
+
+        let response = request_builder
+            .json(&api_request)
+            .send()
+            .await?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(anyhow!(
+                "Anthropic API error ({}): {}",
+                status,
+                error_text
+            ));
+        }
+
+        tracing::info!(model = %model, "Started streaming response from Anthropic");
+
+        // Return the byte stream directly - the API layer will forward it as SSE
+        Ok(Box::pin(response.bytes_stream()))
+    }
 }
 
 // ============================================================================
@@ -181,7 +316,7 @@ struct AnthropicRequest {
     messages: Vec<AnthropicMessage>,
     max_tokens: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
-    system: Option<String>,
+    system: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     temperature: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -207,11 +342,15 @@ enum AnthropicMessageContent {
     Blocks(Vec<AnthropicContentBlock>),
 }
 
+/// Anthropic content block - use Value for flexible pass-through
+/// This ensures we forward all content types Claude Code sends without modification
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 enum AnthropicContentBlock {
     #[serde(rename = "text")]
     Text { text: String },
+    #[serde(rename = "image")]
+    Image { source: serde_json::Value },
     #[serde(rename = "tool_use")]
     ToolUse {
         id: String,
@@ -221,8 +360,19 @@ enum AnthropicContentBlock {
     #[serde(rename = "tool_result")]
     ToolResult {
         tool_use_id: String,
-        content: String,
+        #[serde(default)]
+        content: serde_json::Value,
+        #[serde(default)]
+        is_error: bool,
     },
+    #[serde(rename = "thinking")]
+    Thinking {
+        thinking: String,
+        #[serde(default)]
+        signature: Option<String>,
+    },
+    #[serde(rename = "document")]
+    Document { source: serde_json::Value },
 }
 
 #[derive(Debug, Deserialize)]
@@ -270,36 +420,119 @@ impl From<crate::daemon::llm_gateway::Message> for AnthropicMessage {
 
 impl From<ContentBlock> for AnthropicContentBlock {
     fn from(block: ContentBlock) -> Self {
+        use crate::daemon::llm_gateway::{ImageSource, DocumentSource, ToolResultContent};
         match block {
             ContentBlock::Text { text } => AnthropicContentBlock::Text { text },
+            ContentBlock::Image { source } => {
+                let source_json = match source {
+                    ImageSource::Base64 { media_type, data } => {
+                        serde_json::json!({"type": "base64", "media_type": media_type, "data": data})
+                    }
+                    ImageSource::Url { url } => {
+                        serde_json::json!({"type": "url", "url": url})
+                    }
+                };
+                AnthropicContentBlock::Image { source: source_json }
+            }
             ContentBlock::ToolUse { id, name, input } => {
                 AnthropicContentBlock::ToolUse { id, name, input }
             }
             ContentBlock::ToolResult {
                 tool_use_id,
                 content,
-            } => AnthropicContentBlock::ToolResult {
-                tool_use_id,
-                content,
-            },
+                is_error,
+            } => {
+                let content_json = match content {
+                    ToolResultContent::Text(text) => serde_json::Value::String(text),
+                    ToolResultContent::Blocks(blocks) => {
+                        serde_json::to_value(blocks).unwrap_or(serde_json::Value::Null)
+                    }
+                };
+                AnthropicContentBlock::ToolResult {
+                    tool_use_id,
+                    content: content_json,
+                    is_error,
+                }
+            }
+            ContentBlock::Thinking { thinking, signature } => {
+                AnthropicContentBlock::Thinking { thinking, signature }
+            }
+            ContentBlock::Document { source } => {
+                let source_json = match source {
+                    DocumentSource::Base64 { media_type, data } => {
+                        serde_json::json!({"type": "base64", "media_type": media_type, "data": data})
+                    }
+                };
+                AnthropicContentBlock::Document { source: source_json }
+            }
+            ContentBlock::Unknown => {
+                // Unknown blocks are dropped - they shouldn't be forwarded
+                AnthropicContentBlock::Text { text: "[unknown content]".to_string() }
+            }
         }
     }
 }
 
 impl From<AnthropicContentBlock> for ContentBlock {
     fn from(block: AnthropicContentBlock) -> Self {
+        use crate::daemon::llm_gateway::{ImageSource, DocumentSource, ToolResultContent};
         match block {
             AnthropicContentBlock::Text { text } => ContentBlock::Text { text },
+            AnthropicContentBlock::Image { source } => {
+                // Parse source JSON back to ImageSource
+                let image_source = if let Some(source_type) = source.get("type").and_then(|v| v.as_str()) {
+                    match source_type {
+                        "base64" => ImageSource::Base64 {
+                            media_type: source.get("media_type").and_then(|v| v.as_str()).unwrap_or("image/png").to_string(),
+                            data: source.get("data").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                        },
+                        "url" => ImageSource::Url {
+                            url: source.get("url").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                        },
+                        _ => ImageSource::Base64 { media_type: "image/png".to_string(), data: "".to_string() },
+                    }
+                } else {
+                    ImageSource::Base64 { media_type: "image/png".to_string(), data: "".to_string() }
+                };
+                ContentBlock::Image { source: image_source }
+            }
             AnthropicContentBlock::ToolUse { id, name, input } => {
                 ContentBlock::ToolUse { id, name, input }
             }
             AnthropicContentBlock::ToolResult {
                 tool_use_id,
                 content,
-            } => ContentBlock::ToolResult {
-                tool_use_id,
-                content,
-            },
+                is_error,
+            } => {
+                // Convert JSON Value back to ToolResultContent
+                let tool_content = if content.is_string() {
+                    ToolResultContent::Text(content.as_str().unwrap_or("").to_string())
+                } else if content.is_array() {
+                    // Try to deserialize as blocks
+                    match serde_json::from_value(content.clone()) {
+                        Ok(blocks) => ToolResultContent::Blocks(blocks),
+                        Err(_) => ToolResultContent::Text(content.to_string()),
+                    }
+                } else {
+                    ToolResultContent::Text(content.to_string())
+                };
+                ContentBlock::ToolResult {
+                    tool_use_id,
+                    content: tool_content,
+                    is_error,
+                }
+            }
+            AnthropicContentBlock::Thinking { thinking, signature } => {
+                ContentBlock::Thinking { thinking, signature }
+            }
+            AnthropicContentBlock::Document { source } => {
+                // Parse source JSON back to DocumentSource
+                let doc_source = DocumentSource::Base64 {
+                    media_type: source.get("media_type").and_then(|v| v.as_str()).unwrap_or("application/pdf").to_string(),
+                    data: source.get("data").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                };
+                ContentBlock::Document { source: doc_source }
+            }
         }
     }
 }

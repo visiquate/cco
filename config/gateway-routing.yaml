@@ -1,0 +1,234 @@
+# Gateway Routing Configuration
+# Maps agent types to LiteLLM model names
+#
+# This file defines routing rules for the LLM Gateway to select the
+# appropriate model provider based on agent type, workload, and requirements.
+#
+# Priority order:
+# 1. Agent-specific rules
+# 2. Workload-type rules
+# 3. Default fallback
+
+routing:
+  # Agent → LiteLLM model mapping
+  agent_rules:
+    # ===== LEADERSHIP (Opus 4.1) =====
+    # Strategic decisions, architecture design, agent coordination
+    chief-architect: claude-opus-4-5-20251101
+    system-architect: claude-opus-4-5-20251101
+
+    # ===== CODE REVIEW & QUALITY (Azure GPT-4 for cost savings) =====
+    # Code review, testing, quality assurance tasks
+    code-reviewer: azure-gpt4
+    architect-review: azure-gpt4
+    test-engineer: azure-gpt4
+    test-automator: azure-gpt4
+    flutter-go-reviewer: azure-gpt4
+    error-detective: azure-gpt4
+    debugger: azure-gpt4
+
+    # ===== SECURITY (Anthropic Sonnet for security-critical tasks) =====
+    security-auditor: claude-sonnet-4-5-20250929
+    security-engineer: claude-sonnet-4-5-20250929
+    api-security-audit: claude-sonnet-4-5-20250929
+    penetration-tester: claude-sonnet-4-5-20250929
+    compliance-specialist: claude-sonnet-4-5-20250929
+
+    # ===== PHI/PII SENSITIVE (Self-hosted DeepSeek) =====
+    # Healthcare, legal, privacy-sensitive workloads
+    # These MUST run on self-hosted infrastructure
+    data-analyst: deepseek-coder
+    phi-processor: deepseek-coder
+    pii-handler: deepseek-coder
+    healthcare-analyst: deepseek-coder
+    legal-analyst: deepseek-coder
+    medical-data-engineer: deepseek-coder
+
+    # ===== DEVELOPMENT (Mixed providers) =====
+    # TDD and complex coding - Anthropic Sonnet
+    tdd-coding-agent: claude-sonnet-4-5-20250929
+    backend-architect: claude-sonnet-4-5-20250929
+    frontend-developer: claude-sonnet-4-5-20250929
+    fullstack-developer: claude-sonnet-4-5-20250929
+
+    # Basic language specialists - Anthropic Haiku (fast and cheap)
+    python-expert: claude-haiku-4-5-20251001
+    swift-expert: claude-haiku-4-5-20251001
+    go-expert: claude-haiku-4-5-20251001
+    rust-expert: claude-haiku-4-5-20251001
+    flutter-expert: claude-haiku-4-5-20251001
+    typescript-pro: claude-haiku-4-5-20251001
+    javascript-pro: claude-haiku-4-5-20251001
+    golang-pro: claude-haiku-4-5-20251001
+    rust-pro: claude-haiku-4-5-20251001
+
+    # ===== INTEGRATIONS (Anthropic Sonnet) =====
+    api-explorer: claude-sonnet-4-5-20250929
+    salesforce-api-expert: claude-sonnet-4-5-20250929
+    authentik-api-expert: claude-sonnet-4-5-20250929
+
+    # ===== INFRASTRUCTURE (Azure GPT-4 for cost savings) =====
+    devops-engineer: azure-gpt4
+    deployment-engineer: azure-gpt4
+    cloud-architect: azure-gpt4
+    terraform-specialist: azure-gpt4
+    network-engineer: azure-gpt4
+    monitoring-specialist: azure-gpt4
+
+    # ===== DATA & ML (Mixed providers) =====
+    # Complex ML tasks - Anthropic Sonnet
+    database-architect: claude-sonnet-4-5-20250929
+    data-engineer: claude-sonnet-4-5-20250929
+    data-scientist: claude-sonnet-4-5-20250929
+    ai-engineer: claude-sonnet-4-5-20250929
+    ml-engineer: claude-sonnet-4-5-20250929
+    mlops-engineer: claude-sonnet-4-5-20250929
+
+    # ===== RESEARCH (Anthropic Sonnet) =====
+    technical-researcher: claude-sonnet-4-5-20250929
+    academic-researcher: claude-sonnet-4-5-20250929
+    research-orchestrator: claude-sonnet-4-5-20250929
+    comprehensive-researcher: claude-sonnet-4-5-20250929
+
+    # Basic research tasks - Anthropic Haiku
+    research-brief-generator: claude-haiku-4-5-20251001
+    fact-checker: claude-haiku-4-5-20251001
+    query-clarifier: claude-haiku-4-5-20251001
+    search-specialist: claude-haiku-4-5-20251001
+
+    # ===== DOCUMENTATION (Anthropic Haiku) =====
+    documentation-expert: claude-haiku-4-5-20251001
+    technical-writer: claude-haiku-4-5-20251001
+    api-documenter: claude-haiku-4-5-20251001
+    changelog-generator: claude-haiku-4-5-20251001
+    markdown-formatter: claude-haiku-4-5-20251001
+
+    # ===== UTILITIES (Anthropic Haiku) =====
+    dx-optimizer: claude-haiku-4-5-20251001
+    git-flow-manager: claude-haiku-4-5-20251001
+    dependency-manager: claude-haiku-4-5-20251001
+
+    # ===== BUSINESS (Anthropic Haiku) =====
+    business-analyst: claude-haiku-4-5-20251001
+    content-marketer: claude-haiku-4-5-20251001
+
+    # ===== LOCAL/OFFLINE (Ollama models) =====
+    # For development without internet connectivity
+    local-assistant: ollama-llama2
+    offline-coder: ollama-codellama
+    local-chat: ollama-mistral
+
+  # Workload-type routing (when agent type not specified)
+  workload_rules:
+    # PHI/PII workloads MUST use self-hosted
+    phi_sensitive: deepseek-coder
+    pii_sensitive: deepseek-coder
+    healthcare: deepseek-coder
+    legal: deepseek-coder
+    financial: deepseek-coder
+
+    # Cost-optimized workloads
+    code_review: azure-gpt4
+    testing: azure-gpt4
+    infrastructure: azure-gpt4
+
+    # Security-critical workloads
+    security: claude-sonnet-4-5-20250929
+    audit: claude-sonnet-4-5-20250929
+    compliance: claude-sonnet-4-5-20250929
+
+    # Strategic workloads
+    architecture: claude-opus-4-5-20251101
+    design: claude-opus-4-5-20251101
+
+    # Offline/local workloads
+    offline: ollama-llama2
+    local: ollama-codellama
+
+  # Default for unmatched agents (fallback to Sonnet)
+  default_model: claude-sonnet-4-5-20250929
+
+  # Default for budget-conscious workloads
+  budget_model: claude-haiku-4-5-20251001
+
+  # Default for offline/local workloads
+  offline_model: ollama-llama2
+
+  # LiteLLM endpoint configuration
+  litellm_url: http://localhost:4000
+  litellm_port: 4000
+
+  # Health check settings
+  health_check_interval: 30  # seconds
+  health_check_timeout: 5    # seconds
+
+# Provider priority for fallback
+# If primary provider fails, try next in list
+fallback_providers:
+  - anthropic
+  - azure
+  - deepseek
+  - ollama
+
+# Cost optimization settings
+cost_settings:
+  # Use cheaper models for simple tasks
+  enable_cost_optimization: true
+
+  # Thresholds for model selection
+  simple_task_threshold: 1000   # tokens - use Haiku
+  complex_task_threshold: 5000  # tokens - use Sonnet
+  strategic_task_threshold: 10000  # tokens - use Opus
+
+  # Budget limits (per hour)
+  max_hourly_spend: 50.00  # USD
+
+  # Alert thresholds
+  alert_at_spend: 40.00  # USD - 80% of budget
+
+# Security and compliance
+security_settings:
+  # PHI/PII data must use self-hosted
+  enforce_phi_routing: true
+  enforce_pii_routing: true
+
+  # Audit logging
+  enable_audit_log: true
+  audit_log_path: /var/log/llm-gateway/audit.log
+
+  # Data residency
+  enforce_data_residency: false  # Enable for GDPR/regional compliance
+  allowed_regions:
+    - us-west-2
+    - us-east-1
+
+# Performance settings
+performance_settings:
+  # Request timeout (seconds)
+  request_timeout: 600  # 10 minutes
+
+  # Retry settings
+  max_retries: 3
+  retry_delay: 2  # seconds
+
+  # Connection pooling
+  max_connections: 100
+  connection_timeout: 30  # seconds
+
+  # Rate limiting
+  rate_limit_enabled: true
+  requests_per_minute: 60
+
+# Monitoring and observability
+monitoring:
+  # Metrics
+  enable_metrics: true
+  metrics_port: 9090
+
+  # Logging
+  log_level: info  # debug, info, warn, error
+  log_format: json
+
+  # Tracing
+  enable_tracing: false
+  tracing_endpoint: http://localhost:14268/api/traces

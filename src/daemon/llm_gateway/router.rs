@@ -87,7 +87,20 @@ impl RoutingEngine {
     fn infer_agent_type(&self, request: &CompletionRequest) -> Option<String> {
         // Check system prompt for agent type indicators
         if let Some(system) = &request.system {
-            return self.detect_agent_from_text(system);
+            let system_text = match system {
+                serde_json::Value::String(s) => s.as_str(),
+                serde_json::Value::Array(arr) => {
+                    // Extract text from first content block
+                    if let Some(first) = arr.first() {
+                        if let Some(text) = first.get("text").and_then(|t| t.as_str()) {
+                            return self.detect_agent_from_text(text);
+                        }
+                    }
+                    return None;
+                }
+                _ => return None,
+            };
+            return self.detect_agent_from_text(system_text);
         }
 
         // Check first user message
