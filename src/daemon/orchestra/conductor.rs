@@ -50,6 +50,7 @@ pub struct AgentConfig {
     pub languages: Vec<String>,
     #[serde(default)]
     pub specialties: Vec<String>,
+    #[serde(default)]
     pub role: String,
     #[serde(default)]
     pub responsibilities: Vec<String>,

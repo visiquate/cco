@@ -39,7 +39,11 @@ impl EndpointConfig {
         }
 
         // Auto-detect from URL or model name
-        if self.url.contains("ollama") {
+        // Check for Ollama by URL patterns (contains "ollama", port 11434, or /api/generate path)
+        if self.url.contains("ollama")
+            || self.url.contains(":11434")
+            || self.url.contains("/api/generate")
+        {
             return EndpointType::Ollama;
         }
 

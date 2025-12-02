@@ -287,17 +287,18 @@ async fn cleanup_handler(
 mod tests {
     use super::*;
     use crate::daemon::security::auth::Token;
-    use tempfile::tempdir;
+    use tempfile::TempDir;
 
-    async fn create_test_store() -> KnowledgeState {
-        let temp_dir = tempdir().unwrap();
+    /// Creates a test store and returns it along with the temp dir (to keep it alive)
+    async fn create_test_store() -> (KnowledgeState, TempDir) {
+        let temp_dir = TempDir::new().unwrap();
         let mut store = KnowledgeStore::new(
             temp_dir.path(),
             Some(temp_dir.path()),
             Some("test_knowledge".to_string()),
         );
         store.initialize().await.unwrap();
-        Arc::new(Mutex::new(store))
+        (Arc::new(Mutex::new(store)), temp_dir)
     }
 
     fn create_test_auth() -> AuthContext {
@@ -315,7 +316,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_store_handler() {
-        let store = create_test_store().await;
+        let (store, _temp_dir) = create_test_store().await;
         let auth = create_test_auth();
         let request = StoreKnowledgeRequest {
             text: "Test knowledge".to_string(),
@@ -332,7 +333,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_search_handler() {
-        let store = create_test_store().await;
+        let (store, _temp_dir) = create_test_store().await;
         let auth = create_test_auth();
         let request = SearchRequest {
             query: "test".to_string(),
@@ -344,6 +345,6 @@ mod tests {
         };
 
         let result = search_handler(State(store), Extension(auth), Json(request)).await;
-        assert!(result.is_ok());
+        assert!(result.is_ok(), "Search failed: {:?}", result.err());
     }
 }

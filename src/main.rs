@@ -162,7 +162,10 @@ enum Commands {
         action: ServerAction,
     },
 
-    /// Manage the orchestration sidecar
+    /// Manage orchestration system (now integrated into daemon)
+    ///
+    /// Orchestration API is available at /api/orchestration/* routes on the daemon.
+    /// Use `cco daemon start` to start the daemon (includes orchestration).
     Orchestration {
         #[command(subcommand)]
         action: OrchestrationAction,
@@ -195,25 +198,9 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum OrchestrationAction {
-    /// Start the orchestration sidecar server
-    Start {
-        /// Port to listen on
-        #[arg(short, long, default_value = "3001")]
-        port: u16,
-
-        /// Host to bind to
-        #[arg(long, default_value = "127.0.0.1")]
-        host: String,
-
-        /// Storage path for results
-        #[arg(long)]
-        storage_path: Option<String>,
-    },
-
-    /// Stop the orchestration sidecar
-    Stop,
-
     /// Get context for an agent
+    ///
+    /// Queries the daemon's orchestration API at /api/orchestration/context
     GetContext {
         /// Issue ID
         issue_id: String,
@@ -223,6 +210,8 @@ enum OrchestrationAction {
     },
 
     /// Store agent results
+    ///
+    /// Posts to the daemon's orchestration API at /api/orchestration/results
     StoreResult {
         /// Issue ID
         issue_id: String,
@@ -236,6 +225,8 @@ enum OrchestrationAction {
     },
 
     /// Publish an event
+    ///
+    /// Posts to the daemon's orchestration API at /api/orchestration/events
     PublishEvent {
         /// Event type
         event_type: String,
@@ -254,6 +245,8 @@ enum OrchestrationAction {
     },
 
     /// Subscribe to events
+    ///
+    /// Long-polls the daemon's orchestration API at /api/orchestration/events/wait
     Subscribe {
         /// Event type to subscribe to
         event_type: String,
@@ -263,10 +256,14 @@ enum OrchestrationAction {
         timeout: u64,
     },
 
-    /// Show sidecar status
+    /// Show orchestration status
+    ///
+    /// Queries the daemon's orchestration API at /api/orchestration/status
     Status,
 
     /// Clear context cache
+    ///
+    /// Deletes cached context via daemon's orchestration API
     ClearCache {
         /// Issue ID to clear cache for
         issue_id: String,
@@ -1070,40 +1067,19 @@ async fn main() -> anyhow::Result<()> {
             // Initialize tracing for orchestration commands
             tracing_subscriber::fmt::init();
 
+            // Discover daemon port - orchestration is now integrated into daemon
+            let daemon_port = match cco::daemon::read_daemon_port() {
+                Ok(port) => port,
+                Err(_) => {
+                    eprintln!("❌ Daemon not running");
+                    eprintln!("   Start the daemon first: cco daemon start");
+                    eprintln!("   (Orchestration is now integrated into the daemon)");
+                    std::process::exit(1);
+                }
+            };
+            let base_url = format!("http://127.0.0.1:{}", daemon_port);
+
             match action {
-                OrchestrationAction::Start {
-                    port,
-                    host,
-                    storage_path,
-                } => {
-                    let config = cco::orchestration::ServerConfig {
-                        port,
-                        host: host.clone(),
-                        storage_path: storage_path.unwrap_or_else(|| {
-                            dirs::home_dir()
-                                .unwrap()
-                                .join(".cco/orchestration")
-                                .to_string_lossy()
-                                .to_string()
-                        }),
-                        ..Default::default()
-                    };
-
-                    println!("🚀 Starting orchestration sidecar on {}:{}", host, port);
-
-                    let state = cco::orchestration::initialize(config.clone()).await?;
-                    let server = cco::orchestration::OrchestrationServer::new(state, config);
-
-                    server.run().await
-                }
-
-                OrchestrationAction::Stop => {
-                    println!("⏹️  Stopping orchestration sidecar...");
-                    // TODO: Implement graceful shutdown signal
-                    println!("✅ Sidecar stopped");
-                    Ok(())
-                }
-
                 OrchestrationAction::GetContext {
                     issue_id,
                     agent_type,
@@ -1115,8 +1091,8 @@ async fn main() -> anyhow::Result<()> {
 
                     let client = reqwest::Client::new();
                     let url = format!(
-                        "http://127.0.0.1:3001/api/context/{}/{}",
-                        issue_id, agent_type
+                        "{}/api/orchestration/context/{}/{}",
+                        base_url, issue_id, agent_type
                     );
 
                     match client.get(&url).send().await {
@@ -1132,9 +1108,7 @@ async fn main() -> anyhow::Result<()> {
                         }
                         Err(e) => {
                             eprintln!("❌ Failed to connect: {}", e);
-                            eprintln!(
-                                "   Make sure the sidecar is running (cco orchestration start)"
-                            );
+                            eprintln!("   Make sure the daemon is running (cco daemon start)");
                             std::process::exit(1);
                         }
                     }
@@ -1151,7 +1125,7 @@ async fn main() -> anyhow::Result<()> {
                     let result: serde_json::Value = serde_json::from_str(&result_json)?;
 
                     let client = reqwest::Client::new();
-                    let url = "http://127.0.0.1:3001/api/results";
+                    let url = format!("{}/api/orchestration/results", base_url);
 
                     let request_body = serde_json::json!({
                         "agent_id": uuid::Uuid::new_v4().to_string(),
@@ -1162,7 +1136,7 @@ async fn main() -> anyhow::Result<()> {
                         "timestamp": chrono::Utc::now(),
                     });
 
-                    match client.post(url).json(&request_body).send().await {
+                    match client.post(&url).json(&request_body).send().await {
                         Ok(response) => {
                             if response.status().is_success() {
                                 let json: serde_json::Value = response.json().await?;
@@ -1192,7 +1166,7 @@ async fn main() -> anyhow::Result<()> {
                     let event_data: serde_json::Value = serde_json::from_str(&data)?;
 
                     let client = reqwest::Client::new();
-                    let url = format!("http://127.0.0.1:3001/api/events/{}", event_type);
+                    let url = format!("{}/api/orchestration/events/{}", base_url, event_type);
 
                     let request_body = serde_json::json!({
                         "event_type": event_type,
@@ -1228,8 +1202,8 @@ async fn main() -> anyhow::Result<()> {
 
                     let client = reqwest::Client::new();
                     let url = format!(
-                        "http://127.0.0.1:3001/api/events/wait/{}?timeout={}",
-                        event_type, timeout
+                        "{}/api/orchestration/events/wait/{}?timeout={}",
+                        base_url, event_type, timeout
                     );
 
                     match client.get(&url).send().await {
@@ -1251,39 +1225,39 @@ async fn main() -> anyhow::Result<()> {
                 }
 
                 OrchestrationAction::Status => {
-                    println!("📊 Orchestration Sidecar Status\n");
+                    println!("📊 Orchestration System Status\n");
 
                     let client = reqwest::Client::new();
-                    let health_url = "http://127.0.0.1:3001/health";
-                    let status_url = "http://127.0.0.1:3001/status";
+                    let health_url = format!("{}/health", base_url);
+                    let status_url = format!("{}/api/orchestration/status", base_url);
 
-                    // Check health
-                    match client.get(health_url).send().await {
+                    // Check daemon health first
+                    match client.get(&health_url).send().await {
                         Ok(response) => {
                             if response.status().is_success() {
                                 let json: serde_json::Value = response.json().await?;
-                                println!("✅ Sidecar is running");
+                                println!("✅ Daemon is running on port {}", daemon_port);
                                 println!("{}", serde_json::to_string_pretty(&json)?);
                             }
                         }
                         Err(_) => {
-                            println!("❌ Sidecar is not running");
-                            println!("   Start it with: cco orchestration start");
+                            println!("❌ Daemon is not responding");
+                            println!("   Start it with: cco daemon start");
                             return Ok(());
                         }
                     }
 
-                    // Get detailed status
-                    match client.get(status_url).send().await {
+                    // Get orchestration-specific status
+                    match client.get(&status_url).send().await {
                         Ok(response) => {
                             if response.status().is_success() {
                                 let json: serde_json::Value = response.json().await?;
-                                println!("\n📈 Detailed Status:");
+                                println!("\n📈 Orchestration Status:");
                                 println!("{}", serde_json::to_string_pretty(&json)?);
                             }
                         }
                         Err(e) => {
-                            eprintln!("⚠️  Could not get detailed status: {}", e);
+                            eprintln!("⚠️  Could not get orchestration status: {}", e);
                         }
                     }
 
@@ -1294,7 +1268,7 @@ async fn main() -> anyhow::Result<()> {
                     println!("🗑️  Clearing cache for issue: {}", issue_id);
 
                     let client = reqwest::Client::new();
-                    let url = format!("http://127.0.0.1:3001/api/cache/context/{}", issue_id);
+                    let url = format!("{}/api/orchestration/cache/context/{}", base_url, issue_id);
 
                     match client.delete(&url).send().await {
                         Ok(response) => {

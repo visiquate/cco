@@ -1113,8 +1113,10 @@ mod tests {
         let base_dir = temp_dir.path().to_path_buf();
         let store = KnowledgeStore::new(&base_dir, Some(&base_dir), None);
 
+        // Messages must be at least 50 chars to be extracted (see extract_critical_knowledge)
+        // Avoid using words that match other patterns (like "token" which matches "credential")
         let conversation =
-            "We decided to use FastAPI for the API.\n\nImplemented JWT authentication with RS256.";
+            "We decided to use FastAPI for the API because it provides excellent performance and async support.\n\nImplemented JWT authentication with RS256 algorithm for secure user session validation and verification.";
         let knowledge = store.extract_critical_knowledge(conversation, "test-project", "session-1");
 
         assert_eq!(knowledge.len(), 2);

@@ -16,6 +16,7 @@ pub mod log_watcher;
 pub mod metrics_cache;
 pub mod model_cache;
 pub mod orchestra;
+pub mod orchestration_routes;
 pub mod parse_tracker;
 pub mod proxy;
 pub mod security;

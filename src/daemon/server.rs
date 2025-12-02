@@ -32,7 +32,11 @@ use super::hooks::{
 };
 use super::knowledge::{knowledge_router_without_state, KnowledgeState, KnowledgeStore};
 use super::log_watcher::LogWatcher;
+use super::orchestration_routes::{
+    create_orchestration_router, init_orchestration_state, OrchestrationHandlerState,
+};
 use super::security::{CredentialDetector, TokenManager};
+use crate::orchestration::OrchestrationState;
 
 /// Classification decision tracking
 #[derive(Debug, Clone, Serialize)]
@@ -74,6 +78,7 @@ pub struct DaemonState {
     pub metrics_cache: Arc<super::metrics_cache::MetricsCache>,
     pub llm_router_state: Option<super::llm_router::api::LlmRouterState>,
     pub proxy_port: Arc<Mutex<Option<u16>>>,
+    pub orchestration_state: Option<Arc<OrchestrationState>>,
 }
 
 impl DaemonState {
@@ -249,6 +254,19 @@ impl DaemonState {
             }
         };
 
+        // Initialize orchestration state (for multi-agent coordination)
+        let orchestration_state = match init_orchestration_state(None) {
+            Ok(state) => {
+                info!("✅ Orchestration system initialized successfully");
+                Some(state)
+            }
+            Err(e) => {
+                warn!("Failed to initialize orchestration system: {}", e);
+                warn!("Orchestration API endpoints will not be available");
+                None
+            }
+        };
+
         Ok(Self {
             config,
             hooks_registry,
@@ -267,6 +285,7 @@ impl DaemonState {
             metrics_cache,
             llm_router_state,
             proxy_port: Arc::new(Mutex::new(None)),
+            orchestration_state,
         })
     }
 }
@@ -1055,6 +1074,23 @@ fn create_router(state: Arc<DaemonState>) -> Router {
         info!("LLM router not available - skipping LLM routing API routes");
     }
 
+    // Mount orchestration routes if orchestration state is available
+    if let Some(ref orchestration_state) = state.orchestration_state {
+        info!("Mounting orchestration API routes at /api/orchestration/*");
+
+        // Create orchestration handler state
+        let orchestration_handler_state = OrchestrationHandlerState::new(Arc::clone(orchestration_state));
+
+        // Create orchestration routes with state
+        let orchestration_routes = create_orchestration_router()
+            .with_state(orchestration_handler_state);
+
+        // Nest under /api/orchestration
+        router = router.nest("/api/orchestration", orchestration_routes);
+    } else {
+        info!("Orchestration system not available - skipping orchestration API routes");
+    }
+
     router.with_state(state)
 }
 
@@ -1176,6 +1212,21 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
                 proxy_port
             );
         }
+    }
+
+    // Display orchestration endpoints if available
+    if state.orchestration_state.is_some() {
+        info!(
+            "   Orchestration API: http://{}/api/orchestration/*",
+            actual_addr
+        );
+        info!("     - GET  /api/orchestration/status - System status");
+        info!("     - GET  /api/orchestration/context/:issue/:agent - Get agent context");
+        info!("     - POST /api/orchestration/results - Store agent results");
+        info!("     - POST /api/orchestration/events/:type - Publish event");
+        info!("     - GET  /api/orchestration/events/wait/:type - Subscribe to events");
+        info!("     - POST /api/orchestration/agents/spawn - Spawn agent");
+        info!("     - GET  /api/orchestration/agents/:id/status - Agent status");
     }
 
     info!("");

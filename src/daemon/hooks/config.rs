@@ -348,7 +348,7 @@ mod tests {
         assert_eq!(config.timeout_ms, 5000);
         assert_eq!(config.max_retries, 2);
         assert_eq!(config.llm.model_type, "qwen-coder");
-        assert_eq!(config.llm.inference_timeout_ms, 2000);
+        assert_eq!(config.llm.inference_timeout_ms, 5000);
     }
 
     #[test]

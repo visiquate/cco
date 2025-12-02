@@ -2,7 +2,10 @@
 //!
 //! This module provides the functionality to launch Claude Code with full
 //! orchestration support including daemon auto-start, temp file verification,
-//! environment variable injection, and orchestration sidecar auto-start.
+//! and environment variable injection.
+//!
+//! Note: Orchestration functionality (context injection, event bus, result storage)
+//! is now integrated into the daemon server and accessed via /api/orchestration/* routes.
 
 use anyhow::{Context, Result};
 use cco::version::DateVersion;
@@ -10,30 +13,23 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use std::sync::Arc;
-use tokio::sync::RwLock;
-
-/// Type alias for sidecar lifecycle wrapper
-type SidecarHandle = Arc<RwLock<Option<cco::orchestration::SidecarLifecycle>>>;
-
-/// Global sidecar handle for graceful shutdown
-static mut SIDECAR_HANDLE: Option<SidecarHandle> = None;
 
 /// Launch Claude Code with orchestration support
 ///
 /// This is the main entry point when a user runs `cco` without any subcommand.
-/// It ensures the daemon is running, starts the orchestration sidecar, temp settings exist,
-/// environment variables are set, and then launches Claude Code in the current working directory.
+/// It ensures the daemon is running, verifies temp settings exist,
+/// sets environment variables, and then launches Claude Code.
 ///
 /// # Flow
 /// 1. Ensure daemon is running (auto-start if needed)
-/// 2. Start orchestration sidecar on port 3001 (background task)
-/// 3. Get temp settings file path
-/// 4. Verify temp files exist (daemon should have created them)
-/// 5. Set ORCHESTRATOR_* and sidecar environment variables
-/// 6. Find Claude Code executable in PATH
-/// 7. Launch Claude Code with --settings flag and all arguments passed through
-/// 8. Gracefully shutdown sidecar on exit
+/// 2. Get temp settings file path
+/// 3. Verify temp files exist (daemon should have created them)
+/// 4. Set ORCHESTRATOR_* environment variables
+/// 5. Find Claude Code executable in PATH
+/// 6. Launch Claude Code with --settings flag and all arguments passed through
+///
+/// Note: Orchestration functionality (context injection, event bus, result storage)
+/// is now integrated into the daemon and accessible at /api/orchestration/* routes.
 ///
 /// # Arguments
 /// * `args` - Arguments to pass through to Claude Code
@@ -47,42 +43,23 @@ static mut SIDECAR_HANDLE: Option<SidecarHandle> = None;
 /// launch_claude_code(vec!["--help".to_string()]).await?;
 /// ```
 pub async fn launch_claude_code(args: Vec<String>) -> Result<()> {
-    // Step 1: Ensure daemon is running
+    // Step 1: Ensure daemon is running (includes orchestration system)
     ensure_daemon_running().await?;
 
-    // Step 2: Start orchestration sidecar (graceful degradation if it fails)
-    let sidecar_result = start_orchestration_sidecar().await;
-    match sidecar_result {
-        Ok(handle) => {
-            unsafe {
-                SIDECAR_HANDLE = Some(handle);
-            }
-            println!("✅ Orchestration sidecar started on port 3001");
-        }
-        Err(e) => {
-            eprintln!("⚠️  Warning: Orchestration sidecar failed to start: {}", e);
-            eprintln!("   Claude Code will run without sidecar support");
-        }
-    }
-
-    // Step 3: Get temp settings file path
+    // Step 2: Get temp settings file path
     let settings_path = get_orchestrator_settings_path()?;
 
-    // Step 4: Verify temp files exist (daemon should have created them)
+    // Step 3: Verify temp files exist (daemon should have created them)
     verify_temp_files_exist(&settings_path).await?;
 
-    // Step 5: Set orchestrator and sidecar environment variables
+    // Step 4: Set orchestrator environment variables
     set_orchestrator_env_vars(&settings_path);
-    set_sidecar_env_vars();
 
     // Flush all buffered output before launching Claude Code
     let _ = std::io::Write::flush(&mut std::io::stdout());
 
-    // Step 6 & 7: Find and launch Claude Code
+    // Step 5 & 6: Find and launch Claude Code
     let result = launch_claude_code_process(&settings_path, args).await;
-
-    // Step 8: Gracefully shutdown sidecar
-    shutdown_sidecar().await;
 
     result?;
     Ok(())
@@ -231,96 +208,6 @@ async fn verify_temp_files_exist(settings_path: &PathBuf) -> Result<()> {
     Ok(())
 }
 
-/// Start the orchestration sidecar on port 3001
-///
-/// Initializes the orchestration sidecar system and starts it in a background task.
-/// The sidecar provides HTTP endpoints for:
-/// - Context injection to agents
-/// - Event bus coordination
-/// - Result storage and retrieval
-/// - Agent lifecycle management
-///
-/// # Returns
-/// * `Ok(SidecarHandle)` - Handle to the running sidecar task
-/// * `Err` - Failed to initialize or start sidecar
-async fn start_orchestration_sidecar() -> Result<SidecarHandle> {
-    use cco::orchestration::{initialize, ServerConfig, SidecarLifecycle};
-
-    // Create default sidecar configuration
-    let config = ServerConfig::default();
-
-    // Initialize orchestration state
-    let state = initialize(config.clone()).await?;
-
-    // Create sidecar lifecycle manager
-    let mut lifecycle = SidecarLifecycle::new(state);
-
-    // Start the sidecar server (will bind to 127.0.0.1:3001)
-    lifecycle.start().await?;
-
-    // Wait for sidecar to be ready (max 2 seconds) by polling health endpoint
-    for attempt in 1..=20 {
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-        // Try to ping the sidecar health endpoint
-        if let Ok(response) = reqwest::Client::new()
-            .get("http://127.0.0.1:3001/health")
-            .timeout(std::time::Duration::from_secs(1))
-            .send()
-            .await
-        {
-            if response.status().is_success() {
-                // Allow background task to complete initialization logging
-                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-                // Sidecar is ready
-                return Ok(Arc::new(RwLock::new(Some(lifecycle))));
-            }
-        }
-
-        if attempt == 20 {
-            return Err(anyhow::anyhow!(
-                "Sidecar failed to respond to health check within 2 seconds. Port 3001 may be in use."
-            ));
-        }
-    }
-
-    Err(anyhow::anyhow!("Sidecar startup timeout exceeded"))
-}
-
-/// Gracefully shutdown the orchestration sidecar
-///
-/// Cleanly shuts down the sidecar and releases port 3001.
-/// This is called when Claude Code exits.
-async fn shutdown_sidecar() {
-    #[allow(static_mut_refs)]
-    unsafe {
-        if let Some(handle) = SIDECAR_HANDLE.take() {
-            let mut handle_guard = handle.write().await;
-            if let Some(mut lifecycle) = handle_guard.take() {
-                // Stop the sidecar gracefully
-                if let Err(e) = lifecycle.stop().await {
-                    eprintln!("Warning: Failed to stop sidecar gracefully: {}", e);
-                } else {
-                    println!("✅ Orchestration sidecar stopped");
-                }
-            }
-        }
-    }
-}
-
-/// Set sidecar-specific environment variables
-///
-/// Sets environment variables for sidecar configuration:
-/// * `ORCHESTRATION_SIDECAR_PORT` - Port the sidecar listens on (3001)
-/// * `ORCHESTRATION_SIDECAR_ENABLED` - Flag to enable sidecar features (true)
-/// * `ORCHESTRATION_SIDECAR_URL` - Base URL for sidecar API (http://127.0.0.1:3001)
-fn set_sidecar_env_vars() {
-    env::set_var("ORCHESTRATION_SIDECAR_PORT", "3001");
-    env::set_var("ORCHESTRATION_SIDECAR_ENABLED", "true");
-    env::set_var("ORCHESTRATION_SIDECAR_URL", "http://127.0.0.1:3001");
-}
-
 /// Set ORCHESTRATOR_* environment variables
 ///
 /// Sets environment variables that tell Claude Code where to find orchestration files.
@@ -333,7 +220,11 @@ fn set_sidecar_env_vars() {
 /// * `ORCHESTRATOR_RULES` - Path to sealed orchestrator rules in temp directory
 /// * `ORCHESTRATOR_HOOKS` - Path to sealed hooks config in temp directory
 /// * `ORCHESTRATOR_API_URL` - Daemon API endpoint (auto-discovered from PID file)
+///   - Orchestration routes available at: {ORCHESTRATOR_API_URL}/api/orchestration/*
 /// * `ORCHESTRATOR_HOOKS_CONFIG` - JSON hooks configuration (from settings file)
+///
+/// Note: Orchestration system (context injection, event bus, result storage) is now
+/// integrated into the daemon. Access orchestration API at /api/orchestration/* routes.
 ///
 /// # Arguments
 /// * `settings_path` - Path to the settings file

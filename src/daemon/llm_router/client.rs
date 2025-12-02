@@ -314,7 +314,9 @@ mod tests {
         assert_eq!(body["model"], "qwen2.5-coder:32b-instruct");
         assert_eq!(body["prompt"], "Test prompt");
         assert_eq!(body["stream"], false);
-        assert_eq!(body["options"]["temperature"], 0.7);
+        // Use approximate comparison for float to handle f32 precision
+        let temp = body["options"]["temperature"].as_f64().unwrap();
+        assert!((temp - 0.7).abs() < 0.001, "Temperature {} is not close to 0.7", temp);
         assert_eq!(body["options"]["num_predict"], 4096);
     }
 

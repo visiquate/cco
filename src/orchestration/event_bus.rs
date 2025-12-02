@@ -162,16 +162,16 @@ impl EventBus {
         &self,
         event_type: &str,
         timeout_ms: u64,
-    ) -> Result<Vec<super::server::EventData>> {
+    ) -> Result<Vec<super::EventData>> {
         let timeout = std::time::Duration::from_millis(timeout_ms);
         let start = std::time::Instant::now();
 
         // Check existing events first
         let events = self.events.read().await;
-        let matching: Vec<super::server::EventData> = events
+        let matching: Vec<super::EventData> = events
             .iter()
             .filter(|e| e.event_type == event_type)
-            .map(|e| super::server::EventData {
+            .map(|e| super::EventData {
                 event_id: e.id.clone(),
                 event_type: e.event_type.clone(),
                 publisher: e.publisher.clone(),
@@ -196,7 +196,7 @@ impl EventBus {
             let remaining = timeout - start.elapsed();
             match tokio::time::timeout(remaining, receiver.recv()).await {
                 Ok(Ok(event)) if event.event_type == event_type => {
-                    return Ok(vec![super::server::EventData {
+                    return Ok(vec![super::EventData {
                         event_id: event.id,
                         event_type: event.event_type,
                         publisher: event.publisher,
