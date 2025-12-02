@@ -5,7 +5,9 @@
 //! - Others → Claude (pass-through)
 
 use anyhow::{anyhow, Context, Result};
+use reqwest::Client;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{debug, error, info, warn};
 
@@ -56,14 +58,23 @@ pub async fn start_proxy_server(addr: &str) -> Result<u16> {
         AZURE_ENDPOINT
     );
 
+    // Create a shared HTTP client with TLS support for upstream requests
+    let http_client = Arc::new(
+        Client::builder()
+            .timeout(std::time::Duration::from_secs(300)) // 5 minute timeout for LLM requests
+            .build()
+            .context("Failed to create HTTP client")?
+    );
+
     // Spawn the proxy accept loop
     tokio::spawn(async move {
         loop {
             match listener.accept().await {
                 Ok((socket, peer_addr)) => {
                     debug!("Accepted connection from {}", peer_addr);
+                    let client = Arc::clone(&http_client);
                     tokio::spawn(async move {
-                        if let Err(e) = handle_connection(socket).await {
+                        if let Err(e) = handle_connection(socket, client).await {
                             warn!("Error handling connection from {}: {}", peer_addr, e);
                         }
                     });
@@ -81,9 +92,9 @@ pub async fn start_proxy_server(addr: &str) -> Result<u16> {
 /// Handle a single proxy connection
 ///
 /// Reads the HTTP request, determines routing, and proxies to appropriate backend.
-async fn handle_connection(mut client: TcpStream) -> Result<()> {
+async fn handle_connection(mut client_socket: TcpStream, http_client: Arc<Client>) -> Result<()> {
     // Read request from client
-    let request_data = read_http_request(&mut client).await?;
+    let request_data = read_http_request(&mut client_socket).await?;
 
     debug!(
         request_size = request_data.len(),
@@ -112,10 +123,10 @@ async fn handle_connection(mut client: TcpStream) -> Result<()> {
             agent_type = agent_type.clone().unwrap_or_default(),
             "Routing request to Azure"
         );
-        handle_azure_request(&mut client, &method, &path, &headers, &body).await?;
+        handle_azure_request(&mut client_socket, &http_client, &method, &path, &headers, &body).await?;
     } else {
         info!("Routing request to Anthropic (pass-through)");
-        handle_anthropic_passthrough(&mut client, &method, &path, &headers, &body).await?;
+        handle_anthropic_passthrough(&mut client_socket, &http_client, &method, &path, &headers, &body).await?;
     }
 
     Ok(())
@@ -202,54 +213,87 @@ fn parse_http_request(data: &[u8]) -> Result<(String, String, Vec<(String, Strin
 
 /// Route request to Anthropic (pass-through)
 ///
-/// Forwards the request to Anthropic API without modification.
+/// Forwards the request to Anthropic API without modification using HTTPS.
 async fn handle_anthropic_passthrough(
-    client: &mut TcpStream,
+    client_socket: &mut TcpStream,
+    http_client: &Client,
     method: &str,
     proxy_path: &str,
     headers: &[(String, String)],
     body: &[u8],
 ) -> Result<()> {
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::io::AsyncWriteExt;
 
     info!(
         method = method,
-        "Forwarding request to Anthropic"
+        path = proxy_path,
+        "Forwarding request to Anthropic via HTTPS"
     );
 
-    // Connect to Anthropic
-    let remote = format!("api.anthropic.com:443");
-    let mut remote_socket = tokio::net::TcpStream::connect(&remote)
-        .await
-        .context("Failed to connect to Anthropic")?;
+    // Build the full URL
+    let url = format!("{}{}", ANTHROPIC_ENDPOINT, proxy_path);
 
-    // Build and send request to Anthropic
-    let request = format_http_request(method, proxy_path, headers, body);
-    remote_socket.write_all(&request).await
-        .context("Failed to write to Anthropic")?;
-    remote_socket.write_all(body).await
-        .context("Failed to write body to Anthropic")?;
+    // Build the request
+    let mut request_builder = match method {
+        "GET" => http_client.get(&url),
+        "POST" => http_client.post(&url),
+        "PUT" => http_client.put(&url),
+        "DELETE" => http_client.delete(&url),
+        "PATCH" => http_client.patch(&url),
+        _ => return Err(anyhow!("Unsupported HTTP method: {}", method)),
+    };
 
-    // Read response from Anthropic
-    let mut response = Vec::new();
-    let mut buffer = vec![0u8; 65536];
-    loop {
-        match remote_socket.read(&mut buffer).await {
-            Ok(0) => break,
-            Ok(n) => response.extend_from_slice(&buffer[..n]),
-            Err(e) => {
-                warn!("Error reading from Anthropic: {}", e);
-                break;
-            }
+    // Add headers (skip Host and Content-Length as reqwest handles these)
+    for (key, value) in headers {
+        let key_lower = key.to_lowercase();
+        if key_lower != "host" && key_lower != "content-length" && key_lower != "connection" {
+            request_builder = request_builder.header(key, value);
         }
     }
 
-    // Forward response to client
-    client.write_all(&response).await
-        .context("Failed to write response to client")?;
+    // Add body if present
+    if !body.is_empty() {
+        request_builder = request_builder.body(body.to_vec());
+    }
+
+    // Send request and get response
+    let response = request_builder
+        .send()
+        .await
+        .context("Failed to send request to Anthropic")?;
+
+    let status = response.status();
+    let response_headers = response.headers().clone();
+    let response_body = response
+        .bytes()
+        .await
+        .context("Failed to read response body from Anthropic")?;
 
     debug!(
-        response_size = response.len(),
+        status = %status,
+        response_size = response_body.len(),
+        "Received response from Anthropic"
+    );
+
+    // Build HTTP response for client
+    let mut http_response = format!("HTTP/1.1 {} {}\r\n", status.as_u16(), status.canonical_reason().unwrap_or("OK"));
+
+    // Forward relevant headers
+    for (key, value) in response_headers.iter() {
+        if let Ok(v) = value.to_str() {
+            http_response.push_str(&format!("{}: {}\r\n", key, v));
+        }
+    }
+    http_response.push_str("\r\n");
+
+    // Send response to client
+    client_socket.write_all(http_response.as_bytes()).await
+        .context("Failed to write response headers to client")?;
+    client_socket.write_all(&response_body).await
+        .context("Failed to write response body to client")?;
+
+    debug!(
+        response_size = response_body.len(),
         "Forwarded response from Anthropic"
     );
 
@@ -258,15 +302,16 @@ async fn handle_anthropic_passthrough(
 
 /// Route request to Azure
 ///
-/// Translates request to Azure format, sends to Azure, and translates response back.
+/// Translates request to Azure format, sends to Azure via HTTPS, and translates response back.
 async fn handle_azure_request(
-    client: &mut TcpStream,
-    method: &str,
+    client_socket: &mut TcpStream,
+    http_client: &Client,
+    _method: &str,
     _path: &str,
     _headers: &[(String, String)],
     body: &[u8],
 ) -> Result<()> {
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::io::AsyncWriteExt;
 
     // Get Azure API key
     let azure_key = azure_credential::get_azure_api_key()
@@ -282,60 +327,36 @@ async fn handle_azure_request(
     let azure_request = translate_request_to_azure(&request_json)
         .context("Failed to translate request to Azure format")?;
 
-    let azure_body = serde_json::to_vec(&azure_request)
-        .context("Failed to serialize Azure request")?;
-
     // Build Azure endpoint URL
     let azure_url = format!(
-        "/openai/deployments/{}/chat/completions?api-version={}",
-        AZURE_DEPLOYMENT, AZURE_API_VERSION
+        "{}/openai/deployments/{}/chat/completions?api-version={}",
+        AZURE_ENDPOINT, AZURE_DEPLOYMENT, AZURE_API_VERSION
     );
 
-    // Connect to Azure
-    let remote = format!("cco-resource.cognitiveservices.azure.com:443");
-    let mut remote_socket = tokio::net::TcpStream::connect(&remote)
+    // Send request to Azure via HTTPS
+    let response = http_client
+        .post(&azure_url)
+        .header("api-key", &azure_key)
+        .header("Content-Type", "application/json")
+        .json(&azure_request)
+        .send()
         .await
-        .context("Failed to connect to Azure")?;
+        .context("Failed to send request to Azure")?;
 
-    // Build request to Azure with API key header
-    let azure_headers = vec![
-        ("Host".to_string(), "cco-resource.cognitiveservices.azure.com".to_string()),
-        ("api-key".to_string(), azure_key),
-        ("Content-Type".to_string(), "application/json".to_string()),
-        ("Content-Length".to_string(), azure_body.len().to_string()),
-    ];
+    let status = response.status();
+    let response_body = response
+        .bytes()
+        .await
+        .context("Failed to read response body from Azure")?;
 
-    let request = format_http_request(method, &azure_url, &azure_headers, &azure_body);
-    remote_socket.write_all(&request).await
-        .context("Failed to write to Azure")?;
-    remote_socket.write_all(&azure_body).await
-        .context("Failed to write body to Azure")?;
-
-    // Read response from Azure
-    let mut response_body = Vec::new();
-    let mut buffer = vec![0u8; 65536];
-    loop {
-        match remote_socket.read(&mut buffer).await {
-            Ok(0) => break,
-            Ok(n) => response_body.extend_from_slice(&buffer[..n]),
-            Err(e) => {
-                warn!("Error reading from Azure: {}", e);
-                break;
-            }
-        }
-    }
-
-    // Extract headers and body from response
-    let response_str = String::from_utf8_lossy(&response_body);
-    let response_body_part = if let Some(pos) = response_str.find("\r\n\r\n") {
-        let (_, body) = response_str.split_at(pos + 4);
-        body.as_bytes()
-    } else {
-        response_body.as_slice()
-    };
+    debug!(
+        status = %status,
+        response_size = response_body.len(),
+        "Received response from Azure"
+    );
 
     // Parse Azure response
-    let azure_response: serde_json::Value = serde_json::from_slice(response_body_part)
+    let azure_response: serde_json::Value = serde_json::from_slice(&response_body)
         .context("Failed to parse Azure response")?;
 
     // Translate back to Anthropic format
@@ -345,17 +366,17 @@ async fn handle_azure_request(
     let final_body = serde_json::to_vec(&anthropic_response)
         .context("Failed to serialize Anthropic response")?;
 
-    // Build response headers for client
-    let response_headers = vec![
-        ("Content-Type".to_string(), "application/json".to_string()),
-        ("Content-Length".to_string(), final_body.len().to_string()),
-        ("Connection".to_string(), "close".to_string()),
-    ];
+    // Build HTTP response for client
+    let http_response = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        final_body.len()
+    );
 
-    // Build and send response to client
-    let response = format_http_response(&response_headers, &final_body);
-    client.write_all(&response).await
-        .context("Failed to write response to client")?;
+    // Send response to client
+    client_socket.write_all(http_response.as_bytes()).await
+        .context("Failed to write response headers to client")?;
+    client_socket.write_all(&final_body).await
+        .context("Failed to write response body to client")?;
 
     debug!(
         response_size = final_body.len(),
@@ -365,40 +386,23 @@ async fn handle_azure_request(
     Ok(())
 }
 
-/// Format HTTP request
-fn format_http_request(method: &str, path: &str, headers: &[(String, String)], body: &[u8]) -> Vec<u8> {
-    let mut request = format!("{} {} HTTP/1.1\r\n", method, path);
-
-    for (key, value) in headers {
-        request.push_str(&format!("{}: {}\r\n", key, value));
-    }
-
-    request.push_str("Connection: close\r\n");
-    request.push_str("\r\n");
-
-    let mut result = request.into_bytes();
-    result.extend_from_slice(body);
-    result
-}
-
-/// Format HTTP response
-fn format_http_response(headers: &[(String, String)], body: &[u8]) -> Vec<u8> {
-    let mut response = "HTTP/1.1 200 OK\r\n".to_string();
-
-    for (key, value) in headers {
-        response.push_str(&format!("{}: {}\r\n", key, value));
-    }
-
-    response.push_str("\r\n");
-
-    let mut result = response.into_bytes();
-    result.extend_from_slice(body);
-    result
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Format HTTP request (test helper)
+    fn format_http_request(method: &str, path: &str, headers: &[(String, String)], _body: &[u8]) -> Vec<u8> {
+        let mut request = format!("{} {} HTTP/1.1\r\n", method, path);
+
+        for (key, value) in headers {
+            request.push_str(&format!("{}: {}\r\n", key, value));
+        }
+
+        request.push_str("Connection: close\r\n");
+        request.push_str("\r\n");
+
+        request.into_bytes()
+    }
 
     #[test]
     fn test_format_http_request() {
