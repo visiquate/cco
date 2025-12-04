@@ -64,6 +64,14 @@ pub struct ClaudeAgent {
 }
 
 impl OrchestraConfig {
+    /// Load orchestra configuration from embedded config (compile-time)
+    pub fn load_embedded() -> Result<Self> {
+        let content = crate::embedded_config::embedded_orchestra_config_str();
+        let config: OrchestraConfig = serde_json::from_str(content)
+            .context("Failed to parse embedded orchestra-config.json")?;
+        Ok(config)
+    }
+
     /// Load orchestra configuration from JSON file
     pub fn load(path: &str) -> Result<Self> {
         let content = fs::read_to_string(path)

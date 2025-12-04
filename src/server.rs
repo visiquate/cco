@@ -1793,58 +1793,47 @@ async fn claude_history_metrics() -> Result<Json<crate::claude_history::ClaudeMe
 fn load_agent_models() -> HashMap<String, String> {
     let mut agent_models = HashMap::new();
 
-    // Embed orchestra-config.json at compile time (same pattern as dashboard.html)
-    // Path is relative to this source file: src/server.rs → ../config/orchestra-config.json
-    const ORCHESTRA_CONFIG: &str = include_str!("../config/orchestra-config.json");
+    // Use shared embedded config module
+    let config = crate::embedded_config::embedded_orchestra_config();
 
-    match serde_json::from_str::<serde_json::Value>(ORCHESTRA_CONFIG) {
-        Ok(config) => {
-            // Extract architect model
-            if let Some(architect) = config.get("architect") {
-                if let Some(model) = architect.get("model").and_then(|m| m.as_str()) {
-                    agent_models.insert("chief-architect".to_string(), model.to_string());
-                    info!("✓ Loaded architect model: {}", model);
-                }
-            }
-
-            // Extract coding agents models
-            if let Some(agents) = config.get("codingAgents").and_then(|a| a.as_array()) {
-                for agent in agents {
-                    if let (Some(agent_type), Some(model)) = (
-                        agent.get("type").and_then(|t| t.as_str()),
-                        agent.get("model").and_then(|m| m.as_str()),
-                    ) {
-                        agent_models.insert(agent_type.to_string(), model.to_string());
-                        info!("✓ Loaded agent model: {} → {}", agent_type, model);
-                    }
-                }
-            }
-
-            // Extract support agents models
-            if let Some(agents) = config.get("supportTeam").and_then(|a| a.as_array()) {
-                for agent in agents {
-                    if let (Some(agent_type), Some(model)) = (
-                        agent.get("type").and_then(|t| t.as_str()),
-                        agent.get("model").and_then(|m| m.as_str()),
-                    ) {
-                        agent_models.insert(agent_type.to_string(), model.to_string());
-                        info!("✓ Loaded agent model: {} → {}", agent_type, model);
-                    }
-                }
-            }
-
-            info!(
-                "📊 Loaded {} agent model configurations from embedded orchestration config",
-                agent_models.len()
-            );
-        }
-        Err(e) => {
-            info!(
-                "⚠️  Failed to parse embedded orchestra-config.json: {}. Using defaults.",
-                e
-            );
+    // Extract architect model
+    if let Some(architect) = config.get("architect") {
+        if let Some(model) = architect.get("model").and_then(|m| m.as_str()) {
+            agent_models.insert("chief-architect".to_string(), model.to_string());
+            info!("✓ Loaded architect model: {}", model);
         }
     }
+
+    // Extract coding agents models
+    if let Some(agents) = config.get("codingAgents").and_then(|a| a.as_array()) {
+        for agent in agents {
+            if let (Some(agent_type), Some(model)) = (
+                agent.get("type").and_then(|t| t.as_str()),
+                agent.get("model").and_then(|m| m.as_str()),
+            ) {
+                agent_models.insert(agent_type.to_string(), model.to_string());
+                info!("✓ Loaded agent model: {} → {}", agent_type, model);
+            }
+        }
+    }
+
+    // Extract support agents models
+    if let Some(agents) = config.get("supportTeam").and_then(|a| a.as_array()) {
+        for agent in agents {
+            if let (Some(agent_type), Some(model)) = (
+                agent.get("type").and_then(|t| t.as_str()),
+                agent.get("model").and_then(|m| m.as_str()),
+            ) {
+                agent_models.insert(agent_type.to_string(), model.to_string());
+                info!("✓ Loaded agent model: {} → {}", agent_type, model);
+            }
+        }
+    }
+
+    info!(
+        "📊 Loaded {} agent model configurations from embedded orchestration config",
+        agent_models.len()
+    );
 
     agent_models
 }

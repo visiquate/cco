@@ -11,6 +11,7 @@ pub mod cache;
 pub mod claude_history;
 pub mod credentials;
 pub mod daemon;
+pub mod embedded_config;
 pub mod embedded_agents;
 pub mod metrics;
 pub mod monitor;
@@ -32,6 +33,10 @@ pub use api_client::{Agent, ApiClient, HealthResponse, Stats};
 pub use cache::{CachedResponse, MokaCache};
 pub use claude_history::{load_claude_project_metrics, ClaudeMetrics, ModelBreakdown};
 pub use daemon::{DaemonConfig, DaemonManager, DaemonStatus};
+pub use embedded_config::{
+    embedded_orchestra_config, embedded_orchestra_config_str, get_gateway_config,
+    get_llm_routing_config,
+};
 pub use metrics::{ApiCallEvent, MetricsEngine, MetricsSummary, ModelTier, TokenBreakdown};
 pub use monitor::{MonitorConfig, MonitorService};
 pub use proxy::{ChatRequest, ChatResponse, Message, ProxyServer};

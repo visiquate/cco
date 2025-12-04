@@ -42,17 +42,14 @@ impl LlmRouter {
 
     /// Load router from orchestra config file
     pub fn from_orchestra_config(config_path: Option<PathBuf>) -> Result<Self> {
-        let path = config_path.unwrap_or_else(|| {
-            dirs::home_dir()
-                .expect("Could not determine home directory")
-                .join("git")
-                .join("cc-orchestra")
-                .join("config")
-                .join("orchestra-config.json")
-        });
-
-        let config_str = std::fs::read_to_string(&path)
-            .with_context(|| format!("Failed to read orchestra config: {:?}", path))?;
+        let config_str = if let Some(path) = config_path {
+            // Allow explicit path override for testing
+            std::fs::read_to_string(&path)
+                .with_context(|| format!("Failed to read orchestra config: {:?}", path))?
+        } else {
+            // Use embedded config (default)
+            crate::embedded_config::embedded_orchestra_config_str().to_string()
+        };
 
         let full_config: serde_json::Value = serde_json::from_str(&config_str)
             .context("Failed to parse orchestra config JSON")?;

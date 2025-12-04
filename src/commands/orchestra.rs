@@ -5,7 +5,6 @@
 
 use anyhow::Result;
 use cco::orchestra::{OrchestraConfig, Agent};
-use std::path::PathBuf;
 
 use crate::OrchestraAction;
 
@@ -157,24 +156,10 @@ async fn workflow(requirement: String, format: String) -> Result<()> {
     format_output(&data, &format)
 }
 
-/// Load orchestra configuration
+/// Load orchestra configuration from embedded config
 fn load_config() -> Result<OrchestraConfig> {
-    // Try to find orchestra-config.json
-    let possible_paths = vec![
-        PathBuf::from("config/orchestra-config.json"),
-        PathBuf::from("../config/orchestra-config.json"),
-        PathBuf::from("/Users/brent/git/cc-orchestra/config/orchestra-config.json"),
-    ];
-
-    for path in possible_paths {
-        if path.exists() {
-            return OrchestraConfig::load(path.to_str().unwrap());
-        }
-    }
-
-    anyhow::bail!(
-        "Orchestra config not found. Expected: config/orchestra-config.json"
-    )
+    // Use embedded config - no filesystem access needed
+    OrchestraConfig::load_embedded()
 }
 
 /// Select agents based on requirement keywords

@@ -245,17 +245,14 @@ fn default_retention_days() -> u32 {
 
 /// Load gateway config from orchestra-config.json
 pub fn load_from_orchestra_config(config_path: Option<PathBuf>) -> anyhow::Result<GatewayConfig> {
-    let path = config_path.unwrap_or_else(|| {
-        dirs::home_dir()
-            .expect("Could not determine home directory")
-            .join("git")
-            .join("cc-orchestra")
-            .join("config")
-            .join("orchestra-config.json")
-    });
-
-    let config_str = std::fs::read_to_string(&path)
-        .map_err(|e| anyhow::anyhow!("Failed to read config from {:?}: {}", path, e))?;
+    let config_str = if let Some(path) = config_path {
+        // Allow explicit path override for testing
+        std::fs::read_to_string(&path)
+            .map_err(|e| anyhow::anyhow!("Failed to read config from {:?}: {}", path, e))?
+    } else {
+        // Use embedded config (default)
+        crate::embedded_config::embedded_orchestra_config_str().to_string()
+    };
 
     let full_config: serde_json::Value = serde_json::from_str(&config_str)
         .map_err(|e| anyhow::anyhow!("Failed to parse config JSON: {}", e))?;
