@@ -194,6 +194,17 @@ enum Commands {
         #[command(subcommand)]
         action: OrchestraAction,
     },
+
+    /// Re-sign binary with JIT entitlements (macOS only)
+    ///
+    /// Required for ML inference on some macOS systems.
+    /// Run this after copying the binary to a new machine.
+    #[cfg(target_os = "macos")]
+    SelfSign {
+        /// Path to binary (default: current executable)
+        #[arg(short, long)]
+        path: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1061,6 +1072,74 @@ async fn main() -> anyhow::Result<()> {
             tracing_subscriber::fmt::init();
 
             commands::orchestra::run(action).await
+        }
+
+        #[cfg(target_os = "macos")]
+        Commands::SelfSign { path } => {
+            // Initialize tracing
+            tracing_subscriber::fmt::init();
+
+            // Embedded entitlements for JIT/Metal support
+            const ENTITLEMENTS: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+</dict>
+</plist>
+"#;
+
+            let binary_path = match path {
+                Some(p) => std::path::PathBuf::from(p),
+                None => std::env::current_exe()?,
+            };
+
+            println!("🔐 Re-signing binary with JIT entitlements...");
+            println!("   Binary: {}", binary_path.display());
+
+            // Write entitlements to temp file
+            let temp_dir = std::env::temp_dir();
+            let entitlements_path = temp_dir.join("cco-entitlements.plist");
+            std::fs::write(&entitlements_path, ENTITLEMENTS)?;
+
+            // Run codesign
+            let output = std::process::Command::new("codesign")
+                .args([
+                    "--force",
+                    "--sign", "-",
+                    "--entitlements", entitlements_path.to_str().unwrap(),
+                    "--options", "runtime",
+                    binary_path.to_str().unwrap(),
+                ])
+                .output()?;
+
+            // Clean up temp file
+            let _ = std::fs::remove_file(&entitlements_path);
+
+            if output.status.success() {
+                println!("✅ Binary signed successfully!");
+                println!("\n   Entitlements applied:");
+                println!("   - com.apple.security.cs.allow-jit");
+                println!("   - com.apple.security.cs.allow-unsigned-executable-memory");
+                println!("   - com.apple.security.cs.disable-library-validation");
+
+                // Clear quarantine attribute
+                let _ = std::process::Command::new("xattr")
+                    .args(["-c", binary_path.to_str().unwrap()])
+                    .output();
+
+                println!("\n   Run 'cco --version' to verify.");
+                Ok(())
+            } else {
+                eprintln!("❌ Signing failed:");
+                eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+                std::process::exit(1);
+            }
         }
 
         Commands::Orchestration { action } => {
