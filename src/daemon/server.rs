@@ -1142,54 +1142,7 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
     info!("   Hooks enabled: {}", config.hooks.is_enabled());
 
     // Initialize daemon state
-    let mut state = DaemonState::new(config.clone()).await?;
-
-    // Try to start LiteLLM subprocess if PEX is available
-    if let Ok(mut litellm) = super::litellm::LiteLLMProcess::with_defaults() {
-        info!("🔄 Starting LiteLLM subprocess...");
-        match litellm.start().await {
-            Ok(()) => {
-                let url = litellm.endpoint_url();
-                info!("✅ LiteLLM subprocess started successfully: {}", url);
-
-                // Replace gateway with LiteLLM-enabled version if we have a gateway config
-                if state.llm_gateway.is_some() {
-                    match super::llm_gateway::config::load_from_orchestra_config(None) {
-                        Ok(gateway_config) => {
-                            match super::llm_gateway::LlmGateway::new_with_litellm(
-                                gateway_config,
-                                &url
-                            ).await {
-                                Ok(new_gateway) => {
-                                    info!("✅ LLM Gateway reconfigured to use LiteLLM");
-                                    state.llm_gateway = Some(Arc::new(new_gateway));
-                                }
-                                Err(e) => {
-                                    warn!("Failed to create LiteLLM-enabled gateway: {}", e);
-                                    warn!("Falling back to direct provider mode");
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            warn!("Failed to reload gateway config: {}", e);
-                        }
-                    }
-                }
-
-                // Store the process for cleanup
-                if let Ok(mut process_guard) = state.litellm_process.lock() {
-                    *process_guard = Some(litellm);
-                }
-            }
-            Err(e) => {
-                info!("ℹ️  LiteLLM subprocess failed to start: {}", e);
-                info!("   Falling back to direct provider mode");
-            }
-        }
-    } else {
-        info!("ℹ️  LiteLLM PEX not available, using direct provider mode");
-    }
-
+    let state = DaemonState::new(config.clone()).await?;
     let state = Arc::new(state);
 
     // Create router (clone state for router while keeping reference for logging)
@@ -1275,6 +1228,32 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
             }
         }
     }
+
+    // Spawn LiteLLM startup in background (non-blocking)
+    // This allows the main daemon to start immediately while LiteLLM initializes
+    let state_for_litellm = Arc::clone(&state);
+    tokio::spawn(async move {
+        if let Ok(mut litellm) = super::litellm::LiteLLMProcess::with_defaults() {
+            info!("🔄 Starting LiteLLM subprocess in background...");
+            match litellm.start().await {
+                Ok(()) => {
+                    let url = litellm.endpoint_url();
+                    info!("✅ LiteLLM subprocess started successfully: {}", url);
+
+                    // Store the process for cleanup
+                    if let Ok(mut process_guard) = state_for_litellm.litellm_process.lock() {
+                        *process_guard = Some(litellm);
+                    }
+                }
+                Err(e) => {
+                    info!("ℹ️  LiteLLM subprocess failed to start: {}", e);
+                    info!("   Using direct provider mode");
+                }
+            }
+        } else {
+            info!("ℹ️  LiteLLM PEX not available, using direct provider mode");
+        }
+    });
 
     info!("✅ Daemon server listening on http://{}", actual_addr);
     info!("   Actual Port: {}", actual_port);
