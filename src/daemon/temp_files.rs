@@ -64,23 +64,25 @@ impl TempFileManager {
     /// Write CCO plugin files to VFS
     ///
     /// Creates the plugin directory structure:
-    /// - {temp_dir}/.cco-plugins/cco/plugin.json
+    /// - {temp_dir}/.cco-plugins/cco/.claude-plugin/plugin.json
     /// - {temp_dir}/.cco-plugins/cco/hooks/hooks.json
     ///
     /// The hooks use $CCO_DAEMON_PORT environment variable for the daemon port,
     /// which must be set by the launcher when starting Claude Code.
     pub fn write_plugin_files(&self) -> Result<()> {
         // Embedded plugin files
-        const PLUGIN_JSON: &str = include_str!("../../config/plugin/plugin.json");
+        const PLUGIN_JSON: &str = include_str!("../../config/plugin/.claude-plugin/plugin.json");
         const HOOKS_JSON: &str = include_str!("../../config/plugin/hooks/hooks.json");
 
-        // Create directory structure: .cco-plugins/cco/hooks/
+        // Create directory structure: .cco-plugins/cco/.claude-plugin/ and .cco-plugins/cco/hooks/
         let plugin_root = self.plugin_dir_path.join("cco");
+        let claude_plugin_dir = plugin_root.join(".claude-plugin");
         let hooks_dir = plugin_root.join("hooks");
+        fs::create_dir_all(&claude_plugin_dir)?;
         fs::create_dir_all(&hooks_dir)?;
 
-        // Write plugin.json
-        let plugin_json_path = plugin_root.join("plugin.json");
+        // Write .claude-plugin/plugin.json
+        let plugin_json_path = claude_plugin_dir.join("plugin.json");
         fs::write(&plugin_json_path, PLUGIN_JSON)?;
 
         // Write hooks/hooks.json
