@@ -60,6 +60,10 @@ release:
 	@cargo build $(RELEASE_FLAGS) $(CARGO_FLAGS)
 	@echo "Stripping symbols..."
 	@$(STRIP_CMD) target/release/cco || true
+ifeq ($(UNAME_S),Darwin)
+	@echo "Signing binary with entitlements (macOS)..."
+	@codesign --force --sign - --entitlements config/cco.entitlements --options runtime target/release/cco
+endif
 	@echo "Release build complete: target/release/cco"
 	@ls -lh target/release/cco
 
@@ -111,6 +115,11 @@ install: release
 	@mkdir -p $(INSTALL_DIR)
 	@cp target/release/cco $(INSTALL_DIR)/
 	@chmod +x $(INSTALL_DIR)/cco
+ifeq ($(UNAME_S),Darwin)
+	@echo "Signing binary with entitlements (macOS)..."
+	@codesign --force --sign - --entitlements config/cco.entitlements --options runtime $(INSTALL_DIR)/cco
+	@echo "Code signature applied with JIT entitlements"
+endif
 	@echo "Installation complete!"
 	@echo "CCO installed at: $(INSTALL_DIR)/cco"
 	@$(INSTALL_DIR)/cco --version 2>/dev/null || echo "Verify with: cco --version"
