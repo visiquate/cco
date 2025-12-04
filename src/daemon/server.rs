@@ -1042,29 +1042,15 @@ fn create_router(state: Arc<DaemonState>) -> Router {
     }
 
     // Mount knowledge routes if knowledge store is available
+    // NOTE: Knowledge routes do NOT require authentication because:
+    // 1. The daemon only binds to localhost (127.0.0.1) - no external access
+    // 2. These endpoints are called by hooks (session-start, pre-compaction) via curl
+    // 3. Hooks cannot include auth tokens, so auth would break hook functionality
     if let Some(ref knowledge_store) = state.knowledge_store {
-        info!("Mounting knowledge API routes at /api/knowledge/*");
+        info!("Mounting knowledge API routes at /api/knowledge/* (no auth - localhost only)");
 
-        // Create knowledge routes without state first
-        let mut knowledge_routes = knowledge_router_without_state();
-
-        if let Some(ref token_manager) = state.token_manager {
-            // Apply authentication middleware to all knowledge routes
-            let auth_layer = middleware::from_fn({
-                let token_manager = Arc::clone(token_manager);
-                move |req, next| {
-                    let token_manager = Arc::clone(&token_manager);
-                    async move {
-                        super::security::AuthMiddleware::authenticate(token_manager, req, next)
-                            .await
-                    }
-                }
-            });
-
-            knowledge_routes = knowledge_routes.layer(auth_layer);
-        } else {
-            warn!("Token manager not available - knowledge routes will NOT be authenticated");
-        }
+        // Create knowledge routes without auth middleware
+        let knowledge_routes = knowledge_router_without_state();
 
         // Apply knowledge store state and nest under main router
         let knowledge_routes_with_state = knowledge_routes.with_state(Arc::clone(knowledge_store));

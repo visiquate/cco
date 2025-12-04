@@ -4,11 +4,10 @@
 
 use super::models::*;
 use super::store::KnowledgeStore;
-use crate::daemon::security::auth::AuthContext;
 use crate::daemon::security::credential_detector::CredentialDetector;
 use crate::daemon::security::validation::ValidatedMetadata;
 use axum::{
-    extract::{Extension, Path, State},
+    extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
@@ -79,7 +78,6 @@ pub fn knowledge_router(store: KnowledgeState) -> Router {
 /// Body: StoreKnowledgeRequest
 async fn store_handler(
     State(store): State<KnowledgeState>,
-    Extension(_auth): Extension<AuthContext>,
     Json(request): Json<StoreKnowledgeRequest>,
 ) -> Result<Json<StoreKnowledgeResponse>, ApiError> {
     // Validate text size (10 MB max)
@@ -120,7 +118,6 @@ async fn store_handler(
 /// Body: Vec<StoreKnowledgeRequest>
 async fn store_batch_handler(
     State(store): State<KnowledgeState>,
-    Extension(_auth): Extension<AuthContext>,
     Json(requests): Json<Vec<StoreKnowledgeRequest>>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
     // Validate total size (50 MB for batch)
@@ -166,7 +163,6 @@ async fn store_batch_handler(
 /// Body: SearchRequest
 async fn search_handler(
     State(store): State<KnowledgeState>,
-    Extension(_auth): Extension<AuthContext>,
     Json(request): Json<SearchRequest>,
 ) -> Result<Json<Vec<SearchResult>>, ApiError> {
     // Validate query size (100 KB max)
@@ -188,7 +184,6 @@ async fn search_handler(
 /// GET /api/knowledge/project/:project_id?type=<type>&limit=<limit>
 async fn project_knowledge_handler(
     State(store): State<KnowledgeState>,
-    Extension(_auth): Extension<AuthContext>,
     Path(project_id): Path<String>,
 ) -> Result<Json<Vec<SearchResult>>, ApiError> {
     let store = store.lock().await;
@@ -206,7 +201,6 @@ async fn project_knowledge_handler(
 /// Body: SessionStartRequest
 async fn session_start_handler(
     State(store): State<KnowledgeState>,
-    Extension(_auth): Extension<AuthContext>,
     Json(request): Json<SessionStartRequest>,
 ) -> Result<Json<SessionStartResponse>, ApiError> {
     let mut store = store.lock().await;
@@ -223,7 +217,6 @@ async fn session_start_handler(
 /// Body: PreCompactionRequest
 async fn pre_compaction_handler(
     State(store): State<KnowledgeState>,
-    Extension(_auth): Extension<AuthContext>,
     Json(request): Json<PreCompactionRequest>,
 ) -> Result<Json<PreCompactionResponse>, ApiError> {
     let mut store = store.lock().await;
@@ -240,7 +233,6 @@ async fn pre_compaction_handler(
 /// Body: PostCompactionRequest
 async fn post_compaction_handler(
     State(store): State<KnowledgeState>,
-    Extension(_auth): Extension<AuthContext>,
     Json(request): Json<PostCompactionRequest>,
 ) -> Result<Json<PostCompactionResponse>, ApiError> {
     let store = store.lock().await;
@@ -256,7 +248,6 @@ async fn post_compaction_handler(
 /// GET /api/knowledge/stats
 async fn stats_handler(
     State(store): State<KnowledgeState>,
-    Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<StatsResponse>, ApiError> {
     let store = store.lock().await;
 
@@ -272,7 +263,6 @@ async fn stats_handler(
 /// Body: CleanupRequest
 async fn cleanup_handler(
     State(store): State<KnowledgeState>,
-    Extension(_auth): Extension<AuthContext>,
     Json(request): Json<CleanupRequest>,
 ) -> Result<Json<CleanupResponse>, ApiError> {
     let store = store.lock().await;
@@ -286,7 +276,6 @@ async fn cleanup_handler(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::daemon::security::auth::Token;
     use tempfile::TempDir;
 
     /// Creates a test store and returns it along with the temp dir (to keep it alive)
@@ -301,23 +290,9 @@ mod tests {
         (Arc::new(Mutex::new(store)), temp_dir)
     }
 
-    fn create_test_auth() -> AuthContext {
-        AuthContext {
-            token: Token {
-                token_hash: "test_hash".to_string(),
-                created_at: chrono::Utc::now(),
-                expires_at: chrono::Utc::now() + chrono::Duration::hours(24),
-                project_id: "test_project".to_string(),
-                revoked: false,
-            },
-            project_id: "test_project".to_string(),
-        }
-    }
-
     #[tokio::test]
     async fn test_store_handler() {
         let (store, _temp_dir) = create_test_store().await;
-        let auth = create_test_auth();
         let request = StoreKnowledgeRequest {
             text: "Test knowledge".to_string(),
             knowledge_type: Some("decision".to_string()),
@@ -327,14 +302,13 @@ mod tests {
             metadata: None,
         };
 
-        let result = store_handler(State(store), Extension(auth), Json(request)).await;
+        let result = store_handler(State(store), Json(request)).await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_search_handler() {
         let (store, _temp_dir) = create_test_store().await;
-        let auth = create_test_auth();
         let request = SearchRequest {
             query: "test".to_string(),
             limit: 10,
@@ -344,7 +318,7 @@ mod tests {
             agent: None,
         };
 
-        let result = search_handler(State(store), Extension(auth), Json(request)).await;
+        let result = search_handler(State(store), Json(request)).await;
         assert!(result.is_ok(), "Search failed: {:?}", result.err());
     }
 }
