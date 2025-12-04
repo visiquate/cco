@@ -10,15 +10,17 @@ use axum::{
     body::Body,
     extract::{Json, Query, State},
     http::{header, HeaderMap, StatusCode},
-    response::{IntoResponse, Response},
+    response::{IntoResponse, Response, sse::{Event, Sse}},
     routing::{get, post},
     Router,
 };
-use futures::StreamExt;
+use futures::{Stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::convert::Infallible;
 
 use super::{CompletionRequest, GatewayState, LlmGateway};
+use crate::sse::parser::SseParser;
 
 /// Create the gateway router
 pub fn gateway_router() -> Router<GatewayState> {
@@ -31,6 +33,8 @@ pub fn gateway_router() -> Router<GatewayState> {
         .route("/gateway/metrics/reset", post(reset_metrics_handler))
         .route("/gateway/providers", get(providers_handler))
         .route("/gateway/audit", get(audit_handler))
+        // Streaming events for TUI
+        .route("/api/streams/subscribe", get(stream_subscribe_handler))
 }
 
 /// Create a stateful gateway router
@@ -89,53 +93,175 @@ async fn complete_handler(
 
 /// Handle streaming completion requests
 /// Returns SSE (Server-Sent Events) response forwarded from the provider or LiteLLM
+/// Also parses SSE events and broadcasts them to TUI subscribers
 async fn handle_streaming_request(
     gateway: GatewayState,
     request: CompletionRequest,
     auth_header: Option<String>,
     beta_header: Option<String>,
 ) -> Response {
+    // Generate request ID for tracking
+    let request_id = uuid::Uuid::new_v4().to_string();
+
     // Get the byte stream - use LiteLLM if available, otherwise direct provider
     let byte_stream = if let Some(ref litellm) = gateway.litellm_client {
-        tracing::debug!("Using LiteLLM client for streaming request");
-        match litellm.complete_stream(request, auth_header, beta_header).await {
+        tracing::debug!(request_id = %request_id, "Using LiteLLM client for streaming request");
+        match litellm.complete_stream(request.clone(), auth_header, beta_header).await {
             Ok(stream) => stream,
             Err(e) => {
-                tracing::error!(error = %e, "Failed to start LiteLLM streaming");
+                tracing::error!(request_id = %request_id, error = %e, "Failed to start LiteLLM streaming");
+                // Emit error event
+                gateway.stream_broadcaster.send(super::sse_broadcast::TuiStreamEvent::Error {
+                    request_id: request_id.clone(),
+                    message: e.to_string(),
+                });
                 return GatewayError::ProviderError(e.to_string()).into_response();
             }
         }
     } else {
         // Get the provider for this request
         let route = gateway.router.route(&request);
-        tracing::debug!(provider = %route.provider, "Using direct provider for streaming");
+        tracing::debug!(request_id = %request_id, provider = %route.provider, "Using direct provider for streaming");
 
         let provider = match gateway.providers.get(&route.provider) {
             Ok(p) => p,
             Err(e) => {
-                tracing::error!(error = %e, "Failed to get provider for streaming");
+                tracing::error!(request_id = %request_id, error = %e, "Failed to get provider for streaming");
+                // Emit error event
+                gateway.stream_broadcaster.send(super::sse_broadcast::TuiStreamEvent::Error {
+                    request_id: request_id.clone(),
+                    message: e.to_string(),
+                });
                 return GatewayError::ProviderError(e.to_string()).into_response();
             }
         };
 
         // Get the byte stream from the provider
-        match provider.complete_stream(request, auth_header, beta_header).await {
+        match provider.complete_stream(request.clone(), auth_header, beta_header).await {
             Ok(stream) => stream,
             Err(e) => {
-                tracing::error!(error = %e, "Failed to start streaming");
+                tracing::error!(request_id = %request_id, error = %e, "Failed to start streaming");
+                // Emit error event
+                gateway.stream_broadcaster.send(super::sse_broadcast::TuiStreamEvent::Error {
+                    request_id: request_id.clone(),
+                    message: e.to_string(),
+                });
                 return GatewayError::ProviderError(e.to_string()).into_response();
             }
         }
     };
 
     tracing::info!(
+        request_id = %request_id,
         using_litellm = gateway.litellm_client.is_some(),
         "Streaming response started"
     );
 
-    // Convert the byte stream to an axum Body stream
-    // Map reqwest errors to std::io::Error for compatibility
-    let body_stream = byte_stream.map(|result| {
+    // Emit Started event
+    gateway.stream_broadcaster.send(super::sse_broadcast::TuiStreamEvent::Started {
+        request_id: request_id.clone(),
+        model: request.model.clone(),
+        agent_type: request.agent_type.clone(),
+    });
+
+    // Create a stream that:
+    // 1. Parses SSE events from the bytes
+    // 2. Emits TuiStreamEvents to broadcaster
+    // 3. Passes bytes through unchanged
+    let broadcaster = gateway.stream_broadcaster.clone();
+    let req_id = request_id.clone();
+
+    // Track usage for final completion event using Arc<Mutex<_>> for interior mutability
+    use std::sync::Mutex;
+    let usage_tracker = Arc::new(Mutex::new((0u32, 0u32))); // (input_tokens, output_tokens)
+
+    let passthrough_stream = byte_stream.map(move |chunk_result| {
+        match chunk_result {
+            Ok(bytes) => {
+                // Parse SSE events from this chunk
+                let text = match std::str::from_utf8(&bytes) {
+                    Ok(t) => t,
+                    Err(_) => {
+                        // If not valid UTF-8, just pass through
+                        return Ok(bytes);
+                    }
+                };
+
+                // Parse SSE events (using a temporary parser for each chunk)
+                // Note: This is a simplified approach - in production you'd want to maintain
+                // parser state across chunks, but for our use case (broadcasting deltas),
+                // this is sufficient since we're primarily interested in text_delta events
+                let mut parser = SseParser::new();
+                let events = parser.process_chunk(text);
+
+                for event in events {
+                    // Try to parse as JSON
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&event.data) {
+                        // Handle content_block_delta events with text deltas
+                        if json.get("type").and_then(|t| t.as_str()) == Some("content_block_delta") {
+                            if let Some(delta_text) = json
+                                .get("delta")
+                                .and_then(|d| d.get("text"))
+                                .and_then(|t| t.as_str())
+                            {
+                                broadcaster.send(super::sse_broadcast::TuiStreamEvent::TextDelta {
+                                    request_id: req_id.clone(),
+                                    text: delta_text.to_string(),
+                                });
+                            }
+                        }
+                        // Handle message_delta for usage updates
+                        else if json.get("type").and_then(|t| t.as_str()) == Some("message_delta") {
+                            if let Some(usage) = json.get("usage") {
+                                if let Ok(mut tracker) = usage_tracker.lock() {
+                                    if let Some(input) = usage.get("input_tokens").and_then(|t| t.as_u64()) {
+                                        tracker.0 = input as u32;
+                                    }
+                                    if let Some(output) = usage.get("output_tokens").and_then(|t| t.as_u64()) {
+                                        tracker.1 = output as u32;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Check for termination
+                    if event.is_done() {
+                        // Get final token counts
+                        let (input_tokens, output_tokens) = if let Ok(tracker) = usage_tracker.lock() {
+                            *tracker
+                        } else {
+                            (0, 0)
+                        };
+
+                        // Calculate cost (simplified - in production use actual cost calculation)
+                        let cost_usd = (input_tokens as f64 * 0.00003) + (output_tokens as f64 * 0.00015);
+
+                        broadcaster.send(super::sse_broadcast::TuiStreamEvent::Completed {
+                            request_id: req_id.clone(),
+                            input_tokens,
+                            output_tokens,
+                            cost_usd,
+                        });
+                    }
+                }
+
+                // Pass bytes through unchanged
+                Ok(bytes)
+            }
+            Err(e) => {
+                // Emit error event
+                broadcaster.send(super::sse_broadcast::TuiStreamEvent::Error {
+                    request_id: req_id.clone(),
+                    message: e.to_string(),
+                });
+                Err(e)
+            }
+        }
+    });
+
+    // Convert to io::Error for axum Body compatibility
+    let body_stream = passthrough_stream.map(|result| {
         result.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
     });
 
@@ -148,7 +274,12 @@ async fn handle_streaming_request(
         .header("x-accel-buffering", "no") // Disable nginx buffering
         .body(Body::from_stream(body_stream))
         .unwrap_or_else(|e| {
-            tracing::error!(error = %e, "Failed to build streaming response");
+            tracing::error!(request_id = %request_id, error = %e, "Failed to build streaming response");
+            // Emit error event
+            gateway.stream_broadcaster.send(super::sse_broadcast::TuiStreamEvent::Error {
+                request_id,
+                message: e.to_string(),
+            });
             GatewayError::ProviderError(e.to_string()).into_response()
         })
 }
@@ -318,6 +449,61 @@ async fn audit_handler(
 
     let total = entries.len() as i64;
     Ok(Json(AuditResponse { entries, total }))
+}
+
+/// Stream subscribe endpoint - streams TuiStreamEvents as SSE
+/// This allows the TUI to receive real-time updates about streaming LLM requests
+async fn stream_subscribe_handler(
+    State(gateway): State<GatewayState>,
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    tracing::info!("New TUI stream subscriber connected");
+
+    // Subscribe to the broadcaster
+    let mut receiver = gateway.stream_broadcaster.subscribe();
+
+    // Create a stream that converts TuiStreamEvents to SSE Events
+    let stream = async_stream::stream! {
+        loop {
+            match receiver.recv().await {
+                Ok(event) => {
+                    // Serialize the event to JSON
+                    match serde_json::to_string(&event) {
+                        Ok(json) => {
+                            // Create SSE event with the serialized JSON
+                            let sse_event = Event::default()
+                                .event("stream_event")
+                                .data(json);
+                            yield Ok(sse_event);
+                        }
+                        Err(e) => {
+                            tracing::error!(error = %e, "Failed to serialize TuiStreamEvent");
+                            // Don't break the stream, just skip this event
+                            continue;
+                        }
+                    }
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
+                    tracing::warn!(skipped = %skipped, "TUI subscriber lagged, skipped events");
+                    // Continue receiving, but notify about lag
+                    let lag_event = Event::default()
+                        .event("lag")
+                        .data(format!("{{\"skipped\":{}}}", skipped));
+                    yield Ok(lag_event);
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                    tracing::info!("Stream broadcaster closed, ending TUI subscription");
+                    break;
+                }
+            }
+        }
+    };
+
+    Sse::new(stream)
+        .keep_alive(
+            axum::response::sse::KeepAlive::new()
+                .interval(std::time::Duration::from_secs(15))
+                .text("ping")
+        )
 }
 
 // ============================================================================

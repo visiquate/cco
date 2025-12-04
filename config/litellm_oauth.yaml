@@ -1,0 +1,38 @@
+# LiteLLM OAuth Passthrough Configuration
+#
+# Simpler config that uses LiteLLM's Anthropic passthrough endpoint
+# This forwards ALL headers to Anthropic, enabling OAuth Max Plan billing
+#
+# Start with:
+#   litellm --config config/litellm_oauth.yaml --port 4000
+#
+# Configure Claude Code:
+#   export ANTHROPIC_BASE_URL="http://localhost:4000/anthropic"
+#   export ANTHROPIC_AUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN"
+
+litellm_settings:
+  # Use Anthropic's native endpoint format
+  drop_params: false
+
+  # Enable detailed logging
+  set_verbose: true
+  json_logs: true
+
+  # Long timeout for complex requests
+  request_timeout: 600
+
+general_settings:
+  # SQLite database for cost tracking
+  database_url: "sqlite:///data/litellm_costs.db"
+
+  # Store all model usage
+  store_model_in_db: true
+
+  # Optional master key (set LITELLM_MASTER_KEY env var)
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+# Enable the Anthropic pass-through endpoint at /anthropic/*
+# This forwards requests directly to api.anthropic.com with all headers
+pass_through_endpoints:
+  - path: "/anthropic"
+    target: "https://api.anthropic.com"

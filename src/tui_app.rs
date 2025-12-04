@@ -20,13 +20,16 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, Paragraph},
     Frame, Terminal,
 };
+use std::collections::HashMap;
 use std::io;
 use std::time::{Duration, SystemTime};
 use tokio::sync::mpsc::{self, error::TryRecvError};
 use tokio::time::{interval, sleep};
+use futures::StreamExt;
 
 use crate::api_client::{ApiClient, HealthResponse};
 use crate::daemon::{DaemonConfig, DaemonManager};
+use crate::daemon::llm_gateway::sse_broadcast::TuiStreamEvent;
 
 /// Cost breakdown by tier
 #[derive(Debug, Clone)]
@@ -178,6 +181,16 @@ pub struct OverallSummary {
     pub haiku_cost: f64,
 }
 
+/// Active streaming request information
+#[derive(Debug, Clone)]
+pub struct ActiveStream {
+    pub request_id: String,
+    pub model: String,
+    pub agent_type: Option<String>,
+    pub accumulated_text: String,
+    pub start_time: chrono::DateTime<chrono::Utc>,
+}
+
 /// Per-project summary
 #[derive(Debug, Clone)]
 pub struct ProjectSummary {
@@ -206,6 +219,7 @@ pub enum AppState {
         last_updated: SystemTime,
         time_range: TimeRange,
         history_start_date: Option<SystemTime>,
+        active_streams: HashMap<String, ActiveStream>,
     },
     /// Error state with message
     Error(String),
@@ -301,14 +315,78 @@ impl TuiApp {
         // 2. Load initial data from daemon
         self.load_agents_and_stats().await?;
 
-        // 3. Spawn background stats fetcher task with time_range channel
+        // 3. Set up channels for background tasks
         let (stats_tx, mut stats_rx) = mpsc::channel::<StatsMessage>(10);
         let (time_range_tx, mut time_range_rx) = mpsc::channel::<TimeRange>(10);
+        let (stream_tx, mut stream_rx) = mpsc::channel::<TuiStreamEvent>(100);
+
         let client_clone = self.client.clone();
 
         // Store the time_range_tx in self for later use
         self.time_range_tx = Some(time_range_tx);
 
+        // 4. Spawn background stream event subscriber task
+        let stream_url = format!("{}/api/streams/subscribe", self.client.base_url);
+        tokio::spawn(async move {
+            tracing::info!("Subscribing to daemon stream events at {}", stream_url);
+
+            // Use reqwest to connect to SSE endpoint
+            let client = reqwest::Client::new();
+
+            loop {
+                match client.get(&stream_url).send().await {
+                    Ok(response) => {
+                        tracing::info!("Connected to stream events endpoint");
+                        let mut stream = response.bytes_stream();
+
+                        // Parse SSE events
+                        use crate::sse::parser::SseParser;
+                        let mut parser = SseParser::new();
+
+                        while let Some(chunk_result) = stream.next().await {
+                            match chunk_result {
+                                Ok(bytes) => {
+                                    if let Ok(text) = std::str::from_utf8(bytes.as_ref()) {
+                                        let events = parser.process_chunk(text);
+
+                                        for sse_event in events {
+                                            // Skip keep-alive pings
+                                            if sse_event.data == "ping" {
+                                                continue;
+                                            }
+
+                                            // Parse the TuiStreamEvent from the SSE data
+                                            if let Ok(stream_event) = serde_json::from_str::<TuiStreamEvent>(&sse_event.data) {
+                                                if stream_tx.send(stream_event).await.is_err() {
+                                                    tracing::warn!("Stream event receiver dropped, stopping subscriber");
+                                                    return;
+                                                }
+                                            } else {
+                                                tracing::debug!("Failed to parse SSE event data: {}", sse_event.data);
+                                            }
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    tracing::error!(error = %e, "Stream connection error");
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!(error = %e, "Failed to connect to stream events, retrying in 5s");
+                        tokio::time::sleep(Duration::from_secs(5)).await;
+                    }
+                }
+
+                // Reconnect on disconnect
+                tracing::info!("Stream connection closed, reconnecting in 2s...");
+                tokio::time::sleep(Duration::from_secs(2)).await;
+            }
+        });
+
+        // 5. Spawn background stats fetcher task with time_range channel
         tokio::spawn(async move {
             let mut current_time_range = TimeRange::Today;
             let mut interval = interval(Duration::from_secs(3));
@@ -357,7 +435,7 @@ impl TuiApp {
             }
         });
 
-        // 4. Enter main event loop
+        // 6. Enter main event loop
         loop {
             // Render current state
             self.render()?;
@@ -407,6 +485,20 @@ impl TuiApp {
                         This may indicate an internal error.".to_string()
                     );
                     self.should_quit = true;
+                }
+            }
+
+            // Check for stream events from background task
+            match stream_rx.try_recv() {
+                Ok(event) => {
+                    self.handle_stream_event(event);
+                }
+                Err(TryRecvError::Empty) => {
+                    // No message available, continue polling
+                }
+                Err(TryRecvError::Disconnected) => {
+                    // Stream subscriber stopped - this is not fatal, just log it
+                    tracing::warn!("Stream event subscriber disconnected");
                 }
             }
 
@@ -620,6 +712,7 @@ impl TuiApp {
                     last_updated: SystemTime::now(),
                     time_range,
                     history_start_date,
+                    active_streams: HashMap::new(),
                 };
             }
             (Err(e), _) | (_, Err(e)) => {
@@ -729,7 +822,8 @@ impl TuiApp {
 
     /// Update application state from stats update
     fn update_state_from_stats(&mut self, update: StatsUpdate) {
-        if let AppState::Connected { time_range, .. } = self.state {
+        if let AppState::Connected { time_range, active_streams, .. } = &self.state {
+            let preserved_streams = active_streams.clone();
             self.state = AppState::Connected {
                 cost_by_tier: update.cost_by_tier,
                 recent_calls: update.recent_calls,
@@ -739,9 +833,38 @@ impl TuiApp {
                 project_summaries: update.project_summaries,
                 model_summaries: update.model_summaries,
                 last_updated: SystemTime::now(),
-                time_range, // Preserve user's time range selection
+                time_range: *time_range, // Preserve user's time range selection
                 history_start_date: update.history_start_date,
+                active_streams: preserved_streams, // Preserve active streams
             };
+        }
+    }
+
+    /// Process a streaming event and update active streams
+    fn handle_stream_event(&mut self, event: TuiStreamEvent) {
+        if let AppState::Connected { active_streams, .. } = &mut self.state {
+            match event {
+                TuiStreamEvent::Started { request_id, model, agent_type } => {
+                    active_streams.insert(
+                        request_id.clone(),
+                        ActiveStream {
+                            request_id,
+                            model,
+                            agent_type,
+                            accumulated_text: String::new(),
+                            start_time: chrono::Utc::now(),
+                        },
+                    );
+                }
+                TuiStreamEvent::TextDelta { request_id, text } => {
+                    if let Some(stream) = active_streams.get_mut(&request_id) {
+                        stream.accumulated_text.push_str(&text);
+                    }
+                }
+                TuiStreamEvent::Completed { request_id, .. } | TuiStreamEvent::Error { request_id, .. } => {
+                    active_streams.remove(&request_id);
+                }
+            }
         }
     }
 
@@ -1030,6 +1153,7 @@ impl TuiApp {
                     last_updated,
                     time_range,
                     history_start_date,
+                    active_streams,
                 } = std::mem::replace(&mut self.state, AppState::Initializing {
                     message: "Updating time range...".to_string(),
                 }) {
@@ -1047,6 +1171,7 @@ impl TuiApp {
                         last_updated,
                         time_range: new_time_range,
                         history_start_date,
+                        active_streams,
                     };
 
                     self.status_message =
@@ -1095,6 +1220,7 @@ impl TuiApp {
                 last_updated,
                 time_range,
                 history_start_date,
+                active_streams,
             } => {
                 Self::render_connected(
                     f,
@@ -1109,6 +1235,7 @@ impl TuiApp {
                     *last_updated,
                     *time_range,
                     *history_start_date,
+                    active_streams,
                 );
             }
             AppState::Error(err) => {
@@ -1187,6 +1314,7 @@ impl TuiApp {
         last_updated: SystemTime,
         time_range: TimeRange,
         history_start_date: Option<SystemTime>,
+        active_streams: &HashMap<String, ActiveStream>,
     ) {
         let area = f.size();
 
@@ -1207,11 +1335,18 @@ impl TuiApp {
         Self::render_header(f, health, chunks[0], time_range, history_start_date);
 
         // Main content area layout with Overall Summary and expanded Project Summaries
+        let active_streams_height = if active_streams.is_empty() {
+            0
+        } else {
+            3 + (active_streams.len() as u16).min(5) // Show up to 5 active streams
+        };
+
         let content_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints(
                 [
                     Constraint::Length(3), // Overall Summary
+                    Constraint::Length(active_streams_height), // Active Streams (dynamic)
                     Constraint::Length(3 + (project_summaries.len() as u16).min(10)), // Project Summaries (expanded to show up to 10 projects)
                     Constraint::Length(11), // Cost summary table
                     Constraint::Min(2),     // Recent calls list (dynamic height)
@@ -1223,16 +1358,24 @@ impl TuiApp {
         // Overall Summary (Section 1)
         Self::render_overall_summary(f, overall_summary, content_chunks[0]);
 
-        // Project Summaries (Section 2) - now with more space
+        // Active Streams (Section 2) - only if there are active streams
+        let section_offset = if !active_streams.is_empty() {
+            Self::render_active_streams(f, active_streams, content_chunks[1]);
+            1
+        } else {
+            0
+        };
+
+        // Project Summaries (Section 2 or 3) - now with more space
         if !project_summaries.is_empty() {
-            Self::render_project_summaries(f, project_summaries, content_chunks[1]);
+            Self::render_project_summaries(f, project_summaries, content_chunks[1 + section_offset]);
         }
 
-        // Cost summary by tier (Section 3)
-        Self::render_cost_summary(f, cost_by_tier, model_summaries, content_chunks[2]);
+        // Cost summary by tier (Section 3 or 4)
+        Self::render_cost_summary(f, cost_by_tier, model_summaries, content_chunks[2 + section_offset]);
 
-        // Recent API calls with dynamic height (Section 4)
-        Self::render_recent_calls_dynamic(f, recent_calls, content_chunks[3]);
+        // Recent API calls with dynamic height (Section 4 or 5)
+        Self::render_recent_calls_dynamic(f, recent_calls, content_chunks[3 + section_offset]);
 
         // Footer
         Self::render_footer(f, chunks[2], status_message, last_updated, time_range);
@@ -1305,6 +1448,73 @@ impl TuiApp {
         );
 
         f.render_widget(header, area);
+    }
+
+    /// Render active streaming requests
+    fn render_active_streams(f: &mut Frame, streams: &HashMap<String, ActiveStream>, area: Rect) {
+        let mut stream_list: Vec<_> = streams.values().collect();
+        // Sort by start time (most recent first)
+        stream_list.sort_by(|a, b| b.start_time.cmp(&a.start_time));
+
+        let mut text = Vec::new();
+
+        for stream in stream_list.iter().take(5) {
+            let now = chrono::Utc::now();
+            let duration = now.signed_duration_since(stream.start_time);
+            let duration_str = if duration.num_seconds() < 60 {
+                format!("{}s", duration.num_seconds())
+            } else if duration.num_minutes() < 60 {
+                format!("{}m", duration.num_minutes())
+            } else {
+                format!("{}h", duration.num_hours())
+            };
+
+            // Truncate model name if too long
+            let model_name = if stream.model.len() > 22 {
+                format!("{}...", &stream.model[..19])
+            } else {
+                stream.model.clone()
+            };
+
+            // Get a preview of the accumulated text (first 60 chars)
+            let preview = if stream.accumulated_text.len() > 60 {
+                format!("{}...", &stream.accumulated_text[..57])
+            } else {
+                stream.accumulated_text.clone()
+            };
+
+            let agent_str = if let Some(ref agent) = stream.agent_type {
+                format!(" | agent: {}", agent)
+            } else {
+                String::new()
+            };
+
+            let line = format!(
+                "[LIVE {}] {} {} | {}",
+                duration_str, model_name, agent_str, preview
+            );
+
+            text.push(Line::from(Span::styled(
+                line,
+                Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
+            )));
+        }
+
+        if text.is_empty() {
+            text.push(Line::from(Span::styled(
+                "No active streams",
+                Style::default().fg(Color::DarkGray),
+            )));
+        }
+
+        let para = Paragraph::new(text).block(
+            Block::default()
+                .title(format!("Active Streams ({} live)", streams.len()))
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Green)),
+        );
+
+        f.render_widget(para, area);
     }
 
     /// Render overall summary from metrics

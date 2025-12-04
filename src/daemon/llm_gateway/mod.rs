@@ -14,6 +14,7 @@ pub mod litellm_client;
 pub mod metrics;
 pub mod providers;
 pub mod router;
+pub mod sse_broadcast;
 
 use std::pin::Pin;
 use std::sync::Arc;
@@ -30,6 +31,7 @@ use self::litellm_client::LiteLLMClient;
 use self::metrics::CostTracker;
 use self::providers::ProviderRegistry;
 use self::router::RoutingEngine;
+use self::sse_broadcast::StreamEventBroadcaster;
 
 /// Main LLM Gateway struct
 pub struct LlmGateway {
@@ -39,6 +41,7 @@ pub struct LlmGateway {
     pub cost_tracker: Arc<CostTracker>,
     pub audit_logger: Arc<RwLock<AuditLogger>>,
     pub litellm_client: Option<LiteLLMClient>,
+    pub stream_broadcaster: Arc<StreamEventBroadcaster>,
 }
 
 impl LlmGateway {
@@ -50,6 +53,7 @@ impl LlmGateway {
         let audit_logger = Arc::new(RwLock::new(
             AuditLogger::new(&config.audit).await?,
         ));
+        let stream_broadcaster = Arc::new(StreamEventBroadcaster::default());
 
         Ok(Self {
             config,
@@ -58,6 +62,7 @@ impl LlmGateway {
             cost_tracker,
             audit_logger,
             litellm_client: None,
+            stream_broadcaster,
         })
     }
 
@@ -70,6 +75,7 @@ impl LlmGateway {
             AuditLogger::new(&config.audit).await?,
         ));
         let litellm_client = Some(LiteLLMClient::new(litellm_url)?);
+        let stream_broadcaster = Arc::new(StreamEventBroadcaster::default());
 
         tracing::info!(litellm_url = %litellm_url, "Gateway configured to use LiteLLM");
 
@@ -80,6 +86,7 @@ impl LlmGateway {
             cost_tracker,
             audit_logger,
             litellm_client,
+            stream_broadcaster,
         })
     }
 

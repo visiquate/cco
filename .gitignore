@@ -53,3 +53,4 @@ coverage/
 data/knowledge/
 .build-venv
 dist/litellm.pex
+data/

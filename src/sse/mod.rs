@@ -1,8 +1,11 @@
-//! SSE (Server-Sent Events) client module for streaming analytics from CCO proxy
+//! SSE (Server-Sent Events) utilities
 //!
-//! This module provides an SSE client that connects to the CCO proxy's `/api/stream` endpoint
-//! to receive real-time API call events and record them in the MetricsEngine.
+//! This module provides:
+//! - SSE client for streaming analytics from CCO proxy (`client`)
+//! - SSE parser for parsing LiteLLM/Anthropic streaming responses (`parser`)
 
 pub mod client;
+pub mod parser;
 
 pub use client::SseClient;
+pub use parser::{SseEvent, SseParser};
