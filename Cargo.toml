@@ -10,9 +10,9 @@ edition = "2021"
 display_version = "auto"
 
 [features]
-default = []
-# Enable this feature to embed litellm.pex in the binary
-# Build with: cargo build --features embedded_litellm
+default = ["embedded_litellm"]
+# Embed litellm.pex in the binary for zero external dependencies
+# Disable with: cargo build --no-default-features
 embedded_litellm = []
 
 [[bin]]
