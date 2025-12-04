@@ -201,9 +201,8 @@ impl TempFileManager {
     pub fn generate_agents_json(&self) -> Result<Vec<u8>> {
         use crate::orchestra::OrchestraConfig;
 
-        // Load orchestra config from parent repo
-        let config_path = "/Users/brent/git/cc-orchestra/config/orchestra-config.json";
-        let config = OrchestraConfig::load(config_path)?;
+        // Load orchestra config from embedded binary
+        let config = OrchestraConfig::load_embedded()?;
 
         // Convert to Claude format
         let claude_agents = config.to_claude_format()?;
