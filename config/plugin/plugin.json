@@ -1,0 +1,9 @@
+{
+  "name": "cco",
+  "version": "2025.12.1",
+  "description": "Claude Orchestra - knowledge persistence and session management",
+  "author": {"name": "CCO"},
+  "license": "MIT",
+  "keywords": ["orchestra", "knowledge", "session"],
+  "hooks": "./hooks/hooks.json"
+}

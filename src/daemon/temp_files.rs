@@ -28,6 +28,8 @@ pub struct TempFileManager {
     settings_path: PathBuf,
     system_prompt_path: PathBuf,
     agents_json_path: PathBuf,
+    /// Plugin directory for CCO hooks plugin
+    plugin_dir_path: PathBuf,
 }
 
 impl TempFileManager {
@@ -38,7 +40,67 @@ impl TempFileManager {
             settings_path: temp_dir.join(".cco-orchestrator-settings"),
             system_prompt_path: temp_dir.join(".cco-system-prompt"),
             agents_json_path: temp_dir.join(".cco-agents-json"),
+            plugin_dir_path: temp_dir.join(".cco-plugins"),
         }
+    }
+
+    /// Create a new temp file manager with a suffix for test isolation
+    #[cfg(test)]
+    pub fn new_with_suffix(suffix: &str) -> Self {
+        let temp_dir = env::temp_dir();
+        Self {
+            settings_path: temp_dir.join(format!(".cco-orchestrator-settings-{}", suffix)),
+            system_prompt_path: temp_dir.join(format!(".cco-system-prompt-{}", suffix)),
+            agents_json_path: temp_dir.join(format!(".cco-agents-json-{}", suffix)),
+            plugin_dir_path: temp_dir.join(format!(".cco-plugins-{}", suffix)),
+        }
+    }
+
+    /// Get the plugin directory path for use with --plugin-dir flag
+    pub fn plugin_dir_path(&self) -> &PathBuf {
+        &self.plugin_dir_path
+    }
+
+    /// Write CCO plugin files to VFS
+    ///
+    /// Creates the plugin directory structure:
+    /// - {temp_dir}/.cco-plugins/cco/plugin.json
+    /// - {temp_dir}/.cco-plugins/cco/hooks/hooks.json
+    ///
+    /// The hooks use $CCO_DAEMON_PORT environment variable for the daemon port,
+    /// which must be set by the launcher when starting Claude Code.
+    pub fn write_plugin_files(&self) -> Result<()> {
+        // Embedded plugin files
+        const PLUGIN_JSON: &str = include_str!("../../config/plugin/plugin.json");
+        const HOOKS_JSON: &str = include_str!("../../config/plugin/hooks/hooks.json");
+
+        // Create directory structure: .cco-plugins/cco/hooks/
+        let plugin_root = self.plugin_dir_path.join("cco");
+        let hooks_dir = plugin_root.join("hooks");
+        fs::create_dir_all(&hooks_dir)?;
+
+        // Write plugin.json
+        let plugin_json_path = plugin_root.join("plugin.json");
+        fs::write(&plugin_json_path, PLUGIN_JSON)?;
+
+        // Write hooks/hooks.json
+        let hooks_json_path = hooks_dir.join("hooks.json");
+        fs::write(&hooks_json_path, HOOKS_JSON)?;
+
+        // Set Unix permissions
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&plugin_json_path, fs::Permissions::from_mode(0o644))?;
+            fs::set_permissions(&hooks_json_path, fs::Permissions::from_mode(0o644))?;
+        }
+
+        tracing::info!(
+            "Wrote CCO plugin to VFS: {}",
+            plugin_root.display()
+        );
+
+        Ok(())
     }
 
     /// Get the system prompt file path (internal use only)
@@ -87,31 +149,12 @@ impl TempFileManager {
     ///
     /// This is the preferred method for daemon startup as it includes
     /// the full hooks configuration from the daemon config.
+    ///
+    /// Note: SessionStart and PreCompact hooks are now registered via the CCO plugin
+    /// (loaded via --plugin-dir flag). The hooks section here is empty but kept for
+    /// compatibility with hooks_config settings.
     pub async fn write_orchestrator_settings(&self, daemon_config: &DaemonConfig) -> Result<()> {
-        // Build hooks with dynamic commands using serde_json::json! for proper value construction
-        let session_start_hook = serde_json::json!({
-            "matcher": "",
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": format!("curl -s -X POST http://{}:{}/api/knowledge/session-start", daemon_config.host, daemon_config.port),
-                    "timeout": 5,
-                }
-            ]
-        });
-
-        let pre_compact_hook = serde_json::json!({
-            "matcher": "",
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": format!("curl -s -X POST http://{}:{}/api/knowledge/pre-compaction", daemon_config.host, daemon_config.port),
-                    "timeout": 10,
-                }
-            ]
-        });
-
-        let mut settings = json!({
+        let settings = json!({
             "version": env!("CARGO_PKG_VERSION"),
             "timestamp": chrono::Utc::now().to_rfc3339(),
 
@@ -166,12 +209,6 @@ impl TempFileManager {
 
             "temp_dir": env::temp_dir().to_string_lossy()
         });
-
-        // Insert the hooks values into the settings object
-        if let Some(hooks_obj) = settings.get_mut("hooks").and_then(|v| v.as_object_mut()) {
-            hooks_obj.insert("SessionStart".to_string(), serde_json::json!([session_start_hook]));
-            hooks_obj.insert("PreCompact".to_string(), serde_json::json!([pre_compact_hook]));
-        }
 
         let settings_json = serde_json::to_string_pretty(&settings)?;
         fs::write(&self.settings_path, settings_json)?;
@@ -231,6 +268,11 @@ impl TempFileManager {
             }
         }
 
+        // Clean up plugin directory
+        if self.plugin_dir_path.exists() {
+            fs::remove_dir_all(&self.plugin_dir_path).ok();
+        }
+
         tracing::info!("Orchestrator temp files cleaned up");
         Ok(())
     }
@@ -267,34 +309,9 @@ impl TempFileManager {
             orchestrator["api_url"] = serde_json::json!(format!("http://localhost:{}", actual_port));
         }
 
-        // Update hook commands with actual port (Claude Code 2.0.55+ format)
-        if let Some(hooks) = settings.get_mut("hooks") {
-            if let Some(session_start) = hooks.get_mut("SessionStart").and_then(|v| v.as_array_mut()) {
-                for matcher_entry in session_start {
-                    // Navigate into hooks array within the matcher entry
-                    if let Some(inner_hooks) = matcher_entry.get_mut("hooks").and_then(|v| v.as_array_mut()) {
-                        for hook in inner_hooks {
-                            if let Some(command) = hook.get_mut("command") {
-                                *command = serde_json::json!(format!("curl -s -X POST http://localhost:{}/api/knowledge/session-start", actual_port));
-                            }
-                        }
-                    }
-                }
-            }
-
-            if let Some(pre_compact) = hooks.get_mut("PreCompact").and_then(|v| v.as_array_mut()) {
-                for matcher_entry in pre_compact {
-                    // Navigate into hooks array within the matcher entry
-                    if let Some(inner_hooks) = matcher_entry.get_mut("hooks").and_then(|v| v.as_array_mut()) {
-                        for hook in inner_hooks {
-                            if let Some(command) = hook.get_mut("command") {
-                                *command = serde_json::json!(format!("curl -s -X POST http://localhost:{}/api/knowledge/pre-compaction", actual_port));
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        // Note: SessionStart and PreCompact hooks are now handled via the CCO plugin
+        // (loaded via --plugin-dir flag) and use the $CCO_DAEMON_PORT environment variable.
+        // No need to update hook commands here.
 
         // Write back to settings file
         let settings_json = serde_json::to_string_pretty(&settings)?;
@@ -432,7 +449,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_and_cleanup_files() {
-        let manager = TempFileManager::new();
+        let manager = TempFileManager::new_with_suffix("cleanup-test");
 
         // Create files
         manager.create_files().await.unwrap();
@@ -468,7 +485,7 @@ mod tests {
     async fn test_file_permissions() {
         use std::os::unix::fs::PermissionsExt;
 
-        let manager = TempFileManager::new();
+        let manager = TempFileManager::new_with_suffix("permissions");
         manager.create_files().await.unwrap();
 
         let metadata = fs::metadata(manager.settings_path()).unwrap();
@@ -481,7 +498,7 @@ mod tests {
     #[tokio::test]
     async fn test_orchestrator_settings_includes_hooks() {
         let config = DaemonConfig::default();
-        let temp_manager = TempFileManager::new();
+        let temp_manager = TempFileManager::new_with_suffix("includes-hooks");
 
         // Write settings with daemon config
         temp_manager
@@ -645,7 +662,7 @@ mod tests {
         config.hooks.llm.temperature = 0.2;
         config.hooks.permissions.allow_file_read = true;
 
-        let temp_manager = TempFileManager::new();
+        let temp_manager = TempFileManager::new_with_suffix("custom-hooks");
         temp_manager
             .write_orchestrator_settings(&config)
             .await
@@ -685,7 +702,7 @@ mod tests {
     #[tokio::test]
     async fn test_update_settings_port() {
         let config = DaemonConfig::default();
-        let temp_manager = TempFileManager::new();
+        let temp_manager = TempFileManager::new_with_suffix("update-port");
 
         // Write initial settings with port 0
         temp_manager
@@ -716,19 +733,15 @@ mod tests {
             format!("http://localhost:{}", actual_port)
         );
 
-        // Verify hook commands were updated (new Claude Code format with command field)
-        let session_start = &updated_settings["hooks"]["SessionStart"][0];
-        let session_start_hooks = session_start["hooks"].as_array().unwrap();
-        assert_eq!(
-            session_start_hooks[0]["command"].as_str().unwrap(),
-            format!("curl -s -X POST http://localhost:{}/api/knowledge/session-start", actual_port)
+        // Note: SessionStart and PreCompact hooks are now handled via the CCO plugin
+        // (loaded via --plugin-dir flag). Hook arrays in settings should be empty.
+        assert!(
+            updated_settings["hooks"]["SessionStart"].as_array().unwrap().is_empty(),
+            "SessionStart hooks should be empty (now handled via plugin)"
         );
-
-        let pre_compact = &updated_settings["hooks"]["PreCompact"][0];
-        let pre_compact_hooks = pre_compact["hooks"].as_array().unwrap();
-        assert_eq!(
-            pre_compact_hooks[0]["command"].as_str().unwrap(),
-            format!("curl -s -X POST http://localhost:{}/api/knowledge/pre-compaction", actual_port)
+        assert!(
+            updated_settings["hooks"]["PreCompact"].as_array().unwrap().is_empty(),
+            "PreCompact hooks should be empty (now handled via plugin)"
         );
 
         // Cleanup

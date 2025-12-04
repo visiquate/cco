@@ -259,11 +259,11 @@ fn set_orchestrator_env_vars(settings_path: &PathBuf) {
     );
 
     // Auto-discover daemon port from PID file (required - no fallback)
-    let api_url = match cco::daemon::read_daemon_port() {
+    let (api_url, daemon_port) = match cco::daemon::read_daemon_port() {
         Ok(port) => {
             let url = format!("http://localhost:{}", port);
             println!("   Daemon URL: {}", url);
-            url
+            (url, port)
         }
         Err(e) => {
             eprintln!("❌ Error: Could not discover daemon port: {}", e);
@@ -273,6 +273,9 @@ fn set_orchestrator_env_vars(settings_path: &PathBuf) {
         }
     };
     env::set_var("ORCHESTRATOR_API_URL", api_url);
+
+    // Set CCO_DAEMON_PORT for plugin hooks to use
+    env::set_var("CCO_DAEMON_PORT", daemon_port.to_string());
 
     // Read settings file and extract hooks configuration
     if let Ok(settings_content) = std::fs::read_to_string(settings_path) {
@@ -441,6 +444,16 @@ async fn launch_claude_code_process(settings_path: &PathBuf, args: Vec<String>) 
         );
     } else {
         tracing::warn!("Agents JSON not found at: {}", agents_json_path.display());
+    }
+
+    // Add --plugin-dir flag for CCO hooks plugin
+    let plugin_dir = temp_manager.plugin_dir_path();
+    if plugin_dir.exists() {
+        cmd.arg("--plugin-dir");
+        cmd.arg(plugin_dir);
+        println!("   Plugin directory: {}", plugin_dir.display());
+    } else {
+        tracing::warn!("Plugin directory not found at: {}", plugin_dir.display());
     }
 
     // Add user-provided arguments

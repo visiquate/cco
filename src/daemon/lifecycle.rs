@@ -393,6 +393,11 @@ impl DaemonManager {
         let agents_json_path = temp_manager.agents_json_path();
         fs::write(agents_json_path, agents_json)?;
 
+        // Write CCO plugin files to VFS for hooks integration
+        temp_manager
+            .write_plugin_files()
+            .context("Failed to write CCO plugin files")?;
+
         // Set Unix permissions for temp files
         #[cfg(unix)]
         {
@@ -404,6 +409,7 @@ impl DaemonManager {
         }
 
         tracing::info!("Generated agents JSON at: {}", agents_json_path.display());
+        tracing::info!("Plugin directory: {}", temp_manager.plugin_dir_path().display());
 
         // Get the binary path (the cco binary itself)
         let exe_path = std::env::current_exe().context("Failed to get current executable path")?;
