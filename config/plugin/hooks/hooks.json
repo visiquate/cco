@@ -1,20 +1,37 @@
 {
   "hooks": {
-    "SessionStart": [{
-      "matcher": "*",
-      "hooks": [{
-        "type": "command",
-        "command": "curl -s -X POST http://localhost:$CCO_DAEMON_PORT/api/knowledge/session-start -H 'Content-Type: application/json' -d '{\"session_id\":\"'\"$CLAUDE_SESSION_ID\"'\",\"project_id\":\"'\"$CLAUDE_PROJECT_DIR\"'\"}'",
-        "timeout": 5
-      }]
-    }],
-    "PreCompact": [{
-      "matcher": "*",
-      "hooks": [{
-        "type": "command",
-        "command": "curl -s -X POST http://localhost:$CCO_DAEMON_PORT/api/knowledge/pre-compaction -H 'Content-Type: application/json' -d '{\"session_id\":\"'\"$CLAUDE_SESSION_ID\"'\",\"project_id\":\"'\"$CLAUDE_PROJECT_DIR\"'\"}'",
-        "timeout": 10
-      }]
-    }]
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -s -X POST http://localhost:$CCO_DAEMON_PORT/api/knowledge/session-start -H 'Content-Type: application/json' -d '{\"session_id\":\"'\"$CLAUDE_SESSION_ID\"'\",\"project_id\":\"'\"$CLAUDE_PROJECT_DIR\"'\"}'",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "manual",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -s -X POST http://localhost:$CCO_DAEMON_PORT/api/knowledge/pre-compaction -H 'Content-Type: application/json' -d '{\"session_id\":\"'\"$CLAUDE_SESSION_ID\"'\",\"project_id\":\"'\"$CLAUDE_PROJECT_DIR\"'\"}'",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -s -X POST http://localhost:$CCO_DAEMON_PORT/api/knowledge/pre-compaction -H 'Content-Type: application/json' -d '{\"session_id\":\"'\"$CLAUDE_SESSION_ID\"'\",\"project_id\":\"'\"$CLAUDE_PROJECT_DIR\"'\"}'",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }
