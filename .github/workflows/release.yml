@@ -61,6 +61,8 @@ jobs:
           # For ARM on macOS, we may need to set up cross-compilation
           # On Apple Silicon runners, aarch64 is native
           rustup target add ${{ matrix.target }}
+          # Install protobuf compiler (required by LanceDB)
+          brew install protobuf
 
       - name: Install cross-compilation tools (Linux)
         if: runner.os == 'Linux'
@@ -70,13 +72,13 @@ jobs:
           if command -v apt-get &> /dev/null; then
             echo "Debian/Ubuntu detected, installing via apt-get..."
             sudo apt-get update
-            sudo apt-get install -y musl-tools pkg-config libssl-dev || true
+            sudo apt-get install -y musl-tools pkg-config libssl-dev protobuf-compiler || true
           elif command -v apk &> /dev/null; then
             echo "Alpine detected, installing via apk..."
-            sudo apk add --no-cache build-base pkgconfig openssl-dev musl-dev || true
+            sudo apk add --no-cache build-base pkgconfig openssl-dev musl-dev protobuf-dev || true
           elif command -v yum &> /dev/null; then
             echo "CentOS/RHEL detected, installing via yum..."
-            sudo yum install -y gcc gcc-c++ make pkgconfig openssl-devel || true
+            sudo yum install -y gcc gcc-c++ make pkgconfig openssl-devel protobuf-compiler || true
           else
             echo "No recognized package manager found, assuming build tools are pre-installed"
           fi

@@ -16,7 +16,6 @@
 
 use anyhow::{anyhow, Context, Result};
 use serde::Deserialize;
-use std::env;
 
 use super::releases_api::{Platform, ReleaseInfo};
 
