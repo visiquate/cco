@@ -12,36 +12,34 @@
 #   export ANTHROPIC_BASE_URL="http://localhost:4000"
 
 model_list:
-  # Anthropic models with OAuth passthrough
+  # Anthropic models - pass through client auth (OAuth Bearer token)
+  # NOTE: No api_key here! LiteLLM will use the Authorization header from the client.
+  # Claude Code sends "Authorization: Bearer <oauth_token>" which gets passed through.
   - model_name: claude-sonnet-4-5-20250929
     litellm_params:
       model: anthropic/claude-sonnet-4-5-20250929
-      api_key: os.environ/CLAUDE_CODE_OAUTH_TOKEN
-      # Pass through all headers including anthropic-beta for OAuth
+      # extra_headers for beta features (OAuth beta is passed by client)
       extra_headers:
-        anthropic-beta: "oauth-2025-04-20,interleaved-thinking-2025-05-14,prompt-caching-2024-07-31,pdfs-2024-09-25,token-efficient-tools-2025-02-19"
+        anthropic-beta: "interleaved-thinking-2025-05-14,prompt-caching-2024-07-31,pdfs-2024-09-25,token-efficient-tools-2025-02-19"
 
   - model_name: claude-opus-4-5-20251101
     litellm_params:
       model: anthropic/claude-opus-4-5-20251101
-      api_key: os.environ/CLAUDE_CODE_OAUTH_TOKEN
       extra_headers:
-        anthropic-beta: "oauth-2025-04-20,interleaved-thinking-2025-05-14,prompt-caching-2024-07-31,pdfs-2024-09-25,token-efficient-tools-2025-02-19"
+        anthropic-beta: "interleaved-thinking-2025-05-14,prompt-caching-2024-07-31,pdfs-2024-09-25,token-efficient-tools-2025-02-19"
 
   - model_name: claude-haiku-4-5-20251001
     litellm_params:
       model: anthropic/claude-haiku-4-5-20251001
-      api_key: os.environ/CLAUDE_CODE_OAUTH_TOKEN
       extra_headers:
-        anthropic-beta: "oauth-2025-04-20,interleaved-thinking-2025-05-14,prompt-caching-2024-07-31,pdfs-2024-09-25,token-efficient-tools-2025-02-19"
+        anthropic-beta: "interleaved-thinking-2025-05-14,prompt-caching-2024-07-31,pdfs-2024-09-25,token-efficient-tools-2025-02-19"
 
   # Wildcard fallback for any other claude model
   - model_name: claude-*
     litellm_params:
       model: anthropic/claude-*
-      api_key: os.environ/CLAUDE_CODE_OAUTH_TOKEN
       extra_headers:
-        anthropic-beta: "oauth-2025-04-20,interleaved-thinking-2025-05-14,prompt-caching-2024-07-31,pdfs-2024-09-25,token-efficient-tools-2025-02-19"
+        anthropic-beta: "interleaved-thinking-2025-05-14,prompt-caching-2024-07-31,pdfs-2024-09-25,token-efficient-tools-2025-02-19"
 
   # Azure AI Foundry models
   # Use for cost-effective alternatives to Anthropic for code review/testing
@@ -91,8 +89,8 @@ model_list:
       api_base: http://localhost:11434
 
 litellm_settings:
-  # Enable cost tracking
-  success_callback: ["langfuse"]  # Optional: for detailed analytics
+  # Callbacks disabled - not needed for basic proxy usage
+  # success_callback: ["langfuse"]  # Optional: requires langfuse package
 
   # Request/response logging
   set_verbose: false
@@ -105,14 +103,13 @@ litellm_settings:
   request_timeout: 600  # 10 minutes for long requests
 
 general_settings:
-  # Master key for admin access
-  master_key: os.environ/LITELLM_MASTER_KEY
+  # Master key for admin access (optional - not required for basic usage)
+  # master_key: os.environ/LITELLM_MASTER_KEY
 
-  # Database for cost tracking (SQLite for local use)
-  database_url: "sqlite:///litellm_costs.db"
-
-  # Store spend data
-  store_model_in_db: true
+  # NOTE: Database disabled - Prisma not included in PEX
+  # If cost tracking needed, install full LiteLLM with: pip install litellm[proxy,prisma]
+  # database_url: "sqlite:///litellm_costs.db"
+  # store_model_in_db: true
 
 # Anthropic-specific passthrough settings
 router_settings:

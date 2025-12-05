@@ -95,6 +95,17 @@ impl LlmGateway {
         let start = std::time::Instant::now();
         let request_id = uuid::Uuid::new_v4().to_string();
 
+        // Detect OAuth: check for Bearer auth OR CLAUDE_CODE_OAUTH_TOKEN env var
+        let is_oauth = client_auth
+            .as_ref()
+            .map(|h| h.to_lowercase().starts_with("bearer "))
+            .unwrap_or(false)
+            || std::env::var("CLAUDE_CODE_OAUTH_TOKEN").map(|t| !t.is_empty()).unwrap_or(false);
+
+        // IMPORTANT: For OAuth authentication, bypass LiteLLM and use direct Anthropic provider
+        // LiteLLM doesn't handle OAuth Bearer tokens correctly (sends as x-api-key instead of Authorization)
+        let use_litellm = self.litellm_client.is_some() && !is_oauth;
+
         // Determine routing (still use routing engine for agent-type decisions)
         let route = self.router.route(&request);
         tracing::info!(
@@ -102,16 +113,17 @@ impl LlmGateway {
             agent_type = ?request.agent_type,
             provider = %route.provider,
             reason = %route.reason,
-            using_litellm = self.litellm_client.is_some(),
+            using_litellm = use_litellm,
+            is_oauth = is_oauth,
             "Routing request"
         );
 
-        // Execute request - use LiteLLM if available, otherwise fall back to direct provider
-        let result = if let Some(ref litellm) = self.litellm_client {
+        // Execute request - use LiteLLM if available AND not OAuth, otherwise fall back to direct provider
+        let result = if use_litellm {
             tracing::debug!("Using LiteLLM client for request");
-            litellm.complete(request.clone(), client_auth, client_beta).await
+            self.litellm_client.as_ref().unwrap().complete(request.clone(), client_auth, client_beta).await
         } else {
-            tracing::debug!(provider = %route.provider, "Using direct provider");
+            tracing::debug!(provider = %route.provider, is_oauth = is_oauth, "Using direct provider (bypassing LiteLLM)");
             let provider = self.providers.get(&route.provider)?;
             provider.complete(request.clone(), client_auth, client_beta).await
         };
@@ -121,7 +133,7 @@ impl LlmGateway {
         match result {
             Ok((mut response, metrics)) => {
                 // Enrich response with gateway metadata
-                response.provider = if self.litellm_client.is_some() {
+                response.provider = if use_litellm {
                     "litellm".to_string()
                 } else {
                     route.provider.clone()
@@ -149,7 +161,7 @@ impl LlmGateway {
                 // Audit log error
                 {
                     let logger = self.audit_logger.read().await;
-                    let provider = if self.litellm_client.is_some() {
+                    let provider = if use_litellm {
                         "litellm"
                     } else {
                         &route.provider

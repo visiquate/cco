@@ -103,8 +103,31 @@ async fn handle_streaming_request(
     // Generate request ID for tracking
     let request_id = uuid::Uuid::new_v4().to_string();
 
-    // Get the byte stream - use LiteLLM if available, otherwise direct provider
-    let byte_stream = if let Some(ref litellm) = gateway.litellm_client {
+    // Detect OAuth: check for Bearer auth OR CLAUDE_CODE_OAUTH_TOKEN env var
+    let has_bearer_auth = auth_header
+        .as_ref()
+        .map(|h| h.to_lowercase().starts_with("bearer "))
+        .unwrap_or(false);
+    let has_oauth_env = std::env::var("CLAUDE_CODE_OAUTH_TOKEN").map(|t| !t.is_empty()).unwrap_or(false);
+    let is_oauth = has_bearer_auth || has_oauth_env;
+
+    // IMPORTANT: For OAuth authentication, bypass LiteLLM and use direct Anthropic provider
+    // LiteLLM doesn't handle OAuth Bearer tokens correctly (sends as x-api-key instead of Authorization)
+    let use_litellm = gateway.litellm_client.is_some() && !is_oauth;
+
+    tracing::info!(
+        request_id = %request_id,
+        has_bearer_auth = has_bearer_auth,
+        has_oauth_env = has_oauth_env,
+        is_oauth = is_oauth,
+        litellm_available = gateway.litellm_client.is_some(),
+        use_litellm = use_litellm,
+        "OAuth detection for streaming request"
+    );
+
+    // Get the byte stream - use LiteLLM if available AND not OAuth, otherwise direct provider
+    let byte_stream = if use_litellm {
+        let litellm = gateway.litellm_client.as_ref().unwrap();
         tracing::debug!(request_id = %request_id, "Using LiteLLM client for streaming request");
         match litellm.complete_stream(request.clone(), auth_header, beta_header).await {
             Ok(stream) => stream,
@@ -153,7 +176,8 @@ async fn handle_streaming_request(
 
     tracing::info!(
         request_id = %request_id,
-        using_litellm = gateway.litellm_client.is_some(),
+        using_litellm = use_litellm,
+        is_oauth = is_oauth,
         "Streaming response started"
     );
 
