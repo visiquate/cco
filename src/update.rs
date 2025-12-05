@@ -13,8 +13,14 @@ use std::path::{Path, PathBuf};
 
 use cco::version::DateVersion;
 
-const GITHUB_REPO: &str = "brentley/cco-releases";
+// Use visiquate/cco for binary distribution
+const GITHUB_REPO: &str = "visiquate/cco";
 const GITHUB_API_URL: &str = "https://api.github.com/repos";
+
+/// Get embedded update token (set at build time via VISIQUATE_UPDATE_TOKEN)
+fn get_update_token() -> Option<String> {
+    option_env!("VISIQUATE_UPDATE_TOKEN").map(|s| s.to_string())
+}
 
 /// GitHub Release API response
 #[derive(Debug, Deserialize)]
@@ -70,17 +76,18 @@ struct PlatformInfo {
     size: u64,
 }
 
-/// Detect current platform
+/// Detect current platform and return the target triple used in releases
 fn detect_platform() -> Result<String> {
     let os = env::consts::OS;
     let arch = env::consts::ARCH;
 
+    // Use Rust target triple format to match our release pipeline
     let platform = match (os, arch) {
-        ("macos", "aarch64") => "darwin-arm64",
-        ("macos", "x86_64") => "darwin-x86_64",
-        ("linux", "x86_64") => "linux-x86_64",
-        ("linux", "aarch64") => "linux-aarch64",
-        ("windows", "x86_64") => "windows-x86_64",
+        ("macos", "aarch64") => "aarch64-apple-darwin",
+        ("macos", "x86_64") => "x86_64-apple-darwin",
+        ("linux", "x86_64") => "x86_64-unknown-linux-gnu",
+        ("linux", "aarch64") => "aarch64-unknown-linux-gnu",
+        ("windows", "x86_64") => "x86_64-pc-windows-msvc",
         _ => return Err(anyhow!("Unsupported platform: {}-{}", os, arch)),
     };
 
@@ -89,6 +96,14 @@ fn detect_platform() -> Result<String> {
 
 /// Fetch latest release from GitHub
 async fn fetch_latest_release(channel: &str) -> Result<GitHubRelease> {
+    let token = get_update_token();
+
+    if token.is_none() {
+        return Err(anyhow!(
+            "No update token available. Please reinstall CCO or download updates manually from GitHub."
+        ));
+    }
+
     let url = if channel == "stable" {
         format!("{}/{}/releases/latest", GITHUB_API_URL, GITHUB_REPO)
     } else {
@@ -101,12 +116,44 @@ async fn fetch_latest_release(channel: &str) -> Result<GitHubRelease> {
         .timeout(std::time::Duration::from_secs(30))
         .build()?;
 
-    let response = client
+    let mut request = client
         .get(&url)
-        .header("Accept", "application/vnd.github.v3+json")
+        .header("Accept", "application/vnd.github+json");
+
+    // Add authentication for private repo access
+    if let Some(ref t) = token {
+        request = request.header("Authorization", format!("Bearer {}", t));
+    }
+
+    let response = request
         .send()
         .await
         .context("Failed to fetch release information from GitHub")?;
+
+    // Handle authentication errors
+    if response.status() == reqwest::StatusCode::UNAUTHORIZED {
+        return Err(anyhow!(
+            "GitHub authentication failed. The embedded update token may have expired. \
+            Please reinstall CCO to get a new version with updated credentials."
+        ));
+    }
+
+    if response.status() == reqwest::StatusCode::FORBIDDEN {
+        // Check for rate limiting
+        if response
+            .headers()
+            .get("X-RateLimit-Remaining")
+            .map(|v| v.to_str().unwrap_or("1"))
+            == Some("0")
+        {
+            return Err(anyhow!(
+                "GitHub API rate limit exceeded. Please try again later."
+            ));
+        }
+        return Err(anyhow!(
+            "Access denied to releases. Contact your administrator."
+        ));
+    }
 
     if !response.status().is_success() {
         return Err(anyhow!("GitHub API returned status: {}", response.status()));
@@ -125,14 +172,25 @@ async fn fetch_latest_release(channel: &str) -> Result<GitHubRelease> {
     }
 }
 
-/// Download a file from URL
+/// Download a file from URL (with authentication for private repos)
 async fn download_file(url: &str, path: &Path) -> Result<()> {
+    let token = get_update_token();
+
     let client = reqwest::Client::builder()
         .user_agent(format!("cco/{}", env!("CARGO_PKG_VERSION")))
         .timeout(std::time::Duration::from_secs(300))
         .build()?;
 
-    let response = client.get(url).send().await?;
+    let mut request = client
+        .get(url)
+        .header("Accept", "application/octet-stream");
+
+    // Add authentication for private repo downloads
+    if let Some(ref t) = token {
+        request = request.header("Authorization", format!("Bearer {}", t));
+    }
+
+    let response = request.send().await?;
 
     if !response.status().is_success() {
         return Err(anyhow!(
@@ -245,17 +303,27 @@ async fn install_update(release: &GitHubRelease, auto_confirm: bool) -> Result<(
     let platform = detect_platform()?;
 
     // Find the appropriate asset for this platform
-    let asset_name = if platform.starts_with("windows") {
-        format!("cco-{}-{}.zip", release.tag_name, platform)
+    // Our release pipeline produces files like: cco-aarch64-apple-darwin.tar.gz
+    let asset_name = if platform.contains("windows") {
+        format!("cco-{}.zip", platform)
     } else {
-        format!("cco-{}-{}.tar.gz", release.tag_name, platform)
+        format!("cco-{}.tar.gz", platform)
     };
 
     let asset = release
         .assets
         .iter()
         .find(|a| a.name == asset_name)
-        .ok_or_else(|| anyhow!("No release asset found for platform: {}", platform))?;
+        .ok_or_else(|| {
+            // List available assets for debugging
+            let available: Vec<_> = release.assets.iter().map(|a| a.name.as_str()).collect();
+            anyhow!(
+                "No release asset found for platform: {}. Expected: {}. Available: {:?}",
+                platform,
+                asset_name,
+                available
+            )
+        })?;
 
     println!("\nWhat's new in {}:", release.tag_name);
 

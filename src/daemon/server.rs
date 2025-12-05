@@ -1440,6 +1440,25 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
         warn!("Persistence layer not available - Claude log parsing disabled");
     }
 
+    // Spawn hourly auto-update check task
+    tokio::spawn(async move {
+        // Initial delay of 5 minutes to let daemon fully start
+        tokio::time::sleep(tokio::time::Duration::from_secs(300)).await;
+
+        // Then check every hour
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(3600));
+
+        loop {
+            interval.tick().await;
+            info!("🔄 Running scheduled update check...");
+
+            // Use the existing auto_update system which respects config
+            // Note: check_for_updates_blocking handles errors internally and logs them
+            crate::auto_update::check_for_updates_blocking().await;
+        }
+    });
+    info!("✅ Hourly auto-update check scheduled");
+
     // Run server with graceful shutdown
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())

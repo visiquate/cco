@@ -22,6 +22,7 @@
 //! ```
 
 pub mod github; // Legacy - kept for backwards compatibility
+pub mod github_releases; // GitHub private releases with embedded token
 pub mod releases_api;
 pub mod updater;
 

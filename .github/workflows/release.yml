@@ -7,26 +7,44 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag (e.g., v2025.12.1)'
+        description: 'Version tag (e.g., v2025.12.4)'
         required: true
         type: string
 
 permissions:
   contents: write
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
-  release:
-    name: Create Release
-    runs-on: [self-hosted, linux, X64]
+  # Build for each platform
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            artifact_name: cco-aarch64-apple-darwin
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            artifact_name: cco-x86_64-apple-darwin
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact_name: cco-x86_64-unknown-linux-gnu
 
     steps:
-      - name: Checkout release repo
+      - name: Checkout source repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Get version
         id: get_version
+        shell: bash
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             echo "VERSION=${{ inputs.version }}" >> $GITHUB_OUTPUT
@@ -38,166 +56,283 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
+          target: ${{ matrix.target }}
 
-      - name: Install cargo-sbom
-        run: cargo install cargo-sbom
-
-      - name: Build CCO binaries
-        env:
-          # Azure API key for model router (embedded at build time)
-          AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
+      - name: Install cross-compilation tools (macOS ARM)
+        if: matrix.target == 'aarch64-apple-darwin' && runner.os == 'macOS'
         run: |
-          VERSION="${{ steps.get_version.outputs.VERSION }}"
-          echo "Building CCO version $VERSION..."
+          # For ARM on macOS, we may need to set up cross-compilation
+          # On Apple Silicon runners, aarch64 is native
+          rustup target add ${{ matrix.target }}
 
-          # Create artifacts directory
+      - name: Install cross-compilation tools (macOS Intel)
+        if: matrix.target == 'x86_64-apple-darwin' && runner.os == 'macOS'
+        run: |
+          # For Intel on macOS
+          rustup target add ${{ matrix.target }}
+
+      - name: Install cross-compilation tools (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools pkg-config libssl-dev
+
+      - name: Build binary
+        env:
+          AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
+          VISIQUATE_UPDATE_TOKEN: ${{ secrets.VISIQUATE_UPDATE_TOKEN }}
+          LITCRYPT_ENCRYPT_KEY: ${{ secrets.LITCRYPT_KEY }}
+        run: |
+          echo "Building CCO for ${{ matrix.target }}..."
+
+          # Build with release profile
+          cargo build --release --target ${{ matrix.target }} --no-default-features
+
+          # Create artifact directory
           mkdir -p artifacts
 
-          # Check if Azure credential will be embedded
-          if [ -n "$AZURE_API_KEY" ]; then
-            echo "Azure API key available - will be embedded in binary"
+          # Copy binary
+          cp target/${{ matrix.target }}/release/cco artifacts/cco
+          chmod +x artifacts/cco
+
+          # Create tarball
+          cd artifacts
+          tar -czvf ${{ matrix.artifact_name }}.tar.gz cco
+          rm cco
+
+          # Generate SHA256
+          if [ "${{ runner.os }}" == "macOS" ]; then
+            shasum -a 256 ${{ matrix.artifact_name }}.tar.gz > ${{ matrix.artifact_name }}.sha256
           else
-            echo "Warning: AZURE_API_KEY not set - model routing will use fallback chain"
+            sha256sum ${{ matrix.artifact_name }}.tar.gz > ${{ matrix.artifact_name }}.sha256
           fi
 
-          # Build CCO for Linux x86_64
-          echo "Building CCO..."
-          cargo build --release --verbose
+          echo "Artifacts:"
+          ls -la
 
-          # Get platform string
-          PLATFORM="linux-x86_64"
-          BINARY_NAME="cco-${VERSION}-${PLATFORM}"
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: artifacts/
+          retention-days: 1
 
-          # Copy binary to artifacts with proper naming
-          cp target/release/cco "artifacts/${BINARY_NAME}"
-          chmod +x "artifacts/${BINARY_NAME}"
+  # Release to visiquate/cco
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
 
-          # Generate checksums
-          cd artifacts
-          sha256sum "${BINARY_NAME}" > checksums.txt
-
-          echo ""
-          echo "Build completed"
-          echo "Artifacts created:"
-          ls -lh
-
-      - name: Generate SBOM
+    steps:
+      - name: Get version
+        id: get_version
         run: |
-          echo "Generating Software Bill of Materials..."
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "VERSION=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
 
-          # CycloneDX format (preferred for vulnerability scanning)
-          cargo sbom --output-format cyclone_dx_json_1_5 > artifacts/sbom-cyclonedx.json
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
 
-          # SPDX format (for compliance)
-          cargo sbom --output-format spdx_json_2_3 > artifacts/sbom-spdx.json
+      - name: Prepare release files
+        run: |
+          mkdir -p release
 
-          # Add version metadata to SBOM
-          VERSION="${{ steps.get_version.outputs.VERSION }}"
-          jq --arg version "$VERSION" \
-             --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-             '.metadata.component.version = $version | .metadata.timestamp = $date' \
-             artifacts/sbom-cyclonedx.json > artifacts/sbom-cyclonedx-tmp.json
-          mv artifacts/sbom-cyclonedx-tmp.json artifacts/sbom-cyclonedx.json
+          # Move all tarballs and checksums to release dir
+          find artifacts -name "*.tar.gz" -exec mv {} release/ \;
+          find artifacts -name "*.sha256" -exec mv {} release/ \;
 
-          COMPONENT_COUNT=$(jq '.components | length' artifacts/sbom-cyclonedx.json)
-          echo "SBOM generated with $COMPONENT_COUNT components"
+          # Create combined checksums file
+          cd release
+          cat *.sha256 > checksums.txt
+
+          echo "Release files:"
+          ls -la
 
       - name: Generate release notes
-        id: release_notes
         run: |
           VERSION="${{ steps.get_version.outputs.VERSION }}"
-          COMPONENT_COUNT=$(jq '.components | length' artifacts/sbom-cyclonedx.json)
 
-          cat > release_notes.md <<EOF
+          cat > release_notes.md <<'EOF'
           # CCO Release ${VERSION}
 
           ## Installation
 
-          See [installation documentation](./docs/installation.md) for details.
+          ### Homebrew (Recommended)
 
-          ### Quick Install
+          ```bash
+          # First time setup
+          brew install gh
+          gh auth login
+          brew tap visiquate/cco https://github.com/visiquate/homebrew-cco
+          brew install visiquate/cco/cco
+          ```
 
-          \`\`\`bash
-          # Download for your platform
-          curl -LO https://github.com/${{ github.repository }}/releases/download/${VERSION}/cco-${VERSION}-linux-x86_64
-          chmod +x cco-${VERSION}-linux-x86_64
-          mv cco-${VERSION}-linux-x86_64 /usr/local/bin/cco
-          \`\`\`
+          ### Manual Installation
 
-          ## What's New
+          Download the appropriate binary for your platform:
 
-          - CCO command-line tool release
-          - Full feature set as documented in README
+          | Platform | File |
+          |----------|------|
+          | macOS (Apple Silicon) | `cco-aarch64-apple-darwin.tar.gz` |
+          | macOS (Intel) | `cco-x86_64-apple-darwin.tar.gz` |
+          | Linux (x86_64) | `cco-x86_64-unknown-linux-gnu.tar.gz` |
 
-          ## Security & Compliance
+          ```bash
+          # Example for macOS Apple Silicon
+          tar -xzf cco-aarch64-apple-darwin.tar.gz
+          chmod +x cco
+          sudo mv cco /usr/local/bin/
+          ```
 
-          - **SBOM included**: Software Bill of Materials in CycloneDX and SPDX formats
-          - **Dependencies**: ${COMPONENT_COUNT} components documented
-          - Verify checksums with \`sha256sum -c checksums.txt\`
+          ## Auto-Updates
+
+          CCO includes built-in auto-updates. Start the daemon to enable hourly update checks:
+
+          ```bash
+          cco daemon start
+          ```
+
+          ## Verification
+
+          Verify download integrity:
+          ```bash
+          sha256sum -c checksums.txt
+          ```
 
           ## Documentation
 
-          - [README](./README.md)
-          - [Installation Guide](./docs/installation.md)
-          - [Commands Reference](./docs/commands.md)
-          - [Configuration](./docs/configuration.md)
-          - [Troubleshooting](./docs/troubleshooting.md)
-
+          - [Installation Guide](https://github.com/visiquate/cco/blob/main/docs/INSTALLATION.md)
+          - [Configuration](https://github.com/visiquate/cco/blob/main/docs/CONFIGURATION.md)
+          - [CLI Reference](https://github.com/visiquate/cco/blob/main/docs/CLI_REFERENCE.md)
+          - [Troubleshooting](https://github.com/visiquate/cco/blob/main/docs/TROUBLESHOOTING.md)
           EOF
+
+          # Replace version placeholder
+          sed -i "s/\${VERSION}/$VERSION/g" release_notes.md
 
           cat release_notes.md
 
-      - name: Create GitHub Release
+      - name: Create release on visiquate/cco
         uses: softprops/action-gh-release@v1
         with:
+          repository: visiquate/cco
           tag_name: ${{ steps.get_version.outputs.VERSION }}
           name: Release ${{ steps.get_version.outputs.VERSION }}
           body_path: release_notes.md
           draft: false
           prerelease: false
           files: |
-            artifacts/*
+            release/*.tar.gz
+            release/checksums.txt
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install jq
-        run: apt-get update && apt-get install -y jq || true
-
-      - name: Delete source code archive assets
-        run: |
-          VERSION="${{ steps.get_version.outputs.VERSION }}"
-          echo "Removing source code archives for $VERSION..."
-
-          # Get all assets for this release
-          ASSETS=$(curl -s \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$VERSION" \
-            | jq -r '.assets[] | select(.name | endswith(".zip") or endswith(".tar.gz")) | select(.name | test("^[v]?[0-9]+\\.[0-9]+\\.[0-9]+")) | .id')
-
-          if [ -z "$ASSETS" ]; then
-            echo "No source code archives found"
-          else
-            echo "Found source code archives, deleting..."
-            for ASSET_ID in $ASSETS; do
-              echo "Deleting asset ID: $ASSET_ID"
-              curl -s -X DELETE \
-                -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-                -H "Accept: application/vnd.github.v3+json" \
-                "https://api.github.com/repos/${{ github.repository }}/releases/assets/$ASSET_ID"
-              echo ""
-            done
-            echo "Source code archives removed"
-          fi
+          GITHUB_TOKEN: ${{ secrets.VISIQUATE_RELEASE_TOKEN }}
 
       - name: Release summary
         run: |
-          echo "### Release ${{ steps.get_version.outputs.VERSION }} Created" >> $GITHUB_STEP_SUMMARY
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          echo "### Release $VERSION Created" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "Release URL: https://github.com/visiquate/cco/releases/tag/$VERSION" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Artifacts:**" >> $GITHUB_STEP_SUMMARY
-          echo "- Binary: cco-${{ steps.get_version.outputs.VERSION }}-linux-x86_64" >> $GITHUB_STEP_SUMMARY
-          echo "- SBOM (CycloneDX): sbom-cyclonedx.json" >> $GITHUB_STEP_SUMMARY
-          echo "- SBOM (SPDX): sbom-spdx.json" >> $GITHUB_STEP_SUMMARY
-          echo "- Checksums: checksums.txt" >> $GITHUB_STEP_SUMMARY
+          echo "- cco-aarch64-apple-darwin.tar.gz (macOS ARM)" >> $GITHUB_STEP_SUMMARY
+          echo "- cco-x86_64-apple-darwin.tar.gz (macOS Intel)" >> $GITHUB_STEP_SUMMARY
+          echo "- cco-x86_64-unknown-linux-gnu.tar.gz (Linux)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next steps:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. Update homebrew formula SHA256 values" >> $GITHUB_STEP_SUMMARY
+          echo "2. Test installation: \`brew upgrade cco\`" >> $GITHUB_STEP_SUMMARY
+
+  # Update Homebrew formula with new SHA256 values
+  update-homebrew:
+    name: Update Homebrew Formula
+    needs: release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "VERSION=${{ inputs.version }}" >> $GITHUB_OUTPUT
+            echo "VERSION_NUM=${{ inputs.version }}" | sed 's/^v//' >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            echo "VERSION_NUM=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download artifacts for SHA256
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Extract SHA256 values
+        id: sha256
+        run: |
+          # Get SHA256 for each platform
+          ARM64_SHA=$(cat artifacts/cco-aarch64-apple-darwin/*.sha256 | awk '{print $1}')
+          X86_64_DARWIN_SHA=$(cat artifacts/cco-x86_64-apple-darwin/*.sha256 | awk '{print $1}')
+          X86_64_LINUX_SHA=$(cat artifacts/cco-x86_64-unknown-linux-gnu/*.sha256 | awk '{print $1}')
+
+          echo "ARM64_SHA=$ARM64_SHA" >> $GITHUB_OUTPUT
+          echo "X86_64_DARWIN_SHA=$X86_64_DARWIN_SHA" >> $GITHUB_OUTPUT
+          echo "X86_64_LINUX_SHA=$X86_64_LINUX_SHA" >> $GITHUB_OUTPUT
+
+          echo "SHA256 values:"
+          echo "  aarch64-apple-darwin: $ARM64_SHA"
+          echo "  x86_64-apple-darwin: $X86_64_DARWIN_SHA"
+          echo "  x86_64-unknown-linux-gnu: $X86_64_LINUX_SHA"
+
+      - name: Checkout homebrew tap
+        uses: actions/checkout@v4
+        with:
+          repository: visiquate/homebrew-cco
+          token: ${{ secrets.VISIQUATE_RELEASE_TOKEN }}
+          path: homebrew-cco
+
+      - name: Update formula
+        run: |
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          VERSION_NUM="${{ steps.get_version.outputs.VERSION_NUM }}"
+          ARM64_SHA="${{ steps.sha256.outputs.ARM64_SHA }}"
+          X86_64_DARWIN_SHA="${{ steps.sha256.outputs.X86_64_DARWIN_SHA }}"
+          X86_64_LINUX_SHA="${{ steps.sha256.outputs.X86_64_LINUX_SHA }}"
+
+          cd homebrew-cco
+
+          # Update version
+          sed -i "s/version \"[^\"]*\"/version \"$VERSION_NUM\"/" Formula/cco.rb
+
+          # Update URLs
+          sed -i "s|/download/v[^/]*/cco-aarch64|/download/$VERSION/cco-aarch64|g" Formula/cco.rb
+          sed -i "s|/download/v[^/]*/cco-x86_64|/download/$VERSION/cco-x86_64|g" Formula/cco.rb
+
+          # Update SHA256 values
+          # ARM64 Darwin
+          sed -i "/aarch64-apple-darwin/,/sha256/{s/sha256 \"[^\"]*\"/sha256 \"$ARM64_SHA\"/}" Formula/cco.rb
+
+          # x86_64 Darwin
+          sed -i "/x86_64-apple-darwin/,/sha256/{s/sha256 \"[^\"]*\"/sha256 \"$X86_64_DARWIN_SHA\"/}" Formula/cco.rb
+
+          # x86_64 Linux
+          sed -i "/x86_64-unknown-linux-gnu/,/sha256/{s/sha256 \"[^\"]*\"/sha256 \"$X86_64_LINUX_SHA\"/}" Formula/cco.rb
+
+          echo "Updated formula:"
+          cat Formula/cco.rb
+
+      - name: Commit and push formula update
+        run: |
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          cd homebrew-cco
+
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+          git add Formula/cco.rb
+          git commit -m "Update CCO to $VERSION" || echo "No changes to commit"
+          git push

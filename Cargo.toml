@@ -70,6 +70,10 @@ getrandom = "0.2"
 parking_lot = "0.12"
 notify = "6.1"
 
+# Self-update functionality for auto-updates
+self_update = { version = "0.41", features = ["rustls", "archive-tar", "compression-flate2"] }
+litcrypt2 = "0.1"  # Compile-time string encryption for embedded credentials
+
 # LLM inference engine (Phase 1B) - migrated to mistral.rs for Qwen2 support
 mistralrs = { git = "https://github.com/EricLBuehler/mistral.rs", branch = "master", features = ["metal"] }
 indicatif = "0.17"
