@@ -4,6 +4,5 @@
   "description": "Claude Orchestra - knowledge persistence and session management",
   "author": {"name": "CCO"},
   "license": "MIT",
-  "keywords": ["orchestra", "knowledge", "session"],
-  "hooks": "./hooks/hooks.json"
+  "keywords": ["orchestra", "knowledge", "session"]
 }
