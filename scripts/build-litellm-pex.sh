@@ -29,20 +29,15 @@ echo -e "${BLUE}LiteLLM PEX Builder${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo ""
 
-# Check Python version - prefer 3.13 for better package compatibility
+# Check Python version
 echo -e "${YELLOW}Step 1: Checking Python version...${NC}"
 
-# Try to find the best Python version (3.13 > 3.12 > 3.11 > 3.10 > 3.9)
-PYTHON_CMD=""
-for version in 3.13 3.12 3.11 3.10 3.9; do
-    if command -v python$version &> /dev/null; then
-        PYTHON_CMD="python$version"
-        break
-    fi
-done
-
-# Fallback to python3 if no specific version found
-if [ -z "$PYTHON_CMD" ]; then
+# Use system Python for maximum compatibility across macOS systems
+# This ensures the PEX works with the default /usr/bin/python3
+if [ -x "/usr/bin/python3" ]; then
+    PYTHON_CMD="/usr/bin/python3"
+else
+    # Fallback to python3 in PATH
     PYTHON_CMD="python3"
 fi
 
@@ -85,16 +80,14 @@ echo -e "${YELLOW}Step 5: Building LiteLLM PEX...${NC}"
 echo "This may take a few minutes on first run..."
 
 # Build with proxy extras for full functionality
-# --python-shebang ensures portability across systems
-# --include-tools allows running litellm CLI
-# Using specific Python version for better compatibility
+# Built with a specific Python, but generic shebang allows running on any Python 3.9+
+# The --only-binary :all: forces using pre-built wheels only (no compilation)
 pex \
     'litellm[proxy]>=1.50.0' \
     --python="$PYTHON_CMD" \
-    --python-shebang="/usr/bin/env $PYTHON_CMD" \
+    --python-shebang="/usr/bin/env python3" \
     --output-file="$PEX_OUTPUT" \
     --entry-point=litellm.proxy.proxy_cli:run_server \
-    --venv \
     --pip-version=latest \
     --resolver-version=pip-2020-resolver
 
