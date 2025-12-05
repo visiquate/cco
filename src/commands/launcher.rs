@@ -403,19 +403,21 @@ async fn launch_claude_code_process(settings_path: &PathBuf, args: Vec<String>) 
     cmd.stdout(std::process::Stdio::inherit());
     cmd.stderr(std::process::Stdio::inherit());
 
-    // Inject LLM Gateway configuration
-    // This provides an Anthropic-compatible API with cost tracking and audit logging
-    match cco::daemon::read_gateway_port() {
-        Ok(gateway_port) => {
-            let gateway_url = format!("http://127.0.0.1:{}", gateway_port);
-            cmd.env("ANTHROPIC_BASE_URL", &gateway_url);
-            println!("   Gateway: {} (LLM routing enabled)", gateway_url);
-        }
-        Err(e) => {
-            tracing::warn!("Gateway port not found: {}", e);
-            tracing::warn!("Claude Code will use direct API access");
-        }
-    }
+    // LLM Gateway disabled - Claude Code talks directly to Anthropic
+    // The gateway had streaming response issues that affected UX
+    // TODO: Re-enable once streaming is fixed
+    // match cco::daemon::read_gateway_port() {
+    //     Ok(gateway_port) => {
+    //         let gateway_url = format!("http://127.0.0.1:{}", gateway_port);
+    //         cmd.env("ANTHROPIC_BASE_URL", &gateway_url);
+    //         println!("   Gateway: {} (LLM routing enabled)", gateway_url);
+    //     }
+    //     Err(e) => {
+    //         tracing::warn!("Gateway port not found: {}", e);
+    //         tracing::warn!("Claude Code will use direct API access");
+    //     }
+    // }
+    println!("   API: Direct to Anthropic (gateway disabled)");
 
     // Add settings flag pointing to orchestrator configuration
     cmd.arg("--settings");
