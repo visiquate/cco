@@ -63,18 +63,29 @@ impl TempFileManager {
 
     /// Write CCO plugin files to VFS
     ///
-    /// Creates the plugin directory structure:
-    /// - {temp_dir}/.cco-plugins/cco/.claude-plugin/plugin.json
-    /// - {temp_dir}/.cco-plugins/cco/hooks/hooks.json
+    /// Creates the plugin directory structure (marketplace format required by --plugin-dir):
+    /// - {temp_dir}/.cco-plugins/.claude-plugin/marketplace.json  (marketplace root)
+    /// - {temp_dir}/.cco-plugins/cco/.claude-plugin/plugin.json   (plugin definition)
+    /// - {temp_dir}/.cco-plugins/cco/hooks/hooks.json             (hooks configuration)
     ///
     /// The hooks use $CCO_DAEMON_PORT environment variable for the daemon port,
     /// which must be set by the launcher when starting Claude Code.
     pub fn write_plugin_files(&self) -> Result<()> {
         // Embedded plugin files
+        const MARKETPLACE_JSON: &str =
+            include_str!("../../config/plugin-marketplace/marketplace.json");
         const PLUGIN_JSON: &str = include_str!("../../config/plugin/.claude-plugin/plugin.json");
         const HOOKS_JSON: &str = include_str!("../../config/plugin/hooks/hooks.json");
 
-        // Create directory structure: .cco-plugins/cco/.claude-plugin/ and .cco-plugins/cco/hooks/
+        // Create marketplace root structure: .cco-plugins/.claude-plugin/
+        let marketplace_claude_plugin_dir = self.plugin_dir_path.join(".claude-plugin");
+        fs::create_dir_all(&marketplace_claude_plugin_dir)?;
+
+        // Write marketplace.json at root level (required for --plugin-dir)
+        let marketplace_json_path = marketplace_claude_plugin_dir.join("marketplace.json");
+        fs::write(&marketplace_json_path, MARKETPLACE_JSON)?;
+
+        // Create plugin directory structure: .cco-plugins/cco/.claude-plugin/ and .cco-plugins/cco/hooks/
         let plugin_root = self.plugin_dir_path.join("cco");
         let claude_plugin_dir = plugin_root.join(".claude-plugin");
         let hooks_dir = plugin_root.join("hooks");
@@ -93,13 +104,14 @@ impl TempFileManager {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&marketplace_json_path, fs::Permissions::from_mode(0o644))?;
             fs::set_permissions(&plugin_json_path, fs::Permissions::from_mode(0o644))?;
             fs::set_permissions(&hooks_json_path, fs::Permissions::from_mode(0o644))?;
         }
 
         tracing::info!(
-            "Wrote CCO plugin to VFS: {}",
-            plugin_root.display()
+            "Wrote CCO plugin marketplace to VFS: {}",
+            self.plugin_dir_path.display()
         );
 
         Ok(())

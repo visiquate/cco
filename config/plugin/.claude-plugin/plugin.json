@@ -5,5 +5,5 @@
   "author": {"name": "CCO"},
   "license": "MIT",
   "keywords": ["orchestra", "knowledge", "session"],
-  "hooks": "hooks/hooks.json"
+  "hooks": "./hooks/hooks.json"
 }

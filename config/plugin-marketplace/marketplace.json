@@ -1,0 +1,22 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "cco-plugins",
+  "version": "1.0.0",
+  "description": "Claude Code Orchestra local plugins",
+  "owner": {
+    "name": "CCO",
+    "email": "cco@local"
+  },
+  "plugins": [
+    {
+      "name": "cco",
+      "description": "Claude Orchestra - knowledge persistence and session management hooks",
+      "version": "2025.12.1",
+      "author": {
+        "name": "CCO"
+      },
+      "source": "./cco",
+      "category": "development"
+    }
+  ]
+}
