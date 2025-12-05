@@ -65,8 +65,25 @@ jobs:
       - name: Install cross-compilation tools (Linux)
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools pkg-config libssl-dev
+          # Self-hosted runners should already have build tools installed via setup-runners workflow
+          # This step handles different package managers gracefully
+          if command -v apt-get &> /dev/null; then
+            echo "Debian/Ubuntu detected, installing via apt-get..."
+            sudo apt-get update
+            sudo apt-get install -y musl-tools pkg-config libssl-dev || true
+          elif command -v apk &> /dev/null; then
+            echo "Alpine detected, installing via apk..."
+            sudo apk add --no-cache build-base pkgconfig openssl-dev musl-dev || true
+          elif command -v yum &> /dev/null; then
+            echo "CentOS/RHEL detected, installing via yum..."
+            sudo yum install -y gcc gcc-c++ make pkgconfig openssl-devel || true
+          else
+            echo "No recognized package manager found, assuming build tools are pre-installed"
+          fi
+          # Verify essential tools exist
+          echo "Checking build tools..."
+          gcc --version || echo "Warning: gcc not found"
+          pkg-config --version || echo "Warning: pkg-config not found"
 
       - name: Build binary
         env:
