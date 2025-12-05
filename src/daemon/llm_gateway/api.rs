@@ -194,10 +194,14 @@ async fn handle_streaming_request(
     // 3. Passes bytes through unchanged
     let broadcaster = gateway.stream_broadcaster.clone();
     let req_id = request_id.clone();
+    let model_for_cost = request.model.clone();
 
     // Track usage for final completion event using Arc<Mutex<_>> for interior mutability
     use std::sync::Mutex;
     let usage_tracker = Arc::new(Mutex::new((0u32, 0u32))); // (input_tokens, output_tokens)
+
+    // Create SSE parser shared across chunks to maintain state for events spanning chunk boundaries
+    let sse_parser = Arc::new(Mutex::new(SseParser::new()));
 
     let passthrough_stream = byte_stream.map(move |chunk_result| {
         match chunk_result {
@@ -211,12 +215,14 @@ async fn handle_streaming_request(
                     }
                 };
 
-                // Parse SSE events (using a temporary parser for each chunk)
-                // Note: This is a simplified approach - in production you'd want to maintain
-                // parser state across chunks, but for our use case (broadcasting deltas),
-                // this is sufficient since we're primarily interested in text_delta events
-                let mut parser = SseParser::new();
-                let events = parser.process_chunk(text);
+                // Parse SSE events using shared parser to handle events spanning chunks
+                let events = if let Ok(mut parser) = sse_parser.lock() {
+                    parser.process_chunk(text)
+                } else {
+                    // Fallback: create temporary parser if lock fails
+                    let mut parser = SseParser::new();
+                    parser.process_chunk(text)
+                };
 
                 for event in events {
                     // Try to parse as JSON
@@ -258,8 +264,8 @@ async fn handle_streaming_request(
                             (0, 0)
                         };
 
-                        // Calculate cost (simplified - in production use actual cost calculation)
-                        let cost_usd = (input_tokens as f64 * 0.00003) + (output_tokens as f64 * 0.00015);
+                        // Calculate cost using model-specific pricing
+                        let cost_usd = calculate_streaming_cost(&model_for_cost, input_tokens, output_tokens);
 
                         broadcaster.send(super::sse_broadcast::TuiStreamEvent::Completed {
                             request_id: req_id.clone(),
@@ -714,9 +720,65 @@ pub struct ErrorDetail {
     pub message: String,
 }
 
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/// Calculate cost for streaming responses using model-specific pricing
+/// Prices are per million tokens
+fn calculate_streaming_cost(model: &str, input_tokens: u32, output_tokens: u32) -> f64 {
+    // Model-specific pricing per million tokens
+    let (input_price, output_price) = if model.contains("opus") {
+        (15.0, 75.0) // Opus pricing
+    } else if model.contains("sonnet") {
+        (3.0, 15.0) // Sonnet pricing
+    } else if model.contains("haiku") {
+        (0.25, 1.25) // Haiku pricing
+    } else if model.contains("gpt-4") {
+        (10.0, 30.0) // GPT-4 pricing (approximate)
+    } else if model.contains("gpt-3.5") {
+        (0.5, 1.5) // GPT-3.5 pricing (approximate)
+    } else if model.contains("deepseek") {
+        (0.14, 0.28) // DeepSeek pricing (approximate)
+    } else if model.contains("llama") || model.contains("mistral") {
+        (0.0, 0.0) // Local/Ollama models - free
+    } else {
+        (1.0, 2.0) // Default/unknown pricing
+    };
+
+    let input_cost = (input_tokens as f64 / 1_000_000.0) * input_price;
+    let output_cost = (output_tokens as f64 / 1_000_000.0) * output_price;
+
+    input_cost + output_cost
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_calculate_streaming_cost() {
+        // Sonnet: $3/$15 per million tokens
+        // 1000 input: 1000/1M * 3 = 0.003
+        // 500 output: 500/1M * 15 = 0.0075
+        // Total: 0.0105
+        let cost = calculate_streaming_cost("claude-sonnet-4-5-20250929", 1000, 500);
+        assert!((cost - 0.0105).abs() < 0.0001);
+
+        // Opus: $15/$75 per million tokens
+        // 1000 input: 1000/1M * 15 = 0.015
+        // 500 output: 500/1M * 75 = 0.0375
+        // Total: 0.0525
+        let cost = calculate_streaming_cost("claude-opus-4-5-20251101", 1000, 500);
+        assert!((cost - 0.0525).abs() < 0.0001);
+
+        // Haiku: $0.25/$1.25 per million tokens
+        // 1000 input: 1000/1M * 0.25 = 0.00025
+        // 500 output: 500/1M * 1.25 = 0.000625
+        // Total: 0.000875
+        let cost = calculate_streaming_cost("claude-haiku-4-5-20251001", 1000, 500);
+        assert!((cost - 0.000875).abs() < 0.0001);
+    }
 
     #[test]
     fn test_error_response_serialization() {
