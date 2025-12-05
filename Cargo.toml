@@ -75,7 +75,7 @@ self_update = { version = "0.41", features = ["rustls", "archive-tar", "compress
 litcrypt2 = "0.1"  # Compile-time string encryption for embedded credentials
 
 # LLM inference engine (Phase 1B) - migrated to mistral.rs for Qwen2 support
-mistralrs = { git = "https://github.com/EricLBuehler/mistral.rs", branch = "master", features = ["metal"] }
+# Note: mistralrs with Metal is macOS-only, moved to platform-specific dependencies below
 indicatif = "0.17"
 rand = "0.8"
 num_cpus = "1.16"
@@ -89,6 +89,10 @@ arrow-schema = "56.2"
 [target.'cfg(unix)'.dependencies]
 nix = { version = "0.27", features = ["signal"] }
 libc = "0.2"
+
+# macOS-specific dependencies (Metal GPU acceleration)
+[target.'cfg(target_os = "macos")'.dependencies]
+mistralrs = { git = "https://github.com/EricLBuehler/mistral.rs", branch = "master", features = ["metal"] }
 
 [build-dependencies]
 include_dir = "0.7"

@@ -48,7 +48,10 @@ pub mod config;
 pub mod error;
 pub mod executor;
 pub mod lifecycle;
+#[cfg(target_os = "macos")]
 pub mod llm;
+#[cfg(not(target_os = "macos"))]
+pub mod llm_stub;
 pub mod permissions;
 pub mod registry;
 pub mod types;
@@ -59,7 +62,10 @@ pub use config::{HookLlmConfig, HooksCallbacks, HooksConfig, HooksPermissions};
 pub use error::{HookError, HookResult};
 pub use executor::HookExecutor;
 pub use lifecycle::execute_lifecycle_hook;
+#[cfg(target_os = "macos")]
 pub use llm::CrudClassifier;
+#[cfg(not(target_os = "macos"))]
+pub use llm_stub::CrudClassifier;
 pub use permissions::{
     PermissionConfig, PermissionDecision, PermissionHandler, PermissionRequest, PermissionResponse,
 };
