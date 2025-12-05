@@ -1,6 +1,6 @@
 [package]
 name = "cco"
-version = "2025.12.1"  # Date-based version: YYYY.MM.N (git commit hash used for multi-release disambiguation)
+version = "0.0.0"  # Dynamic version set at build-time (see build.rs for YYYY.MM.DD+<commit-hash> format)
 edition = "2021"
 
 [package.metadata]

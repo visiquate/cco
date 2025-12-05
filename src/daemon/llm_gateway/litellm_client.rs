@@ -16,6 +16,14 @@ use super::{CompletionRequest, CompletionResponse, RequestMetrics, Usage};
 /// Type alias for a byte stream (SSE response body)
 pub type ByteStream = Pin<Box<dyn Stream<Item = Result<Bytes, reqwest::Error>> + Send>>;
 
+/// Streaming response with headers from upstream
+pub struct LiteLLMStreamingResponse {
+    /// The byte stream of SSE events
+    pub stream: ByteStream,
+    /// Headers from the upstream response
+    pub headers: HeaderMap,
+}
+
 /// LiteLLM HTTP client for making completion requests
 pub struct LiteLLMClient {
     /// Base URL of the LiteLLM proxy (e.g., "http://localhost:4000")
@@ -138,13 +146,13 @@ impl LiteLLMClient {
 
     /// Execute a streaming completion request
     ///
-    /// Returns a byte stream of SSE events that can be passed through to the client
+    /// Returns a LiteLLMStreamingResponse with byte stream and headers
     pub async fn complete_stream(
         &self,
         mut request: CompletionRequest,
         client_auth: Option<String>,
         client_beta: Option<String>,
-    ) -> Result<ByteStream> {
+    ) -> Result<LiteLLMStreamingResponse> {
         let url = format!("{}/v1/messages", self.base_url);
 
         // Ensure stream is enabled
@@ -206,8 +214,14 @@ impl LiteLLMClient {
             anyhow::bail!("LiteLLM returned {}: {}", status, error_text);
         }
 
-        // Return the byte stream
-        Ok(Box::pin(response.bytes_stream()))
+        // Capture headers before consuming response body
+        let headers = response.headers().clone();
+
+        // Return the byte stream with headers
+        Ok(LiteLLMStreamingResponse {
+            stream: Box::pin(response.bytes_stream()),
+            headers,
+        })
     }
 
     /// Check if LiteLLM is healthy

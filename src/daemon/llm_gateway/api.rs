@@ -125,12 +125,12 @@ async fn handle_streaming_request(
         "OAuth detection for streaming request"
     );
 
-    // Get the byte stream - use LiteLLM if available AND not OAuth, otherwise direct provider
-    let byte_stream = if use_litellm {
+    // Get the byte stream and headers - use LiteLLM if available AND not OAuth, otherwise direct provider
+    let (byte_stream, upstream_headers) = if use_litellm {
         let litellm = gateway.litellm_client.as_ref().unwrap();
         tracing::debug!(request_id = %request_id, "Using LiteLLM client for streaming request");
         match litellm.complete_stream(request.clone(), auth_header, beta_header).await {
-            Ok(stream) => stream,
+            Ok(response) => (response.stream, response.headers),
             Err(e) => {
                 tracing::error!(request_id = %request_id, error = %e, "Failed to start LiteLLM streaming");
                 // Emit error event
@@ -159,9 +159,9 @@ async fn handle_streaming_request(
             }
         };
 
-        // Get the byte stream from the provider
+        // Get the streaming response (stream + headers) from the provider
         match provider.complete_stream(request.clone(), auth_header, beta_header).await {
-            Ok(stream) => stream,
+            Ok(response) => (response.stream, response.headers),
             Err(e) => {
                 tracing::error!(request_id = %request_id, error = %e, "Failed to start streaming");
                 // Emit error event
@@ -173,6 +173,13 @@ async fn handle_streaming_request(
             }
         }
     };
+
+    // Log forwarded headers for debugging
+    tracing::debug!(
+        request_id = %request_id,
+        upstream_header_count = upstream_headers.len(),
+        "Captured upstream headers for forwarding"
+    );
 
     tracing::info!(
         request_id = %request_id,
@@ -296,12 +303,48 @@ async fn handle_streaming_request(
     });
 
     // Build SSE response with proper headers
-    Response::builder()
+    let mut response_builder = Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/event-stream")
         .header(header::CACHE_CONTROL, "no-cache")
         .header(header::CONNECTION, "keep-alive")
-        .header("x-accel-buffering", "no") // Disable nginx buffering
+        .header("x-accel-buffering", "no"); // Disable nginx buffering
+
+    // Forward relevant upstream headers from Anthropic/LiteLLM
+    // These headers may be needed by Claude Code to properly render responses
+    let headers_to_forward = [
+        "x-request-id",
+        "request-id",
+        "anthropic-ratelimit-requests-limit",
+        "anthropic-ratelimit-requests-remaining",
+        "anthropic-ratelimit-requests-reset",
+        "anthropic-ratelimit-tokens-limit",
+        "anthropic-ratelimit-tokens-remaining",
+        "anthropic-ratelimit-tokens-reset",
+        "retry-after",
+    ];
+
+    for header_name in headers_to_forward {
+        if let Some(value) = upstream_headers.get(header_name) {
+            if let Ok(value_str) = value.to_str() {
+                response_builder = response_builder.header(header_name, value_str);
+                tracing::trace!(header = %header_name, value = %value_str, "Forwarding upstream header");
+            }
+        }
+    }
+
+    // Also forward any x-* headers we haven't explicitly listed
+    for (key, value) in upstream_headers.iter() {
+        let key_str = key.as_str();
+        if key_str.starts_with("x-") && !headers_to_forward.contains(&key_str) {
+            if let Ok(value_str) = value.to_str() {
+                response_builder = response_builder.header(key_str, value_str);
+                tracing::trace!(header = %key_str, value = %value_str, "Forwarding x-* upstream header");
+            }
+        }
+    }
+
+    response_builder
         .body(Body::from_stream(body_stream))
         .unwrap_or_else(|e| {
             tracing::error!(request_id = %request_id, error = %e, "Failed to build streaming response");

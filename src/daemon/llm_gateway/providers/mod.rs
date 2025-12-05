@@ -15,12 +15,22 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use bytes::Bytes;
 use futures::Stream;
+use reqwest::header::HeaderMap;
 
 use super::config::{ProviderConfig, ProviderType};
 use super::{CompletionRequest, CompletionResponse, RequestMetrics};
 
 /// Type alias for a byte stream (SSE response body)
 pub type ByteStream = std::pin::Pin<Box<dyn Stream<Item = Result<Bytes, reqwest::Error>> + Send>>;
+
+/// Streaming response with headers from the upstream provider
+/// This allows forwarding important headers (like request-id) to the client
+pub struct StreamingResponse {
+    /// The byte stream of SSE events
+    pub stream: ByteStream,
+    /// Headers from the upstream provider response
+    pub headers: HeaderMap,
+}
 
 /// Provider trait for LLM backends
 #[async_trait]
@@ -44,14 +54,14 @@ pub trait Provider: Send + Sync {
     ) -> Result<(CompletionResponse, RequestMetrics)>;
 
     /// Execute a streaming completion request
-    /// Returns a byte stream that yields SSE events
+    /// Returns a StreamingResponse containing the byte stream and upstream headers
     /// Default implementation returns an error (not all providers support streaming)
     async fn complete_stream(
         &self,
         _request: CompletionRequest,
         _client_auth: Option<String>,
         _client_beta: Option<String>,
-    ) -> Result<ByteStream> {
+    ) -> Result<StreamingResponse> {
         Err(anyhow!("Streaming not supported by provider: {}", self.name()))
     }
 

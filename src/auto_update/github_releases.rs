@@ -1,8 +1,7 @@
 //! GitHub Releases API integration with embedded token support
 //!
 //! This module provides auto-update functionality using GitHub private releases.
-//! The authentication token is embedded in the binary at compile time and obfuscated
-//! using litcrypt2 for security.
+//! The authentication token is embedded in the binary at compile time and XOR-obfuscated.
 //!
 //! # Security Model
 //! - Token is XOR encrypted at compile time (not visible via `strings`)
@@ -24,12 +23,26 @@ const GITHUB_OWNER: &str = "visiquate";
 const GITHUB_REPO: &str = "cco";
 const GITHUB_API_URL: &str = "https://api.github.com";
 
-// Embedded update token (encrypted at compile time)
+/// XOR key for decrypting embedded token (must match build.rs)
+const XOR_KEY: u8 = 0xA7;
+
+// Embedded update token (XOR-obfuscated at compile time)
 // This is set via VISIQUATE_UPDATE_TOKEN env var during CI build
 // If not available at build time, updates will fall back to manual download
 fn get_embedded_token() -> Option<String> {
-    // Try to get from build-time embedded value
-    option_env!("VISIQUATE_UPDATE_TOKEN").map(|s| s.to_string())
+    // Read embedded obfuscated token
+    let obfuscated = include_bytes!(concat!(env!("OUT_DIR"), "/update_token.bin"));
+
+    // Empty file means no token was embedded
+    if obfuscated.is_empty() {
+        return None;
+    }
+
+    // XOR decrypt
+    let decrypted: Vec<u8> = obfuscated.iter().map(|&b| b ^ XOR_KEY).collect();
+
+    // Convert to string
+    String::from_utf8(decrypted).ok()
 }
 
 /// GitHub Release API response

@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use super::{resolve_api_key, ByteStream, Provider};
+use super::{resolve_api_key, Provider, StreamingResponse};
 use crate::daemon::llm_gateway::config::{ProviderConfig, ProviderType};
 use crate::daemon::llm_gateway::metrics::PricingTable;
 use crate::daemon::llm_gateway::{
@@ -244,13 +244,13 @@ impl Provider for AnthropicProvider {
     }
 
     /// Execute a streaming completion request
-    /// Returns a byte stream that yields SSE events directly from Anthropic
+    /// Returns a StreamingResponse with byte stream and headers from Anthropic
     async fn complete_stream(
         &self,
         request: CompletionRequest,
         client_auth: Option<String>,
         client_beta: Option<String>,
-    ) -> Result<ByteStream> {
+    ) -> Result<StreamingResponse> {
         let model = self.resolve_model(&request.model);
 
         // Build the Anthropic API request with stream: true
@@ -345,10 +345,16 @@ impl Provider for AnthropicProvider {
             ));
         }
 
+        // Capture headers before consuming response body
+        let headers = response.headers().clone();
+
         tracing::info!(model = %model, "Started streaming response from Anthropic");
 
-        // Return the byte stream directly - the API layer will forward it as SSE
-        Ok(Box::pin(response.bytes_stream()))
+        // Return the byte stream with headers - the API layer will forward both
+        Ok(StreamingResponse {
+            stream: Box::pin(response.bytes_stream()),
+            headers,
+        })
     }
 }
 

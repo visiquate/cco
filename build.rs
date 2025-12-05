@@ -6,6 +6,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use chrono::Datelike;
+
 fn main() {
     // Rerun build if config changes
     println!("cargo:rerun-if-changed=config/");
@@ -22,6 +24,9 @@ fn main() {
 
     // Embed DeepSeek API key credential (CI/CD only)
     embed_deepseek_credential();
+
+    // Embed GitHub update token (CI/CD only)
+    embed_update_token();
 
     // Get git commit hash
     let git_hash = get_git_hash();
@@ -40,21 +45,22 @@ fn main() {
         );
     }
 
-    // Set version - auto-detect today's date in YYYY.MM.DD format
+    // Set version - auto-detect today's date in YYYY.M.D format (no leading zeros)
     // Can be overridden with VERSION_DATE environment variable for special builds
     let base_version = env::var("VERSION_DATE").unwrap_or_else(|_| {
-        // Auto-detect today's date (e.g., 2025.11.26 for November 26, 2025)
-        chrono::Local::now().format("%Y.%m.%d").to_string()
+        // Auto-detect today's date (e.g., 2025.12.5 for December 5, 2025)
+        let now = chrono::Local::now();
+        format!("{}.{}.{}", now.format("%Y"), now.month(), now.day())
     });
 
     // Validate VERSION_DATE format (basic check: should contain dots and be reasonably long)
-    if !base_version.contains('.') || base_version.len() < 8 {
+    if !base_version.contains('.') || base_version.len() < 7 {
         eprintln!("ERROR: VERSION_DATE format invalid: {}", base_version);
-        eprintln!("Expected format: YYYY.MM.DD (e.g., 2025.11.18)");
+        eprintln!("Expected format: YYYY.M.D (e.g., 2025.12.5)");
         std::process::exit(1);
     }
 
-    // Append git hash to version for traceability (format: YYYY.MM.DD+<git-hash>)
+    // Append git hash to version for traceability (format: YYYY.M.D+<git-hash>)
     let version = if git_hash != "unknown" && !git_hash.is_empty() {
         format!("{}+{}", base_version, git_hash)
     } else {
@@ -165,6 +171,36 @@ fn embed_deepseek_credential() {
             fs::write(&dest_path, &[]).expect("Failed to write empty deepseek credential");
 
             println!("cargo:rustc-env=DEEPSEEK_CREDENTIAL_EMBEDDED=0");
+        }
+    }
+}
+
+/// Embed GitHub update token with XOR obfuscation (if VISIQUATE_UPDATE_TOKEN env var is set)
+fn embed_update_token() {
+    // Only embed if VISIQUATE_UPDATE_TOKEN env var is set (CI/CD only)
+    match env::var("VISIQUATE_UPDATE_TOKEN") {
+        Ok(token) if !token.is_empty() => {
+            // XOR obfuscation key (same as orchestrator prompt: 0xA7)
+            const XOR_KEY: u8 = 0xA7;
+            let obfuscated: Vec<u8> = token.as_bytes().iter().map(|b| b ^ XOR_KEY).collect();
+
+            let out_dir = env::var("OUT_DIR").unwrap();
+            let dest_path = Path::new(&out_dir).join("update_token.bin");
+            fs::write(&dest_path, &obfuscated).expect("Failed to write update token");
+
+            println!(
+                "cargo:warning=✓ GitHub update token embedded ({} bytes)",
+                token.len()
+            );
+            println!("cargo:rustc-env=UPDATE_TOKEN_EMBEDDED=1");
+        }
+        _ => {
+            // No token - create empty file
+            let out_dir = env::var("OUT_DIR").unwrap();
+            let dest_path = Path::new(&out_dir).join("update_token.bin");
+            fs::write(&dest_path, &[]).expect("Failed to write empty update token");
+
+            println!("cargo:rustc-env=UPDATE_TOKEN_EMBEDDED=0");
         }
     }
 }

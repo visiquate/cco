@@ -1,6 +1,7 @@
 //! Update module for CCO
 //!
 //! Handles checking for updates and installing new versions from GitHub releases.
+//! The update token is embedded and XOR-obfuscated at build time.
 
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -17,9 +18,24 @@ use cco::version::DateVersion;
 const GITHUB_REPO: &str = "visiquate/cco";
 const GITHUB_API_URL: &str = "https://api.github.com/repos";
 
-/// Get embedded update token (set at build time via VISIQUATE_UPDATE_TOKEN)
+/// XOR key for decrypting embedded token (must match build.rs)
+const XOR_KEY: u8 = 0xA7;
+
+/// Get embedded update token (XOR-obfuscated at build time)
 fn get_update_token() -> Option<String> {
-    option_env!("VISIQUATE_UPDATE_TOKEN").map(|s| s.to_string())
+    // Read embedded obfuscated token
+    let obfuscated = include_bytes!(concat!(env!("OUT_DIR"), "/update_token.bin"));
+
+    // Empty file means no token was embedded
+    if obfuscated.is_empty() {
+        return None;
+    }
+
+    // XOR decrypt
+    let decrypted: Vec<u8> = obfuscated.iter().map(|&b| b ^ XOR_KEY).collect();
+
+    // Convert to string
+    String::from_utf8(decrypted).ok()
 }
 
 /// GitHub Release API response
