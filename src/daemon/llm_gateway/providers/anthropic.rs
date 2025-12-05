@@ -147,12 +147,35 @@ impl Provider for AnthropicProvider {
             self.get_configured_auth()
         };
 
+        // Check if we're using OAuth (Bearer auth)
+        let is_oauth_auth = auth_header_name == "Authorization"
+            && auth_header_value.to_lowercase().starts_with("bearer ");
+
         request_builder = request_builder.header(auth_header_name, auth_header_value);
 
-        // Add anthropic-beta header if provided by client
-        if let Some(beta) = client_beta {
-            request_builder = request_builder.header("anthropic-beta", beta);
-            tracing::debug!("Using client anthropic-beta header");
+        // Add anthropic-beta header
+        // IMPORTANT: For OAuth authentication, the oauth-2025-04-20 beta is required
+        let beta_header = if let Some(beta) = client_beta {
+            // If client provided beta headers, ensure oauth-2025-04-20 is included for OAuth
+            if is_oauth_auth && !beta.contains("oauth-2025-04-20") {
+                let combined = format!("oauth-2025-04-20,{}", beta);
+                tracing::debug!("Combining oauth beta with client headers: {}", combined);
+                combined
+            } else {
+                tracing::debug!("Using client anthropic-beta header: {}", beta);
+                beta
+            }
+        } else if is_oauth_auth {
+            // No client beta, but using OAuth - add required oauth beta
+            tracing::debug!("Adding oauth-2025-04-20 beta for OAuth auth");
+            "oauth-2025-04-20".to_string()
+        } else {
+            // No OAuth, no client beta - use empty string (no header added)
+            String::new()
+        };
+
+        if !beta_header.is_empty() {
+            request_builder = request_builder.header("anthropic-beta", beta_header);
         }
 
         let response = request_builder
@@ -276,12 +299,35 @@ impl Provider for AnthropicProvider {
             self.get_configured_auth()
         };
 
+        // Check if we're using OAuth (Bearer auth)
+        let is_oauth_auth = auth_header_name == "Authorization"
+            && auth_header_value.to_lowercase().starts_with("bearer ");
+
         request_builder = request_builder.header(auth_header_name, auth_header_value);
 
-        // Add anthropic-beta header if provided by client
-        if let Some(beta) = client_beta {
-            request_builder = request_builder.header("anthropic-beta", beta);
-            tracing::debug!("Streaming: Using client anthropic-beta header");
+        // Add anthropic-beta header
+        // IMPORTANT: For OAuth authentication, the oauth-2025-04-20 beta is required
+        let beta_header = if let Some(beta) = client_beta {
+            // If client provided beta headers, ensure oauth-2025-04-20 is included for OAuth
+            if is_oauth_auth && !beta.contains("oauth-2025-04-20") {
+                let combined = format!("oauth-2025-04-20,{}", beta);
+                tracing::debug!("Streaming: Combining oauth beta with client headers: {}", combined);
+                combined
+            } else {
+                tracing::debug!("Streaming: Using client anthropic-beta header: {}", beta);
+                beta
+            }
+        } else if is_oauth_auth {
+            // No client beta, but using OAuth - add required oauth beta
+            tracing::debug!("Streaming: Adding oauth-2025-04-20 beta for OAuth auth");
+            "oauth-2025-04-20".to_string()
+        } else {
+            // No OAuth, no client beta - use empty string (no header added)
+            String::new()
+        };
+
+        if !beta_header.is_empty() {
+            request_builder = request_builder.header("anthropic-beta", beta_header);
         }
 
         let response = request_builder
