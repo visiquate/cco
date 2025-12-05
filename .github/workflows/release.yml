@@ -29,9 +29,6 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
             artifact_name: cco-aarch64-apple-darwin
-          - target: x86_64-apple-darwin
-            os: macos-latest
-            artifact_name: cco-x86_64-apple-darwin
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             artifact_name: cco-x86_64-unknown-linux-gnu
@@ -63,12 +60,6 @@ jobs:
         run: |
           # For ARM on macOS, we may need to set up cross-compilation
           # On Apple Silicon runners, aarch64 is native
-          rustup target add ${{ matrix.target }}
-
-      - name: Install cross-compilation tools (macOS Intel)
-        if: matrix.target == 'x86_64-apple-darwin' && runner.os == 'macOS'
-        run: |
-          # For Intel on macOS
           rustup target add ${{ matrix.target }}
 
       - name: Install cross-compilation tools (Linux)
@@ -179,7 +170,6 @@ jobs:
           | Platform | File |
           |----------|------|
           | macOS (Apple Silicon) | `cco-aarch64-apple-darwin.tar.gz` |
-          | macOS (Intel) | `cco-x86_64-apple-darwin.tar.gz` |
           | Linux (x86_64) | `cco-x86_64-unknown-linux-gnu.tar.gz` |
 
           ```bash
@@ -241,7 +231,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Artifacts:**" >> $GITHUB_STEP_SUMMARY
           echo "- cco-aarch64-apple-darwin.tar.gz (macOS ARM)" >> $GITHUB_STEP_SUMMARY
-          echo "- cco-x86_64-apple-darwin.tar.gz (macOS Intel)" >> $GITHUB_STEP_SUMMARY
           echo "- cco-x86_64-unknown-linux-gnu.tar.gz (Linux)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Next steps:**" >> $GITHUB_STEP_SUMMARY
@@ -276,16 +265,13 @@ jobs:
         run: |
           # Get SHA256 for each platform
           ARM64_SHA=$(cat artifacts/cco-aarch64-apple-darwin/*.sha256 | awk '{print $1}')
-          X86_64_DARWIN_SHA=$(cat artifacts/cco-x86_64-apple-darwin/*.sha256 | awk '{print $1}')
           X86_64_LINUX_SHA=$(cat artifacts/cco-x86_64-unknown-linux-gnu/*.sha256 | awk '{print $1}')
 
           echo "ARM64_SHA=$ARM64_SHA" >> $GITHUB_OUTPUT
-          echo "X86_64_DARWIN_SHA=$X86_64_DARWIN_SHA" >> $GITHUB_OUTPUT
           echo "X86_64_LINUX_SHA=$X86_64_LINUX_SHA" >> $GITHUB_OUTPUT
 
           echo "SHA256 values:"
           echo "  aarch64-apple-darwin: $ARM64_SHA"
-          echo "  x86_64-apple-darwin: $X86_64_DARWIN_SHA"
           echo "  x86_64-unknown-linux-gnu: $X86_64_LINUX_SHA"
 
       - name: Checkout homebrew tap
@@ -300,7 +286,6 @@ jobs:
           VERSION="${{ steps.get_version.outputs.VERSION }}"
           VERSION_NUM="${{ steps.get_version.outputs.VERSION_NUM }}"
           ARM64_SHA="${{ steps.sha256.outputs.ARM64_SHA }}"
-          X86_64_DARWIN_SHA="${{ steps.sha256.outputs.X86_64_DARWIN_SHA }}"
           X86_64_LINUX_SHA="${{ steps.sha256.outputs.X86_64_LINUX_SHA }}"
 
           cd homebrew-cco
@@ -315,9 +300,6 @@ jobs:
           # Update SHA256 values
           # ARM64 Darwin
           sed -i "/aarch64-apple-darwin/,/sha256/{s/sha256 \"[^\"]*\"/sha256 \"$ARM64_SHA\"/}" Formula/cco.rb
-
-          # x86_64 Darwin
-          sed -i "/x86_64-apple-darwin/,/sha256/{s/sha256 \"[^\"]*\"/sha256 \"$X86_64_DARWIN_SHA\"/}" Formula/cco.rb
 
           # x86_64 Linux
           sed -i "/x86_64-unknown-linux-gnu/,/sha256/{s/sha256 \"[^\"]*\"/sha256 \"$X86_64_LINUX_SHA\"/}" Formula/cco.rb
