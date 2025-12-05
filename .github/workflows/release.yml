@@ -176,9 +176,7 @@ jobs:
 
           ```bash
           # First time setup
-          brew install gh
-          gh auth login
-          brew tap visiquate/cco https://github.com/visiquate/homebrew-cco
+          brew tap visiquate/cco
           brew install visiquate/cco/cco
           ```
 

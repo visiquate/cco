@@ -349,7 +349,8 @@ cco config set updates.check_interval weekly
 **Using authentication** (optional, increases limit to 5000/hour):
 
 ```bash
-# Set GitHub token (requires public repo access)
+# Set GitHub token (optional - only needed if you hit rate limits)
+# Note: This is NOT required for public repo access
 export GITHUB_TOKEN="ghp_..."
 
 # Then retry
