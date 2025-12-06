@@ -27,7 +27,7 @@ jobs:
       matrix:
         include:
           - target: aarch64-apple-darwin
-            os: macos-latest
+            os: [self-hosted, macOS, ARM64]
             artifact_name: cco-aarch64-apple-darwin
           - target: x86_64-unknown-linux-gnu
             os: [self-hosted, Linux, X64]
