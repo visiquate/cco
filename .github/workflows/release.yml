@@ -92,7 +92,6 @@ jobs:
           AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
           VISIQUATE_UPDATE_TOKEN: ${{ secrets.VISIQUATE_UPDATE_TOKEN }}
           LITCRYPT_ENCRYPT_KEY: ${{ secrets.LITCRYPT_KEY }}
-          MISTRALRS_METAL_PRECOMPILE: "0"
         run: |
           echo "Building CCO for ${{ matrix.target }}..."
 
