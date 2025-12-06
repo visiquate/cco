@@ -205,6 +205,36 @@ enum Commands {
         #[arg(short, long)]
         path: Option<String>,
     },
+
+    /// Classify shell commands using CRUD framework
+    Classify {
+        /// Command to classify
+        command: Option<String>,
+
+        /// Expected classification (read/create/update/delete)
+        #[arg(short, long)]
+        expected: Option<String>,
+
+        /// Output format (json or human)
+        #[arg(short, long, default_value = "human")]
+        format: String,
+
+        /// List all stored corrections
+        #[arg(long)]
+        list_corrections: bool,
+
+        /// Clear all stored corrections
+        #[arg(long)]
+        clear_corrections: bool,
+
+        /// Export corrections to file
+        #[arg(long)]
+        export_corrections: Option<String>,
+
+        /// Reclassify the last classified command
+        #[arg(long)]
+        last: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1072,6 +1102,30 @@ async fn main() -> anyhow::Result<()> {
             tracing_subscriber::fmt::init();
 
             commands::orchestra::run(action).await
+        }
+
+        Commands::Classify {
+            command,
+            expected,
+            format,
+            list_corrections,
+            clear_corrections,
+            export_corrections,
+            last,
+        } => {
+            // Initialize tracing for classify commands
+            tracing_subscriber::fmt::init();
+
+            commands::classify::run(
+                command,
+                expected,
+                format,
+                list_corrections,
+                clear_corrections,
+                export_corrections,
+                last,
+            )
+            .await
         }
 
         #[cfg(target_os = "macos")]

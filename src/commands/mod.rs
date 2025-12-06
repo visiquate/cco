@@ -1,5 +1,6 @@
 //! CCO CLI commands
 
+pub mod classify;
 pub mod credentials;
 pub mod knowledge;
 pub mod launcher;

@@ -71,6 +71,7 @@ pub struct DaemonState {
     pub recent_decisions: Arc<Mutex<VecDeque<ClassificationDecision>>>,
     pub decision_stats: Arc<Mutex<DecisionStatistics>>,
     pub last_classification_ms: Arc<Mutex<Option<u32>>>,
+    pub last_classified_command: Arc<Mutex<Option<(String, String)>>>, // (command, classification)
     pub knowledge_store: Option<KnowledgeState>,
     pub token_manager: Option<Arc<TokenManager>>,
     // Note: CredentialDetector is created on-demand in knowledge/api.rs and hooks/audit.rs
@@ -282,6 +283,7 @@ impl DaemonState {
             recent_decisions: Arc::new(Mutex::new(VecDeque::with_capacity(100))),
             decision_stats: Arc::new(Mutex::new(DecisionStatistics::default())),
             last_classification_ms: Arc::new(Mutex::new(None)),
+            last_classified_command: Arc::new(Mutex::new(None)),
             knowledge_store,
             token_manager,
             persistence,
@@ -475,6 +477,11 @@ async fn classify_command(
         *last_ms = Some(latency_ms);
     }
 
+    // Store last classified command for reclassification feature
+    if let Ok(mut last_cmd) = state.last_classified_command.lock() {
+        *last_cmd = Some((request.command.clone(), classification_str.clone()));
+    }
+
     // Track decision (auto-approved for now)
     let decision = ClassificationDecision {
         command: request.command.clone(),
@@ -657,6 +664,31 @@ async fn get_hooks_decisions(State(state): State<Arc<DaemonState>>) -> Json<Deci
         model_name,
         last_classification_ms,
     })
+}
+
+/// Response for /api/classify/last endpoint
+#[derive(Debug, Serialize)]
+pub struct LastClassifiedResponse {
+    pub command: String,
+    pub classification: String,
+}
+
+/// Get last classified command endpoint
+async fn get_last_classified(
+    State(state): State<Arc<DaemonState>>,
+) -> Result<Json<LastClassifiedResponse>, AppError> {
+    if let Ok(last_cmd) = state.last_classified_command.lock() {
+        if let Some((command, classification)) = last_cmd.as_ref() {
+            return Ok(Json(LastClassifiedResponse {
+                command: command.clone(),
+                classification: classification.clone(),
+            }));
+        }
+    }
+
+    Err(AppError::InternalError(
+        "No command has been classified yet".to_string(),
+    ))
 }
 
 /// Graceful shutdown endpoint
@@ -1011,6 +1043,7 @@ fn create_router(state: Arc<DaemonState>) -> Router {
     let mut router = Router::new()
         .route("/health", get(health))
         .route("/api/classify", post(classify_command))
+        .route("/api/classify/last", get(get_last_classified))
         .route("/api/hooks/permission-request", post(permission_request))
         .route("/api/hooks/decisions", get(get_hooks_decisions))
         .route("/api/stats", get(get_stats))

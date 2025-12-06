@@ -56,6 +56,19 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'input=$(cat); tool_result=$(echo \"$input\" | jq -r \".tool_result.output // \\\"\\\"\" 2>/dev/null); if echo \"$tool_result\" | grep -qE \"CRUD: (Create|Update|Delete)\"; then echo \"\" >&2; echo \"💡 To reclassify as READ: cco classify --last --expected read\" >&2; fi'",
+            "timeout": 1,
+            "blocking": false
+          }
+        ]
+      }
     ]
   }
 }
