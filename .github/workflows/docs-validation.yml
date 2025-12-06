@@ -50,7 +50,7 @@ jobs:
         id: markdown-link-check
 
       - name: Validate markdown syntax
-        uses: DavidAnson/markdownlint-cli2-action@v16
+        uses: DavidAnson/markdownlint-cli2-action@v21
         with:
           globs: |
             **/*.md
