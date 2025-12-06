@@ -225,7 +225,7 @@ jobs:
           cat release_notes.md
 
       - name: Create release on visiquate/cco
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           repository: visiquate/cco
           tag_name: ${{ steps.get_version.outputs.VERSION }}
