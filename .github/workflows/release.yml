@@ -70,6 +70,8 @@ jobs:
           brew install protobuf
           # Ensure Xcode is selected for Metal shader compilation
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer || true
+          # Download Metal Toolchain component (required for shader compilation)
+          xcodebuild -downloadComponent MetalToolchain || true
           # Verify metal compiler is available
           xcrun --find metal || echo "Warning: metal compiler not found"
 
