@@ -126,11 +126,26 @@ jobs:
         run: |
           # Unlock the login keychain so codesign can access the certificate
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" ~/Library/Keychains/login.keychain-db
+
           # Set keychain search list to include login keychain
-          security list-keychains -s ~/Library/Keychains/login.keychain-db
-          # Set timeout to prevent keychain from locking during build
-          security set-keychain-settings -t 3600 ~/Library/Keychains/login.keychain-db
-          echo "✓ Keychain unlocked"
+          security list-keychains -d user -s ~/Library/Keychains/login.keychain-db
+
+          # Remove keychain relock timeout (critical for CI)
+          security set-keychain-settings ~/Library/Keychains/login.keychain-db
+
+          # CRITICAL: Allow codesign to access the private key without GUI prompt
+          # This fixes errSecInternalComponent in headless/CI environments
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "$KEYCHAIN_PASSWORD" \
+            ~/Library/Keychains/login.keychain-db
+
+          # Verify certificate is accessible
+          echo "Available signing identities:"
+          security find-identity -v -p codesigning ~/Library/Keychains/login.keychain-db
+
+          echo "✓ Keychain unlocked and configured for headless signing"
 
       - name: Sign binary (macOS ARM)
         if: matrix.target == 'aarch64-apple-darwin' && runner.os == 'macOS'
