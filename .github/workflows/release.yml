@@ -112,12 +112,100 @@ jobs:
           # Create artifact directory
           mkdir -p artifacts
 
-          # Copy binary
+          # Copy binary (signing happens in next step for macOS)
           cp target/${{ matrix.target }}/release/cco artifacts/cco
           chmod +x artifacts/cco
 
-          # Create tarball
+          echo "Binary built successfully"
+          ls -la artifacts/
+
+      - name: Sign binary (macOS ARM)
+        if: matrix.target == 'aarch64-apple-darwin' && runner.os == 'macOS'
+        env:
+          CODESIGN_IDENTITY: ${{ secrets.MACOS_CODESIGN_IDENTITY }}
+        run: |
+          BINARY_PATH="artifacts/cco"
+
+          if [ ! -f "$BINARY_PATH" ]; then
+            echo "❌ Binary not found at $BINARY_PATH"
+            exit 1
+          fi
+
+          # Use provided identity or fall back to first available Developer ID
+          IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application}"
+
+          echo "Signing binary with identity: $IDENTITY"
+
+          # Sign the binary
+          # --timestamp: Include secure timestamp (required for notarization)
+          # --options runtime: Enable runtime hardening (macOS 10.15+)
+          # --force: Overwrite existing signature if present
+          codesign --sign "$IDENTITY" \
+            --timestamp \
+            --options runtime \
+            --force \
+            "$BINARY_PATH"
+
+          # Verify signature immediately
+          if codesign --verify --verbose "$BINARY_PATH"; then
+            echo "✓ Binary signed and verified successfully"
+          else
+            echo "❌ Signature verification failed"
+            exit 1
+          fi
+
+          # Show signature details
+          echo "Signature details:"
+          codesign -dvv "$BINARY_PATH" | head -20
+
+      - name: Notarize binary (macOS ARM)
+        if: matrix.target == 'aarch64-apple-darwin' && runner.os == 'macOS'
+        env:
+          NOTARIZATION_PROFILE: ${{ secrets.APPLE_NOTARIZATION_PROFILE }}
+        run: |
+          BINARY_PATH="artifacts/cco"
+
+          if [ ! -f "$BINARY_PATH" ]; then
+            echo "❌ Binary not found at $BINARY_PATH"
+            exit 1
+          fi
+
+          echo "Submitting binary for notarization..."
+          echo "Using keychain profile: $NOTARIZATION_PROFILE"
+
+          # Create a zip for notarization (notarytool requires zip, pkg, or dmg)
           cd artifacts
+          zip cco.zip cco
+
+          # Submit for notarization with --wait to block until complete
+          # Credentials are stored in runner's keychain under the profile name
+          xcrun notarytool submit cco.zip \
+            --keychain-profile "$NOTARIZATION_PROFILE" \
+            --wait \
+            --timeout 600
+
+          # Clean up zip
+          rm cco.zip
+
+          echo "✓ Binary notarized successfully"
+
+      - name: Verify signed binary (macOS ARM)
+        if: matrix.target == 'aarch64-apple-darwin' && runner.os == 'macOS'
+        run: |
+          BINARY_PATH="artifacts/cco"
+
+          echo "=== Signature Verification ==="
+          codesign -dvv "$BINARY_PATH"
+
+          echo ""
+          echo "=== Gatekeeper Check ==="
+          spctl -a -vvv "$BINARY_PATH" 2>&1 || echo "Note: Gatekeeper check may require notarization to propagate"
+
+      - name: Package artifact
+        run: |
+          cd artifacts
+
+          # Create tarball
           tar -czvf ${{ matrix.artifact_name }}.tar.gz cco
           rm cco
 
