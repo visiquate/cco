@@ -243,8 +243,9 @@ fn verify_checksum(file_path: &Path, expected_checksum: &str) -> Result<bool> {
 
 /// Get the installation path for CCO
 fn get_install_path() -> Result<PathBuf> {
-    let home = dirs::home_dir().ok_or_else(|| anyhow!("Could not determine home directory"))?;
-    Ok(home.join(".local/bin/cco"))
+    let current_exe = std::env::current_exe()
+        .context("Failed to get current executable path")?;
+    Ok(current_exe)
 }
 
 /// Extract version from tag (e.g., "v202511-1" -> "202511-1" or "v0.3.0" -> "0.3.0" for backward compatibility)
@@ -462,6 +463,33 @@ async fn install_update(release: &GitHubRelease, auto_confirm: bool) -> Result<(
             if backup_path.exists() {
                 let _ = fs::remove_file(backup_path);
             }
+
+            // Try to restart daemon if it's running
+            if let Ok(daemon_config) = cco::daemon::load_config() {
+                let daemon_manager = cco::daemon::DaemonManager::new(daemon_config);
+
+                // Check if daemon is running
+                match tokio::runtime::Handle::try_current() {
+                    Ok(handle) => {
+                        // We're in an async context, can use tokio
+                        match handle.block_on(daemon_manager.get_status()) {
+                            Ok(status) if status.is_running => {
+                                match handle.block_on(daemon_manager.restart()) {
+                                    Ok(_) => println!("✅ Daemon restarted with new version"),
+                                    Err(_) => println!("⚠️  Failed to restart daemon (you may need to manually restart with 'cco daemon restart')"),
+                                }
+                            }
+                            _ => {
+                                // Daemon not running, that's fine
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        // Not in async context, user will restart manually
+                        println!("\nRestart CCO to use the new version.");
+                    }
+                }
+            }
         }
         _ => {
             println!("⚠️  New binary verification failed, rolling back...");
@@ -477,8 +505,6 @@ async fn install_update(release: &GitHubRelease, auto_confirm: bool) -> Result<(
 
     // Clean up temporary files
     let _ = fs::remove_dir_all(&temp_dir);
-
-    println!("\nRestart CCO to use the new version.");
 
     Ok(())
 }
