@@ -1,5 +1,16 @@
 {
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'send this to the orchestra: '",
+            "timeout": 1
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [
