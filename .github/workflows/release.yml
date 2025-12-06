@@ -38,6 +38,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          clean: false  # Preserve target/ for incremental builds on self-hosted runners
 
       - name: Get version
         id: get_version
