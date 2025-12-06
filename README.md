@@ -25,8 +25,8 @@ You can use Claude Code in its native form anytime by running `claude` directly,
 
 CCO adds value through:
 - **SessionStart hooks** - Initialize knowledge manager, load saved context
-- **PreToolUse hooks** - Classify Bash commands, auto-approve safe READ operations
-- **PreCompact hooks** - Save conversation context before compaction
+- **PreToolUse hooks** - Classify Bash commands, auto-approve READ operations
+- **PreCompact hooks** - Save conversation state before compaction
 
 ## Features CCO Adds to Claude Code
 
@@ -217,11 +217,22 @@ claude                 # Pure Claude Code experience
 
 ### Installation
 
-```bash
-# Install CCO (macOS/Linux)
-curl -sSL https://get.cco.dev | bash
+#### Homebrew (Recommended for macOS)
 
-# Or download binary directly
+```bash
+brew tap visiquate/cco
+brew install cco
+```
+
+#### Shell Script
+
+```bash
+curl -sSL https://get.cco.dev | bash
+```
+
+#### Manual Download
+
+```bash
 # macOS Apple Silicon
 wget https://github.com/visiquate/cco/releases/latest/download/cco-macos-arm64
 chmod +x cco-macos-arm64
