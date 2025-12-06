@@ -119,6 +119,19 @@ jobs:
           echo "Binary built successfully"
           ls -la artifacts/
 
+      - name: Unlock keychain (macOS ARM)
+        if: matrix.target == 'aarch64-apple-darwin' && runner.os == 'macOS'
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
+        run: |
+          # Unlock the login keychain so codesign can access the certificate
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" ~/Library/Keychains/login.keychain-db
+          # Set keychain search list to include login keychain
+          security list-keychains -s ~/Library/Keychains/login.keychain-db
+          # Set timeout to prevent keychain from locking during build
+          security set-keychain-settings -t 3600 ~/Library/Keychains/login.keychain-db
+          echo "✓ Keychain unlocked"
+
       - name: Sign binary (macOS ARM)
         if: matrix.target == 'aarch64-apple-darwin' && runner.os == 'macOS'
         env:
