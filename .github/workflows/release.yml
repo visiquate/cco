@@ -68,6 +68,10 @@ jobs:
           rustup target add ${{ matrix.target }}
           # Install protobuf compiler (required by LanceDB)
           brew install protobuf
+          # Ensure Xcode is selected for Metal shader compilation
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer || true
+          # Verify metal compiler is available
+          xcrun --find metal || echo "Warning: metal compiler not found"
 
       - name: Install cross-compilation tools (Linux)
         if: runner.os == 'Linux'
