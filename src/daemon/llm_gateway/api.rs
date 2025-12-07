@@ -10,14 +10,17 @@ use axum::{
     body::Body,
     extract::{Json, Query, State},
     http::{header, HeaderMap, StatusCode},
-    response::{IntoResponse, Response, sse::{Event, Sse}},
+    response::{
+        sse::{Event, Sse},
+        IntoResponse, Response,
+    },
     routing::{get, post},
     Router,
 };
 use futures::{Stream, StreamExt};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use std::convert::Infallible;
+use std::sync::Arc;
 
 use super::{CompletionRequest, GatewayState, LlmGateway};
 use crate::sse::parser::SseParser;
@@ -92,7 +95,7 @@ async fn complete_handler(
 }
 
 /// Handle streaming completion requests
-/// Returns SSE (Server-Sent Events) response forwarded from the provider or LiteLLM
+/// Returns SSE (Server-Sent Events) response forwarded from the provider
 /// Also parses SSE events and broadcasts them to TUI subscribers
 async fn handle_streaming_request(
     gateway: GatewayState,
@@ -103,74 +106,45 @@ async fn handle_streaming_request(
     // Generate request ID for tracking
     let request_id = uuid::Uuid::new_v4().to_string();
 
-    // Detect OAuth: check for Bearer auth OR CLAUDE_CODE_OAUTH_TOKEN env var
-    let has_bearer_auth = auth_header
-        .as_ref()
-        .map(|h| h.to_lowercase().starts_with("bearer "))
-        .unwrap_or(false);
-    let has_oauth_env = std::env::var("CLAUDE_CODE_OAUTH_TOKEN").map(|t| !t.is_empty()).unwrap_or(false);
-    let is_oauth = has_bearer_auth || has_oauth_env;
-
-    // IMPORTANT: For OAuth authentication, bypass LiteLLM and use direct Anthropic provider
-    // LiteLLM doesn't handle OAuth Bearer tokens correctly (sends as x-api-key instead of Authorization)
-    let use_litellm = gateway.litellm_client.is_some() && !is_oauth;
-
+    // Get the provider for this request
+    let route = gateway.router.route(&request);
     tracing::info!(
         request_id = %request_id,
-        has_bearer_auth = has_bearer_auth,
-        has_oauth_env = has_oauth_env,
-        is_oauth = is_oauth,
-        litellm_available = gateway.litellm_client.is_some(),
-        use_litellm = use_litellm,
-        "OAuth detection for streaming request"
+        provider = %route.provider,
+        "Using direct provider for streaming"
     );
 
-    // Get the byte stream and headers - use LiteLLM if available AND not OAuth, otherwise direct provider
-    let (byte_stream, upstream_headers) = if use_litellm {
-        let litellm = gateway.litellm_client.as_ref().unwrap();
-        tracing::debug!(request_id = %request_id, "Using LiteLLM client for streaming request");
-        match litellm.complete_stream(request.clone(), auth_header, beta_header).await {
-            Ok(response) => (response.stream, response.headers),
-            Err(e) => {
-                tracing::error!(request_id = %request_id, error = %e, "Failed to start LiteLLM streaming");
-                // Emit error event
-                gateway.stream_broadcaster.send(super::sse_broadcast::TuiStreamEvent::Error {
+    let provider = match gateway.providers.get(&route.provider) {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::error!(request_id = %request_id, error = %e, "Failed to get provider for streaming");
+            // Emit error event
+            gateway
+                .stream_broadcaster
+                .send(super::sse_broadcast::TuiStreamEvent::Error {
                     request_id: request_id.clone(),
                     message: e.to_string(),
                 });
-                return GatewayError::ProviderError(e.to_string()).into_response();
-            }
+            return GatewayError::ProviderError(e.to_string()).into_response();
         }
-    } else {
-        // Get the provider for this request
-        let route = gateway.router.route(&request);
-        tracing::debug!(request_id = %request_id, provider = %route.provider, "Using direct provider for streaming");
+    };
 
-        let provider = match gateway.providers.get(&route.provider) {
-            Ok(p) => p,
-            Err(e) => {
-                tracing::error!(request_id = %request_id, error = %e, "Failed to get provider for streaming");
-                // Emit error event
-                gateway.stream_broadcaster.send(super::sse_broadcast::TuiStreamEvent::Error {
+    // Get the streaming response (stream + headers) from the provider
+    let (byte_stream, upstream_headers) = match provider
+        .complete_stream(request.clone(), auth_header, beta_header)
+        .await
+    {
+        Ok(response) => (response.stream, response.headers),
+        Err(e) => {
+            tracing::error!(request_id = %request_id, error = %e, "Failed to start streaming");
+            // Emit error event
+            gateway
+                .stream_broadcaster
+                .send(super::sse_broadcast::TuiStreamEvent::Error {
                     request_id: request_id.clone(),
                     message: e.to_string(),
                 });
-                return GatewayError::ProviderError(e.to_string()).into_response();
-            }
-        };
-
-        // Get the streaming response (stream + headers) from the provider
-        match provider.complete_stream(request.clone(), auth_header, beta_header).await {
-            Ok(response) => (response.stream, response.headers),
-            Err(e) => {
-                tracing::error!(request_id = %request_id, error = %e, "Failed to start streaming");
-                // Emit error event
-                gateway.stream_broadcaster.send(super::sse_broadcast::TuiStreamEvent::Error {
-                    request_id: request_id.clone(),
-                    message: e.to_string(),
-                });
-                return GatewayError::ProviderError(e.to_string()).into_response();
-            }
+            return GatewayError::ProviderError(e.to_string()).into_response();
         }
     };
 
@@ -183,17 +157,18 @@ async fn handle_streaming_request(
 
     tracing::info!(
         request_id = %request_id,
-        using_litellm = use_litellm,
-        is_oauth = is_oauth,
+        provider = %route.provider,
         "Streaming response started"
     );
 
     // Emit Started event
-    gateway.stream_broadcaster.send(super::sse_broadcast::TuiStreamEvent::Started {
-        request_id: request_id.clone(),
-        model: request.model.clone(),
-        agent_type: request.agent_type.clone(),
-    });
+    gateway
+        .stream_broadcaster
+        .send(super::sse_broadcast::TuiStreamEvent::Started {
+            request_id: request_id.clone(),
+            model: request.model.clone(),
+            agent_type: request.agent_type.clone(),
+        });
 
     // Create a stream that:
     // 1. Parses SSE events from the bytes
@@ -235,7 +210,8 @@ async fn handle_streaming_request(
                     // Try to parse as JSON
                     if let Ok(json) = serde_json::from_str::<serde_json::Value>(&event.data) {
                         // Handle content_block_delta events with text deltas
-                        if json.get("type").and_then(|t| t.as_str()) == Some("content_block_delta") {
+                        if json.get("type").and_then(|t| t.as_str()) == Some("content_block_delta")
+                        {
                             if let Some(delta_text) = json
                                 .get("delta")
                                 .and_then(|d| d.get("text"))
@@ -248,13 +224,18 @@ async fn handle_streaming_request(
                             }
                         }
                         // Handle message_delta for usage updates
-                        else if json.get("type").and_then(|t| t.as_str()) == Some("message_delta") {
+                        else if json.get("type").and_then(|t| t.as_str()) == Some("message_delta")
+                        {
                             if let Some(usage) = json.get("usage") {
                                 if let Ok(mut tracker) = usage_tracker.lock() {
-                                    if let Some(input) = usage.get("input_tokens").and_then(|t| t.as_u64()) {
+                                    if let Some(input) =
+                                        usage.get("input_tokens").and_then(|t| t.as_u64())
+                                    {
                                         tracker.0 = input as u32;
                                     }
-                                    if let Some(output) = usage.get("output_tokens").and_then(|t| t.as_u64()) {
+                                    if let Some(output) =
+                                        usage.get("output_tokens").and_then(|t| t.as_u64())
+                                    {
                                         tracker.1 = output as u32;
                                     }
                                 }
@@ -265,14 +246,16 @@ async fn handle_streaming_request(
                     // Check for termination
                     if event.is_done() {
                         // Get final token counts
-                        let (input_tokens, output_tokens) = if let Ok(tracker) = usage_tracker.lock() {
-                            *tracker
-                        } else {
-                            (0, 0)
-                        };
+                        let (input_tokens, output_tokens) =
+                            if let Ok(tracker) = usage_tracker.lock() {
+                                *tracker
+                            } else {
+                                (0, 0)
+                            };
 
                         // Calculate cost using model-specific pricing
-                        let cost_usd = calculate_streaming_cost(&model_for_cost, input_tokens, output_tokens);
+                        let cost_usd =
+                            calculate_streaming_cost(&model_for_cost, input_tokens, output_tokens);
 
                         broadcaster.send(super::sse_broadcast::TuiStreamEvent::Completed {
                             request_id: req_id.clone(),
@@ -486,9 +469,23 @@ async fn audit_handler(
         provider: params.provider.clone(),
         agent_type: params.agent_type.clone(),
         project_id: params.project_id.clone(),
-        status: params.success.map(|s| if s { "success".to_string() } else { "error".to_string() }),
-        from_timestamp: params.start_time.as_deref().and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok().map(|dt| dt.with_timezone(&chrono::Utc))),
-        to_timestamp: params.end_time.as_deref().and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok().map(|dt| dt.with_timezone(&chrono::Utc))),
+        status: params.success.map(|s| {
+            if s {
+                "success".to_string()
+            } else {
+                "error".to_string()
+            }
+        }),
+        from_timestamp: params.start_time.as_deref().and_then(|s| {
+            chrono::DateTime::parse_from_rfc3339(s)
+                .ok()
+                .map(|dt| dt.with_timezone(&chrono::Utc))
+        }),
+        to_timestamp: params.end_time.as_deref().and_then(|s| {
+            chrono::DateTime::parse_from_rfc3339(s)
+                .ok()
+                .map(|dt| dt.with_timezone(&chrono::Utc))
+        }),
         limit: params.limit.map(|l| l as usize),
     };
 
@@ -516,7 +513,11 @@ async fn audit_handler(
             cost_usd: Some(e.cost_usd),
             error_message: e.error_message,
             request_body: if include_bodies { e.request_body } else { None },
-            response_body: if include_bodies { e.response_body } else { None },
+            response_body: if include_bodies {
+                e.response_body
+            } else {
+                None
+            },
         })
         .collect();
 
@@ -571,12 +572,11 @@ async fn stream_subscribe_handler(
         }
     };
 
-    Sse::new(stream)
-        .keep_alive(
-            axum::response::sse::KeepAlive::new()
-                .interval(std::time::Duration::from_secs(15))
-                .text("ping")
-        )
+    Sse::new(stream).keep_alive(
+        axum::response::sse::KeepAlive::new()
+            .interval(std::time::Duration::from_secs(15))
+            .text("ping"),
+    )
 }
 
 // ============================================================================
@@ -593,9 +593,7 @@ pub enum GatewayError {
 impl IntoResponse for GatewayError {
     fn into_response(self) -> Response {
         let (status, error_type, message) = match self {
-            GatewayError::ProviderError(msg) => {
-                (StatusCode::BAD_GATEWAY, "provider_error", msg)
-            }
+            GatewayError::ProviderError(msg) => (StatusCode::BAD_GATEWAY, "provider_error", msg),
             GatewayError::AuditError(msg) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "audit_error", msg)
             }

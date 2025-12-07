@@ -63,11 +63,9 @@ fn load_corrections() -> Result<CorrectionsStore> {
         return Ok(CorrectionsStore::new());
     }
 
-    let content = std::fs::read_to_string(&path)
-        .context("Failed to read corrections file")?;
+    let content = std::fs::read_to_string(&path).context("Failed to read corrections file")?;
 
-    let store = serde_json::from_str(&content)
-        .context("Failed to parse corrections file")?;
+    let store = serde_json::from_str(&content).context("Failed to parse corrections file")?;
 
     Ok(store)
 }
@@ -78,15 +76,12 @@ fn save_corrections(store: &CorrectionsStore) -> Result<()> {
 
     // Ensure .cco directory exists
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .context("Failed to create .cco directory")?;
+        std::fs::create_dir_all(parent).context("Failed to create .cco directory")?;
     }
 
-    let content = serde_json::to_string_pretty(store)
-        .context("Failed to serialize corrections")?;
+    let content = serde_json::to_string_pretty(store).context("Failed to serialize corrections")?;
 
-    std::fs::write(&path, content)
-        .context("Failed to write corrections file")?;
+    std::fs::write(&path, content).context("Failed to write corrections file")?;
 
     Ok(())
 }
@@ -100,7 +95,10 @@ fn parse_expected(expected: &str) -> Result<String> {
         "C" | "CREATE" => Ok("Create".to_string()),
         "U" | "UPDATE" => Ok("Update".to_string()),
         "D" | "DELETE" => Ok("Delete".to_string()),
-        _ => anyhow::bail!("Invalid expected classification: '{}'. Use: read/create/update/delete (or r/c/u/d)", expected),
+        _ => anyhow::bail!(
+            "Invalid expected classification: '{}'. Use: read/create/update/delete (or r/c/u/d)",
+            expected
+        ),
     }
 }
 
@@ -143,8 +141,7 @@ pub async fn run(
 
 /// Reclassify the last classified command
 async fn reclassify_last(expected: Option<&str>, format: &str) -> Result<()> {
-    let port = read_daemon_port()
-        .context("Daemon not running. Start it with: cco daemon start")?;
+    let port = read_daemon_port().context("Daemon not running. Start it with: cco daemon start")?;
 
     // Fetch last classified command from daemon
     let client = reqwest::Client::new();
@@ -187,10 +184,15 @@ async fn reclassify_last(expected: Option<&str>, format: &str) -> Result<()> {
             });
             save_corrections(&store)?;
 
-            println!("✅ Reclassified '{}' from {} to {} - Correction saved",
-                     last.command, last.classification, expected_normalized);
+            println!(
+                "✅ Reclassified '{}' from {} to {} - Correction saved",
+                last.command, last.classification, expected_normalized
+            );
         } else {
-            println!("✅ Classification matches expected: {}", last.classification);
+            println!(
+                "✅ Classification matches expected: {}",
+                last.classification
+            );
         }
     } else {
         // Just re-run classification without expected value
@@ -201,13 +203,8 @@ async fn reclassify_last(expected: Option<&str>, format: &str) -> Result<()> {
 }
 
 /// Classify a command
-async fn classify_command(
-    command: &str,
-    expected: Option<&str>,
-    format: &str,
-) -> Result<()> {
-    let port = read_daemon_port()
-        .context("Daemon not running. Start it with: cco daemon start")?;
+async fn classify_command(command: &str, expected: Option<&str>, format: &str) -> Result<()> {
+    let port = read_daemon_port().context("Daemon not running. Start it with: cco daemon start")?;
 
     let client = reqwest::Client::new();
     let payload = json!({
@@ -277,11 +274,17 @@ fn list_corrections_cmd() -> Result<()> {
         return Ok(());
     }
 
-    println!("📋 Stored Corrections ({} total)\n", store.corrections.len());
+    println!(
+        "📋 Stored Corrections ({} total)\n",
+        store.corrections.len()
+    );
 
     for (i, entry) in store.corrections.iter().enumerate() {
         println!("{}. Command: {}", i + 1, entry.command);
-        println!("   Predicted: {} (confidence: {:.2})", entry.predicted, entry.confidence);
+        println!(
+            "   Predicted: {} (confidence: {:.2})",
+            entry.predicted, entry.confidence
+        );
         println!("   Expected:  {}", entry.expected);
         println!("   Timestamp: {}", entry.timestamp);
         println!();
@@ -314,13 +317,16 @@ fn export_corrections_cmd(path: &str) -> Result<()> {
         return Ok(());
     }
 
-    let content = serde_json::to_string_pretty(&store)
-        .context("Failed to serialize corrections")?;
+    let content =
+        serde_json::to_string_pretty(&store).context("Failed to serialize corrections")?;
 
-    std::fs::write(path, content)
-        .context("Failed to write export file")?;
+    std::fs::write(path, content).context("Failed to write export file")?;
 
-    println!("✅ Exported {} corrections to {}", store.corrections.len(), path);
+    println!(
+        "✅ Exported {} corrections to {}",
+        store.corrections.len(),
+        path
+    );
 
     Ok(())
 }
@@ -345,9 +351,7 @@ fn format_human_readable(data: &serde_json::Value) -> Result<()> {
         .as_str()
         .context("Missing classification")?;
 
-    let confidence = data["confidence"]
-        .as_f64()
-        .context("Missing confidence")?;
+    let confidence = data["confidence"].as_f64().context("Missing confidence")?;
 
     let reasoning = data["reasoning"]
         .as_str()

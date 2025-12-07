@@ -138,7 +138,9 @@ impl Provider for AnthropicProvider {
                 ("Authorization", format!("Bearer {}", oauth_token))
             } else {
                 // Fall through to configured key
-                tracing::debug!("CLAUDE_CODE_OAUTH_TOKEN is empty, using configured authentication");
+                tracing::debug!(
+                    "CLAUDE_CODE_OAUTH_TOKEN is empty, using configured authentication"
+                );
                 self.get_configured_auth()
             }
         } else {
@@ -178,10 +180,7 @@ impl Provider for AnthropicProvider {
             request_builder = request_builder.header("anthropic-beta", beta_header);
         }
 
-        let response = request_builder
-            .json(&api_request)
-            .send()
-            .await?;
+        let response = request_builder.json(&api_request).send().await?;
 
         let status = response.status();
         let response_text = response.text().await?;
@@ -195,8 +194,14 @@ impl Provider for AnthropicProvider {
         }
 
         // Parse the response
-        let api_response: AnthropicResponse = serde_json::from_str(&response_text)
-            .map_err(|e| anyhow!("Failed to parse Anthropic response: {} - {}", e, response_text))?;
+        let api_response: AnthropicResponse =
+            serde_json::from_str(&response_text).map_err(|e| {
+                anyhow!(
+                    "Failed to parse Anthropic response: {} - {}",
+                    e,
+                    response_text
+                )
+            })?;
 
         let latency_ms = start.elapsed().as_millis() as u64;
 
@@ -216,11 +221,7 @@ impl Provider for AnthropicProvider {
             response_type: api_response.response_type,
             role: api_response.role,
             model: api_response.model,
-            content: api_response
-                .content
-                .into_iter()
-                .map(|c| c.into())
-                .collect(),
+            content: api_response.content.into_iter().map(|c| c.into()).collect(),
             stop_reason: api_response.stop_reason,
             stop_sequence: api_response.stop_sequence,
             usage: usage.clone(),
@@ -290,7 +291,9 @@ impl Provider for AnthropicProvider {
                 ("Authorization", format!("Bearer {}", oauth_token))
             } else {
                 // Fall through to configured key
-                tracing::debug!("Streaming: CLAUDE_CODE_OAUTH_TOKEN is empty, using configured authentication");
+                tracing::debug!(
+                    "Streaming: CLAUDE_CODE_OAUTH_TOKEN is empty, using configured authentication"
+                );
                 self.get_configured_auth()
             }
         } else {
@@ -311,7 +314,10 @@ impl Provider for AnthropicProvider {
             // If client provided beta headers, ensure oauth-2025-04-20 is included for OAuth
             if is_oauth_auth && !beta.contains("oauth-2025-04-20") {
                 let combined = format!("oauth-2025-04-20,{}", beta);
-                tracing::debug!("Streaming: Combining oauth beta with client headers: {}", combined);
+                tracing::debug!(
+                    "Streaming: Combining oauth beta with client headers: {}",
+                    combined
+                );
                 combined
             } else {
                 tracing::debug!("Streaming: Using client anthropic-beta header: {}", beta);
@@ -330,19 +336,15 @@ impl Provider for AnthropicProvider {
             request_builder = request_builder.header("anthropic-beta", beta_header);
         }
 
-        let response = request_builder
-            .json(&api_request)
-            .send()
-            .await?;
+        let response = request_builder.json(&api_request).send().await?;
 
         let status = response.status();
         if !status.is_success() {
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-            return Err(anyhow!(
-                "Anthropic API error ({}): {}",
-                status,
-                error_text
-            ));
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(anyhow!("Anthropic API error ({}): {}", status, error_text));
         }
 
         // Capture headers before consuming response body
@@ -472,7 +474,7 @@ impl From<crate::daemon::llm_gateway::Message> for AnthropicMessage {
 
 impl From<ContentBlock> for AnthropicContentBlock {
     fn from(block: ContentBlock) -> Self {
-        use crate::daemon::llm_gateway::{ImageSource, DocumentSource, ToolResultContent};
+        use crate::daemon::llm_gateway::{DocumentSource, ImageSource, ToolResultContent};
         match block {
             ContentBlock::Text { text } => AnthropicContentBlock::Text { text },
             ContentBlock::Image { source } => {
@@ -484,7 +486,9 @@ impl From<ContentBlock> for AnthropicContentBlock {
                         serde_json::json!({"type": "url", "url": url})
                     }
                 };
-                AnthropicContentBlock::Image { source: source_json }
+                AnthropicContentBlock::Image {
+                    source: source_json,
+                }
             }
             ContentBlock::ToolUse { id, name, input } => {
                 AnthropicContentBlock::ToolUse { id, name, input }
@@ -506,20 +510,28 @@ impl From<ContentBlock> for AnthropicContentBlock {
                     is_error,
                 }
             }
-            ContentBlock::Thinking { thinking, signature } => {
-                AnthropicContentBlock::Thinking { thinking, signature }
-            }
+            ContentBlock::Thinking {
+                thinking,
+                signature,
+            } => AnthropicContentBlock::Thinking {
+                thinking,
+                signature,
+            },
             ContentBlock::Document { source } => {
                 let source_json = match source {
                     DocumentSource::Base64 { media_type, data } => {
                         serde_json::json!({"type": "base64", "media_type": media_type, "data": data})
                     }
                 };
-                AnthropicContentBlock::Document { source: source_json }
+                AnthropicContentBlock::Document {
+                    source: source_json,
+                }
             }
             ContentBlock::Unknown => {
                 // Unknown blocks are dropped - they shouldn't be forwarded
-                AnthropicContentBlock::Text { text: "[unknown content]".to_string() }
+                AnthropicContentBlock::Text {
+                    text: "[unknown content]".to_string(),
+                }
             }
         }
     }
@@ -527,26 +539,47 @@ impl From<ContentBlock> for AnthropicContentBlock {
 
 impl From<AnthropicContentBlock> for ContentBlock {
     fn from(block: AnthropicContentBlock) -> Self {
-        use crate::daemon::llm_gateway::{ImageSource, DocumentSource, ToolResultContent};
+        use crate::daemon::llm_gateway::{DocumentSource, ImageSource, ToolResultContent};
         match block {
             AnthropicContentBlock::Text { text } => ContentBlock::Text { text },
             AnthropicContentBlock::Image { source } => {
                 // Parse source JSON back to ImageSource
-                let image_source = if let Some(source_type) = source.get("type").and_then(|v| v.as_str()) {
-                    match source_type {
-                        "base64" => ImageSource::Base64 {
-                            media_type: source.get("media_type").and_then(|v| v.as_str()).unwrap_or("image/png").to_string(),
-                            data: source.get("data").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                        },
-                        "url" => ImageSource::Url {
-                            url: source.get("url").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                        },
-                        _ => ImageSource::Base64 { media_type: "image/png".to_string(), data: "".to_string() },
-                    }
-                } else {
-                    ImageSource::Base64 { media_type: "image/png".to_string(), data: "".to_string() }
-                };
-                ContentBlock::Image { source: image_source }
+                let image_source =
+                    if let Some(source_type) = source.get("type").and_then(|v| v.as_str()) {
+                        match source_type {
+                            "base64" => ImageSource::Base64 {
+                                media_type: source
+                                    .get("media_type")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("image/png")
+                                    .to_string(),
+                                data: source
+                                    .get("data")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("")
+                                    .to_string(),
+                            },
+                            "url" => ImageSource::Url {
+                                url: source
+                                    .get("url")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("")
+                                    .to_string(),
+                            },
+                            _ => ImageSource::Base64 {
+                                media_type: "image/png".to_string(),
+                                data: "".to_string(),
+                            },
+                        }
+                    } else {
+                        ImageSource::Base64 {
+                            media_type: "image/png".to_string(),
+                            data: "".to_string(),
+                        }
+                    };
+                ContentBlock::Image {
+                    source: image_source,
+                }
             }
             AnthropicContentBlock::ToolUse { id, name, input } => {
                 ContentBlock::ToolUse { id, name, input }
@@ -574,14 +607,26 @@ impl From<AnthropicContentBlock> for ContentBlock {
                     is_error,
                 }
             }
-            AnthropicContentBlock::Thinking { thinking, signature } => {
-                ContentBlock::Thinking { thinking, signature }
-            }
+            AnthropicContentBlock::Thinking {
+                thinking,
+                signature,
+            } => ContentBlock::Thinking {
+                thinking,
+                signature,
+            },
             AnthropicContentBlock::Document { source } => {
                 // Parse source JSON back to DocumentSource
                 let doc_source = DocumentSource::Base64 {
-                    media_type: source.get("media_type").and_then(|v| v.as_str()).unwrap_or("application/pdf").to_string(),
-                    data: source.get("data").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    media_type: source
+                        .get("media_type")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("application/pdf")
+                        .to_string(),
+                    data: source
+                        .get("data")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
                 };
                 ContentBlock::Document { source: doc_source }
             }

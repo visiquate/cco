@@ -534,7 +534,8 @@ mod tests {
         assert_eq!(response1.decision, PermissionDecision::Denied);
 
         // Test with --all flag
-        let request2 = PermissionRequest::new("docker system prune --all", CrudClassification::Delete);
+        let request2 =
+            PermissionRequest::new("docker system prune --all", CrudClassification::Delete);
         let response2 = handler.process_request(request2).await;
         assert_eq!(response2.decision, PermissionDecision::Denied);
     }

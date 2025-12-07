@@ -101,7 +101,10 @@ impl LlmClient {
 
         // Extract text from response based on format
         let text = self.extract_response_text(&endpoint_type, &response_data)?;
-        let model = response_data.get("model").and_then(|m| m.as_str()).map(String::from);
+        let model = response_data
+            .get("model")
+            .and_then(|m| m.as_str())
+            .map(String::from);
 
         Ok(LlmResponse {
             text,
@@ -142,10 +145,7 @@ impl LlmClient {
             .or_else(|| endpoint.default_model.clone())
             .unwrap_or_else(|| "default".to_string());
 
-        let temperature = options
-            .temperature
-            .or(endpoint.temperature)
-            .unwrap_or(0.7);
+        let temperature = options.temperature.or(endpoint.temperature).unwrap_or(0.7);
 
         let max_tokens = options.max_tokens.or(endpoint.max_tokens).unwrap_or(4096);
 
@@ -316,7 +316,11 @@ mod tests {
         assert_eq!(body["stream"], false);
         // Use approximate comparison for float to handle f32 precision
         let temp = body["options"]["temperature"].as_f64().unwrap();
-        assert!((temp - 0.7).abs() < 0.001, "Temperature {} is not close to 0.7", temp);
+        assert!(
+            (temp - 0.7).abs() < 0.001,
+            "Temperature {} is not close to 0.7",
+            temp
+        );
         assert_eq!(body["options"]["num_predict"], 4096);
     }
 

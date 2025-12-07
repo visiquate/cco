@@ -320,7 +320,8 @@ impl TempFileManager {
         }
 
         if let Some(orchestrator) = settings.get_mut("orchestrator") {
-            orchestrator["api_url"] = serde_json::json!(format!("http://localhost:{}", actual_port));
+            orchestrator["api_url"] =
+                serde_json::json!(format!("http://localhost:{}", actual_port));
         }
 
         // Note: SessionStart and PreCompact hooks are now handled via the CCO plugin
@@ -743,18 +744,26 @@ mod tests {
             actual_port as u64
         );
         assert_eq!(
-            updated_settings["orchestrator"]["api_url"].as_str().unwrap(),
+            updated_settings["orchestrator"]["api_url"]
+                .as_str()
+                .unwrap(),
             format!("http://localhost:{}", actual_port)
         );
 
         // Note: SessionStart and PreCompact hooks are now handled via the CCO plugin
         // (loaded via --plugin-dir flag). Hook arrays in settings should be empty.
         assert!(
-            updated_settings["hooks"]["SessionStart"].as_array().unwrap().is_empty(),
+            updated_settings["hooks"]["SessionStart"]
+                .as_array()
+                .unwrap()
+                .is_empty(),
             "SessionStart hooks should be empty (now handled via plugin)"
         );
         assert!(
-            updated_settings["hooks"]["PreCompact"].as_array().unwrap().is_empty(),
+            updated_settings["hooks"]["PreCompact"]
+                .as_array()
+                .unwrap()
+                .is_empty(),
             "PreCompact hooks should be empty (now handled via plugin)"
         );
 

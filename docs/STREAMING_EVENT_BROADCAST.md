@@ -85,9 +85,8 @@ pub struct LlmGateway {
 }
 ```
 
-Both constructors initialize the broadcaster with default settings (1000 event capacity):
+The constructor initializes the broadcaster with default settings (1000 event capacity):
 - `LlmGateway::new()` - Direct provider routing
-- `LlmGateway::new_with_litellm()` - LiteLLM proxy routing
 
 ## Usage Examples
 

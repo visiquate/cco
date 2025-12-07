@@ -51,6 +51,3 @@ coverage/
 
 # Knowledge Manager databases (per-repository)
 data/knowledge/
-.build-venv
-dist/litellm.pex
-data/

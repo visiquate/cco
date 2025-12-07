@@ -62,7 +62,10 @@ pub trait Provider: Send + Sync {
         _client_auth: Option<String>,
         _client_beta: Option<String>,
     ) -> Result<StreamingResponse> {
-        Err(anyhow!("Streaming not supported by provider: {}", self.name()))
+        Err(anyhow!(
+            "Streaming not supported by provider: {}",
+            self.name()
+        ))
     }
 
     /// Get the resolved model name (handling aliases)

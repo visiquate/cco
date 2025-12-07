@@ -1566,7 +1566,8 @@ mod tests {
         assert_eq!(cache_read, 1.50);
 
         // Test opus-4-5 with date suffix
-        let (input, output, cache_write, cache_read) = get_model_pricing("claude-opus-4-5-20250929");
+        let (input, output, cache_write, cache_read) =
+            get_model_pricing("claude-opus-4-5-20250929");
         assert_eq!(input, 15.0);
         assert_eq!(output, 75.0);
         assert_eq!(cache_write, 18.75);

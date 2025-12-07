@@ -103,7 +103,9 @@ pub async fn fetch_latest_release(channel: &str) -> Result<ReleaseInfo> {
         GITHUB_API_URL, GITHUB_OWNER, GITHUB_REPO
     );
 
-    let mut request = client.get(&url).header("Accept", "application/vnd.github+json");
+    let mut request = client
+        .get(&url)
+        .header("Accept", "application/vnd.github+json");
 
     if let Some(ref t) = token {
         request = request.header("Authorization", format!("Bearer {}", t));
@@ -145,7 +147,11 @@ pub async fn fetch_latest_release(channel: &str) -> Result<ReleaseInfo> {
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
-        return Err(anyhow!("Failed to fetch releases (HTTP {}): {}", status, body));
+        return Err(anyhow!(
+            "Failed to fetch releases (HTTP {}): {}",
+            status,
+            body
+        ));
     }
 
     let releases: Vec<GitHubRelease> = response
@@ -193,7 +199,9 @@ pub async fn fetch_release_by_version(version: &str, token: Option<&str>) -> Res
         GITHUB_API_URL, GITHUB_OWNER, GITHUB_REPO, tag
     );
 
-    let mut request = client.get(&url).header("Accept", "application/vnd.github+json");
+    let mut request = client
+        .get(&url)
+        .header("Accept", "application/vnd.github+json");
 
     if let Some(ref t) = effective_token {
         request = request.header("Authorization", format!("Bearer {}", t));
@@ -208,7 +216,11 @@ pub async fn fetch_release_by_version(version: &str, token: Option<&str>) -> Res
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
-        return Err(anyhow!("Failed to fetch release (HTTP {}): {}", status, body));
+        return Err(anyhow!(
+            "Failed to fetch release (HTTP {}): {}",
+            status,
+            body
+        ));
     }
 
     let release: GitHubRelease = response
@@ -276,10 +288,7 @@ async fn fetch_checksum_for_asset(
     token: Option<&str>,
 ) -> Result<String> {
     // Look for checksums.txt in the release assets
-    let checksum_asset = release
-        .assets
-        .iter()
-        .find(|a| a.name == "checksums.txt");
+    let checksum_asset = release.assets.iter().find(|a| a.name == "checksums.txt");
 
     if let Some(asset) = checksum_asset {
         let client = create_github_client(token)?;
@@ -309,10 +318,7 @@ async fn fetch_checksum_for_asset(
 
     // If no checksums.txt, look for .sha256 file
     let sha256_asset_name = format!("{}.sha256", asset_name);
-    let sha256_asset = release
-        .assets
-        .iter()
-        .find(|a| a.name == sha256_asset_name);
+    let sha256_asset = release.assets.iter().find(|a| a.name == sha256_asset_name);
 
     if let Some(asset) = sha256_asset {
         let client = create_github_client(token)?;
@@ -348,9 +354,7 @@ pub async fn download_binary_with_auth(url: &str, token: Option<&str>) -> Result
     let effective_token = token.map(|t| t.to_string()).or_else(get_embedded_token);
     let client = create_github_client(effective_token.as_deref())?;
 
-    let mut request = client
-        .get(url)
-        .header("Accept", "application/octet-stream");
+    let mut request = client.get(url).header("Accept", "application/octet-stream");
 
     if let Some(ref t) = effective_token {
         request = request.header("Authorization", format!("Bearer {}", t));

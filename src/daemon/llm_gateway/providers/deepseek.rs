@@ -107,9 +107,9 @@ impl DeepSeekProvider {
                 let parts: Vec<OpenAIContentPart> = blocks
                     .iter()
                     .filter_map(|block| match block {
-                        ContentBlock::Text { text } => Some(OpenAIContentPart::Text {
-                            text: text.clone(),
-                        }),
+                        ContentBlock::Text { text } => {
+                            Some(OpenAIContentPart::Text { text: text.clone() })
+                        }
                         _ => None,
                     })
                     .collect();
@@ -255,8 +255,14 @@ impl Provider for DeepSeekProvider {
         }
 
         // Parse the response
-        let openai_response: OpenAIResponse = serde_json::from_str(&response_text)
-            .map_err(|e| anyhow!("Failed to parse DeepSeek response: {} - {}", e, response_text))?;
+        let openai_response: OpenAIResponse =
+            serde_json::from_str(&response_text).map_err(|e| {
+                anyhow!(
+                    "Failed to parse DeepSeek response: {} - {}",
+                    e,
+                    response_text
+                )
+            })?;
 
         let latency_ms = start.elapsed().as_millis() as u64;
 

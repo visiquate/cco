@@ -71,8 +71,7 @@ fn acquire_lock() -> Result<LockFileGuard> {
     let lock_path = get_daemon_lock_file()?;
 
     // Create or open the lock file
-    let file = File::create(&lock_path)
-        .context("Failed to create lock file")?;
+    let file = File::create(&lock_path).context("Failed to create lock file")?;
 
     // Try to acquire an exclusive lock (non-blocking)
     #[cfg(unix)]
@@ -91,7 +90,10 @@ fn acquire_lock() -> Result<LockFileGuard> {
         // This is less robust but works for basic cases
     }
 
-    Ok(LockFileGuard { file, path: lock_path })
+    Ok(LockFileGuard {
+        file,
+        path: lock_path,
+    })
 }
 
 /// Check if a process is a cco daemon by examining its name and path
@@ -160,14 +162,20 @@ pub fn kill_stale_daemons() -> Result<usize> {
 
         // Check process name and executable path (cmd() is empty on macOS)
         let name = process.name();
-        let exe_str = process.exe()
+        let exe_str = process
+            .exe()
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_default();
 
         // Check if this is a cco daemon process
         let is_cco = name.contains("cco") || exe_str.contains("cco");
         if is_cco {
-            warn!("Found stale daemon process: PID {} - name={}, exe={}", pid.as_u32(), name, exe_str);
+            warn!(
+                "Found stale daemon process: PID {} - name={}, exe={}",
+                pid.as_u32(),
+                name,
+                exe_str
+            );
 
             #[cfg(unix)]
             {
@@ -221,7 +229,6 @@ pub fn read_daemon_port() -> Result<u16> {
     Ok(pid_content.port)
 }
 
-
 /// Update the daemon PID file with the actual bound port
 ///
 /// This is called by the daemon process after binding to a socket to record
@@ -250,7 +257,6 @@ pub fn update_daemon_port(actual_port: u16) -> Result<()> {
 
     Ok(())
 }
-
 
 /// Update the daemon PID file with the LLM gateway port
 ///
@@ -409,7 +415,10 @@ impl DaemonManager {
         }
 
         tracing::info!("Generated agents JSON at: {}", agents_json_path.display());
-        tracing::info!("Plugin directory: {}", temp_manager.plugin_dir_path().display());
+        tracing::info!(
+            "Plugin directory: {}",
+            temp_manager.plugin_dir_path().display()
+        );
 
         // Get the binary path (the cco binary itself)
         let exe_path = std::env::current_exe().context("Failed to get current executable path")?;

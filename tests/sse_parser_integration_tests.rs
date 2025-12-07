@@ -217,8 +217,7 @@ data: {"type":"message_stop"}
 
     // Verify thinking block
     let thinking_delta = &events[2];
-    let json: serde_json::Value =
-        serde_json::from_str(&thinking_delta.data).unwrap();
+    let json: serde_json::Value = serde_json::from_str(&thinking_delta.data).unwrap();
     assert_eq!(
         json["delta"]["type"].as_str(),
         Some("thinking_delta"),
@@ -266,11 +265,11 @@ async fn test_invalid_utf8_handling() {
 async fn test_stream_error_propagation() {
     // Create a stream that yields an error by using a mock error
     // We can't easily create a reqwest::Error directly, so we'll use a URL error
-    let error_result: Result<Bytes, reqwest::Error> = Err(
-        reqwest::get("http://invalid-url-that-does-not-exist-12345.test")
-            .await
-            .unwrap_err(),
-    );
+    let error_result: Result<Bytes, reqwest::Error> = Err(reqwest::get(
+        "http://invalid-url-that-does-not-exist-12345.test",
+    )
+    .await
+    .unwrap_err());
 
     let error_stream = stream::once(async move { error_result });
     let byte_stream = Box::pin(error_stream);

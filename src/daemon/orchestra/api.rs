@@ -103,7 +103,10 @@ async fn generate_instructions(
     State(state): State<OrchestraState>,
     Json(request): Json<GenerateInstructionsRequest>,
 ) -> Result<Json<GenerateInstructionsResponse>, ErrorResponse> {
-    info!("Generating agent spawn instructions for: {}", request.requirement);
+    info!(
+        "Generating agent spawn instructions for: {}",
+        request.requirement
+    );
 
     let instructions = state
         .conductor
@@ -129,7 +132,10 @@ async fn generate_workflow(
     let workflow = state.conductor.generate_workflow(&request.requirement);
     let summary = workflow.summary();
 
-    info!("Generated workflow with {} agents", workflow.phase1_agent_spawn.agents.total_count());
+    info!(
+        "Generated workflow with {} agents",
+        workflow.phase1_agent_spawn.agents.total_count()
+    );
 
     Ok(Json(GenerateWorkflowResponse { workflow, summary }))
 }
@@ -147,9 +153,21 @@ async fn get_stats(
     let config = &state.conductor.config;
     let agent_types = AgentTypeBreakdown {
         architect: config.architect.name.clone(),
-        coding_agents: config.coding_agents.iter().map(|a| a.name.clone()).collect(),
-        integration_agents: config.integration_agents.iter().map(|a| a.name.clone()).collect(),
-        support_agents: config.support_agents.iter().map(|a| a.name.clone()).collect(),
+        coding_agents: config
+            .coding_agents
+            .iter()
+            .map(|a| a.name.clone())
+            .collect(),
+        integration_agents: config
+            .integration_agents
+            .iter()
+            .map(|a| a.name.clone())
+            .collect(),
+        support_agents: config
+            .support_agents
+            .iter()
+            .map(|a| a.name.clone())
+            .collect(),
     };
 
     Ok(Json(OrchestraStatsResponse { stats, agent_types }))

@@ -365,7 +365,9 @@ async fn spawn_agent_handler(
         .context_injector
         .gather_context(&request.agent_type, &request.issue_id)
         .await
-        .map_err(|e| OrchestrationError::InternalError(format!("Failed to gather context: {}", e)))?;
+        .map_err(|e| {
+            OrchestrationError::InternalError(format!("Failed to gather context: {}", e))
+        })?;
 
     // Publish agent spawn event with all metadata
     let _event_id = state
@@ -387,7 +389,9 @@ async fn spawn_agent_handler(
             }),
         )
         .await
-        .map_err(|e| OrchestrationError::InternalError(format!("Failed to publish spawn event: {}", e)))?;
+        .map_err(|e| {
+            OrchestrationError::InternalError(format!("Failed to publish spawn event: {}", e))
+        })?;
 
     // Increment active agents counter
     state.active_agents.fetch_add(1, Ordering::Relaxed);
@@ -504,11 +508,16 @@ pub fn create_orchestration_router() -> Router<OrchestrationHandlerState> {
         .route("/agents/spawn", post(spawn_agent_handler))
         .route("/agents/:agent_id/status", get(get_agent_status_handler))
         // Cache management
-        .route("/cache/context/:issue_id", delete(clear_context_cache_handler))
+        .route(
+            "/cache/context/:issue_id",
+            delete(clear_context_cache_handler),
+        )
 }
 
 /// Initialize orchestration state from config
-pub fn init_orchestration_state(config: Option<ServerConfig>) -> anyhow::Result<Arc<OrchestrationState>> {
+pub fn init_orchestration_state(
+    config: Option<ServerConfig>,
+) -> anyhow::Result<Arc<OrchestrationState>> {
     let config = config.unwrap_or_default();
 
     Ok(Arc::new(OrchestrationState {

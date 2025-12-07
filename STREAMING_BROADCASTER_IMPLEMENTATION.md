@@ -43,9 +43,8 @@ Four event types for complete stream lifecycle tracking:
    ```rust
    pub stream_broadcaster: Arc<StreamEventBroadcaster>,
    ```
-4. Initialize broadcaster in both constructors:
+4. Initialize broadcaster in the constructor:
    - `LlmGateway::new()` - Direct provider routing
-   - `LlmGateway::new_with_litellm()` - LiteLLM proxy routing
 
 ### 3. Comprehensive Testing
 

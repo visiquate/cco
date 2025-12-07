@@ -39,9 +39,7 @@ impl AgentInstructions {
 
     /// Get total agent count
     pub fn total_count(&self) -> usize {
-        1 + self.coding_agents.len()
-            + self.integration_agents.len()
-            + self.support_agents.len()
+        1 + self.coding_agents.len() + self.integration_agents.len() + self.support_agents.len()
     }
 
     /// Get agents that use custom endpoints

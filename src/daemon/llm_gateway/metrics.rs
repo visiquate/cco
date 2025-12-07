@@ -68,7 +68,9 @@ impl CostTracker {
         // Update by-agent metrics
         if let Some(agent) = &metrics.agent_type {
             let mut by_agent = self.by_agent.write();
-            let entry = by_agent.entry(agent.clone()).or_insert_with(AgentMetrics::new);
+            let entry = by_agent
+                .entry(agent.clone())
+                .or_insert_with(AgentMetrics::new);
             entry.record(metrics);
         }
 
@@ -177,7 +179,10 @@ impl CostTracker {
 
         // Calculate cache tokens from recent requests (not tracked globally)
         let (total_cache_write, total_cache_read) = recent.iter().fold((0u64, 0u64), |acc, r| {
-            (acc.0 + r.cache_write_tokens as u64, acc.1 + r.cache_read_tokens as u64)
+            (
+                acc.0 + r.cache_write_tokens as u64,
+                acc.1 + r.cache_read_tokens as u64,
+            )
         });
 
         CostSummary {
@@ -193,7 +198,8 @@ impl CostTracker {
 
     /// Get cost by agent type
     pub fn by_agent(&self) -> HashMap<String, f64> {
-        self.by_agent.read()
+        self.by_agent
+            .read()
             .iter()
             .map(|(k, v)| (k.clone(), v.cost_usd))
             .collect()
@@ -201,7 +207,8 @@ impl CostTracker {
 
     /// Get cost by provider
     pub fn by_provider(&self) -> HashMap<String, f64> {
-        self.by_provider.read()
+        self.by_provider
+            .read()
             .iter()
             .map(|(k, v)| (k.clone(), v.cost_usd))
             .collect()
@@ -209,7 +216,8 @@ impl CostTracker {
 
     /// Get cost by model
     pub fn by_model(&self) -> HashMap<String, f64> {
-        self.by_model.read()
+        self.by_model
+            .read()
             .iter()
             .map(|(k, v)| (k.clone(), v.cost_usd))
             .collect()
@@ -217,7 +225,8 @@ impl CostTracker {
 
     /// Get cost by project
     pub fn by_project(&self) -> HashMap<String, f64> {
-        self.by_project.read()
+        self.by_project
+            .read()
             .iter()
             .map(|(k, v)| (k.clone(), v.cost_usd))
             .collect()
@@ -663,12 +672,15 @@ mod tests {
         let pricing = PricingTable::default();
 
         // Should match claude-sonnet via prefix
-        let cost = pricing.calculate_cost("claude-sonnet-4-5-20250929", &Usage {
-            input_tokens: 1_000_000,
-            output_tokens: 0,
-            cache_creation_input_tokens: None,
-            cache_read_input_tokens: None,
-        });
+        let cost = pricing.calculate_cost(
+            "claude-sonnet-4-5-20250929",
+            &Usage {
+                input_tokens: 1_000_000,
+                output_tokens: 0,
+                cache_creation_input_tokens: None,
+                cache_read_input_tokens: None,
+            },
+        );
         assert!((cost - 3.0).abs() < 0.001); // Sonnet input price
     }
 }

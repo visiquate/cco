@@ -51,8 +51,8 @@ impl LlmRouter {
             crate::embedded_config::embedded_orchestra_config_str().to_string()
         };
 
-        let full_config: serde_json::Value = serde_json::from_str(&config_str)
-            .context("Failed to parse orchestra config JSON")?;
+        let full_config: serde_json::Value =
+            serde_json::from_str(&config_str).context("Failed to parse orchestra config JSON")?;
 
         // Extract llmRouting section
         let routing_config = if let Some(llm_routing) = full_config.get("llmRouting") {
@@ -138,10 +138,7 @@ impl LlmRouter {
 
         if let Some(task) = task_type {
             let task_lower = task.to_lowercase();
-            if ARCHITECTURE_TASKS
-                .iter()
-                .any(|t| task_lower.contains(t))
-            {
+            if ARCHITECTURE_TASKS.iter().any(|t| task_lower.contains(t)) {
                 return true;
             }
         }

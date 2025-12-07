@@ -298,10 +298,7 @@ impl ContextInjector {
     }
 
     /// Gather git context
-    async fn gather_git_context(
-        &self,
-        root: &Path,
-    ) -> Result<super::knowledge_broker::GitContext> {
+    async fn gather_git_context(&self, root: &Path) -> Result<super::knowledge_broker::GitContext> {
         use std::process::Command;
 
         let git_dir = root.join(".git");
@@ -333,12 +330,7 @@ impl ContextInjector {
         // Get recent commits (last 5)
         let recent_commits = Command::new("git")
             .current_dir(root)
-            .args([
-                "log",
-                "--format=%H%n%s%n%an%n%aI",
-                "-5",
-                "--no-merges",
-            ])
+            .args(["log", "--format=%H%n%s%n%an%n%aI", "-5", "--no-merges"])
             .output()
             .ok()
             .and_then(|output| {
@@ -380,11 +372,7 @@ impl ContextInjector {
                     None
                 }
             })
-            .map(|s| {
-                s.lines()
-                    .map(|line| line.to_string())
-                    .collect()
-            })
+            .map(|s| s.lines().map(|line| line.to_string()).collect())
             .unwrap_or_default();
 
         Ok(super::knowledge_broker::GitContext {
