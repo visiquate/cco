@@ -8,6 +8,7 @@ use cco::daemon::lifecycle::read_daemon_port;
 use serde_json::json;
 use std::path::PathBuf;
 
+use super::token_cache;
 use crate::KnowledgeAction;
 
 /// Run knowledge management command
@@ -247,6 +248,9 @@ async fn get_or_generate_token(project_id: &str) -> Result<String> {
         .join(".cco")
         .join("knowledge-token.json");
 
+    token_cache::tighten_permissions_if_exists(&token_cache_path)
+        .context("Failed to secure cached knowledge token permissions")?;
+
     // Try to load cached token
     if let Ok(cache_content) = std::fs::read_to_string(&token_cache_path) {
         if let Ok(cache) = serde_json::from_str::<serde_json::Value>(&cache_content) {
@@ -299,12 +303,8 @@ async fn get_or_generate_token(project_id: &str) -> Result<String> {
         "project_id": project_id,
     });
 
-    // Ensure .cco directory exists
-    if let Some(parent) = token_cache_path.parent() {
-        std::fs::create_dir_all(parent).ok();
-    }
-
-    std::fs::write(&token_cache_path, serde_json::to_string_pretty(&cache)?).ok();
+    token_cache::write_secure_cache(&token_cache_path, &serde_json::to_string_pretty(&cache)?)
+        .context("Failed to persist knowledge token cache securely")?;
 
     Ok(token)
 }

@@ -8,6 +8,7 @@ use anyhow::{Context, Result};
 use cco::daemon::lifecycle::read_daemon_port;
 use serde_json::json;
 
+use super::token_cache;
 use crate::CredentialAction;
 
 /// Run credential management command
@@ -23,8 +24,7 @@ pub async fn run(action: CredentialAction) -> Result<()> {
 
 /// Store a credential
 async fn store(key: String, value: String) -> Result<()> {
-    let port = read_daemon_port()
-        .context("Daemon not running. Start it with: cco daemon start")?;
+    let port = read_daemon_port().context("Daemon not running. Start it with: cco daemon start")?;
     let project_id = auto_detect_project_id()?;
     let token = get_or_generate_token(&project_id).await?;
 
@@ -36,10 +36,7 @@ async fn store(key: String, value: String) -> Result<()> {
     });
 
     let response = client
-        .post(format!(
-            "http://localhost:{}/api/credentials/store",
-            port
-        ))
+        .post(format!("http://localhost:{}/api/credentials/store", port))
         .bearer_auth(token)
         .json(&payload)
         .send()
@@ -65,8 +62,7 @@ async fn store(key: String, value: String) -> Result<()> {
 
 /// Retrieve a credential
 async fn retrieve(key: String) -> Result<()> {
-    let port = read_daemon_port()
-        .context("Daemon not running. Start it with: cco daemon start")?;
+    let port = read_daemon_port().context("Daemon not running. Start it with: cco daemon start")?;
     let project_id = auto_detect_project_id()?;
     let token = get_or_generate_token(&project_id).await?;
 
@@ -110,8 +106,7 @@ async fn retrieve(key: String) -> Result<()> {
 
 /// Delete a credential
 async fn delete(key: String) -> Result<()> {
-    let port = read_daemon_port()
-        .context("Daemon not running. Start it with: cco daemon start")?;
+    let port = read_daemon_port().context("Daemon not running. Start it with: cco daemon start")?;
     let project_id = auto_detect_project_id()?;
     let token = get_or_generate_token(&project_id).await?;
 
@@ -122,10 +117,7 @@ async fn delete(key: String) -> Result<()> {
     });
 
     let response = client
-        .delete(format!(
-            "http://localhost:{}/api/credentials/delete",
-            port
-        ))
+        .delete(format!("http://localhost:{}/api/credentials/delete", port))
         .bearer_auth(token)
         .json(&payload)
         .send()
@@ -151,8 +143,7 @@ async fn delete(key: String) -> Result<()> {
 
 /// List all credentials
 async fn list() -> Result<()> {
-    let port = read_daemon_port()
-        .context("Daemon not running. Start it with: cco daemon start")?;
+    let port = read_daemon_port().context("Daemon not running. Start it with: cco daemon start")?;
     let project_id = auto_detect_project_id()?;
     let token = get_or_generate_token(&project_id).await?;
 
@@ -185,10 +176,11 @@ async fn list() -> Result<()> {
                 for cred in credentials {
                     if let Some(key) = cred["key"].as_str() {
                         let credential_type = cred["type"].as_str().unwrap_or("unknown");
-                        let last_rotated = cred["last_rotated"]
-                            .as_str()
-                            .unwrap_or("never");
-                        println!("   {} (type: {}, rotated: {})", key, credential_type, last_rotated);
+                        let last_rotated = cred["last_rotated"].as_str().unwrap_or("never");
+                        println!(
+                            "   {} (type: {}, rotated: {})",
+                            key, credential_type, last_rotated
+                        );
                     }
                 }
             }
@@ -205,8 +197,7 @@ async fn list() -> Result<()> {
 
 /// Check credential rotation status
 async fn check_rotation() -> Result<()> {
-    let port = read_daemon_port()
-        .context("Daemon not running. Start it with: cco daemon start")?;
+    let port = read_daemon_port().context("Daemon not running. Start it with: cco daemon start")?;
     let project_id = auto_detect_project_id()?;
     let token = get_or_generate_token(&project_id).await?;
 
@@ -242,13 +233,9 @@ async fn check_rotation() -> Result<()> {
                 for item in status {
                     if let Some(key) = item["key"].as_str() {
                         let days_old = item["days_old"].as_i64().unwrap_or(0);
-                        let recommended = item["recommended_action"]
-                            .as_str()
-                            .unwrap_or("rotate soon");
-                        println!(
-                            "   {} - {} days old ({})",
-                            key, days_old, recommended
-                        );
+                        let recommended =
+                            item["recommended_action"].as_str().unwrap_or("rotate soon");
+                        println!("   {} - {} days old ({})", key, days_old, recommended);
                     }
                 }
             }
@@ -298,6 +285,9 @@ async fn get_or_generate_token(project_id: &str) -> Result<String> {
         .join(".cco")
         .join("credentials-token.json");
 
+    token_cache::tighten_permissions_if_exists(&token_cache_path)
+        .context("Failed to secure cached credential token permissions")?;
+
     // Try to load cached token
     if let Ok(cache_content) = std::fs::read_to_string(&token_cache_path) {
         if let Ok(cache) = serde_json::from_str::<serde_json::Value>(&cache_content) {
@@ -317,8 +307,7 @@ async fn get_or_generate_token(project_id: &str) -> Result<String> {
     }
 
     // Generate new token
-    let port = read_daemon_port()
-        .context("Daemon not running. Start it with: cco daemon start")?;
+    let port = read_daemon_port().context("Daemon not running. Start it with: cco daemon start")?;
 
     let client = reqwest::Client::new();
     let payload = json!({
@@ -351,12 +340,8 @@ async fn get_or_generate_token(project_id: &str) -> Result<String> {
         "project_id": project_id,
     });
 
-    // Ensure .cco directory exists
-    if let Some(parent) = token_cache_path.parent() {
-        std::fs::create_dir_all(parent).ok();
-    }
-
-    std::fs::write(&token_cache_path, serde_json::to_string_pretty(&cache)?).ok();
+    token_cache::write_secure_cache(&token_cache_path, &serde_json::to_string_pretty(&cache)?)
+        .context("Failed to persist credential token cache securely")?;
 
     Ok(token)
 }
