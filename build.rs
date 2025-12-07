@@ -138,7 +138,7 @@ fn embed_azure_credential() {
             // No credential - create empty file
             let out_dir = env::var("OUT_DIR").unwrap();
             let dest_path = Path::new(&out_dir).join("azure_credential.bin");
-            fs::write(&dest_path, &[]).expect("Failed to write empty azure credential");
+            fs::write(&dest_path, []).expect("Failed to write empty azure credential");
 
             println!("cargo:rustc-env=AZURE_CREDENTIAL_EMBEDDED=0");
         }
@@ -168,7 +168,7 @@ fn embed_deepseek_credential() {
             // No credential - create empty file
             let out_dir = env::var("OUT_DIR").unwrap();
             let dest_path = Path::new(&out_dir).join("deepseek_credential.bin");
-            fs::write(&dest_path, &[]).expect("Failed to write empty deepseek credential");
+            fs::write(&dest_path, []).expect("Failed to write empty deepseek credential");
 
             println!("cargo:rustc-env=DEEPSEEK_CREDENTIAL_EMBEDDED=0");
         }
@@ -198,7 +198,7 @@ fn embed_update_token() {
             // No token - create empty file
             let out_dir = env::var("OUT_DIR").unwrap();
             let dest_path = Path::new(&out_dir).join("update_token.bin");
-            fs::write(&dest_path, &[]).expect("Failed to write empty update token");
+            fs::write(&dest_path, []).expect("Failed to write empty update token");
 
             println!("cargo:rustc-env=UPDATE_TOKEN_EMBEDDED=0");
         }

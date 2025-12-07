@@ -296,40 +296,91 @@ CCO automatically activates the orchestra for complex tasks:
 
 ## Architecture
 
+### System Architecture
+
+```mermaid
+graph TB
+    subgraph CCO["CCO Launcher<br/>(Rust binary with embedded Qwen2.5-Coder LLM)"]
+        CC1["Command Classification<br/>(READ/CREATE/UPDATE/DELETE)"]
+        CC2["Plugin Hook Registration<br/>(SessionStart/PreToolUse)"]
+        CC3["Knowledge Manager<br/>(LanceDB)"]
+        CC4["Cost Monitoring<br/>(SQLite + TUI)"]
+        CC5["Credential Management<br/>(OS Keyring)"]
+    end
+
+    subgraph Claude["Claude Code (Unmodified)"]
+        CL1["Native Claude Code Experience"]
+        CL2["Plugin System Triggers CCO Hooks"]
+        CL3["Task Tool for Parallel Agent Execution"]
+        CL4["All Standard Claude Code Features"]
+    end
+
+    subgraph Orchestra["Multi-Agent Orchestra (119 Agents)"]
+        Chief["Chief Architect<br/>(Opus 4.1)"]
+        Managers["37 Intelligent Managers<br/>(Sonnet 4.5)<br/>TDD, Security, QA, DevOps, Architects"]
+        Specialists["81 Basic Specialists<br/>(Haiku 4.5)<br/>Language Coders, Docs, Utilities"]
+        Chief --> Managers
+        Chief --> Specialists
+    end
+
+    CCO -->|"Launches with<br/>--plugin-dir"| Claude
+    Claude -->|"When triggered"| Orchestra
+
+    style CCO fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    style Claude fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    style Orchestra fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style Chief fill:#ffeb3b,stroke:#f57f17,stroke-width:2px
+    style Managers fill:#81c784,stroke:#2e7d32,stroke-width:2px
+    style Specialists fill:#64b5f6,stroke:#1565c0,stroke-width:2px
 ```
-┌───────────────────────────────────────────────────────┐
-│                   CCO Launcher                         │
-│  (Rust binary with embedded Qwen2.5-Coder LLM)        │
-├───────────────────────────────────────────────────────┤
-│  • Command classification (READ/CREATE/UPDATE/DELETE) │
-│  • Plugin hook registration (SessionStart/PreToolUse) │
-│  • Knowledge Manager initialization (LanceDB)         │
-│  • Cost monitoring daemon (SQLite + TUI)              │
-│  • Credential management (OS keyring integration)     │
-└─────────────────────┬─────────────────────────────────┘
-                      │
-                      │ Launches with --plugin-dir
-                      ▼
-┌───────────────────────────────────────────────────────┐
-│              Claude Code (Unmodified)                  │
-│                                                        │
-│  • Native Claude Code experience                      │
-│  • Plugin system triggers CCO hooks                   │
-│  • Task tool for parallel agent execution             │
-│  • All standard Claude Code features                  │
-└───────────────────────────────────────────────────────┘
-                      │
-                      │ When triggered
-                      ▼
-┌───────────────────────────────────────────────────────┐
-│          Multi-Agent Orchestra (119 Agents)            │
-├───────────────────────────────────────────────────────┤
-│  Chief Architect (Opus 4.1)                           │
-│    ├─ 37 Intelligent Managers (Sonnet 4.5)           │
-│    │   • TDD, Security, QA, DevOps, Architects       │
-│    └─ 81 Basic Specialists (Haiku 4.5)               │
-│        • Language Coders, Docs, Utilities             │
-└───────────────────────────────────────────────────────┘
+
+### Agent Hierarchy
+
+```mermaid
+graph TB
+    CA["Chief Architect<br/>(Opus 4.1)<br/>Strategic Leadership"]
+
+    subgraph Managers["Intelligent Managers (Sonnet 4.5)"]
+        TDD["TDD Coding Agent"]
+        SEC["Security Auditors"]
+        QA["QA Engineers"]
+        DEV["DevOps Engineers"]
+        ARCH["Backend/Frontend<br/>Architects"]
+        API["API Specialists<br/>(Salesforce, Authentik)"]
+        PERF["Performance Engineers"]
+        DB["Database Architects"]
+        RES["Research Analysts"]
+    end
+
+    subgraph Specialists["Basic Specialists (Haiku 4.5)"]
+        LANG["Language Specialists<br/>(Python, Go, Rust,<br/>Swift, Flutter, etc.)"]
+        DOCS["Documentation Writers<br/>(Technical, API)"]
+        UTIL["Utilities<br/>(Git, Dependencies,<br/>Monitoring)"]
+        RESE["Research Assistants<br/>(Fact Checking,<br/>Query Clarification)"]
+        BIZ["Business Support<br/>(Analysis, Marketing)"]
+    end
+
+    CA --> Managers
+    CA --> Specialists
+    Managers -.Coordinate.-> Specialists
+
+    style CA fill:#ffeb3b,stroke:#f57f17,stroke-width:3px
+    style Managers fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
+    style Specialists fill:#bbdefb,stroke:#1565c0,stroke-width:2px
+    style TDD fill:#81c784,stroke:#2e7d32,stroke-width:2px
+    style SEC fill:#ef5350,stroke:#c62828,stroke-width:2px
+    style QA fill:#66bb6a,stroke:#2e7d32,stroke-width:2px
+    style DEV fill:#42a5f5,stroke:#1565c0,stroke-width:2px
+    style ARCH fill:#ab47bc,stroke:#6a1b9a,stroke-width:2px
+    style API fill:#26a69a,stroke:#00695c,stroke-width:2px
+    style PERF fill:#ffa726,stroke:#e65100,stroke-width:2px
+    style DB fill:#5c6bc0,stroke:#283593,stroke-width:2px
+    style RES fill:#ec407a,stroke:#ad1457,stroke-width:2px
+    style LANG fill:#64b5f6,stroke:#1565c0,stroke-width:2px
+    style DOCS fill:#4fc3f7,stroke:#0277bd,stroke-width:2px
+    style UTIL fill:#4dd0e1,stroke:#00838f,stroke-width:2px
+    style RESE fill:#4db6ac,stroke:#00695c,stroke-width:2px
+    style BIZ fill:#aed581,stroke:#558b2f,stroke-width:2px
 ```
 
 ## Cost Efficiency

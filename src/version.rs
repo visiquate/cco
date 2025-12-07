@@ -216,8 +216,8 @@ mod tests {
         let v2 = DateVersion::parse("2025.11.1").unwrap();
 
         assert_eq!(v1, v2);
-        assert!(!(v1 < v2));
-        assert!(!(v1 > v2));
+        assert!(v1 >= v2);
+        assert!(v1 <= v2);
     }
 
     #[test]
@@ -242,7 +242,7 @@ mod tests {
 
         assert_eq!(v1, v2); // Same version, different git hash
         assert_eq!(v1, v3); // Same version, one has git hash
-        assert!(!(v1 < v2)); // Not less than
-        assert!(!(v1 > v2)); // Not greater than
+        assert!(v1 >= v2); // Not less than
+        assert!(v1 <= v2); // Not greater than
     }
 }

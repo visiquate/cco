@@ -258,8 +258,51 @@ fn extract_version(tag: &str) -> Result<String> {
     }
 }
 
+/// Detect multiple CCO installations and warn user
+async fn check_for_multiple_installations() -> Result<()> {
+    let mut found_installations = Vec::new();
+
+    // Check common paths
+    let paths_to_check = vec![
+        dirs::home_dir().map(|h| h.join(".local/bin/cco")),
+        Some(PathBuf::from("/usr/local/bin/cco")),
+        Some(PathBuf::from("/opt/cco/cco")),
+        Some(PathBuf::from("/usr/bin/cco")),
+    ];
+
+    for path_opt in paths_to_check {
+        if let Some(path) = path_opt {
+            if path.exists() {
+                if let Ok(output) = std::process::Command::new(&path)
+                    .arg("--version")
+                    .output()
+                {
+                    if output.status.success() {
+                        let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                        found_installations.push((path, version));
+                    }
+                }
+            }
+        }
+    }
+
+    if found_installations.len() > 1 {
+        println!("\n⚠️  WARNING: Multiple CCO installations detected:");
+        for (path, version) in &found_installations {
+            println!("  - {} (version: {})", path.display(), version);
+        }
+        println!("\nThis can cause PATH shadowing issues.");
+        println!("Run 'cco doctor' (coming soon) for diagnosis.\n");
+    }
+
+    Ok(())
+}
+
 /// Check for updates only
 async fn check_for_updates(channel: &str) -> Result<Option<GitHubRelease>> {
+    // Check for multiple installations
+    let _ = check_for_multiple_installations().await;
+
     println!("→ Checking for updates...");
 
     let current_version = DateVersion::current();

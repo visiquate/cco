@@ -380,10 +380,66 @@ fn extract_zip(archive_path: &Path, dest_dir: &Path) -> Result<()> {
 
 /// Get the installation path for CCO binary
 pub fn get_install_path() -> Result<PathBuf> {
-    // Try to use the current executable path
-    let current_exe = std::env::current_exe().context("Failed to get current executable path")?;
+    // 1. Determine canonical installation path
+    let canonical_path = get_canonical_install_path()?;
 
+    // 2. If canonical exists, prefer it
+    if canonical_path.exists() {
+        return Ok(canonical_path);
+    }
+
+    // 3. Check if running from legacy location
+    let current_exe = std::env::current_exe().context("Failed to get current executable path")?;
+    if is_legacy_location(&current_exe)? {
+        tracing::warn!("Running from legacy location: {}", current_exe.display());
+        tracing::warn!("Update will install to canonical location: {}", canonical_path.display());
+        tracing::warn!("After update, remove old installation: sudo rm {}", current_exe.display());
+
+        // Ensure canonical directory exists
+        if let Some(parent) = canonical_path.parent() {
+            fs::create_dir_all(parent).context("Failed to create canonical directory")?;
+        }
+
+        return Ok(canonical_path);
+    }
+
+    // 4. Not legacy and canonical doesn't exist - use current location
     Ok(current_exe)
+}
+
+/// Get canonical (preferred) installation path
+fn get_canonical_install_path() -> Result<PathBuf> {
+    #[cfg(unix)]
+    {
+        let home = dirs::home_dir()
+            .ok_or_else(|| anyhow!("Could not determine home directory"))?;
+        Ok(home.join(".local/bin/cco"))
+    }
+
+    #[cfg(windows)]
+    {
+        let home = dirs::home_dir()
+            .ok_or_else(|| anyhow!("Could not determine home directory"))?;
+        Ok(home.join(".local\\bin\\cco.exe"))
+    }
+}
+
+/// Check if path is a legacy installation location
+fn is_legacy_location(path: &Path) -> Result<bool> {
+    let path_str = path.to_string_lossy();
+
+    #[cfg(unix)]
+    {
+        Ok(path_str.contains("/usr/local/bin/") ||
+           path_str.contains("/opt/") ||
+           path_str.contains("/usr/bin/"))
+    }
+
+    #[cfg(windows)]
+    {
+        Ok(path_str.contains("Program Files") ||
+           path_str.contains("ProgramData"))
+    }
 }
 
 /// Replace current binary with new one (atomic operation)
