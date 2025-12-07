@@ -16,8 +16,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "curl -s -X POST http://localhost:$CCO_DAEMON_PORT/api/knowledge/session-start -H 'Content-Type: application/json' -d '{\"session_id\":\"'\"$CLAUDE_SESSION_ID\"'\",\"project_id\":\"'\"$CLAUDE_PROJECT_DIR\"'\"}'",
-            "timeout": 5
+            "command": "curl -s --retry 5 --retry-delay 1 --retry-connrefused --retry-all-errors -X POST http://localhost:$CCO_DAEMON_PORT/api/knowledge/session-start -H 'Content-Type: application/json' -d '{\"session_id\":\"'\"$CLAUDE_SESSION_ID\"'\",\"project_id\":\"'\"$CLAUDE_PROJECT_DIR\"'\"}'",
+            "timeout": 15
           }
         ]
       }
