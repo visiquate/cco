@@ -216,9 +216,15 @@ async fn retrieve_credential(
         Err(e) => {
             let error_str = e.to_string();
             if error_str.contains("not found") {
-                Err(ApiError::NotFound(format!("Credential '{}' not found", key)))
+                Err(ApiError::NotFound(format!(
+                    "Credential '{}' not found",
+                    key
+                )))
             } else if error_str.contains("expired") {
-                Err(ApiError::Expired(format!("Credential '{}' has expired", key)))
+                Err(ApiError::Expired(format!(
+                    "Credential '{}' has expired",
+                    key
+                )))
             } else if error_str.contains("rate limit") {
                 Err(ApiError::RateLimitExceeded(error_str))
             } else {
@@ -265,7 +271,10 @@ async fn delete_credential(
                     "message": "Credential deleted successfully"
                 })))
             } else {
-                Err(ApiError::NotFound(format!("Credential '{}' not found", key)))
+                Err(ApiError::NotFound(format!(
+                    "Credential '{}' not found",
+                    key
+                )))
             }
         }
         Err(e) => Err(ApiError::StorageError(e.to_string())),
@@ -350,7 +359,10 @@ async fn rotate_credential(
         Err(e) => {
             let error_str = e.to_string();
             if error_str.contains("not found") {
-                Err(ApiError::NotFound(format!("Credential '{}' not found", key)))
+                Err(ApiError::NotFound(format!(
+                    "Credential '{}' not found",
+                    key
+                )))
             } else {
                 Err(ApiError::StorageError(error_str))
             }

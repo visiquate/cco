@@ -154,10 +154,6 @@ routing:
   # Default for offline/local workloads
   offline_model: ollama-llama2
 
-  # LiteLLM endpoint configuration
-  litellm_url: http://localhost:4000
-  litellm_port: 4000
-
   # Health check settings
   health_check_interval: 30  # seconds
   health_check_timeout: 5    # seconds

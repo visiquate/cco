@@ -586,5 +586,4 @@ mod tests {
         assert!(!is_daemon_version_older("2025.11.1", "invalid.version"));
         assert!(!is_daemon_version_older("invalid", "invalid"));
     }
-
 }

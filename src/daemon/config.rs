@@ -4,6 +4,7 @@
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+use std::net::IpAddr;
 use std::path::PathBuf;
 
 use super::hooks::HooksConfig;
@@ -92,6 +93,21 @@ impl DaemonConfig {
                 "Invalid log level: {} (must be debug, info, warn, or error)",
                 level
             ),
+        }
+
+        // Enforce loopback-only binding for security; daemon is not intended for remote access.
+        if self.host != "localhost" {
+            let ip: IpAddr = self
+                .host
+                .parse()
+                .map_err(|_| anyhow::anyhow!("host must be a loopback address or 'localhost'"))?;
+
+            if !ip.is_loopback() {
+                anyhow::bail!(
+                    "Daemon host must be loopback-only (got {}). Use 127.0.0.1/::1 or 'localhost'.",
+                    self.host
+                );
+            }
         }
 
         // Validate hooks configuration
@@ -270,6 +286,30 @@ mod tests {
         assert_eq!(config.log_level, "debug");
 
         assert!(config.set("invalid_key", "value").is_err());
+    }
+
+    #[test]
+    fn test_non_loopback_host_rejected() {
+        let mut config = DaemonConfig::default();
+        config.host = "0.0.0.0".to_string();
+        assert!(config.validate().is_err());
+
+        config.host = "192.168.1.10".to_string();
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_loopback_hosts_allowed() {
+        let mut config = DaemonConfig::default();
+
+        config.host = "127.0.0.1".to_string();
+        assert!(config.validate().is_ok());
+
+        config.host = "::1".to_string();
+        assert!(config.validate().is_ok());
+
+        config.host = "localhost".to_string();
+        assert!(config.validate().is_ok());
     }
 
     #[test]

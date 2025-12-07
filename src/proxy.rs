@@ -156,11 +156,7 @@ impl ProxyServer {
                 .text()
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
-            return Err(anyhow!(
-                "Anthropic API error {}: {}",
-                status,
-                error_text
-            ));
+            return Err(anyhow!("Anthropic API error {}: {}", status, error_text));
         }
 
         let response_json: Value = response
@@ -177,7 +173,9 @@ impl ProxyServer {
             .ok_or_else(|| anyhow!("No content in Anthropic response"))?
             .to_string();
 
-        let usage = response_json.get("usage").ok_or_else(|| anyhow!("No usage in response"))?;
+        let usage = response_json
+            .get("usage")
+            .ok_or_else(|| anyhow!("No usage in response"))?;
         let input_tokens = usage
             .get("input_tokens")
             .and_then(|t| t.as_u64())
@@ -185,7 +183,8 @@ impl ProxyServer {
         let output_tokens = usage
             .get("output_tokens")
             .and_then(|t| t.as_u64())
-            .ok_or_else(|| anyhow!("No output_tokens in usage"))? as u32;
+            .ok_or_else(|| anyhow!("No output_tokens in usage"))?
+            as u32;
 
         let id = response_json
             .get("id")
@@ -267,7 +266,9 @@ impl ProxyServer {
             .ok_or_else(|| anyhow!("No content in Azure response"))?
             .to_string();
 
-        let usage = response_json.get("usage").ok_or_else(|| anyhow!("No usage in response"))?;
+        let usage = response_json
+            .get("usage")
+            .ok_or_else(|| anyhow!("No usage in response"))?;
         let input_tokens = usage
             .get("prompt_tokens")
             .and_then(|t| t.as_u64())
@@ -275,7 +276,8 @@ impl ProxyServer {
         let output_tokens = usage
             .get("completion_tokens")
             .and_then(|t| t.as_u64())
-            .ok_or_else(|| anyhow!("No completion_tokens in usage"))? as u32;
+            .ok_or_else(|| anyhow!("No completion_tokens in usage"))?
+            as u32;
 
         let id = response_json
             .get("id")
@@ -357,7 +359,9 @@ impl ProxyServer {
             .ok_or_else(|| anyhow!("No content in DeepSeek response"))?
             .to_string();
 
-        let usage = response_json.get("usage").ok_or_else(|| anyhow!("No usage in response"))?;
+        let usage = response_json
+            .get("usage")
+            .ok_or_else(|| anyhow!("No usage in response"))?;
         let input_tokens = usage
             .get("prompt_tokens")
             .and_then(|t| t.as_u64())
@@ -365,7 +369,8 @@ impl ProxyServer {
         let output_tokens = usage
             .get("completion_tokens")
             .and_then(|t| t.as_u64())
-            .ok_or_else(|| anyhow!("No completion_tokens in usage"))? as u32;
+            .ok_or_else(|| anyhow!("No completion_tokens in usage"))?
+            as u32;
 
         let id = response_json
             .get("id")

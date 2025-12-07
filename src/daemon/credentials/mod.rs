@@ -6,7 +6,7 @@
 pub mod api;
 
 pub use api::{
-    credentials_router, credentials_router_without_state, CredentialState,
-    ListCredentialsResponse, RetrieveCredentialResponse, RotationCheckResponse,
-    StoreCredentialRequest, StoreCredentialResponse,
+    credentials_router, credentials_router_without_state, CredentialState, ListCredentialsResponse,
+    RetrieveCredentialResponse, RotationCheckResponse, StoreCredentialRequest,
+    StoreCredentialResponse,
 };

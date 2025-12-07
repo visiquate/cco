@@ -45,11 +45,7 @@ impl AzureProvider {
     /// Build the API URL for chat completions
     fn api_url(&self) -> String {
         let base = self.config.base_url.trim_end_matches('/');
-        let deployment = self
-            .config
-            .deployment
-            .as_deref()
-            .unwrap_or("gpt-4");
+        let deployment = self.config.deployment.as_deref().unwrap_or("gpt-4");
         let api_version = self
             .config
             .api_version
@@ -116,9 +112,9 @@ impl AzureProvider {
                 let parts: Vec<AzureContentPart> = blocks
                     .iter()
                     .filter_map(|block| match block {
-                        ContentBlock::Text { text } => Some(AzureContentPart::Text {
-                            text: text.clone(),
-                        }),
+                        ContentBlock::Text { text } => {
+                            Some(AzureContentPart::Text { text: text.clone() })
+                        }
                         // Tool use/result blocks need special handling
                         _ => None,
                     })
@@ -357,7 +353,10 @@ mod tests {
 
         let base = config.base_url.trim_end_matches('/');
         let deployment = config.deployment.as_deref().unwrap_or("gpt-4");
-        let api_version = config.api_version.as_deref().unwrap_or("2024-02-15-preview");
+        let api_version = config
+            .api_version
+            .as_deref()
+            .unwrap_or("2024-02-15-preview");
 
         let url = format!(
             "{}/openai/deployments/{}/chat/completions?api-version={}",

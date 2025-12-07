@@ -1323,9 +1323,7 @@ From `ORCHESTRATOR_RULES.md` lines 193-206:
 cc-orchestra/
 ├── config/
 │   ├── orchestra-config.json          # Agent definitions (v2.0.0)
-│   ├── credential-inventory.json      # Credential tracking (gitignored)
-│   └── ccproxy/
-│       └── ccproxy-config-tdd-pipeline.yaml  # LiteLLM proxy config
+│   └── credential-inventory.json      # Credential tracking (gitignored)
 ├── src/
 │   ├── orchestra-conductor.js         # Main orchestration (510 lines)
 │   ├── knowledge-manager.js           # LanceDB integration (637 lines)
@@ -1976,8 +1974,8 @@ cco knowledge search "orchestration"
 
 **Model Response Times:**
 ```bash
-# Monitor ccproxy logs
-tail -f /Users/brent/ccproxy/logs/litellm.log | grep "response_time"
+# Monitor gateway logs (if using local gateway)
+# Currently using direct Claude API - no proxy logs
 ```
 
 **Knowledge Manager Performance:**

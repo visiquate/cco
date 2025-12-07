@@ -11,7 +11,6 @@ pub mod credentials;
 pub mod hooks;
 pub mod knowledge;
 pub mod lifecycle;
-pub mod litellm;
 pub mod llm_gateway;
 pub mod llm_router;
 pub mod log_watcher;
@@ -27,13 +26,15 @@ pub mod temp_files;
 
 pub use config::{load_config, save_config, DaemonConfig};
 pub use hooks::{HookExecutor, HookPayload, HookRegistry, HookType, HooksConfig};
-pub use lifecycle::{read_daemon_port, read_gateway_port, update_daemon_port, update_gateway_port, DaemonManager, DaemonStatus};
-pub use litellm::{LiteLLMProcess, LiteLLMConfig, ensure_litellm_pex};
-pub use llm_router::{
-    llm_router_routes, EndpointConfig, EndpointType, LlmClient, LlmOptions, LlmResponse,
-    LlmRouter, RoutingDecision,
+pub use lifecycle::{
+    read_daemon_port, read_gateway_port, update_daemon_port, update_gateway_port, DaemonManager,
+    DaemonStatus,
 };
 pub use llm_router::api::LlmRouterState;
+pub use llm_router::{
+    llm_router_routes, EndpointConfig, EndpointType, LlmClient, LlmOptions, LlmResponse, LlmRouter,
+    RoutingDecision,
+};
 pub use log_watcher::LogWatcher;
 pub use metrics_cache::{
     AggregatedMetricsCache, AggregatedSnapshot, MetricEvent, MetricsCache, StatsSnapshot,

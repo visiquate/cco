@@ -1165,9 +1165,12 @@ async fn main() -> anyhow::Result<()> {
             let output = std::process::Command::new("codesign")
                 .args([
                     "--force",
-                    "--sign", "-",
-                    "--entitlements", entitlements_path.to_str().unwrap(),
-                    "--options", "runtime",
+                    "--sign",
+                    "-",
+                    "--entitlements",
+                    entitlements_path.to_str().unwrap(),
+                    "--options",
+                    "runtime",
                     binary_path.to_str().unwrap(),
                 ])
                 .output()?;

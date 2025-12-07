@@ -64,7 +64,9 @@ async fn route_task_handler(
     State(state): State<LlmRouterState>,
     Json(req): Json<RouteRequest>,
 ) -> Response {
-    let decision = state.router.route_task(&req.agent_type, req.task_type.as_deref());
+    let decision = state
+        .router
+        .route_task(&req.agent_type, req.task_type.as_deref());
 
     Json(decision).into_response()
 }

@@ -231,7 +231,11 @@ mod tests {
         let prompt = build_crud_prompt("test");
         // Prompt should be reasonable size (may include corrections)
         // With corrections, it can be longer, but shouldn't be excessive
-        assert!(prompt.len() < 10000, "Prompt should be reasonable size, was {} chars", prompt.len());
+        assert!(
+            prompt.len() < 10000,
+            "Prompt should be reasonable size, was {} chars",
+            prompt.len()
+        );
         // Should always end with the command to classify
         assert!(prompt.ends_with("Command: test"));
     }

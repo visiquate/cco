@@ -10,7 +10,6 @@
 pub mod api;
 pub mod audit;
 pub mod config;
-pub mod litellm_client;
 pub mod metrics;
 pub mod providers;
 pub mod router;
@@ -27,7 +26,6 @@ use tokio::sync::RwLock;
 
 use self::audit::AuditLogger;
 use self::config::GatewayConfig;
-use self::litellm_client::LiteLLMClient;
 use self::metrics::CostTracker;
 use self::providers::ProviderRegistry;
 use self::router::RoutingEngine;
@@ -40,7 +38,6 @@ pub struct LlmGateway {
     pub providers: ProviderRegistry,
     pub cost_tracker: Arc<CostTracker>,
     pub audit_logger: Arc<RwLock<AuditLogger>>,
-    pub litellm_client: Option<LiteLLMClient>,
     pub stream_broadcaster: Arc<StreamEventBroadcaster>,
 }
 
@@ -50,9 +47,7 @@ impl LlmGateway {
         let router = RoutingEngine::new(config.routing.clone());
         let providers = ProviderRegistry::from_config(&config.providers).await?;
         let cost_tracker = Arc::new(CostTracker::new());
-        let audit_logger = Arc::new(RwLock::new(
-            AuditLogger::new(&config.audit).await?,
-        ));
+        let audit_logger = Arc::new(RwLock::new(AuditLogger::new(&config.audit).await?));
         let stream_broadcaster = Arc::new(StreamEventBroadcaster::default());
 
         Ok(Self {
@@ -61,83 +56,43 @@ impl LlmGateway {
             providers,
             cost_tracker,
             audit_logger,
-            litellm_client: None,
-            stream_broadcaster,
-        })
-    }
-
-    /// Create a new LLM Gateway that routes through LiteLLM
-    pub async fn new_with_litellm(config: GatewayConfig, litellm_url: &str) -> Result<Self> {
-        let router = RoutingEngine::new(config.routing.clone());
-        let providers = ProviderRegistry::from_config(&config.providers).await?;
-        let cost_tracker = Arc::new(CostTracker::new());
-        let audit_logger = Arc::new(RwLock::new(
-            AuditLogger::new(&config.audit).await?,
-        ));
-        let litellm_client = Some(LiteLLMClient::new(litellm_url)?);
-        let stream_broadcaster = Arc::new(StreamEventBroadcaster::default());
-
-        tracing::info!(litellm_url = %litellm_url, "Gateway configured to use LiteLLM");
-
-        Ok(Self {
-            config,
-            router,
-            providers,
-            cost_tracker,
-            audit_logger,
-            litellm_client,
             stream_broadcaster,
         })
     }
 
     /// Process a completion request through the gateway
-    pub async fn complete(&self, request: CompletionRequest, client_auth: Option<String>, client_beta: Option<String>) -> Result<CompletionResponse> {
+    pub async fn complete(
+        &self,
+        request: CompletionRequest,
+        client_auth: Option<String>,
+        client_beta: Option<String>,
+    ) -> Result<CompletionResponse> {
         let start = std::time::Instant::now();
         let request_id = uuid::Uuid::new_v4().to_string();
 
-        // Detect OAuth: check for Bearer auth OR CLAUDE_CODE_OAUTH_TOKEN env var
-        let is_oauth = client_auth
-            .as_ref()
-            .map(|h| h.to_lowercase().starts_with("bearer "))
-            .unwrap_or(false)
-            || std::env::var("CLAUDE_CODE_OAUTH_TOKEN").map(|t| !t.is_empty()).unwrap_or(false);
-
-        // IMPORTANT: For OAuth authentication, bypass LiteLLM and use direct Anthropic provider
-        // LiteLLM doesn't handle OAuth Bearer tokens correctly (sends as x-api-key instead of Authorization)
-        let use_litellm = self.litellm_client.is_some() && !is_oauth;
-
-        // Determine routing (still use routing engine for agent-type decisions)
+        // Determine routing
         let route = self.router.route(&request);
         tracing::info!(
             request_id = %request_id,
             agent_type = ?request.agent_type,
             provider = %route.provider,
             reason = %route.reason,
-            using_litellm = use_litellm,
-            is_oauth = is_oauth,
             "Routing request"
         );
 
-        // Execute request - use LiteLLM if available AND not OAuth, otherwise fall back to direct provider
-        let result = if use_litellm {
-            tracing::debug!("Using LiteLLM client for request");
-            self.litellm_client.as_ref().unwrap().complete(request.clone(), client_auth, client_beta).await
-        } else {
-            tracing::debug!(provider = %route.provider, is_oauth = is_oauth, "Using direct provider (bypassing LiteLLM)");
-            let provider = self.providers.get(&route.provider)?;
-            provider.complete(request.clone(), client_auth, client_beta).await
-        };
+        // Execute request via direct provider
+        tracing::debug!(provider = %route.provider, "Using direct provider");
+        let provider = self.providers.get(&route.provider)?;
+        let result = provider
+            .complete(request.clone(), client_auth, client_beta)
+            .await;
 
         let latency_ms = start.elapsed().as_millis() as u64;
 
         match result {
             Ok((mut response, metrics)) => {
                 // Enrich response with gateway metadata
-                response.provider = if use_litellm {
-                    "litellm".to_string()
-                } else {
-                    route.provider.clone()
-                };
+                response.provider = route.provider.clone();
                 response.latency_ms = latency_ms;
                 response.cost_usd = metrics.cost_usd;
 
@@ -147,12 +102,9 @@ impl LlmGateway {
                 // Audit log
                 {
                     let logger = self.audit_logger.read().await;
-                    logger.log_success(
-                        &request_id,
-                        &request,
-                        &response,
-                        &metrics,
-                    ).await?;
+                    logger
+                        .log_success(&request_id, &request, &response, &metrics)
+                        .await?;
                 }
 
                 Ok(response)
@@ -161,18 +113,9 @@ impl LlmGateway {
                 // Audit log error
                 {
                     let logger = self.audit_logger.read().await;
-                    let provider = if use_litellm {
-                        "litellm"
-                    } else {
-                        &route.provider
-                    };
-                    logger.log_error(
-                        &request_id,
-                        &request,
-                        provider,
-                        &e.to_string(),
-                        latency_ms,
-                    ).await?;
+                    logger
+                        .log_error(&request_id, &request, &route.provider, &e.to_string(), latency_ms)
+                        .await?;
                 }
 
                 Err(e)
@@ -222,7 +165,6 @@ pub struct CompletionRequest {
     pub stream: bool,
 
     // === Gateway metadata (extracted from request for routing) ===
-
     /// Agent type for routing decisions
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_type: Option<String>,
@@ -263,7 +205,6 @@ pub struct CompletionResponse {
     pub usage: Usage,
 
     // === Gateway-added metadata ===
-
     /// Provider that handled the request
     #[serde(default)]
     pub provider: String,
@@ -303,14 +244,10 @@ pub enum MessageContent {
 pub enum ContentBlock {
     /// Text content
     #[serde(rename = "text")]
-    Text {
-        text: String,
-    },
+    Text { text: String },
     /// Image content (base64 or URL)
     #[serde(rename = "image")]
-    Image {
-        source: ImageSource,
-    },
+    Image { source: ImageSource },
     /// Tool use (function call)
     #[serde(rename = "tool_use")]
     ToolUse {
@@ -336,9 +273,7 @@ pub enum ContentBlock {
     },
     /// Document content (PDF, etc)
     #[serde(rename = "document")]
-    Document {
-        source: DocumentSource,
-    },
+    Document { source: DocumentSource },
     /// Catch-all for unknown content types to prevent deserialization failures
     #[serde(other)]
     Unknown,
@@ -349,14 +284,9 @@ pub enum ContentBlock {
 #[serde(tag = "type")]
 pub enum ImageSource {
     #[serde(rename = "base64")]
-    Base64 {
-        media_type: String,
-        data: String,
-    },
+    Base64 { media_type: String, data: String },
     #[serde(rename = "url")]
-    Url {
-        url: String,
-    },
+    Url { url: String },
 }
 
 /// Document source for document content blocks
@@ -364,10 +294,7 @@ pub enum ImageSource {
 #[serde(tag = "type")]
 pub enum DocumentSource {
     #[serde(rename = "base64")]
-    Base64 {
-        media_type: String,
-        data: String,
-    },
+    Base64 { media_type: String, data: String },
 }
 
 /// Tool result content - can be string or array of content blocks
@@ -482,9 +409,7 @@ pub type StreamEventStream = Pin<Box<dyn Stream<Item = Result<StreamEvent>> + Se
 pub enum StreamEvent {
     /// Message start event - contains initial message metadata
     #[serde(rename = "message_start")]
-    MessageStart {
-        message: StreamMessage,
-    },
+    MessageStart { message: StreamMessage },
 
     /// Content block start event
     #[serde(rename = "content_block_start")]
@@ -506,9 +431,7 @@ pub enum StreamEvent {
 
     /// Content block stop event
     #[serde(rename = "content_block_stop")]
-    ContentBlockStop {
-        index: u32,
-    },
+    ContentBlockStop { index: u32 },
 
     /// Message delta - contains usage and stop reason updates
     #[serde(rename = "message_delta")]
@@ -523,9 +446,7 @@ pub enum StreamEvent {
 
     /// Error event
     #[serde(rename = "error")]
-    Error {
-        error: StreamError,
-    },
+    Error { error: StreamError },
 }
 
 /// Message metadata in stream
@@ -547,17 +468,11 @@ pub struct StreamMessage {
 #[serde(tag = "type")]
 pub enum ContentBlockDelta {
     #[serde(rename = "text_delta")]
-    TextDelta {
-        text: String,
-    },
+    TextDelta { text: String },
     #[serde(rename = "text")]
-    Text {
-        text: String,
-    },
+    Text { text: String },
     #[serde(rename = "input_json_delta")]
-    InputJsonDelta {
-        partial_json: String,
-    },
+    InputJsonDelta { partial_json: String },
     #[serde(rename = "tool_use")]
     ToolUse {
         id: String,
@@ -565,17 +480,11 @@ pub enum ContentBlockDelta {
         input: serde_json::Value,
     },
     #[serde(rename = "thinking_delta")]
-    ThinkingDelta {
-        thinking: String,
-    },
+    ThinkingDelta { thinking: String },
     #[serde(rename = "thinking")]
-    Thinking {
-        thinking: String,
-    },
+    Thinking { thinking: String },
     #[serde(rename = "signature_delta")]
-    SignatureDelta {
-        signature: String,
-    },
+    SignatureDelta { signature: String },
 }
 
 /// Message delta content (stop reason, etc)
@@ -633,9 +542,9 @@ mod tests {
 
     #[test]
     fn test_message_content_blocks_serialization() {
-        let content = MessageContent::Blocks(vec![
-            ContentBlock::Text { text: "Hello".to_string() },
-        ]);
+        let content = MessageContent::Blocks(vec![ContentBlock::Text {
+            text: "Hello".to_string(),
+        }]);
         let json = serde_json::to_string(&content).unwrap();
         assert!(json.contains("\"type\":\"text\""));
     }

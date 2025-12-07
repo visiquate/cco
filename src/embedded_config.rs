@@ -63,7 +63,10 @@ pub fn get_gateway_config() -> GatewayConfig {
     if let Some(gateway_section) = config.get("llmGateway") {
         serde_json::from_value(gateway_section.clone())
             .map_err(|e| {
-                eprintln!("Warning: Failed to parse llmGateway section, using defaults: {}", e);
+                eprintln!(
+                    "Warning: Failed to parse llmGateway section, using defaults: {}",
+                    e
+                );
                 e
             })
             .unwrap_or_default()

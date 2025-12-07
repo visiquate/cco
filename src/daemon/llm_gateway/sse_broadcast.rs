@@ -22,10 +22,7 @@ pub enum TuiStreamEvent {
 
     /// Text delta - incremental text content from the stream
     #[serde(rename = "text_delta")]
-    TextDelta {
-        request_id: String,
-        text: String,
-    },
+    TextDelta { request_id: String, text: String },
 
     /// Stream completed successfully
     #[serde(rename = "completed")]
@@ -38,10 +35,7 @@ pub enum TuiStreamEvent {
 
     /// Stream error
     #[serde(rename = "error")]
-    Error {
-        request_id: String,
-        message: String,
-    },
+    Error { request_id: String, message: String },
 }
 
 /// Broadcaster for streaming events to multiple subscribers
@@ -173,7 +167,11 @@ mod tests {
         // Receive the event
         let event = receiver.recv().await.unwrap();
         match event {
-            TuiStreamEvent::Started { request_id, model, agent_type } => {
+            TuiStreamEvent::Started {
+                request_id,
+                model,
+                agent_type,
+            } => {
                 assert_eq!(request_id, "req_123");
                 assert_eq!(model, "claude-sonnet-4");
                 assert_eq!(agent_type, Some("test-agent".to_string()));
@@ -202,8 +200,14 @@ mod tests {
 
         match (&event1, &event2) {
             (
-                TuiStreamEvent::TextDelta { request_id: id1, text: text1 },
-                TuiStreamEvent::TextDelta { request_id: id2, text: text2 },
+                TuiStreamEvent::TextDelta {
+                    request_id: id1,
+                    text: text1,
+                },
+                TuiStreamEvent::TextDelta {
+                    request_id: id2,
+                    text: text2,
+                },
             ) => {
                 assert_eq!(id1, "req_456");
                 assert_eq!(id2, "req_456");

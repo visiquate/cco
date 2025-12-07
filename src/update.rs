@@ -197,9 +197,7 @@ async fn download_file(url: &str, path: &Path) -> Result<()> {
         .timeout(std::time::Duration::from_secs(300))
         .build()?;
 
-    let mut request = client
-        .get(url)
-        .header("Accept", "application/octet-stream");
+    let mut request = client.get(url).header("Accept", "application/octet-stream");
 
     // Add authentication for private repo downloads
     if let Some(ref t) = token {
@@ -243,8 +241,7 @@ fn verify_checksum(file_path: &Path, expected_checksum: &str) -> Result<bool> {
 
 /// Get the installation path for CCO
 fn get_install_path() -> Result<PathBuf> {
-    let current_exe = std::env::current_exe()
-        .context("Failed to get current executable path")?;
+    let current_exe = std::env::current_exe().context("Failed to get current executable path")?;
     Ok(current_exe)
 }
 

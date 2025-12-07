@@ -49,10 +49,7 @@ impl OllamaProvider {
 
     /// Build the API URL for the native Ollama chat endpoint
     fn native_api_url(&self) -> String {
-        format!(
-            "{}/api/chat",
-            self.config.base_url.trim_end_matches('/')
-        )
+        format!("{}/api/chat", self.config.base_url.trim_end_matches('/'))
     }
 
     /// Convert Anthropic request to OpenAI format (for OpenAI-compatible endpoint)
@@ -144,15 +141,20 @@ impl OllamaProvider {
         });
 
         // Ollama may not always return usage stats
-        let usage = response.usage.map(|u| Usage {
-            input_tokens: u.prompt_tokens,
-            output_tokens: u.completion_tokens,
-            cache_creation_input_tokens: None,
-            cache_read_input_tokens: None,
-        }).unwrap_or_default();
+        let usage = response
+            .usage
+            .map(|u| Usage {
+                input_tokens: u.prompt_tokens,
+                output_tokens: u.completion_tokens,
+                cache_creation_input_tokens: None,
+                cache_read_input_tokens: None,
+            })
+            .unwrap_or_default();
 
         let response = CompletionResponse {
-            id: response.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
+            id: response
+                .id
+                .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
             response_type: "message".to_string(),
             role: "assistant".to_string(),
             model,
@@ -355,8 +357,14 @@ impl OllamaProvider {
             ));
         }
 
-        let native_response: OllamaNativeResponse = serde_json::from_str(&response_text)
-            .map_err(|e| anyhow!("Failed to parse Ollama native response: {} - {}", e, response_text))?;
+        let native_response: OllamaNativeResponse =
+            serde_json::from_str(&response_text).map_err(|e| {
+                anyhow!(
+                    "Failed to parse Ollama native response: {} - {}",
+                    e,
+                    response_text
+                )
+            })?;
 
         let latency_ms = start.elapsed().as_millis() as u64;
 

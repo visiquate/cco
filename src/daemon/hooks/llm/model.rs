@@ -41,7 +41,6 @@ pub struct LlmModel {
     config: HookLlmConfig,
 }
 
-
 /// Model manager handles lifecycle of the embedded LLM
 ///
 /// Responsibilities:
@@ -366,7 +365,10 @@ impl ModelManager {
         .with_logging()
         .with_paged_attn(|| PagedAttentionMetaBuilder::default().build())
         .map_err(|e| {
-            HookError::execution_failed("model_load", format!("Failed to configure PagedAttention: {}", e))
+            HookError::execution_failed(
+                "model_load",
+                format!("Failed to configure PagedAttention: {}", e),
+            )
         })?
         .build()
         .await
@@ -470,9 +472,7 @@ impl ModelManager {
             .choices
             .get(0)
             .and_then(|choice| choice.message.content.as_ref())
-            .ok_or_else(|| {
-                HookError::execution_failed("inference", "No response from model")
-            })?;
+            .ok_or_else(|| HookError::execution_failed("inference", "No response from model"))?;
 
         // Log raw model output for debugging
         debug!("Raw LLM output: '{}'", output);
@@ -589,5 +589,4 @@ mod tests {
         manager.unload_model().await;
         assert!(!manager.is_loaded().await);
     }
-
 }

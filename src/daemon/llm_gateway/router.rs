@@ -123,14 +123,32 @@ impl RoutingEngine {
 
         // Check for explicit agent type mentions
         let agent_patterns: &[(&str, &[&str])] = &[
-            ("chief-architect", &["chief architect", "system architect", "architecture design"]),
-            ("code-reviewer", &["code review", "review the code", "reviewing code"]),
-            ("test-engineer", &["test engineer", "write tests", "testing"]),
-            ("security-auditor", &["security audit", "security review", "vulnerability"]),
-            ("python-specialist", &["python", "fastapi", "django", "flask"]),
+            (
+                "chief-architect",
+                &["chief architect", "system architect", "architecture design"],
+            ),
+            (
+                "code-reviewer",
+                &["code review", "review the code", "reviewing code"],
+            ),
+            (
+                "test-engineer",
+                &["test engineer", "write tests", "testing"],
+            ),
+            (
+                "security-auditor",
+                &["security audit", "security review", "vulnerability"],
+            ),
+            (
+                "python-specialist",
+                &["python", "fastapi", "django", "flask"],
+            ),
             ("rust-specialist", &["rust", "cargo", "tokio", "axum"]),
             ("go-specialist", &["golang", "go ", "goroutine"]),
-            ("technical-researcher", &["research", "investigate", "analyze"]),
+            (
+                "technical-researcher",
+                &["research", "investigate", "analyze"],
+            ),
         ];
 
         for (agent, patterns) in agent_patterns {

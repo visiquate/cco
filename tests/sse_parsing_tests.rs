@@ -79,10 +79,7 @@ data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text
             "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"text\":\"Hi\"}}\n\n",
         ];
 
-        let parsed: Vec<_> = events
-            .iter()
-            .filter_map(|e| parse_sse_event(e))
-            .collect();
+        let parsed: Vec<_> = events.iter().filter_map(|e| parse_sse_event(e)).collect();
 
         assert_eq!(parsed.len(), 3);
         assert_eq!(parsed[0].0, "message_start");

@@ -251,15 +251,18 @@ The Claude Orchestra orchestrator will handle routing your implementation reques
         requirement: &str,
     ) -> AgentPrompt {
         let role_specific = match agent.name.as_str() {
-            "API Explorer" => r#"
+            "API Explorer" => {
+                r#"
 FOCUS: Explore and understand third-party APIs
 - Test API endpoints and authentication
 - Document API capabilities and limitations
 - Create integration POCs
 - Analyze rate limits and quotas
 - Generate API client code
-- Monitor API changes"#,
-            "Salesforce API Specialist" => r#"
+- Monitor API changes"#
+            }
+            "Salesforce API Specialist" => {
+                r#"
 FOCUS: Salesforce API integration
 - Connect to Salesforce via REST/SOAP API
 - Write optimized SOQL queries
@@ -267,8 +270,10 @@ FOCUS: Salesforce API integration
 - Implement bulk operations
 - Set up streaming API integrations
 - Map Salesforce objects to application models
-- Handle rate limits and governor limits"#,
-            "Authentik API Specialist" => r#"
+- Handle rate limits and governor limits"#
+            }
+            "Authentik API Specialist" => {
+                r#"
 FOCUS: Authentik authentication and API integration
 - Configure OAuth2/OIDC flows with Authentik
 - Manage users and groups via API
@@ -276,7 +281,8 @@ FOCUS: Authentik authentication and API integration
 - Configure SAML integration
 - Implement MFA workflows
 - Synchronize user attributes
-- Handle Authentik webhooks and events"#,
+- Handle Authentik webhooks and events"#
+            }
             _ => "",
         };
 
@@ -295,10 +301,7 @@ FOCUS: Authentik authentication and API integration
             String::new()
         };
 
-        let responsibilities = format!(
-            "\n\nOUTPUT:\n- {}",
-            agent.responsibilities.join("\n- ")
-        );
+        let responsibilities = format!("\n\nOUTPUT:\n- {}", agent.responsibilities.join("\n- "));
 
         let prompt = format!(
             r#"You are the {} for this project.
@@ -337,15 +340,18 @@ COORDINATION PROTOCOL:
         requirement: &str,
     ) -> AgentPrompt {
         let role_specific = match agent.name.as_str() {
-            "Documentation Lead" => r#"
+            "Documentation Lead" => {
+                r#"
 FOCUS: Code-level documentation and API reference
 - Inline code comments and docstrings
 - API reference documentation with code examples
 - Function/method documentation (JSDoc, docstrings, etc.)
 - Code snippets and usage examples
 - README code sections with examples
-- Developer-focused documentation"#,
-            "Technical Writer" => r#"
+- Developer-focused documentation"#
+            }
+            "Technical Writer" => {
+                r#"
 FOCUS: Architecture documentation and user guides
 - Architecture documentation and system design
 - System design diagrams and flowcharts
@@ -353,8 +359,10 @@ FOCUS: Architecture documentation and user guides
 - How-to guides and best practices
 - Conceptual documentation
 - Integration guides and deployment guides
-- High-level technical communication"#,
-            "User Experience Designer" => r#"
+- High-level technical communication"#
+            }
+            "User Experience Designer" => {
+                r#"
 FOCUS: User experience design and validation
 - Design UI/UX mockups and wireframes
 - Analyze user flows and journeys
@@ -363,24 +371,30 @@ FOCUS: User experience design and validation
 - Review mobile-first design implementation
 - Final quality validation before completion
 - Can block deployment if UX standards not met
-- Coordinate with QA on usability testing"#,
-            "QA Engineer" => r#"
+- Coordinate with QA on usability testing"#
+            }
+            "QA Engineer" => {
+                r#"
 FOCUS: Integration and end-to-end testing
 - Create integration test suites
 - Test cross-component interactions
 - Performance testing
 - CI/CD pipeline integration
 - Test coverage reports
-- Coordinate with UX Designer on usability tests"#,
-            "Security Auditor" => r#"
+- Coordinate with UX Designer on usability tests"#
+            }
+            "Security Auditor" => {
+                r#"
 FOCUS: Security analysis and vulnerability detection
 - Review all code for security vulnerabilities
 - Check for OWASP Top 10 issues
 - Audit authentication/authorization
 - Review credential handling
 - Dependency vulnerability scanning
-- Generate security reports"#,
-            "Credential Manager" => r#"
+- Generate security reports"#
+            }
+            "Credential Manager" => {
+                r#"
 FOCUS: Secure credential management
 - Design credential storage strategy (environment variables, secrets manager, etc.)
 - Track all credentials used in the project
@@ -388,8 +402,10 @@ FOCUS: Secure credential management
 - Document credential rotation procedures
 - Never store credentials in code
 - Use /tmp/credentials.json for temporary storage during development
-- Coordinate with Security Auditor"#,
-            "DevOps Engineer" => r#"
+- Coordinate with Security Auditor"#
+            }
+            "DevOps Engineer" => {
+                r#"
 FOCUS: Infrastructure, builds, and deployments
 - Docker and docker-compose configuration
 - Kubernetes manifests and deployments
@@ -398,14 +414,12 @@ FOCUS: Infrastructure, builds, and deployments
 - AWS infrastructure setup (ECS, ECR, CloudFormation)
 - Monitoring and logging configuration
 - Zero-downtime deployment strategies
-- Container orchestration and scaling"#,
+- Container orchestration and scaling"#
+            }
             _ => "",
         };
 
-        let responsibilities = format!(
-            "\n\nOUTPUT:\n- {}",
-            agent.responsibilities.join("\n- ")
-        );
+        let responsibilities = format!("\n\nOUTPUT:\n- {}", agent.responsibilities.join("\n- "));
 
         let prompt = format!(
             r#"You are the {} for this project.

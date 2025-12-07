@@ -4,7 +4,7 @@
 //! Reads orchestra-config.json directly and generates workflow instructions.
 
 use anyhow::Result;
-use cco::orchestra::{OrchestraConfig, Agent};
+use cco::orchestra::{Agent, OrchestraConfig};
 
 use crate::OrchestraAction;
 
@@ -12,12 +12,14 @@ use crate::OrchestraAction;
 pub async fn run(action: OrchestraAction) -> Result<()> {
     match action {
         OrchestraAction::Stats { format } => stats(format).await,
-        OrchestraAction::Generate { requirement, format } => {
-            generate(requirement, format).await
-        }
-        OrchestraAction::Workflow { requirement, format } => {
-            workflow(requirement, format).await
-        }
+        OrchestraAction::Generate {
+            requirement,
+            format,
+        } => generate(requirement, format).await,
+        OrchestraAction::Workflow {
+            requirement,
+            format,
+        } => workflow(requirement, format).await,
     }
 }
 
@@ -103,7 +105,7 @@ async fn workflow(requirement: String, format: String) -> Result<()> {
             t if t.contains("security") => "Security audit",
             t if t.contains("doc") => "Document code",
             t if t.contains("deploy") || t.contains("devops") => "Configure deployment",
-            _ => "Implement feature"
+            _ => "Implement feature",
         };
 
         todos.push(serde_json::json!({
@@ -179,7 +181,8 @@ fn select_agents_for_requirement<'a>(
     }
 
     // Language-specific agents
-    if req_lower.contains("python") || req_lower.contains("fastapi") || req_lower.contains("django") {
+    if req_lower.contains("python") || req_lower.contains("fastapi") || req_lower.contains("django")
+    {
         add_agent_by_type(&mut selected, &config.coding_agents, "python-specialist");
     }
     if req_lower.contains("go") || req_lower.contains("golang") {
@@ -194,51 +197,85 @@ fn select_agents_for_requirement<'a>(
     if req_lower.contains("flutter") || req_lower.contains("dart") {
         add_agent_by_type(&mut selected, &config.coding_agents, "flutter-specialist");
     }
-    if req_lower.contains("typescript") || req_lower.contains("javascript") || req_lower.contains("react") {
-        add_agent_by_type(&mut selected, &config.development_agents, "frontend-developer");
+    if req_lower.contains("typescript")
+        || req_lower.contains("javascript")
+        || req_lower.contains("react")
+    {
+        add_agent_by_type(
+            &mut selected,
+            &config.development_agents,
+            "frontend-developer",
+        );
     }
 
     // Integration agents
     if req_lower.contains("salesforce") {
-        add_agent_by_type(&mut selected, &config.integration_agents, "salesforce-api-specialist");
+        add_agent_by_type(
+            &mut selected,
+            &config.integration_agents,
+            "salesforce-api-specialist",
+        );
     }
-    if req_lower.contains("authentik") || req_lower.contains("oauth") || req_lower.contains("oidc") {
-        add_agent_by_type(&mut selected, &config.integration_agents, "authentik-api-specialist");
+    if req_lower.contains("authentik") || req_lower.contains("oauth") || req_lower.contains("oidc")
+    {
+        add_agent_by_type(
+            &mut selected,
+            &config.integration_agents,
+            "authentik-api-specialist",
+        );
     }
-    if req_lower.contains("api") && !req_lower.contains("salesforce") && !req_lower.contains("authentik") {
+    if req_lower.contains("api")
+        && !req_lower.contains("salesforce")
+        && !req_lower.contains("authentik")
+    {
         add_agent_by_type(&mut selected, &config.integration_agents, "api-explorer");
     }
 
     // Infrastructure agents
-    if req_lower.contains("docker") || req_lower.contains("kubernetes") || req_lower.contains("k8s") || req_lower.contains("deploy") {
-        add_agent_by_type(&mut selected, &config.infrastructure_agents, "devops-engineer");
+    if req_lower.contains("docker")
+        || req_lower.contains("kubernetes")
+        || req_lower.contains("k8s")
+        || req_lower.contains("deploy")
+    {
+        add_agent_by_type(
+            &mut selected,
+            &config.infrastructure_agents,
+            "devops-engineer",
+        );
     }
 
     // Security agents
-    if req_lower.contains("auth") || req_lower.contains("security") || req_lower.contains("credential") {
+    if req_lower.contains("auth")
+        || req_lower.contains("security")
+        || req_lower.contains("credential")
+    {
         add_agent_by_type(&mut selected, &config.security_agents, "security-auditor");
         add_agent_by_type(&mut selected, &config.security_agents, "security-engineer");
     }
 
     // Always include QA and documentation
     add_agent_by_type(&mut selected, &config.development_agents, "test-engineer");
-    add_agent_by_type(&mut selected, &config.documentation_agents, "documentation-expert");
+    add_agent_by_type(
+        &mut selected,
+        &config.documentation_agents,
+        "documentation-expert",
+    );
 
     // If nothing matched, provide basic web stack
     if selected.len() <= 3 {
         add_agent_by_type(&mut selected, &config.coding_agents, "python-specialist");
-        add_agent_by_type(&mut selected, &config.development_agents, "frontend-developer");
+        add_agent_by_type(
+            &mut selected,
+            &config.development_agents,
+            "frontend-developer",
+        );
     }
 
     selected
 }
 
 /// Helper to add agent by type if not already selected
-fn add_agent_by_type<'a>(
-    selected: &mut Vec<&'a Agent>,
-    agents: &'a [Agent],
-    agent_type: &str,
-) {
+fn add_agent_by_type<'a>(selected: &mut Vec<&'a Agent>, agents: &'a [Agent], agent_type: &str) {
     if !selected.iter().any(|a| a.agent_type == agent_type) {
         if let Some(agent) = agents.iter().find(|a| a.agent_type == agent_type) {
             selected.push(agent);
@@ -323,7 +360,8 @@ fn format_human_readable(data: &serde_json::Value) -> Result<()> {
 
         if let Some(arch) = data["architect"].as_object() {
             println!("\nLeadership:");
-            println!("  {} ({}) - model: {}",
+            println!(
+                "  {} ({}) - model: {}",
                 arch["name"].as_str().unwrap_or("Unknown"),
                 arch["type"].as_str().unwrap_or("Unknown"),
                 arch["model"].as_str().unwrap_or("Unknown")
@@ -371,7 +409,10 @@ fn format_human_readable(data: &serde_json::Value) -> Result<()> {
 
             // Phase 1
             if let Some(phase1) = workflow["phase_1_spawn"].as_object() {
-                println!("Phase 1: {}", phase1["description"].as_str().unwrap_or("Spawn agents"));
+                println!(
+                    "Phase 1: {}",
+                    phase1["description"].as_str().unwrap_or("Spawn agents")
+                );
                 if let Some(instructions) = phase1["instructions"].as_array() {
                     println!("  {} Task() calls to make", instructions.len());
                 }
@@ -380,7 +421,10 @@ fn format_human_readable(data: &serde_json::Value) -> Result<()> {
 
             // Phase 2
             if let Some(phase2) = workflow["phase_2_todos"].as_object() {
-                println!("Phase 2: {}", phase2["description"].as_str().unwrap_or("Create todos"));
+                println!(
+                    "Phase 2: {}",
+                    phase2["description"].as_str().unwrap_or("Create todos")
+                );
                 if let Some(total) = phase2["total_todos"].as_u64() {
                     println!("  {} todo items", total);
                 }
@@ -389,7 +433,10 @@ fn format_human_readable(data: &serde_json::Value) -> Result<()> {
 
             // Phase 3
             if let Some(phase3) = workflow["phase_3_coordination"].as_object() {
-                println!("Phase 3: {}", phase3["description"].as_str().unwrap_or("Coordination"));
+                println!(
+                    "Phase 3: {}",
+                    phase3["description"].as_str().unwrap_or("Coordination")
+                );
                 if let Some(steps) = phase3["steps"].as_array() {
                     for step in steps {
                         println!("  - {}", step.as_str().unwrap_or("Unknown"));

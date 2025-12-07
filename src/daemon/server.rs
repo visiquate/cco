@@ -83,12 +83,14 @@ pub struct DaemonState {
     pub orchestration_state: Option<Arc<OrchestrationState>>,
     pub llm_gateway: Option<super::llm_gateway::GatewayState>,
     pub gateway_port: Arc<Mutex<Option<u16>>>,
-    pub litellm_process: Arc<Mutex<Option<super::litellm::LiteLLMProcess>>>,
 }
 
 impl DaemonState {
     /// Create new daemon state with hooks initialization
     pub async fn new(config: DaemonConfig) -> anyhow::Result<Self> {
+        // Validate configuration (enforces loopback-only host to avoid remote exposure).
+        config.validate()?;
+
         let hooks_registry = Arc::new(HookRegistry::new());
         let hook_executor = HookExecutor::with_config(
             hooks_registry.clone(),
@@ -154,7 +156,9 @@ impl DaemonState {
                         }
                         Err(e) => {
                             warn!("Failed to preload model: {}", e);
-                            warn!("Model will be lazy-loaded on first request (2s+ delay expected)");
+                            warn!(
+                                "Model will be lazy-loaded on first request (2s+ delay expected)"
+                            );
                         }
                     }
 
@@ -268,8 +272,7 @@ impl DaemonState {
             }
         };
 
-        // LLM Gateway is initialized in run_daemon_server() after LiteLLM starts
-        // This ensures streaming works correctly through LiteLLM
+        // LLM Gateway is initialized in run_daemon_server()
         let llm_gateway: Option<super::llm_gateway::GatewayState> = None;
 
         Ok(Self {
@@ -292,7 +295,6 @@ impl DaemonState {
             orchestration_state,
             llm_gateway,
             gateway_port: Arc::new(Mutex::new(None)),
-            litellm_process: Arc::new(Mutex::new(None)),
         })
     }
 }
@@ -1110,11 +1112,12 @@ fn create_router(state: Arc<DaemonState>) -> Router {
         info!("Mounting orchestration API routes at /api/orchestration/*");
 
         // Create orchestration handler state
-        let orchestration_handler_state = OrchestrationHandlerState::new(Arc::clone(orchestration_state));
+        let orchestration_handler_state =
+            OrchestrationHandlerState::new(Arc::clone(orchestration_state));
 
         // Create orchestration routes with state
-        let orchestration_routes = create_orchestration_router()
-            .with_state(orchestration_handler_state);
+        let orchestration_routes =
+            create_orchestration_router().with_state(orchestration_handler_state);
 
         // Nest under /api/orchestration
         router = router.nest("/api/orchestration", orchestration_routes);
@@ -1182,66 +1185,29 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
         info!("✅ Settings file updated with actual port: {}", actual_port);
     }
 
-    // Start LiteLLM first (synchronously with timeout) so gateway can use it
-    // This ensures streaming works correctly through LiteLLM
-    let litellm_url = {
-        let mut litellm_endpoint = None;
-        if let Ok(mut litellm) = super::litellm::LiteLLMProcess::with_defaults() {
-            info!("🔄 Starting LiteLLM subprocess...");
-            match litellm.start().await {
-                Ok(()) => {
-                    let url = litellm.endpoint_url();
-                    info!("✅ LiteLLM subprocess started successfully: {}", url);
-                    litellm_endpoint = Some(url);
-
-                    // Store the process for cleanup
-                    if let Ok(mut process_guard) = state.litellm_process.lock() {
-                        *process_guard = Some(litellm);
+    // Initialize LLM Gateway in direct provider mode (no litellm)
+    let llm_gateway: Option<super::llm_gateway::GatewayState> =
+        match super::llm_gateway::config::load_from_orchestra_config(None) {
+            Ok(gateway_config) => {
+                info!("Creating LLM Gateway in direct provider mode");
+                match super::llm_gateway::LlmGateway::new(gateway_config).await {
+                    Ok(gateway) => {
+                        info!("✅ LLM Gateway initialized successfully (direct provider mode)");
+                        Some(Arc::new(gateway))
+                    }
+                    Err(e) => {
+                        warn!("Failed to initialize LLM Gateway: {}", e);
+                        warn!("LLM Gateway API endpoints will not be available");
+                        None
                     }
                 }
-                Err(e) => {
-                    info!("ℹ️  LiteLLM subprocess failed to start: {}", e);
-                    info!("   Using direct provider mode");
-                }
             }
-        } else {
-            info!("ℹ️  LiteLLM PEX not available, using direct provider mode");
-        }
-        litellm_endpoint
-    };
-
-    // Initialize LLM Gateway AFTER LiteLLM starts (so we can pass the URL)
-    // This is the key fix - gateway is created with LiteLLM URL when available
-    let llm_gateway: Option<super::llm_gateway::GatewayState> = match super::llm_gateway::config::load_from_orchestra_config(None) {
-        Ok(gateway_config) => {
-            // Create gateway with or without LiteLLM based on whether it started
-            let result = if let Some(ref url) = litellm_url {
-                info!("Creating LLM Gateway with LiteLLM at {}", url);
-                super::llm_gateway::LlmGateway::new_with_litellm(gateway_config, url).await
-            } else {
-                info!("Creating LLM Gateway in direct provider mode");
-                super::llm_gateway::LlmGateway::new(gateway_config).await
-            };
-
-            match result {
-                Ok(gateway) => {
-                    let mode = if litellm_url.is_some() { "LiteLLM mode" } else { "direct provider mode" };
-                    info!("✅ LLM Gateway initialized successfully ({})", mode);
-                    Some(Arc::new(gateway))
-                }
-                Err(e) => {
-                    warn!("Failed to initialize LLM Gateway: {}", e);
-                    warn!("LLM Gateway API endpoints will not be available");
-                    None
-                }
+            Err(e) => {
+                info!("ℹ️  LLM Gateway config not found: {}", e);
+                info!("   LLM Gateway will not be available (add llmGateway section to orchestra-config.json)");
+                None
             }
-        }
-        Err(e) => {
-            info!("ℹ️  LLM Gateway config not found: {}", e);
-            info!("   LLM Gateway will not be available (add llmGateway section to orchestra-config.json)");
-            None
-        }
-    };
+        };
 
     // Start the LLM Gateway server if available (random port)
     // This provides Anthropic-compatible API with cost tracking and audit logging
@@ -1262,7 +1228,10 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
                         }
 
                         info!("✅ LLM Gateway started on port {}", gateway_port);
-                        info!("   Set ANTHROPIC_BASE_URL=http://127.0.0.1:{} to use", gateway_port);
+                        info!(
+                            "   Set ANTHROPIC_BASE_URL=http://127.0.0.1:{} to use",
+                            gateway_port
+                        );
 
                         // Update PID file with gateway port for launcher discovery
                         if let Err(e) = super::update_gateway_port(gateway_port) {
@@ -1497,18 +1466,6 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
         .with_graceful_shutdown(shutdown_signal())
         .await
         .map_err(|e| anyhow::anyhow!("Server error: {}", e))?;
-
-    // Stop LiteLLM subprocess if running
-    if let Ok(mut process_guard) = state.litellm_process.lock() {
-        if let Some(mut litellm) = process_guard.take() {
-            info!("Stopping LiteLLM subprocess...");
-            if let Err(e) = litellm.stop().await {
-                warn!("Failed to stop LiteLLM subprocess: {}", e);
-            } else {
-                info!("✅ LiteLLM subprocess stopped");
-            }
-        }
-    }
 
     // Clean up PID file on graceful shutdown
     if let Ok(pid_file) = super::get_daemon_pid_file() {

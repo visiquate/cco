@@ -199,9 +199,7 @@ impl KnowledgeBroker {
                                     .modified()
                                     .ok()
                                     .and_then(|t| {
-                                        chrono::DateTime::<chrono::Utc>::from(t)
-                                            .to_rfc3339()
-                                            .into()
+                                        chrono::DateTime::<chrono::Utc>::from(t).to_rfc3339().into()
                                     })
                                     .unwrap_or_default(),
                                 size,
@@ -273,12 +271,7 @@ impl KnowledgeBroker {
         // Get recent commits (last 5)
         let recent_commits = Command::new("git")
             .current_dir(&root)
-            .args([
-                "log",
-                "--format=%H%n%s%n%an%n%aI",
-                "-5",
-                "--no-merges",
-            ])
+            .args(["log", "--format=%H%n%s%n%an%n%aI", "-5", "--no-merges"])
             .output()
             .ok()
             .and_then(|output| {

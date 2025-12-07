@@ -102,16 +102,14 @@ fn xor_decrypt(data: &[u8]) -> Option<String> {
     let decrypted: Vec<u8> = data.iter().map(|&b| b ^ XOR_KEY).collect();
 
     // Validate UTF-8 and trim whitespace
-    String::from_utf8(decrypted)
-        .ok()
-        .and_then(|s| {
-            let trimmed = s.trim();
-            if trimmed.is_empty() {
-                None
-            } else {
-                Some(trimmed.to_string())
-            }
-        })
+    String::from_utf8(decrypted).ok().and_then(|s| {
+        let trimmed = s.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        }
+    })
 }
 
 /// Retrieve credential from macOS Keychain
@@ -129,10 +127,7 @@ fn get_from_keychain() -> Option<String> {
             Some(password)
         }
         Err(e) => {
-            debug!(
-                "Failed to retrieve credential from Keychain: {}",
-                e
-            );
+            debug!("Failed to retrieve credential from Keychain: {}", e);
             None
         }
     }
@@ -144,7 +139,10 @@ fn get_from_env_file() -> Option<String> {
     let env_path = cwd.join(".env");
 
     if !env_path.exists() {
-        debug!(".env file not found in current working directory: {:?}", cwd);
+        debug!(
+            ".env file not found in current working directory: {:?}",
+            cwd
+        );
         return None;
     }
 

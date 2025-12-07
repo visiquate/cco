@@ -12,6 +12,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use futures::StreamExt;
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -25,11 +26,10 @@ use std::io;
 use std::time::{Duration, SystemTime};
 use tokio::sync::mpsc::{self, error::TryRecvError};
 use tokio::time::{interval, sleep};
-use futures::StreamExt;
 
 use crate::api_client::{ApiClient, HealthResponse};
-use crate::daemon::{DaemonConfig, DaemonManager};
 use crate::daemon::llm_gateway::sse_broadcast::TuiStreamEvent;
+use crate::daemon::{DaemonConfig, DaemonManager};
 
 /// Cost breakdown by tier
 #[derive(Debug, Clone)]
@@ -356,13 +356,20 @@ impl TuiApp {
                                             }
 
                                             // Parse the TuiStreamEvent from the SSE data
-                                            if let Ok(stream_event) = serde_json::from_str::<TuiStreamEvent>(&sse_event.data) {
+                                            if let Ok(stream_event) =
+                                                serde_json::from_str::<TuiStreamEvent>(
+                                                    &sse_event.data,
+                                                )
+                                            {
                                                 if stream_tx.send(stream_event).await.is_err() {
                                                     tracing::warn!("Stream event receiver dropped, stopping subscriber");
                                                     return;
                                                 }
                                             } else {
-                                                tracing::debug!("Failed to parse SSE event data: {}", sse_event.data);
+                                                tracing::debug!(
+                                                    "Failed to parse SSE event data: {}",
+                                                    sse_event.data
+                                                );
                                             }
                                         }
                                     }
@@ -457,7 +464,9 @@ impl TuiApp {
                             self.connection_lost_count = 0; // Reset on successful update
                             self.update_state_from_stats(update);
                         }
-                        StatsMessage::ConnectionLost { consecutive_failures } => {
+                        StatsMessage::ConnectionLost {
+                            consecutive_failures,
+                        } => {
                             self.connection_lost_count = consecutive_failures;
                             self.status_message = format!(
                                 "⚠️  Connection lost ({}/10 failures)",
@@ -468,7 +477,8 @@ impl TuiApp {
                             if consecutive_failures >= 10 {
                                 self.quit_reason = Some(
                                     "Daemon connection lost after 10 consecutive failures. \
-                                    The daemon may have crashed or been stopped.".to_string()
+                                    The daemon may have crashed or been stopped."
+                                        .to_string(),
                                 );
                                 self.should_quit = true;
                             }
@@ -482,7 +492,8 @@ impl TuiApp {
                     // Background task crashed or was dropped
                     self.quit_reason = Some(
                         "Background stats task disconnected unexpectedly. \
-                        This may indicate an internal error.".to_string()
+                        This may indicate an internal error."
+                            .to_string(),
                     );
                     self.should_quit = true;
                 }
@@ -822,7 +833,12 @@ impl TuiApp {
 
     /// Update application state from stats update
     fn update_state_from_stats(&mut self, update: StatsUpdate) {
-        if let AppState::Connected { time_range, active_streams, .. } = &self.state {
+        if let AppState::Connected {
+            time_range,
+            active_streams,
+            ..
+        } = &self.state
+        {
             let preserved_streams = active_streams.clone();
             self.state = AppState::Connected {
                 cost_by_tier: update.cost_by_tier,
@@ -844,7 +860,11 @@ impl TuiApp {
     fn handle_stream_event(&mut self, event: TuiStreamEvent) {
         if let AppState::Connected { active_streams, .. } = &mut self.state {
             match event {
-                TuiStreamEvent::Started { request_id, model, agent_type } => {
+                TuiStreamEvent::Started {
+                    request_id,
+                    model,
+                    agent_type,
+                } => {
                     active_streams.insert(
                         request_id.clone(),
                         ActiveStream {
@@ -861,7 +881,8 @@ impl TuiApp {
                         stream.accumulated_text.push_str(&text);
                     }
                 }
-                TuiStreamEvent::Completed { request_id, .. } | TuiStreamEvent::Error { request_id, .. } => {
+                TuiStreamEvent::Completed { request_id, .. }
+                | TuiStreamEvent::Error { request_id, .. } => {
                     active_streams.remove(&request_id);
                 }
             }
@@ -1154,9 +1175,12 @@ impl TuiApp {
                     time_range,
                     history_start_date,
                     active_streams,
-                } = std::mem::replace(&mut self.state, AppState::Initializing {
-                    message: "Updating time range...".to_string(),
-                }) {
+                } = std::mem::replace(
+                    &mut self.state,
+                    AppState::Initializing {
+                        message: "Updating time range...".to_string(),
+                    },
+                ) {
                     let new_time_range = time_range.next();
 
                     // Restore state with updated time range
@@ -1345,7 +1369,7 @@ impl TuiApp {
             .direction(Direction::Vertical)
             .constraints(
                 [
-                    Constraint::Length(3), // Overall Summary
+                    Constraint::Length(3),                     // Overall Summary
                     Constraint::Length(active_streams_height), // Active Streams (dynamic)
                     Constraint::Length(3 + (project_summaries.len() as u16).min(10)), // Project Summaries (expanded to show up to 10 projects)
                     Constraint::Length(11), // Cost summary table
@@ -1368,11 +1392,20 @@ impl TuiApp {
 
         // Project Summaries (Section 2 or 3) - now with more space
         if !project_summaries.is_empty() {
-            Self::render_project_summaries(f, project_summaries, content_chunks[1 + section_offset]);
+            Self::render_project_summaries(
+                f,
+                project_summaries,
+                content_chunks[1 + section_offset],
+            );
         }
 
         // Cost summary by tier (Section 3 or 4)
-        Self::render_cost_summary(f, cost_by_tier, model_summaries, content_chunks[2 + section_offset]);
+        Self::render_cost_summary(
+            f,
+            cost_by_tier,
+            model_summaries,
+            content_chunks[2 + section_offset],
+        );
 
         // Recent API calls with dynamic height (Section 4 or 5)
         Self::render_recent_calls_dynamic(f, recent_calls, content_chunks[3 + section_offset]);
@@ -1496,7 +1529,9 @@ impl TuiApp {
 
             text.push(Line::from(Span::styled(
                 line,
-                Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
             )));
         }
 
