@@ -9,7 +9,28 @@
 
 ## Installation Methods
 
-### Method 1: Download Pre-built Binary (Recommended)
+### Method 1: Quick Install Script (Recommended)
+
+The fastest way to install CCO is using the install script, which automatically detects your platform and configures your PATH:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/brentley/cco/main/install.sh | bash
+```
+
+This script will:
+- Detect your platform automatically
+- Download the correct binary
+- Install to `~/.local/bin/cco`
+- Automatically configure your shell's PATH
+- No sudo required
+
+After installation, restart your shell or run:
+```bash
+source ~/.zshrc    # macOS (zsh)
+source ~/.bashrc   # Linux (bash)
+```
+
+### Method 2: Manual Installation
 
 #### Step 1: Download
 
@@ -36,23 +57,33 @@ curl -LO https://github.com/brentley/cco/releases/latest/download/cco-Linux-x86_
 curl -LO https://github.com/brentley/cco/releases/latest/download/cco-Linux-aarch64
 ```
 
-#### Step 2: Make Executable
+#### Step 2: Install to User Directory
 
 ```bash
-chmod +x cco-*
+# Create local bin directory (if it doesn't exist)
+mkdir -p ~/.local/bin
+
+# Move binary and make executable
+mv cco-* ~/.local/bin/cco
+chmod +x ~/.local/bin/cco
 ```
 
-#### Step 3: Move to PATH
+#### Step 3: Configure PATH
+
+Add `~/.local/bin` to your PATH if not already configured:
 
 ```bash
-# System-wide installation (requires sudo)
-sudo mv cco-* /usr/local/bin/cco
+# zsh (macOS default)
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
 
-# User-local installation (no sudo required)
-mkdir -p ~/.local/bin
-mv cco-* ~/.local/bin/cco
-# Add ~/.local/bin to your PATH if not already added
-export PATH="$HOME/.local/bin:$PATH"
+# bash (Linux default)
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+
+# fish shell
+echo 'set -gx PATH $HOME/.local/bin $PATH' >> ~/.config/fish/config.fish
+source ~/.config/fish/config.fish
 ```
 
 #### Step 4: Verify Installation
@@ -61,7 +92,18 @@ export PATH="$HOME/.local/bin:$PATH"
 cco --version
 ```
 
-### Method 2: Build from Source
+### Method 3: Homebrew (macOS/Linux)
+
+CCO can be installed via Homebrew:
+
+```bash
+brew tap brentley/tap
+brew install cco
+```
+
+**Note:** The Homebrew installation also installs to `~/.local/bin/cco` (not Homebrew's bin directory) and configures your PATH automatically.
+
+### Method 4: Build from Source
 
 If you have access to the source repository and Rust toolchain installed:
 
@@ -73,8 +115,9 @@ cd cco
 # Build release binary
 cargo build --release
 
-# Binary will be at target/release/cco
-sudo cp target/release/cco /usr/local/bin/cco
+# Install to user directory (no sudo required)
+mkdir -p ~/.local/bin
+cp target/release/cco ~/.local/bin/cco
 ```
 
 ## Configuration
@@ -100,7 +143,23 @@ cco config show
 
 ## Updating CCO
 
-To update to a new version:
+CCO includes built-in auto-update functionality. When a new version is available, CCO will automatically download and install it to `~/.local/bin/cco`.
+
+You can also manually update using one of these methods:
+
+### Method 1: Built-in Update Command
+
+```bash
+cco update
+```
+
+### Method 2: Homebrew (if installed via Homebrew)
+
+```bash
+brew upgrade cco
+```
+
+### Method 3: Manual Update
 
 ```bash
 # Download the new version
@@ -108,7 +167,7 @@ curl -LO https://github.com/brentley/cco/releases/latest/download/cco-<platform>
 
 # Replace the old binary
 chmod +x cco-<platform>
-sudo mv cco-<platform> /usr/local/bin/cco
+mv cco-<platform> ~/.local/bin/cco
 
 # Verify new version
 cco --version
@@ -120,11 +179,14 @@ To remove CCO:
 
 ```bash
 # Remove the binary
-sudo rm /usr/local/bin/cco
+rm ~/.local/bin/cco
 
 # Remove configuration (optional)
 rm -rf ~/.config/cco
 rm -rf ~/.local/share/cco
+
+# If installed via Homebrew
+brew uninstall cco
 ```
 
 ## Troubleshooting
@@ -133,22 +195,46 @@ rm -rf ~/.local/share/cco
 
 If you get "command not found" after installation:
 
-1. Check that `/usr/local/bin` is in your PATH:
+1. Check that `~/.local/bin` is in your PATH:
    ```bash
-   echo $PATH
+   echo $PATH | grep -o "$HOME/.local/bin"
    ```
 
-2. Add it if missing (add to `~/.bashrc` or `~/.zshrc`):
+2. If missing, add it to your shell configuration:
    ```bash
-   export PATH="/usr/local/bin:$PATH"
+   # zsh (macOS default)
+   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+   source ~/.zshrc
+
+   # bash (Linux default)
+   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+   source ~/.bashrc
    ```
+
+3. Restart your terminal or source your shell configuration
+
+### Migrating from Old Installation
+
+If you previously installed CCO to `/usr/local/bin`, you should migrate to the new location:
+
+```bash
+# Remove old installation (requires sudo)
+sudo rm /usr/local/bin/cco
+
+# Reinstall using quick install script
+curl -sSL https://raw.githubusercontent.com/brentley/cco/main/install.sh | bash
+
+# Or manually move to new location
+sudo mv /usr/local/bin/cco ~/.local/bin/cco
+chmod +x ~/.local/bin/cco
+```
 
 ### Permission Denied
 
 If you get "permission denied" when running `cco`:
 
 ```bash
-chmod +x /usr/local/bin/cco
+chmod +x ~/.local/bin/cco
 ```
 
 ### macOS Security Warning
@@ -159,7 +245,28 @@ On macOS, you may see a security warning for unsigned binaries:
 2. Click "Allow" next to the CCO warning
 3. Or bypass Gatekeeper:
    ```bash
-   sudo xattr -rd com.apple.quarantine /usr/local/bin/cco
+   xattr -rd com.apple.quarantine ~/.local/bin/cco
+   ```
+
+### Binary Not Updating
+
+If auto-updates aren't working or you see stale versions:
+
+1. Check the current version:
+   ```bash
+   cco --version
+   ```
+
+2. Manually trigger an update:
+   ```bash
+   cco update
+   ```
+
+3. Verify the binary location:
+   ```bash
+   which cco
+   # Should output: /Users/<username>/.local/bin/cco (macOS)
+   # Should output: /home/<username>/.local/bin/cco (Linux)
    ```
 
 For more issues, see [Troubleshooting Guide](./troubleshooting.md).
