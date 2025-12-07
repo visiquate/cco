@@ -89,6 +89,9 @@ pub struct DaemonState {
 impl DaemonState {
     /// Create new daemon state with hooks initialization
     pub async fn new(config: DaemonConfig) -> anyhow::Result<Self> {
+        // Validate configuration (enforces loopback-only host to avoid remote exposure).
+        config.validate()?;
+
         let hooks_registry = Arc::new(HookRegistry::new());
         let hook_executor = HookExecutor::with_config(
             hooks_registry.clone(),
@@ -154,7 +157,9 @@ impl DaemonState {
                         }
                         Err(e) => {
                             warn!("Failed to preload model: {}", e);
-                            warn!("Model will be lazy-loaded on first request (2s+ delay expected)");
+                            warn!(
+                                "Model will be lazy-loaded on first request (2s+ delay expected)"
+                            );
                         }
                     }
 
@@ -1110,11 +1115,12 @@ fn create_router(state: Arc<DaemonState>) -> Router {
         info!("Mounting orchestration API routes at /api/orchestration/*");
 
         // Create orchestration handler state
-        let orchestration_handler_state = OrchestrationHandlerState::new(Arc::clone(orchestration_state));
+        let orchestration_handler_state =
+            OrchestrationHandlerState::new(Arc::clone(orchestration_state));
 
         // Create orchestration routes with state
-        let orchestration_routes = create_orchestration_router()
-            .with_state(orchestration_handler_state);
+        let orchestration_routes =
+            create_orchestration_router().with_state(orchestration_handler_state);
 
         // Nest under /api/orchestration
         router = router.nest("/api/orchestration", orchestration_routes);
@@ -1212,36 +1218,41 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
 
     // Initialize LLM Gateway AFTER LiteLLM starts (so we can pass the URL)
     // This is the key fix - gateway is created with LiteLLM URL when available
-    let llm_gateway: Option<super::llm_gateway::GatewayState> = match super::llm_gateway::config::load_from_orchestra_config(None) {
-        Ok(gateway_config) => {
-            // Create gateway with or without LiteLLM based on whether it started
-            let result = if let Some(ref url) = litellm_url {
-                info!("Creating LLM Gateway with LiteLLM at {}", url);
-                super::llm_gateway::LlmGateway::new_with_litellm(gateway_config, url).await
-            } else {
-                info!("Creating LLM Gateway in direct provider mode");
-                super::llm_gateway::LlmGateway::new(gateway_config).await
-            };
+    let llm_gateway: Option<super::llm_gateway::GatewayState> =
+        match super::llm_gateway::config::load_from_orchestra_config(None) {
+            Ok(gateway_config) => {
+                // Create gateway with or without LiteLLM based on whether it started
+                let result = if let Some(ref url) = litellm_url {
+                    info!("Creating LLM Gateway with LiteLLM at {}", url);
+                    super::llm_gateway::LlmGateway::new_with_litellm(gateway_config, url).await
+                } else {
+                    info!("Creating LLM Gateway in direct provider mode");
+                    super::llm_gateway::LlmGateway::new(gateway_config).await
+                };
 
-            match result {
-                Ok(gateway) => {
-                    let mode = if litellm_url.is_some() { "LiteLLM mode" } else { "direct provider mode" };
-                    info!("✅ LLM Gateway initialized successfully ({})", mode);
-                    Some(Arc::new(gateway))
-                }
-                Err(e) => {
-                    warn!("Failed to initialize LLM Gateway: {}", e);
-                    warn!("LLM Gateway API endpoints will not be available");
-                    None
+                match result {
+                    Ok(gateway) => {
+                        let mode = if litellm_url.is_some() {
+                            "LiteLLM mode"
+                        } else {
+                            "direct provider mode"
+                        };
+                        info!("✅ LLM Gateway initialized successfully ({})", mode);
+                        Some(Arc::new(gateway))
+                    }
+                    Err(e) => {
+                        warn!("Failed to initialize LLM Gateway: {}", e);
+                        warn!("LLM Gateway API endpoints will not be available");
+                        None
+                    }
                 }
             }
-        }
-        Err(e) => {
-            info!("ℹ️  LLM Gateway config not found: {}", e);
-            info!("   LLM Gateway will not be available (add llmGateway section to orchestra-config.json)");
-            None
-        }
-    };
+            Err(e) => {
+                info!("ℹ️  LLM Gateway config not found: {}", e);
+                info!("   LLM Gateway will not be available (add llmGateway section to orchestra-config.json)");
+                None
+            }
+        };
 
     // Start the LLM Gateway server if available (random port)
     // This provides Anthropic-compatible API with cost tracking and audit logging
@@ -1262,7 +1273,10 @@ pub async fn run_daemon_server(config: DaemonConfig) -> anyhow::Result<u16> {
                         }
 
                         info!("✅ LLM Gateway started on port {}", gateway_port);
-                        info!("   Set ANTHROPIC_BASE_URL=http://127.0.0.1:{} to use", gateway_port);
+                        info!(
+                            "   Set ANTHROPIC_BASE_URL=http://127.0.0.1:{} to use",
+                            gateway_port
+                        );
 
                         // Update PID file with gateway port for launcher discovery
                         if let Err(e) = super::update_gateway_port(gateway_port) {
