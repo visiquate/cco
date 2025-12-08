@@ -259,6 +259,7 @@ async fn fetch_checksum_for_asset(
 
     let content = response.text().await?;
 
+    // Expected format: "<checksum>  <filename>" (GNU sha256sum style)
     for line in content.lines() {
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() >= 2 && parts[1] == asset_name {

@@ -150,7 +150,7 @@ curl -fsSL "$checksum_url" -o checksums.txt || fail "Failed to download checksum
 log_info "Downloading $asset_name..."
 curl -fsSL "$asset_url" -o "$asset_name" || fail "Failed to download release asset"
 
-# Verify checksum
+# Verify checksum (expects GNU sha256sum format: "<checksum>  <filename>")
 expected_checksum="$(awk -v n="$asset_name" '$2==n {print $1}' checksums.txt | head -n 1)"
 if [ -z "$expected_checksum" ]; then
     fail "Checksum for $asset_name not found in checksums.txt"
