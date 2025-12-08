@@ -1,220 +1,52 @@
-//! Update module for CCO
+//! Command-line update flow using GitHub Releases (stable-only)
 //!
-//! Handles checking for updates and installing new versions from GitHub releases.
-//! The update token is embedded and XOR-obfuscated at build time.
+//! This reuses the auto-update release metadata and updater routines:
+//! - Metadata: GitHub Releases + checksums.txt (stable only)
+//! - Integrity: mandatory SHA256 from checksums.txt
+//! - Install: download, verify, extract, replace binary with rollback
 
 use anyhow::{anyhow, Context, Result};
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::env;
 use std::fs;
 use std::io::Read;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
+use cco::auto_update::releases_api::ReleaseInfo;
+use cco::auto_update::{releases_api, updater};
 use cco::version::DateVersion;
 
-// Use visiquate/cco for binary distribution
-const GITHUB_REPO: &str = "visiquate/cco";
-const GITHUB_API_URL: &str = "https://api.github.com/repos";
+/// Detect multiple installations and warn user (best-effort)
+async fn check_for_multiple_installations() -> Result<()> {
+    let mut found_installations = Vec::new();
 
-/// XOR key for decrypting embedded token (must match build.rs)
-const XOR_KEY: u8 = 0xA7;
+    // Check common paths
+    let paths_to_check = vec![
+        dirs::home_dir().map(|h| h.join(".local/bin/cco")),
+        Some(PathBuf::from("/usr/local/bin/cco")),
+        Some(PathBuf::from("/opt/cco/cco")),
+        Some(PathBuf::from("/usr/bin/cco")),
+    ];
 
-/// Get embedded update token (XOR-obfuscated at build time)
-fn get_update_token() -> Option<String> {
-    // Read embedded obfuscated token
-    let obfuscated = include_bytes!(concat!(env!("OUT_DIR"), "/update_token.bin"));
-
-    // Empty file means no token was embedded
-    if obfuscated.is_empty() {
-        return None;
-    }
-
-    // XOR decrypt
-    let decrypted: Vec<u8> = obfuscated.iter().map(|&b| b ^ XOR_KEY).collect();
-
-    // Convert to string
-    String::from_utf8(decrypted).ok()
-}
-
-/// GitHub Release API response
-#[derive(Debug, Deserialize)]
-struct GitHubRelease {
-    tag_name: String,
-    #[allow(dead_code)]
-    name: String,
-    body: String,
-    assets: Vec<GitHubAsset>,
-    #[allow(dead_code)]
-    published_at: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubAsset {
-    name: String,
-    browser_download_url: String,
-    #[allow(dead_code)]
-    size: u64,
-}
-
-/// Version manifest structure (for future use)
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-struct VersionManifest {
-    latest: LatestVersions,
-    versions: std::collections::HashMap<String, VersionInfo>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-struct LatestVersions {
-    stable: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    beta: Option<String>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-struct VersionInfo {
-    date: String,
-    platforms: std::collections::HashMap<String, PlatformInfo>,
-    release_notes: String,
-    #[serde(default)]
-    breaking_changes: bool,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize)]
-struct PlatformInfo {
-    url: String,
-    sha256: String,
-    size: u64,
-}
-
-/// Detect current platform and return the target triple used in releases
-fn detect_platform() -> Result<String> {
-    let os = env::consts::OS;
-    let arch = env::consts::ARCH;
-
-    // Use Rust target triple format to match our release pipeline
-    let platform = match (os, arch) {
-        ("macos", "aarch64") => "aarch64-apple-darwin",
-        ("macos", "x86_64") => "x86_64-apple-darwin",
-        ("linux", "x86_64") => "x86_64-unknown-linux-gnu",
-        ("linux", "aarch64") => "aarch64-unknown-linux-gnu",
-        ("windows", "x86_64") => "x86_64-pc-windows-msvc",
-        _ => return Err(anyhow!("Unsupported platform: {}-{}", os, arch)),
-    };
-
-    Ok(platform.to_string())
-}
-
-/// Fetch latest release from GitHub
-async fn fetch_latest_release(channel: &str) -> Result<GitHubRelease> {
-    let token = get_update_token();
-
-    if token.is_none() {
-        return Err(anyhow!(
-            "No update token available. Please reinstall CCO or download updates manually from GitHub."
-        ));
-    }
-
-    let url = if channel == "stable" {
-        format!("{}/{}/releases/latest", GITHUB_API_URL, GITHUB_REPO)
-    } else {
-        // For beta/nightly, fetch all releases and filter
-        format!("{}/{}/releases", GITHUB_API_URL, GITHUB_REPO)
-    };
-
-    let client = reqwest::Client::builder()
-        .user_agent(format!("cco/{}", env!("CARGO_PKG_VERSION")))
-        .timeout(std::time::Duration::from_secs(30))
-        .build()?;
-
-    let mut request = client
-        .get(&url)
-        .header("Accept", "application/vnd.github+json");
-
-    // Add authentication for private repo access
-    if let Some(ref t) = token {
-        request = request.header("Authorization", format!("Bearer {}", t));
-    }
-
-    let response = request
-        .send()
-        .await
-        .context("Failed to fetch release information from GitHub")?;
-
-    // Handle authentication errors
-    if response.status() == reqwest::StatusCode::UNAUTHORIZED {
-        return Err(anyhow!(
-            "GitHub authentication failed. The embedded update token may have expired. \
-            Please reinstall CCO to get a new version with updated credentials."
-        ));
-    }
-
-    if response.status() == reqwest::StatusCode::FORBIDDEN {
-        // Check for rate limiting
-        if response
-            .headers()
-            .get("X-RateLimit-Remaining")
-            .map(|v| v.to_str().unwrap_or("1"))
-            == Some("0")
-        {
-            return Err(anyhow!(
-                "GitHub API rate limit exceeded. Please try again later."
-            ));
+    for path_opt in paths_to_check {
+        if let Some(path) = path_opt {
+            if path.exists() {
+                if let Ok(output) = std::process::Command::new(&path).arg("--version").output() {
+                    if output.status.success() {
+                        let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                        found_installations.push((path, version));
+                    }
+                }
+            }
         }
-        return Err(anyhow!(
-            "Access denied to releases. Contact your administrator."
-        ));
     }
 
-    if !response.status().is_success() {
-        return Err(anyhow!("GitHub API returned status: {}", response.status()));
+    if found_installations.len() > 1 {
+        println!("\n⚠️  WARNING: Multiple CCO installations detected:");
+        for (path, version) in &found_installations {
+            println!("  - {} (version: {})", path.display(), version);
+        }
+        println!("\nThis can cause PATH shadowing issues.\n");
     }
-
-    if channel == "stable" {
-        let release: GitHubRelease = response.json().await?;
-        Ok(release)
-    } else {
-        let releases: Vec<GitHubRelease> = response.json().await?;
-        // Find first prerelease for beta channel
-        releases
-            .into_iter()
-            .find(|r| r.tag_name.contains("beta") || r.tag_name.contains("rc"))
-            .ok_or_else(|| anyhow!("No {} releases found", channel))
-    }
-}
-
-/// Download a file from URL (with authentication for private repos)
-async fn download_file(url: &str, path: &Path) -> Result<()> {
-    let token = get_update_token();
-
-    let client = reqwest::Client::builder()
-        .user_agent(format!("cco/{}", env!("CARGO_PKG_VERSION")))
-        .timeout(std::time::Duration::from_secs(300))
-        .build()?;
-
-    let mut request = client.get(url).header("Accept", "application/octet-stream");
-
-    // Add authentication for private repo downloads
-    if let Some(ref t) = token {
-        request = request.header("Authorization", format!("Bearer {}", t));
-    }
-
-    let response = request.send().await?;
-
-    if !response.status().is_success() {
-        return Err(anyhow!(
-            "Download failed with status: {}",
-            response.status()
-        ));
-    }
-
-    let bytes = response.bytes().await?;
-    fs::write(path, &bytes)?;
 
     Ok(())
 }
@@ -239,68 +71,9 @@ fn verify_checksum(file_path: &Path, expected_checksum: &str) -> Result<bool> {
     Ok(computed_checksum.to_lowercase() == expected_checksum.to_lowercase())
 }
 
-/// Get the installation path for CCO
-fn get_install_path() -> Result<PathBuf> {
-    let current_exe = std::env::current_exe().context("Failed to get current executable path")?;
-    Ok(current_exe)
-}
-
-/// Extract version from tag (e.g., "v202511-1" -> "202511-1" or "v0.3.0" -> "0.3.0" for backward compatibility)
-fn extract_version(tag: &str) -> Result<String> {
-    let version_str = tag.trim_start_matches('v');
-
-    // Validate it's either date-based or semantic version format
-    if DateVersion::parse(version_str).is_ok() {
-        Ok(version_str.to_string())
-    } else {
-        // For backward compatibility, accept semantic versions too
-        Ok(version_str.to_string())
-    }
-}
-
-/// Detect multiple CCO installations and warn user
-async fn check_for_multiple_installations() -> Result<()> {
-    let mut found_installations = Vec::new();
-
-    // Check common paths
-    let paths_to_check = vec![
-        dirs::home_dir().map(|h| h.join(".local/bin/cco")),
-        Some(PathBuf::from("/usr/local/bin/cco")),
-        Some(PathBuf::from("/opt/cco/cco")),
-        Some(PathBuf::from("/usr/bin/cco")),
-    ];
-
-    for path_opt in paths_to_check {
-        if let Some(path) = path_opt {
-            if path.exists() {
-                if let Ok(output) = std::process::Command::new(&path)
-                    .arg("--version")
-                    .output()
-                {
-                    if output.status.success() {
-                        let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                        found_installations.push((path, version));
-                    }
-                }
-            }
-        }
-    }
-
-    if found_installations.len() > 1 {
-        println!("\n⚠️  WARNING: Multiple CCO installations detected:");
-        for (path, version) in &found_installations {
-            println!("  - {} (version: {})", path.display(), version);
-        }
-        println!("\nThis can cause PATH shadowing issues.");
-        println!("Run 'cco doctor' (coming soon) for diagnosis.\n");
-    }
-
-    Ok(())
-}
-
-/// Check for updates only
-async fn check_for_updates(channel: &str) -> Result<Option<GitHubRelease>> {
-    // Check for multiple installations
+/// Check for updates (returns release info if update available)
+async fn check_for_updates() -> Result<Option<ReleaseInfo>> {
+    // Check for multiple installations (non-fatal)
     let _ = check_for_multiple_installations().await;
 
     println!("→ Checking for updates...");
@@ -308,15 +81,15 @@ async fn check_for_updates(channel: &str) -> Result<Option<GitHubRelease>> {
     let current_version = DateVersion::current();
     println!("→ Current version: {}", current_version);
 
-    let release = fetch_latest_release(channel).await?;
-    let latest_version_str = extract_version(&release.tag_name)?;
+    let release = releases_api::fetch_latest_release("stable")
+        .await
+        .context("Failed to fetch latest release from GitHub")?;
 
-    println!("→ Latest version: {}", latest_version_str);
+    println!("→ Latest version: {}", release.version);
 
-    // Try to parse as DateVersion for comparison
     match (
         DateVersion::parse(current_version),
-        DateVersion::parse(&latest_version_str),
+        DateVersion::parse(&release.version),
     ) {
         (Ok(current), Ok(latest)) => {
             if latest > current {
@@ -327,8 +100,7 @@ async fn check_for_updates(channel: &str) -> Result<Option<GitHubRelease>> {
             }
         }
         _ => {
-            // If we can't parse, just do string comparison
-            if latest_version_str != current_version {
+            if release.version != current_version {
                 Ok(Some(release))
             } else {
                 println!("✅ You are running the latest version");
@@ -338,71 +110,19 @@ async fn check_for_updates(channel: &str) -> Result<Option<GitHubRelease>> {
     }
 }
 
-/// Check latest version (used by other modules)
-pub async fn check_latest_version() -> Result<Option<String>> {
-    let current = DateVersion::current();
-    let current_parsed = DateVersion::parse(current)?;
-
-    // Fetch latest from GitHub
-    let release = fetch_latest_release("stable").await?;
-    let latest = extract_version(&release.tag_name)?;
-    let latest_parsed = DateVersion::parse(&latest)?;
-
-    if latest_parsed > current_parsed {
-        Ok(Some(latest))
-    } else {
-        Ok(None)
-    }
-}
-
-/// Install a new version from a release
-async fn install_update(release: &GitHubRelease, auto_confirm: bool) -> Result<()> {
-    let platform = detect_platform()?;
-
-    // Find the appropriate asset for this platform
-    // Our release pipeline produces files like: cco-aarch64-apple-darwin.tar.gz
-    let asset_name = if platform.contains("windows") {
-        format!("cco-{}.zip", platform)
-    } else {
-        format!("cco-{}.tar.gz", platform)
-    };
-
-    let asset = release
-        .assets
-        .iter()
-        .find(|a| a.name == asset_name)
-        .ok_or_else(|| {
-            // List available assets for debugging
-            let available: Vec<_> = release.assets.iter().map(|a| a.name.as_str()).collect();
-            anyhow!(
-                "No release asset found for platform: {}. Expected: {}. Available: {:?}",
-                platform,
-                asset_name,
-                available
-            )
-        })?;
-
-    println!("\nWhat's new in {}:", release.tag_name);
-
-    // Print first few lines of release notes
-    for (i, line) in release.body.lines().take(10).enumerate() {
+/// Install a new version from release metadata
+async fn install_update(release: &ReleaseInfo, auto_confirm: bool) -> Result<()> {
+    println!("\nWhat's new in {}:", release.version);
+    for (i, line) in release.release_notes.lines().take(10).enumerate() {
         if i == 0 && line.starts_with('#') {
-            continue; // Skip title
+            continue;
         }
         println!("  {}", line);
     }
-
-    if release.body.lines().count() > 10 {
-        println!(
-            "  ... (see full release notes: {})",
-            format!(
-                "https://github.com/{}/releases/tag/{}",
-                GITHUB_REPO, release.tag_name
-            )
-        );
+    if release.release_notes.lines().count() > 10 {
+        println!("  ... (see full release notes on GitHub)");
     }
 
-    // Prompt for confirmation unless auto-confirm is enabled
     if !auto_confirm {
         print!("\nUpdate now? [Y/n]: ");
         std::io::Write::flush(&mut std::io::stdout())?;
@@ -417,134 +137,16 @@ async fn install_update(release: &GitHubRelease, auto_confirm: bool) -> Result<(
         }
     }
 
-    // Create temporary directory for download
-    let temp_dir = std::env::temp_dir().join(format!("cco-update-{}", release.tag_name));
-    fs::create_dir_all(&temp_dir)?;
+    println!("→ Downloading CCO {}...", release.version);
+    let binary_path = updater::download_and_verify(release).await?;
 
-    let temp_file = temp_dir.join(&asset.name);
-    let temp_checksum = temp_dir.join("checksums.sha256");
-
-    // Download binary
-    println!("→ Downloading CCO {}...", release.tag_name);
-    download_file(&asset.browser_download_url, &temp_file).await?;
-
-    // Try to download and verify checksum if available
-    let checksum_asset = release.assets.iter().find(|a| a.name == "checksums.sha256");
-
-    if let Some(checksum_asset) = checksum_asset {
-        println!("→ Verifying checksum...");
-        download_file(&checksum_asset.browser_download_url, &temp_checksum).await?;
-
-        // Read checksum file and find our platform's checksum
-        let checksum_content = fs::read_to_string(&temp_checksum)?;
-        let expected_checksum = checksum_content
-            .lines()
-            .find(|line| line.contains(&asset_name))
-            .and_then(|line| line.split_whitespace().next())
-            .ok_or_else(|| anyhow!("Could not find checksum for {}", asset_name))?;
-
-        if !verify_checksum(&temp_file, expected_checksum)? {
-            return Err(anyhow!("Checksum verification failed! Update aborted."));
-        }
-
-        println!("  ✓ Checksum verified");
-    } else {
-        println!("  ⚠️  No checksum available, skipping verification");
-    }
-
-    // Extract archive and get binary
-    let binary_path = if platform.starts_with("windows") {
-        // TODO: Handle ZIP extraction for Windows
-        return Err(anyhow!("Windows update not yet implemented"));
-    } else {
-        // Extract tar.gz
-        println!("→ Extracting archive...");
-        let tar_gz = fs::File::open(&temp_file)?;
-        let tar = flate2::read::GzDecoder::new(tar_gz);
-        let mut archive = tar::Archive::new(tar);
-        archive.unpack(&temp_dir)?;
-        temp_dir.join("cco")
-    };
-
-    if !binary_path.exists() {
-        return Err(anyhow!("Binary not found in archive"));
-    }
-
-    // Backup current installation
-    let install_path = get_install_path()?;
-    let backup_path = install_path.with_extension("backup");
-
-    if install_path.exists() {
-        println!("→ Backing up current version...");
-        fs::copy(&install_path, &backup_path)?;
-    }
-
-    // Install new binary atomically
     println!("→ Installing update...");
+    updater::replace_binary(&binary_path)
+        .await
+        .context("Failed to install update")?;
 
-    #[cfg(unix)]
-    {
-        let mut perms = fs::metadata(&binary_path)?.permissions();
-        perms.set_mode(0o755);
-        fs::set_permissions(&binary_path, perms)?;
-    }
-
-    fs::copy(&binary_path, &install_path).context("Failed to install new binary")?;
-
-    // Verify new binary works
-    match std::process::Command::new(&install_path)
-        .arg("--version")
-        .output()
-    {
-        Ok(output) if output.status.success() => {
-            println!("✅ Successfully updated to {}", release.tag_name);
-
-            // Clean up backup on success
-            if backup_path.exists() {
-                let _ = fs::remove_file(backup_path);
-            }
-
-            // Try to restart daemon if it's running
-            if let Ok(daemon_config) = cco::daemon::load_config() {
-                let daemon_manager = cco::daemon::DaemonManager::new(daemon_config);
-
-                // Check if daemon is running
-                match tokio::runtime::Handle::try_current() {
-                    Ok(handle) => {
-                        // We're in an async context, can use tokio
-                        match handle.block_on(daemon_manager.get_status()) {
-                            Ok(status) if status.is_running => {
-                                match handle.block_on(daemon_manager.restart()) {
-                                    Ok(_) => println!("✅ Daemon restarted with new version"),
-                                    Err(_) => println!("⚠️  Failed to restart daemon (you may need to manually restart with 'cco daemon restart')"),
-                                }
-                            }
-                            _ => {
-                                // Daemon not running, that's fine
-                            }
-                        }
-                    }
-                    Err(_) => {
-                        // Not in async context, user will restart manually
-                        println!("\nRestart CCO to use the new version.");
-                    }
-                }
-            }
-        }
-        _ => {
-            println!("⚠️  New binary verification failed, rolling back...");
-
-            if backup_path.exists() {
-                fs::copy(&backup_path, &install_path)?;
-                return Err(anyhow!("Update failed, rolled back to previous version"));
-            }
-
-            return Err(anyhow!("Update verification failed"));
-        }
-    }
-
-    // Clean up temporary files
-    let _ = fs::remove_dir_all(&temp_dir);
+    println!("✅ Successfully updated to {}", release.version);
+    println!("\nRestart CCO to use the new version.");
 
     Ok(())
 }
@@ -552,18 +154,14 @@ async fn install_update(release: &GitHubRelease, auto_confirm: bool) -> Result<(
 /// Main update command handler
 pub async fn run(check_only: bool, auto_confirm: bool, channel: Option<String>) -> Result<()> {
     let channel = channel.as_deref().unwrap_or("stable");
-
-    if !["stable", "beta"].contains(&channel) {
-        return Err(anyhow!(
-            "Invalid channel: {}. Use 'stable' or 'beta'",
-            channel
-        ));
+    if channel != "stable" {
+        return Err(anyhow!("Only the stable channel is supported"));
     }
 
-    match check_for_updates(channel).await? {
+    match check_for_updates().await? {
         Some(release) => {
             if check_only {
-                println!("\nℹ️  New version available: {}", release.tag_name);
+                println!("\nℹ️  New version available: {}", release.version);
                 println!("Run 'cco update' to install");
             } else {
                 install_update(&release, auto_confirm).await?;
@@ -584,19 +182,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_detect_platform() {
-        assert!(detect_platform().is_ok());
-    }
-
-    #[test]
-    fn test_extract_version() {
-        // Date-based versions
-        assert_eq!(extract_version("v2025.11.1").unwrap(), "2025.11.1");
-        assert_eq!(extract_version("2025.11.2").unwrap(), "2025.11.2");
-
-        // Backward compatibility with semantic versions
-        assert_eq!(extract_version("v0.3.0").unwrap(), "0.3.0");
-        assert_eq!(extract_version("0.3.0").unwrap(), "0.3.0");
+    fn test_verify_checksum() {
+        // Simple self-check
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        fs::write(tmp.path(), b"hello").unwrap();
+        let expected = {
+            let mut hasher = Sha256::new();
+            hasher.update(b"hello");
+            hex::encode(hasher.finalize())
+        };
+        assert!(verify_checksum(tmp.path(), &expected).unwrap());
     }
 
     #[test]

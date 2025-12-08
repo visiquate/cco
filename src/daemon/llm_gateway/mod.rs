@@ -114,7 +114,13 @@ impl LlmGateway {
                 {
                     let logger = self.audit_logger.read().await;
                     logger
-                        .log_error(&request_id, &request, &route.provider, &e.to_string(), latency_ms)
+                        .log_error(
+                            &request_id,
+                            &request,
+                            &route.provider,
+                            &e.to_string(),
+                            latency_ms,
+                        )
                         .await?;
                 }
 

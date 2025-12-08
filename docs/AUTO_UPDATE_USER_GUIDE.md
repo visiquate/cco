@@ -131,37 +131,27 @@ cco config set updates.auto_install true
 
 When enabled, updates are installed automatically in the background without prompting. This is useful in production environments where you want to stay current with minimal manual intervention.
 
-### Choose Update Channel
+### Update Channel
 
-**Stable releases (default, recommended):**
-```bash
-cco config set updates.channel stable
-```
-
-Stable releases are fully tested and recommended for production use.
-
-**Beta releases (experimental):**
-```bash
-cco config set updates.channel beta
-```
-
-Beta releases include new features before they're stable. Use only for testing or development.
+Only the stable channel is supported for automated updates. Beta/prerelease updates are not distributed via auto-update.
 
 ## What Happens During an Update
 
 ### Update Process Overview
 
 ```
-1. Check GitHub for latest release
+1. Check GitHub for latest stable release
 2. Compare versions (date-based: YYYY.MM.N)
-3. Download new binary + checksums
-4. Verify checksum (SHA256)
+3. Download platform archive + checksums.txt
+4. Verify SHA256 checksum from checksums.txt
 5. Extract archive
 6. Backup current version
 7. Install new version
-8. Verify new binary works
-9. Cleanup temporary files
+8. Restart services (if needed)
 ```
+
+> Note: If GitHub API rate limits are hit during metadata fetch, you can provide a `GITHUB_TOKEN` in the environment to raise limits. Artifact downloads remain unauthenticated.
+
 
 ### Time Required
 

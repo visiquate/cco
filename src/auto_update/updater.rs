@@ -392,8 +392,14 @@ pub fn get_install_path() -> Result<PathBuf> {
     let current_exe = std::env::current_exe().context("Failed to get current executable path")?;
     if is_legacy_location(&current_exe)? {
         tracing::warn!("Running from legacy location: {}", current_exe.display());
-        tracing::warn!("Update will install to canonical location: {}", canonical_path.display());
-        tracing::warn!("After update, remove old installation: sudo rm {}", current_exe.display());
+        tracing::warn!(
+            "Update will install to canonical location: {}",
+            canonical_path.display()
+        );
+        tracing::warn!(
+            "After update, remove old installation: sudo rm {}",
+            current_exe.display()
+        );
 
         // Ensure canonical directory exists
         if let Some(parent) = canonical_path.parent() {
@@ -411,15 +417,13 @@ pub fn get_install_path() -> Result<PathBuf> {
 fn get_canonical_install_path() -> Result<PathBuf> {
     #[cfg(unix)]
     {
-        let home = dirs::home_dir()
-            .ok_or_else(|| anyhow!("Could not determine home directory"))?;
+        let home = dirs::home_dir().ok_or_else(|| anyhow!("Could not determine home directory"))?;
         Ok(home.join(".local/bin/cco"))
     }
 
     #[cfg(windows)]
     {
-        let home = dirs::home_dir()
-            .ok_or_else(|| anyhow!("Could not determine home directory"))?;
+        let home = dirs::home_dir().ok_or_else(|| anyhow!("Could not determine home directory"))?;
         Ok(home.join(".local\\bin\\cco.exe"))
     }
 }
@@ -430,15 +434,14 @@ fn is_legacy_location(path: &Path) -> Result<bool> {
 
     #[cfg(unix)]
     {
-        Ok(path_str.contains("/usr/local/bin/") ||
-           path_str.contains("/opt/") ||
-           path_str.contains("/usr/bin/"))
+        Ok(path_str.contains("/usr/local/bin/")
+            || path_str.contains("/opt/")
+            || path_str.contains("/usr/bin/"))
     }
 
     #[cfg(windows)]
     {
-        Ok(path_str.contains("Program Files") ||
-           path_str.contains("ProgramData"))
+        Ok(path_str.contains("Program Files") || path_str.contains("ProgramData"))
     }
 }
 
