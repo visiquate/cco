@@ -13,7 +13,7 @@ CCO includes a built-in system that automatically checks for new versions, notif
 | **Automatic Checks** | Checks for updates daily in the background (or on your schedule) |
 | **Non-Disruptive** | Update process doesn't interrupt running services |
 | **Safe Installation** | Backs up current version, tests new binary, rolls back on failure |
-| **Flexible** | Choose automatic or manual installation, stable or beta channel |
+| **Flexible** | Choose automatic or manual installation (stable channel only) |
 | **Fast** | Download and install in 10-45 seconds |
 | **Production-Ready** | Supports fleet management, scheduled updates, compliance tracking |
 
@@ -68,15 +68,8 @@ cco config set updates.auto_install true
 cco config set updates.check_interval weekly
 ```
 
-### Use Beta Channel (Testing)
-```bash
-cco config set updates.channel beta
-```
-
-### Back to Stable
-```bash
-cco config set updates.channel stable
-```
+### Channel
+Only the stable channel is supported for automated updates.
 
 ## Version Numbers
 
@@ -97,9 +90,7 @@ CCO uses date-based versioning: **YYYY.MM.N**
 - Weekly or less frequent
 
 **Beta**
-- Pre-release versions
-- May have bugs or changes
-- Use only for testing
+- Not currently available via auto-update
 
 ## How Updates Work
 
@@ -108,7 +99,7 @@ CCO uses date-based versioning: **YYYY.MM.N**
 2. Compare version numbers
 3. If newer available, notify user
 4. User runs: cco update
-5. Download new binary + checksums
+5. Download platform archive + checksums.txt from GitHub Releases
 6. Verify SHA256 checksum
 7. Backup current version
 8. Extract and install new binary

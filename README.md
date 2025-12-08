@@ -232,8 +232,9 @@ CCO standardizes on user-local installation paths:
 ### Installation
 
 ```bash
-# Install CCO (macOS/Linux) - Automatically installs to ~/.local/bin/cco
-curl -sSL https://get.cco.dev | bash
+# Install CCO (macOS/Linux) from GitHub Releases (installs to ~/.local/bin/cco by default)
+curl -fsSL https://raw.githubusercontent.com/visiquate/cco/main/scripts/install_from_github.sh | bash
+# Optional: export GITHUB_TOKEN to raise GitHub API limits
 
 # Or download binary directly
 # macOS Apple Silicon
@@ -590,7 +591,7 @@ echo $PATH | grep "$HOME/.local/bin" || \
   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 
 # 3. Reinstall
-curl -sSL https://get.cco.dev | bash
+curl -fsSL https://raw.githubusercontent.com/visiquate/cco/main/scripts/install_from_github.sh | bash
 
 # 4. Verify
 which cco  # Should show ~/.local/bin/cco
@@ -602,7 +603,7 @@ which cco  # Should show ~/.local/bin/cco
 Remove-Item -Force "$env:ProgramFiles\CCO\cco.exe"
 
 # 2. Reinstall
-irm https://get.cco.dev | iex
+irm https://raw.githubusercontent.com/visiquate/cco/main/install.ps1 | iex
 
 # 3. Verify
 where.exe cco  # Should show %USERPROFILE%\.local\bin\cco.exe

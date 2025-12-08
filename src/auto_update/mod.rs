@@ -271,30 +271,24 @@ impl AutoUpdateManager {
             return Ok(None);
         }
 
-        log_update_event(&format!(
-            "Checking for updates (channel: {})",
-            self.config.updates.channel
-        ));
+        let channel = if self.config.updates.channel != "stable" {
+            log_update_event("Only the stable channel is supported; falling back to stable");
+            "stable"
+        } else {
+            &self.config.updates.channel
+        };
+
+        log_update_event(&format!("Checking for updates (channel: {})", channel));
 
         // Update last check timestamp
         self.update_config(|config| {
             config.updates.last_check = Some(Utc::now());
         })?;
 
-        // Fetch latest release from authenticated API
-        let release = match releases_api::fetch_latest_release(&self.config.updates.channel).await {
+        // Fetch latest release from GitHub Releases
+        let release = match releases_api::fetch_latest_release(channel).await {
             Ok(r) => r,
             Err(e) => {
-                // Check if it's an authentication error
-                let err_msg = format!("{}", e);
-                if err_msg.contains("Not authenticated")
-                    || err_msg.contains("Please run 'cco login'")
-                {
-                    log_update_event("Update check requires authentication");
-                    println!("\n⚠️  Update check requires authentication.");
-                    println!("   Please run 'cco login' to access updates.");
-                    return Ok(None);
-                }
                 log_update_event(&format!("Failed to check for updates: {}", e));
                 return Err(e);
             }
