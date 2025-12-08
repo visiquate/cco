@@ -142,20 +142,20 @@ case "$ARCH" in
         ;;
 esac
 
-# Determine platform-specific binary name
+# Determine platform-specific binary name (using Rust target triples)
 case "$OS" in
     darwin)
         if [ "$ARCH" = "arm64" ]; then
-            PLATFORM="darwin-arm64"
+            PLATFORM="aarch64-apple-darwin"
         else
-            PLATFORM="darwin-x86_64"
+            PLATFORM="x86_64-apple-darwin"
         fi
         ;;
     linux)
         if [ "$ARCH" = "aarch64" ]; then
-            PLATFORM="linux-aarch64"
+            PLATFORM="aarch64-unknown-linux-gnu"
         else
-            PLATFORM="linux-x86_64"
+            PLATFORM="x86_64-unknown-linux-gnu"
         fi
         ;;
     *)
@@ -179,10 +179,10 @@ fi
 
 log_success "Latest version: $VERSION"
 
-# Construct download URL
-ARCHIVE_NAME="cco-v${VERSION}-${PLATFORM}.tar.gz"
+# Construct download URL (release assets use target triple naming without version)
+ARCHIVE_NAME="cco-${PLATFORM}.tar.gz"
 DOWNLOAD_URL="https://github.com/$REPO/releases/download/v${VERSION}/${ARCHIVE_NAME}"
-CHECKSUM_URL="https://github.com/$REPO/releases/download/v${VERSION}/${ARCHIVE_NAME%.tar.gz}.sha256"
+CHECKSUM_URL="https://github.com/$REPO/releases/download/v${VERSION}/checksums.txt"
 
 log_info "Download URL: $DOWNLOAD_URL"
 
@@ -204,25 +204,30 @@ log_success "Downloaded $ARCHIVE_NAME"
 
 # Download and verify checksum
 log_info "Verifying checksum..."
-if curl -fsSL "$CHECKSUM_URL" -o checksum.txt 2>/dev/null; then
-    EXPECTED_CHECKSUM=$(cat checksum.txt | awk '{print $1}')
+if curl -fsSL "$CHECKSUM_URL" -o checksums.txt 2>/dev/null; then
+    # Extract checksum for our specific archive from checksums.txt
+    EXPECTED_CHECKSUM=$(grep "$ARCHIVE_NAME" checksums.txt | awk '{print $1}')
 
-    if command -v sha256sum >/dev/null 2>&1; then
-        ACTUAL_CHECKSUM=$(sha256sum "$ARCHIVE_NAME" | awk '{print $1}')
-    elif command -v shasum >/dev/null 2>&1; then
-        ACTUAL_CHECKSUM=$(shasum -a 256 "$ARCHIVE_NAME" | awk '{print $1}')
+    if [ -z "$EXPECTED_CHECKSUM" ]; then
+        log_warn "Checksum not found in checksums.txt for $ARCHIVE_NAME"
     else
-        log_warn "sha256sum or shasum not found, skipping verification"
-        ACTUAL_CHECKSUM="$EXPECTED_CHECKSUM"  # Skip verification
-    fi
+        if command -v sha256sum >/dev/null 2>&1; then
+            ACTUAL_CHECKSUM=$(sha256sum "$ARCHIVE_NAME" | awk '{print $1}')
+        elif command -v shasum >/dev/null 2>&1; then
+            ACTUAL_CHECKSUM=$(shasum -a 256 "$ARCHIVE_NAME" | awk '{print $1}')
+        else
+            log_warn "sha256sum or shasum not found, skipping verification"
+            ACTUAL_CHECKSUM="$EXPECTED_CHECKSUM"  # Skip verification
+        fi
 
-    if [ "$EXPECTED_CHECKSUM" = "$ACTUAL_CHECKSUM" ]; then
-        log_success "Checksum verified"
-    else
-        log_error "Checksum mismatch!"
-        log_error "Expected: $EXPECTED_CHECKSUM"
-        log_error "Got: $ACTUAL_CHECKSUM"
-        exit 1
+        if [ "$EXPECTED_CHECKSUM" = "$ACTUAL_CHECKSUM" ]; then
+            log_success "Checksum verified"
+        else
+            log_error "Checksum mismatch!"
+            log_error "Expected: $EXPECTED_CHECKSUM"
+            log_error "Got: $ACTUAL_CHECKSUM"
+            exit 1
+        fi
     fi
 else
     log_warn "Checksum verification skipped (not available)"
