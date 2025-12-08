@@ -14,12 +14,26 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# Get today's date components
+# Get current version using sequential counter
 YEAR=$(date +%Y)
-MONTH=$(date +%-m)  # No zero-padding
-DAY=$(date +%-d)    # No zero-padding
+MONTH=$(date +%-m)
 
-VERSION="v${YEAR}.${MONTH}.${DAY}"
+# Find highest existing counter for this month
+MAX_COUNTER=$(git tag -l "v${YEAR}.${MONTH}.*" | \
+    sed "s/v${YEAR}\.${MONTH}\.//" | \
+    sort -n | \
+    tail -1)
+
+# If no existing tags, start at 1; otherwise increment
+if [ -z "$MAX_COUNTER" ]; then
+    COUNTER=1
+else
+    COUNTER=$((MAX_COUNTER + 1))
+fi
+
+VERSION="v${YEAR}.${MONTH}.${COUNTER}"
+
+echo -e "${BLUE}📦 Creating release ${VERSION} (release #${COUNTER} in ${YEAR}-${MONTH})${NC}"
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}CCO Release Script${NC}"
@@ -28,6 +42,14 @@ echo ""
 echo -e "${YELLOW}Today's date: $(date +%Y-%m-%d)${NC}"
 echo -e "${YELLOW}Version tag:  ${VERSION}${NC}"
 echo ""
+
+# Validate that tag doesn't already exist
+if git rev-parse "$VERSION" >/dev/null 2>&1; then
+    echo -e "${RED}❌ Error: Tag $VERSION already exists!${NC}"
+    echo "   Existing tags for this month:"
+    git tag -l "v${YEAR}.${MONTH}.*" | sort -V
+    exit 1
+fi
 
 # Check if we're in the right directory
 if [ ! -f "Cargo.toml" ]; then
@@ -41,22 +63,6 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
     echo "Please commit or stash changes before releasing."
     git status --short
     exit 1
-fi
-
-# Check if tag already exists
-if git tag --list | grep -q "^${VERSION}$"; then
-    echo -e "${YELLOW}Warning: Tag ${VERSION} already exists${NC}"
-    echo ""
-    read -p "Delete existing tag and recreate? (y/N) " -n 1 -r
-    echo ""
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo -e "${YELLOW}Deleting existing tag...${NC}"
-        git push --delete origin "${VERSION}" 2>/dev/null || true
-        git tag -d "${VERSION}"
-    else
-        echo -e "${RED}Aborted${NC}"
-        exit 1
-    fi
 fi
 
 # Generate release message
