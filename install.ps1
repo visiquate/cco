@@ -1,13 +1,13 @@
 # CCO Installer for Windows PowerShell
 # Usage: irm https://raw.githubusercontent.com/USER/cc-orchestra/main/install.ps1 | iex
 #
-# This script downloads and installs the CCO binary to $env:ProgramFiles\CCO
+# This script downloads and installs the CCO binary to $env:USERPROFILE\.local\bin
 
 $ErrorActionPreference = "Stop"
 
 # Configuration
 $REPO = "USER/cc-orchestra"
-$INSTALL_DIR = "$env:ProgramFiles\CCO"
+$INSTALL_DIR = "$env:USERPROFILE\.local\bin"
 $BINARY_NAME = "cco.exe"
 
 # Colors for output
@@ -34,13 +34,8 @@ Write-Host "   CCO Installer - Claude Code Orchestra" -ForegroundColor Green
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Blue
 Write-Host ""
 
-# Check if running as Administrator
-$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-
-if (-not $isAdmin) {
-    Write-Warn "Not running as Administrator"
-    Write-Info "Installation will continue, but you may need to provide admin credentials"
-}
+# User-local installation - no admin privileges required
+Write-Info "Installing to user directory: $INSTALL_DIR"
 
 # Detect architecture
 $ARCH = $env:PROCESSOR_ARCHITECTURE
@@ -146,7 +141,7 @@ try {
         Copy-Item -Path $BINARY_NAME -Destination "$INSTALL_DIR\$BINARY_NAME" -Force
     } catch {
         Write-Fail "Installation failed: $_"
-        Write-Info "You may need to run this script as Administrator"
+        Write-Info "Please ensure the directory is writable"
         exit 1
     }
 
@@ -202,10 +197,8 @@ Write-Host ""
 Write-Host "3. View dashboard:"
 Write-Host "   Open http://localhost:3000 in your browser"
 Write-Host ""
-Write-Host "4. (Optional) Install as Windows Service:"
-Write-Host "   Run PowerShell as Administrator, then:"
-Write-Host "   sc create CCO binPath= `"$INSTALL_DIR\$BINARY_NAME run`" start= auto"
-Write-Host "   sc start CCO"
+Write-Host "4. CCO auto-updates automatically in user space"
+Write-Host "   No administrator privileges required"
 Write-Host ""
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Blue
 Write-Host ""

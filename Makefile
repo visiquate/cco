@@ -6,7 +6,7 @@
 # Build variables
 CARGO_FLAGS ?=
 RELEASE_FLAGS ?= --release
-INSTALL_DIR ?= /usr/local/bin
+INSTALL_DIR ?= $(HOME)/.local/bin
 
 # Detect OS for platform-specific commands
 UNAME_S := $(shell uname -s)
@@ -28,7 +28,7 @@ help:
 	@echo "  clippy      - Run Clippy linter"
 	@echo "  fmt         - Format code with rustfmt"
 	@echo "  fmt-check   - Check formatting without changes"
-	@echo "  install     - Build and install to /usr/local/bin"
+	@echo "  install     - Build and install to ~/.local/bin (use INSTALL_DIR to override)"
 	@echo "  uninstall   - Remove installed binary"
 	@echo "  clean       - Clean build artifacts"
 	@echo "  doc         - Generate documentation"
@@ -36,7 +36,7 @@ help:
 	@echo "  audit       - Run security audit on dependencies"
 	@echo ""
 	@echo "Variables:"
-	@echo "  INSTALL_DIR - Installation directory (default: /usr/local/bin)"
+	@echo "  INSTALL_DIR - Installation directory (default: ~/.local/bin)"
 	@echo "  CARGO_FLAGS - Additional Cargo flags"
 
 # Build debug binary

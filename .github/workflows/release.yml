@@ -323,7 +323,7 @@ jobs:
           # Example for macOS Apple Silicon
           tar -xzf cco-aarch64-apple-darwin.tar.gz
           chmod +x cco
-          sudo mv cco /usr/local/bin/
+          mkdir -p ~/.local/bin && mv cco ~/.local/bin/
           ```
 
           ## Auto-Updates

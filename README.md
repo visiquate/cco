@@ -213,29 +213,50 @@ claude                 # Pure Claude Code experience
 - **PreToolUse** - Classify Bash commands, auto-approve READ operations
 - **PreCompact** - Save conversation state before compaction
 
+## Canonical Installation Path
+
+CCO standardizes on user-local installation paths:
+- **Unix (macOS/Linux):** `~/.local/bin/cco`
+- **Windows:** `%USERPROFILE%\.local\bin\cco.exe`
+
+**Why user-local?**
+- ✅ No sudo/admin required
+- ✅ Auto-updates work seamlessly
+- ✅ No PATH shadowing issues
+- ✅ Consistent with modern package managers
+
+**Auto-migration:** When you run `cco update`, it automatically migrates from legacy locations (`/usr/local/bin`) to the canonical path with warnings.
+
 ## Quick Start
 
 ### Installation
 
 ```bash
-# Install CCO (macOS/Linux)
+# Install CCO (macOS/Linux) - Automatically installs to ~/.local/bin/cco
 curl -sSL https://get.cco.dev | bash
 
 # Or download binary directly
 # macOS Apple Silicon
 wget https://github.com/visiquate/cco/releases/latest/download/cco-macos-arm64
 chmod +x cco-macos-arm64
-mv cco-macos-arm64 /usr/local/bin/cco
+mkdir -p ~/.local/bin
+mv cco-macos-arm64 ~/.local/bin/cco
 
 # macOS Intel
 wget https://github.com/visiquate/cco/releases/latest/download/cco-macos-x86_64
 chmod +x cco-macos-x86_64
-mv cco-macos-x86_64 /usr/local/bin/cco
+mkdir -p ~/.local/bin
+mv cco-macos-x86_64 ~/.local/bin/cco
 
 # Linux
 wget https://github.com/visiquate/cco/releases/latest/download/cco-linux-x86_64
 chmod +x cco-linux-x86_64
-mv cco-linux-x86_64 /usr/local/bin/cco
+mkdir -p ~/.local/bin
+mv cco-linux-x86_64 ~/.local/bin/cco
+
+# Ensure ~/.local/bin is in your PATH
+echo $PATH | grep "$HOME/.local/bin" || \
+  echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 ```
 
 ### Basic Usage
@@ -544,6 +565,63 @@ Time: 1-2 hours (vs 4-6 hours sequential)
 6. ✅ **Never hardcode credentials** - Use `cco credentials` CLI
 7. ✅ **Monitor costs** - Run `cco monitor dashboard` periodically
 8. ✅ **Document as you build** - Documentation agents run in parallel
+
+## Migrating from Legacy Installations
+
+If you previously installed CCO to `/usr/local/bin` or `C:\Program Files\CCO`:
+
+### Automatic Migration (Recommended)
+
+Run `cco update` - it will:
+1. Detect legacy installation location
+2. Install to canonical path (`~/.local/bin/cco`)
+3. Warn you to remove old installation
+4. Provide cleanup command
+
+### Manual Migration
+
+**macOS/Linux:**
+```bash
+# 1. Remove old installation
+sudo rm /usr/local/bin/cco
+
+# 2. Verify PATH includes ~/.local/bin
+echo $PATH | grep "$HOME/.local/bin" || \
+  echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+
+# 3. Reinstall
+curl -sSL https://get.cco.dev | bash
+
+# 4. Verify
+which cco  # Should show ~/.local/bin/cco
+```
+
+**Windows:**
+```powershell
+# 1. Remove old installation
+Remove-Item -Force "$env:ProgramFiles\CCO\cco.exe"
+
+# 2. Reinstall
+irm https://get.cco.dev | iex
+
+# 3. Verify
+where.exe cco  # Should show %USERPROFILE%\.local\bin\cco.exe
+```
+
+### Check for Multiple Installations
+
+```bash
+# Check which cco binary is being used
+which cco
+
+# List all cco binaries on your system
+find /usr/local/bin ~/.local/bin -name "cco" 2>/dev/null
+
+# Verify the correct installation is active
+cco --version  # Should show latest version at ~/.local/bin/cco
+```
+
+**Note:** If you have multiple installations, `cco update` will warn you and recommend removing the old one to avoid PATH conflicts.
 
 ## Documentation
 
