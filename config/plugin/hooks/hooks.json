@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash -c 'input=$(cat); cmd=$(echo \"$input\" | jq -r \".tool_input.command // \\\"\\\"\" 2>/dev/null); mode=$(echo \"$input\" | jq -r \".permission_mode // \\\"default\\\"\" 2>/dev/null); result=$(curl -sf -X POST http://127.0.0.1:${CCO_DAEMON_PORT}/api/classify -H \"Content-Type: application/json\" -d \"{\\\"command\\\":\\\"$(echo \"$cmd\" | sed \"s/\\\"/\\\\\\\\\\\"/g\")\\\"}\"); classification=$(echo \"$result\" | jq -r \".classification // \\\"Unknown\\\"\" 2>/dev/null); if [ -z \"$classification\" ] || [ \"$classification\" = \"null\" ]; then classification=\"Unknown\"; fi; if [ \"$mode\" = \"bypassPermissions\" ]; then echo \"{\\\"hookSpecificOutput\\\":{\\\"hookEventName\\\":\\\"PreToolUse\\\",\\\"permissionDecision\\\":\\\"allow\\\",\\\"permissionDecisionReason\\\":\\\"CRUD: $classification (bypass mode)\\\"}}\"; elif [ \"$classification\" = \"Read\" ]; then echo \"{\\\"hookSpecificOutput\\\":{\\\"hookEventName\\\":\\\"PreToolUse\\\",\\\"permissionDecision\\\":\\\"allow\\\",\\\"permissionDecisionReason\\\":\\\"CRUD: READ operation\\\"}}\"; else echo \"{\\\"hookSpecificOutput\\\":{\\\"hookEventName\\\":\\\"PreToolUse\\\",\\\"permissionDecision\\\":\\\"ask\\\",\\\"permissionDecisionReason\\\":\\\"CRUD: $classification operation\\\"}}\"; fi'",
+            "command": "bash -c 'input=$(cat); cmd=$(echo \"$input\" | jq -r \".tool_input.command // \\\"\\\"\" 2>/dev/null); mode=$(echo \"$input\" | jq -r \".permission_mode // \\\"default\\\"\" 2>/dev/null); payload=$(jq -nc --arg command \"$cmd\" \"\\$ARGS.named\"); result=$(curl -sf -X POST http://127.0.0.1:${CCO_DAEMON_PORT}/api/classify -H \"Content-Type: application/json\" -d \"$payload\" 2>/dev/null); classification=$(echo \"$result\" | jq -r \".classification // \\\"Unknown\\\"\" 2>/dev/null); if [ -z \"$classification\" ] || [ \"$classification\" = \"null\" ]; then classification=\"Unknown\"; fi; if [ \"$mode\" = \"bypassPermissions\" ]; then echo \"{\\\"hookSpecificOutput\\\":{\\\"hookEventName\\\":\\\"PreToolUse\\\",\\\"permissionDecision\\\":\\\"allow\\\",\\\"permissionDecisionReason\\\":\\\"CRUD: $classification (bypass mode)\\\"}}\"; elif [ \"$classification\" = \"Read\" ]; then echo \"{\\\"hookSpecificOutput\\\":{\\\"hookEventName\\\":\\\"PreToolUse\\\",\\\"permissionDecision\\\":\\\"allow\\\",\\\"permissionDecisionReason\\\":\\\"CRUD: READ operation\\\"}}\"; else echo \"{\\\"hookSpecificOutput\\\":{\\\"hookEventName\\\":\\\"PreToolUse\\\",\\\"permissionDecision\\\":\\\"ask\\\",\\\"permissionDecisionReason\\\":\\\"CRUD: $classification operation\\\"}}\"; fi'",
             "timeout": 3,
             "blocking": true
           }
@@ -63,7 +63,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash -c 'input=$(cat); tool_result=$(echo \"$input\" | jq -r \".tool_result.output // \\\"\\\"\" 2>/dev/null); if echo \"$tool_result\" | grep -qE \"CRUD: (Create|Update|Delete)\"; then echo \"\" >&2; echo \"💡 To reclassify as READ: cco classify --last --expected read\" >&2; fi'",
+            "command": "bash -c 'input=$(cat); tool_result=$(echo \"$input\" | jq -r \".tool_result.output // \\\"\\\"\" 2>/dev/null); if echo \"$tool_result\" | grep -qE \"CRUD: (Create|Update|Delete)\"; then echo \"\" >&2; echo \"\ud83d\udca1 To reclassify as READ: cco classify --last --expected read\" >&2; fi'",
             "timeout": 1,
             "blocking": false
           }
