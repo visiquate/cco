@@ -227,7 +227,7 @@ brew install cco
 #### Shell Script
 
 ```bash
-curl -sSL https://github.com/visiquate/cco-releases/releases/latest/download/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/visiquate/cco/main/install.sh | bash
 ```
 
 #### Manual Download
