@@ -9,84 +9,51 @@
 
 ## Installation Methods
 
-### Method 1: Quick Install Script (Recommended)
+<<### Method 1: Install via GitHub Releases (Recommended)
 
-The fastest way to install CCO is using the install script, which automatically detects your platform and configures your PATH:
+#### One-liner (macOS/Linux)
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/brentley/cco/main/install.sh | bash
+# Installs to ~/.local/bin/cco by default
+curl -fsSL https://raw.githubusercontent.com/visiquate/cco/main/scripts/install_from_github.sh | bash
+# Optional: export GITHUB_TOKEN to raise GitHub API limits
 ```
 
-This script will:
-- Detect your platform automatically
-- Download the correct binary
-- Install to `~/.local/bin/cco`
-- Automatically configure your shell's PATH
-- No sudo required
+#### Manual download
 
-After installation, restart your shell or run:
-```bash
-source ~/.zshrc    # macOS (zsh)
-source ~/.bashrc   # Linux (bash)
-```
+Visit the [Releases page](https://github.com/visiquate/cco/releases/latest) and download the appropriate archive for your platform:
 
-### Method 2: Manual Installation
+- **macOS (Apple Silicon):** `cco-aarch64-apple-darwin.tar.gz`
+- **macOS (Intel):** `cco-x86_64-apple-darwin.tar.gz` (if published)
+- **Linux (Intel/AMD):** `cco-x86_64-unknown-linux-gnu.tar.gz`
+- **Linux (ARM64):** `cco-aarch64-unknown-linux-gnu.tar.gz` (if published)
 
-#### Step 1: Download
-
-Visit the [Releases page](https://github.com/brentley/cco/releases/latest) and download the appropriate binary for your platform:
-
-- **macOS (Intel):** `cco-Darwin-x86_64`
-- **macOS (Apple Silicon):** `cco-Darwin-aarch64`
-- **Linux (Intel/AMD):** `cco-Linux-x86_64`
-- **Linux (ARM):** `cco-Linux-aarch64`
-
-Or use `curl`:
+Example:
 
 ```bash
 # macOS Apple Silicon
-curl -LO https://github.com/brentley/cco/releases/latest/download/cco-Darwin-aarch64
-
-# macOS Intel
-curl -LO https://github.com/brentley/cco/releases/latest/download/cco-Darwin-x86_64
+curl -LO https://github.com/visiquate/cco/releases/latest/download/cco-aarch64-apple-darwin.tar.gz
 
 # Linux x86_64
-curl -LO https://github.com/brentley/cco/releases/latest/download/cco-Linux-x86_64
-
-# Linux ARM64
-curl -LO https://github.com/brentley/cco/releases/latest/download/cco-Linux-aarch64
+curl -LO https://github.com/visiquate/cco/releases/latest/download/cco-x86_64-unknown-linux-gnu.tar.gz
 ```
 
-#### Step 2: Install to User Directory
+#### Step 2: Extract and install
 
 ```bash
-# Create local bin directory (if it doesn't exist)
+tar -xzf cco-*.tar.gz
+chmod +x cco
+# System-wide installation (requires sudo)
+# sudo mv cco /usr/local/bin/cco
+
+# User-local installation (no sudo required)
 mkdir -p ~/.local/bin
-
-# Move binary and make executable
-mv cco-* ~/.local/bin/cco
-chmod +x ~/.local/bin/cco
+mv cco ~/.local/bin/cco
+# Add ~/.local/bin to your PATH if not already added
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
-#### Step 3: Configure PATH
-
-Add `~/.local/bin` to your PATH if not already configured:
-
-```bash
-# zsh (macOS default)
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
-source ~/.zshrc
-
-# bash (Linux default)
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
-
-# fish shell
-echo 'set -gx PATH $HOME/.local/bin $PATH' >> ~/.config/fish/config.fish
-source ~/.config/fish/config.fish
-```
-
-#### Step 4: Verify Installation
+#### Step 3: Verify Installation
 
 ```bash
 cco --version
@@ -118,6 +85,13 @@ cargo build --release
 # Install to user directory (no sudo required)
 mkdir -p ~/.local/bin
 cp target/release/cco ~/.local/bin/cco
+```
+
+### Method 3: Homebrew (macOS/Linux)
+
+```bash
+brew tap visiquate/cco
+brew install visiquate/cco/cco
 ```
 
 ## Configuration
