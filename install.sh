@@ -309,31 +309,70 @@ echo ""
 echo -e "${YELLOW}📝 Next Steps:${NC}"
 echo ""
 
-# Determine if shell RC needs sourcing
-NEEDS_RESTART=false
-if ! is_in_path; then
-    NEEDS_RESTART=true
+# Detect if we're being piped (stdin is not a terminal)
+IS_PIPED=false
+if [ ! -t 0 ]; then
+    IS_PIPED=true
 fi
 
-if [ "$NEEDS_RESTART" = true ]; then
-    echo "1. Restart your terminal OR source your shell RC file:"
+# Determine if PATH activation is needed
+PATH_ACTIVATED=false
+if is_in_path; then
+    # PATH was already configured
+    PATH_ACTIVATED=true
+    log_info "PATH already active in current session"
+elif [ -n "$DETECTED_SHELL" ]; then
+    RC_PATH=$(get_shell_rc_path "$DETECTED_SHELL" 2>/dev/null)
+    if [ -n "$RC_PATH" ] && [ -f "$RC_PATH" ]; then
+        # Attempt to source the RC file in current context
+        log_info "Attempting to activate PATH in current session..."
+
+        # Try to source the RC file (will fail silently if piped)
+        if [ "$IS_PIPED" = false ]; then
+            # Not piped - sourcing might work
+            if source "$RC_PATH" 2>/dev/null; then
+                # Check if cco is now available
+                if command -v cco >/dev/null 2>&1; then
+                    PATH_ACTIVATED=true
+                    log_success "PATH activated! 'cco' command is now available"
+                fi
+            fi
+        fi
+    fi
+fi
+
+# Smart instructions based on PATH activation status
+STEP_NUM=1
+
+if [ "$PATH_ACTIVATED" = false ]; then
+    echo "${STEP_NUM}. Activate PATH (choose one):"
     if [ -n "$DETECTED_SHELL" ]; then
         RC_PATH=$(get_shell_rc_path "$DETECTED_SHELL" 2>/dev/null)
         if [ -n "$RC_PATH" ]; then
-            echo "   source $RC_PATH"
+            echo "   ${GREEN}# Quick start (one-liner):${NC}"
+            echo "   source $RC_PATH && cco version"
+            echo ""
+            echo "   ${GREEN}# OR restart your terminal${NC}"
+        else
+            echo "   Restart your terminal"
         fi
+    else
+        echo "   Restart your terminal"
     fi
     echo ""
-    echo "2. Set your Anthropic API key:"
-    echo "   export ANTHROPIC_API_KEY='sk-ant-...'"
-    echo ""
-    echo "3. Start the daemon:"
+    STEP_NUM=$((STEP_NUM + 1))
 else
-    echo "1. Set your Anthropic API key:"
-    echo "   export ANTHROPIC_API_KEY='sk-ant-...'"
+    echo "${GREEN}✓ PATH is active - 'cco' command ready to use${NC}"
     echo ""
-    echo "2. Start the daemon:"
 fi
+
+echo "${STEP_NUM}. Set your Anthropic API key:"
+echo "   export ANTHROPIC_API_KEY='sk-ant-...'"
+echo ""
+STEP_NUM=$((STEP_NUM + 1))
+
+echo "${STEP_NUM}. Start the daemon:"
+STEP_NUM=$((STEP_NUM + 1))
 
 if [ "$OS" = "darwin" ]; then
     echo "   cco daemon install  # Install macOS launchd service"
@@ -343,7 +382,7 @@ else
     echo "   cco daemon start    # Start the daemon"
 fi
 echo ""
-echo "4. View dashboard:"
+echo "${STEP_NUM}. View dashboard:"
 echo "   Open http://localhost:3000 in your browser"
 echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
