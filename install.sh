@@ -252,7 +252,7 @@ if ! ./"$BINARY_NAME" version >/dev/null 2>&1; then
     exit 1
 fi
 
-VERSION_OUTPUT=$(./$ BINARY_NAME version 2>&1 || true)
+VERSION_OUTPUT=$(./"$BINARY_NAME" version 2>&1 || true)
 log_success "Binary test passed"
 
 # Create installation directory
@@ -302,7 +302,7 @@ log_success "Installation Complete!"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo "Installed version:"
-cco version 2>&1 || echo "$VERSION_OUTPUT"
+"$INSTALL_DIR/$BINARY_NAME" version 2>&1 || echo "$VERSION_OUTPUT"
 echo ""
 
 # Post-installation instructions
