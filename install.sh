@@ -305,6 +305,42 @@ echo "Installed version:"
 "$INSTALL_DIR/$BINARY_NAME" version 2>&1 || echo "$VERSION_OUTPUT"
 echo ""
 
+# Automatic daemon setup
+log_info "Setting up daemon..."
+DAEMON_INSTALLED=false
+DAEMON_STARTED=false
+
+# Check if daemon is already installed
+if "$INSTALL_DIR/$BINARY_NAME" daemon status 2>/dev/null | grep -q "installed"; then
+    log_success "Daemon already installed"
+    DAEMON_INSTALLED=true
+else
+    # Try to install daemon
+    if "$INSTALL_DIR/$BINARY_NAME" daemon install 2>/dev/null; then
+        log_success "Daemon installed"
+        DAEMON_INSTALLED=true
+    else
+        log_warn "Could not install daemon automatically (may require sudo)"
+    fi
+fi
+
+# Try to start daemon if installed
+if [ "$DAEMON_INSTALLED" = true ]; then
+    if "$INSTALL_DIR/$BINARY_NAME" daemon status 2>/dev/null | grep -q "running"; then
+        log_success "Daemon already running"
+        DAEMON_STARTED=true
+    else
+        if "$INSTALL_DIR/$BINARY_NAME" daemon start 2>/dev/null; then
+            log_success "Daemon started"
+            DAEMON_STARTED=true
+        else
+            log_warn "Could not start daemon automatically"
+        fi
+    fi
+fi
+
+echo ""
+
 # Post-installation instructions
 echo -e "${YELLOW}📝 Next Steps:${NC}"
 echo ""
@@ -349,10 +385,10 @@ if [ "$PATH_ACTIVATED" = false ]; then
     if [ -n "$DETECTED_SHELL" ]; then
         RC_PATH=$(get_shell_rc_path "$DETECTED_SHELL" 2>/dev/null)
         if [ -n "$RC_PATH" ]; then
-            echo "   ${GREEN}# Quick start (one-liner):${NC}"
+            echo -e "   ${GREEN}# Quick start (one-liner):${NC}"
             echo "   source $RC_PATH && cco version"
             echo ""
-            echo "   ${GREEN}# OR restart your terminal${NC}"
+            echo -e "   ${GREEN}# OR restart your terminal${NC}"
         else
             echo "   Restart your terminal"
         fi
@@ -371,19 +407,27 @@ echo "   export ANTHROPIC_API_KEY='sk-ant-...'"
 echo ""
 STEP_NUM=$((STEP_NUM + 1))
 
-echo "${STEP_NUM}. Start the daemon:"
-STEP_NUM=$((STEP_NUM + 1))
-
-if [ "$OS" = "darwin" ]; then
-    echo "   cco daemon install  # Install macOS launchd service"
-    echo "   cco daemon start    # Start the daemon"
-else
-    echo "   cco daemon install  # Install systemd service"
-    echo "   cco daemon start    # Start the daemon"
+# Only show daemon steps if automatic setup failed
+if [ "$DAEMON_INSTALLED" = false ]; then
+    echo "${STEP_NUM}. Install the daemon:"
+    if [ "$OS" = "darwin" ]; then
+        echo "   cco daemon install  # Install macOS launchd service"
+    else
+        echo "   cco daemon install  # Install systemd service"
+    fi
+    echo ""
+    STEP_NUM=$((STEP_NUM + 1))
 fi
-echo ""
-echo "${STEP_NUM}. View dashboard:"
-echo "   Open http://localhost:3000 in your browser"
+
+if [ "$DAEMON_INSTALLED" = true ] && [ "$DAEMON_STARTED" = false ]; then
+    echo "${STEP_NUM}. Start the daemon:"
+    echo "   cco daemon start"
+    echo ""
+    STEP_NUM=$((STEP_NUM + 1))
+fi
+
+echo "${STEP_NUM}. View status with the TUI:"
+echo "   cco tui"
 echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
