@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-#!/usr/bin/env bash
 # GitHub-based installer for CCO (macOS/Linux)
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/visiquate/cco/main/scripts/install_from_github.sh | bash
