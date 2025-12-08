@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 #
 # CCO Installer for macOS and Linux
-# Usage: curl -fsSL https://raw.githubusercontent.com/USER/cc-orchestra/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/visiquate/cco/main/install.sh | bash
 #
-# This script downloads and installs the CCO binary to /usr/local/bin
+# This script downloads and installs the CCO binary to ~/.local/bin
 
 set -e
 
 # Configuration
-REPO="USER/cc-orchestra"
-INSTALL_DIR="/usr/local/bin"
+REPO="visiquate/cco"
+INSTALL_DIR="$HOME/.local/bin"
 BINARY_NAME="cco"
 
 # Colors for output
@@ -34,6 +34,76 @@ log_warn() {
 
 log_error() {
     echo -e "${RED}❌ $1${NC}"
+}
+
+# Shell detection functions
+detect_shell() {
+    basename "$SHELL"
+}
+
+get_shell_rc_path() {
+    local shell="$1"
+    local home="$HOME"
+
+    case "$shell" in
+        zsh)
+            echo "$home/.zshrc"
+            ;;
+        bash)
+            if [ "$(uname -s)" = "Darwin" ]; then
+                echo "$home/.bash_profile"
+            else
+                echo "$home/.bashrc"
+            fi
+            ;;
+        fish)
+            echo "$home/.config/fish/config.fish"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+is_in_path() {
+    echo "$PATH" | grep -q "$HOME/.local/bin"
+}
+
+update_shell_rc() {
+    local shell="$1"
+    local rc_path
+
+    rc_path=$(get_shell_rc_path "$shell")
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
+
+    # Create parent directory if needed (for fish)
+    mkdir -p "$(dirname "$rc_path")"
+
+    # Check if PATH export already exists
+    if [ -f "$rc_path" ]; then
+        if grep -q 'export PATH="$HOME/.local/bin:$PATH"' "$rc_path" || \
+           grep -q 'export PATH="~/.local/bin:$PATH"' "$rc_path" || \
+           grep -q 'set -gx PATH $HOME/.local/bin $PATH' "$rc_path"; then
+            log_info "PATH already configured in $rc_path"
+            return 0
+        fi
+    fi
+
+    # Append PATH export to RC file
+    if [ "$shell" = "fish" ]; then
+        echo "" >> "$rc_path"
+        echo "# Added by CCO installer" >> "$rc_path"
+        echo "set -gx PATH \$HOME/.local/bin \$PATH" >> "$rc_path"
+    else
+        echo "" >> "$rc_path"
+        echo "# Added by CCO installer" >> "$rc_path"
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$rc_path"
+    fi
+
+    log_success "Updated $rc_path with PATH configuration"
+    return 0
 }
 
 # Header
@@ -180,36 +250,44 @@ fi
 VERSION_OUTPUT=$(./$ BINARY_NAME version 2>&1 || true)
 log_success "Binary test passed"
 
-# Check if we need sudo for installation
-if [ -w "$INSTALL_DIR" ]; then
-    SUDO=""
-else
-    SUDO="sudo"
-    log_info "Administrator privileges required for installation to $INSTALL_DIR"
-fi
+# Create installation directory
+log_info "Creating $INSTALL_DIR/"
+mkdir -p "$INSTALL_DIR"
 
 # Install binary
 log_info "Installing to $INSTALL_DIR/$BINARY_NAME..."
-if [ -n "$SUDO" ]; then
-    $SUDO mv "$BINARY_NAME" "$INSTALL_DIR/$BINARY_NAME"
-else
-    mv "$BINARY_NAME" "$INSTALL_DIR/$BINARY_NAME"
-fi
+mv "$BINARY_NAME" "$INSTALL_DIR/$BINARY_NAME"
 
 log_success "CCO installed successfully!"
 
 # macOS-specific: Remove quarantine attribute
 if [ "$OS" = "darwin" ]; then
     log_info "Removing quarantine attribute (macOS Gatekeeper)..."
-    $SUDO xattr -d com.apple.quarantine "$INSTALL_DIR/$BINARY_NAME" 2>/dev/null || true
+    xattr -d com.apple.quarantine "$INSTALL_DIR/$BINARY_NAME" 2>/dev/null || true
 fi
 
-# Verify installation
-if command -v cco >/dev/null 2>&1; then
-    log_success "Installation verified"
+# Configure PATH
+log_info "Configuring shell PATH..."
+DETECTED_SHELL=$(detect_shell)
+
+if [ -n "$DETECTED_SHELL" ]; then
+    log_success "Detected shell: $DETECTED_SHELL"
+
+    if is_in_path; then
+        log_success "~/.local/bin is already in PATH"
+    else
+        if update_shell_rc "$DETECTED_SHELL"; then
+            log_success "Shell configuration updated"
+        else
+            log_warn "Could not automatically update shell configuration"
+            log_info "Manually add this to your shell RC file:"
+            echo '  export PATH="$HOME/.local/bin:$PATH"'
+        fi
+    fi
 else
-    log_warn "Installation succeeded but 'cco' not found in PATH"
-    log_info "You may need to restart your terminal or add $INSTALL_DIR to your PATH"
+    log_warn "Could not detect shell"
+    log_info "Manually add this to your shell RC file:"
+    echo '  export PATH="$HOME/.local/bin:$PATH"'
 fi
 
 # Display version
@@ -225,21 +303,43 @@ echo ""
 # Post-installation instructions
 echo -e "${YELLOW}📝 Next Steps:${NC}"
 echo ""
-echo "1. Set your Anthropic API key:"
-echo "   export ANTHROPIC_API_KEY='sk-ant-...'"
-echo ""
-echo "2. Start CCO:"
-echo "   cco run"
-echo ""
-echo "3. View dashboard:"
-echo "   Open http://localhost:3000 in your browser"
-echo ""
-echo "4. (Optional) Install as daemon:"
-if [ "$OS" = "darwin" ]; then
-    echo "   cco install  # macOS launchd"
-else
-    echo "   sudo systemctl enable cco  # Linux systemd"
+
+# Determine if shell RC needs sourcing
+NEEDS_RESTART=false
+if ! is_in_path; then
+    NEEDS_RESTART=true
 fi
+
+if [ "$NEEDS_RESTART" = true ]; then
+    echo "1. Restart your terminal OR source your shell RC file:"
+    if [ -n "$DETECTED_SHELL" ]; then
+        RC_PATH=$(get_shell_rc_path "$DETECTED_SHELL" 2>/dev/null)
+        if [ -n "$RC_PATH" ]; then
+            echo "   source $RC_PATH"
+        fi
+    fi
+    echo ""
+    echo "2. Set your Anthropic API key:"
+    echo "   export ANTHROPIC_API_KEY='sk-ant-...'"
+    echo ""
+    echo "3. Start the daemon:"
+else
+    echo "1. Set your Anthropic API key:"
+    echo "   export ANTHROPIC_API_KEY='sk-ant-...'"
+    echo ""
+    echo "2. Start the daemon:"
+fi
+
+if [ "$OS" = "darwin" ]; then
+    echo "   cco daemon install  # Install macOS launchd service"
+    echo "   cco daemon start    # Start the daemon"
+else
+    echo "   cco daemon install  # Install systemd service"
+    echo "   cco daemon start    # Start the daemon"
+fi
+echo ""
+echo "4. View dashboard:"
+echo "   Open http://localhost:3000 in your browser"
 echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
