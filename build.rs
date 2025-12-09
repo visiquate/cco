@@ -15,6 +15,8 @@ fn main() {
     println!("cargo:rerun-if-changed=config/agents");
     println!("cargo:rerun-if-changed=config/orchestrator-prompt.txt");
     println!("cargo:rerun-if-changed=config/obfuscate.sh");
+    println!("cargo:rerun-if-env-changed=CF_ACCESS_CLIENT_ID");
+    println!("cargo:rerun-if-env-changed=CF_ACCESS_CLIENT_SECRET");
 
     // Run obfuscation script for orchestrator prompt
     obfuscate_orchestrator_prompt();
@@ -27,6 +29,9 @@ fn main() {
 
     // Embed GitHub update token (CI/CD only)
     embed_update_token();
+
+    // Embed Cloudflare Access credentials (CI/CD only)
+    embed_cloudflare_credentials();
 
     // Get git commit hash
     let git_hash = get_git_hash();
@@ -203,6 +208,44 @@ fn embed_update_token() {
             println!("cargo:rustc-env=UPDATE_TOKEN_EMBEDDED=0");
         }
     }
+}
+
+/// Embed Cloudflare Access credentials with XOR obfuscation (if env vars are set)
+fn embed_cloudflare_credentials() {
+    const XOR_KEY: u8 = 0xA7;
+
+    let client_id = env::var("CF_ACCESS_CLIENT_ID").unwrap_or_default();
+    let client_secret = env::var("CF_ACCESS_CLIENT_SECRET").unwrap_or_default();
+
+    if client_id.is_empty() || client_secret.is_empty() {
+        // No credentials - create empty file
+        let out_dir = env::var("OUT_DIR").unwrap();
+        let dest_path = Path::new(&out_dir).join("cf_access_credentials.bin");
+        fs::write(&dest_path, []).expect("Failed to write empty CF credentials");
+        println!("cargo:rustc-env=CF_CREDENTIALS_EMBEDDED=0");
+        return;
+    }
+
+    // Binary format: <id_len:u16><id_bytes><secret_len:u16><secret_bytes>
+    let mut data = Vec::new();
+
+    // Encode client ID
+    let id_len = client_id.len() as u16;
+    data.extend_from_slice(&id_len.to_le_bytes());
+    data.extend(client_id.as_bytes().iter().map(|b| b ^ XOR_KEY));
+
+    // Encode client secret
+    let secret_len = client_secret.len() as u16;
+    data.extend_from_slice(&secret_len.to_le_bytes());
+    data.extend(client_secret.as_bytes().iter().map(|b| b ^ XOR_KEY));
+
+    // Write to OUT_DIR
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let dest_path = Path::new(&out_dir).join("cf_access_credentials.bin");
+    fs::write(&dest_path, &data).expect("Failed to write CF credentials");
+
+    println!("cargo:warning=✓ Cloudflare Access credentials embedded");
+    println!("cargo:rustc-env=CF_CREDENTIALS_EMBEDDED=1");
 }
 
 fn get_git_hash() -> String {

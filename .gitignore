@@ -5,6 +5,7 @@ target/
 dist/
 build/
 artifacts/
+.build-venv/
 
 # macOS
 .DS_Store
@@ -51,3 +52,4 @@ coverage/
 
 # Knowledge Manager databases (per-repository)
 data/knowledge/
+data/

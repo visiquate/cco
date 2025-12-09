@@ -35,7 +35,7 @@ enum Commands {
     /// Run the CCO proxy server
     Run {
         /// Port to listen on
-        #[arg(short, long, default_value = "3000")]
+        #[arg(short, long, default_value = "13109")]
         port: u16,
 
         /// Host to bind to
@@ -97,7 +97,7 @@ enum Commands {
         host: String,
 
         /// Port to check
-        #[arg(default_value = "3000")]
+        #[arg(default_value = "13109")]
         port: u16,
     },
 
@@ -399,7 +399,7 @@ enum ServerAction {
     },
     /// Run the server (starts in background, idempotent)
     Run {
-        #[arg(short, long, default_value = "3000")]
+        #[arg(short, long, default_value = "13109")]
         port: u16,
         #[arg(long, default_value = "127.0.0.1")]
         host: String,
@@ -760,7 +760,7 @@ async fn main() -> anyhow::Result<()> {
             tracing_subscriber::fmt::init();
 
             // Auto-discover daemon port if using default values
-            let actual_port = if host == "127.0.0.1" && port == 3000 {
+            let actual_port = if host == "127.0.0.1" && port == 13109 {
                 // User didn't specify custom host/port, try to discover daemon port
                 match cco::daemon::read_daemon_port() {
                     Ok(discovered_port) => {

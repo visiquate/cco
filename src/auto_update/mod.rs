@@ -273,9 +273,9 @@ impl AutoUpdateManager {
 
         let channel = if self.config.updates.channel != "stable" {
             log_update_event("Only the stable channel is supported; falling back to stable");
-            "stable"
+            "stable".to_string()
         } else {
-            &self.config.updates.channel
+            self.config.updates.channel.clone()
         };
 
         log_update_event(&format!("Checking for updates (channel: {})", channel));
@@ -286,7 +286,7 @@ impl AutoUpdateManager {
         })?;
 
         // Fetch latest release from GitHub Releases
-        let release = match releases_api::fetch_latest_release(channel).await {
+        let release = match releases_api::fetch_latest_release(&channel).await {
             Ok(r) => r,
             Err(e) => {
                 log_update_event(&format!("Failed to check for updates: {}", e));

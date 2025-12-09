@@ -220,21 +220,21 @@ mod tests {
 
     #[test]
     fn test_api_client_creation() {
-        let client = ApiClient::new("http://127.0.0.1:3000".to_string());
-        assert_eq!(client.base_url, "http://127.0.0.1:3000");
+        let client = ApiClient::new("http://127.0.0.1:13109".to_string());
+        assert_eq!(client.base_url, "http://127.0.0.1:13109");
         assert_eq!(client.max_retries, DEFAULT_MAX_RETRIES);
     }
 
     #[test]
     fn test_api_client_with_timeout() {
-        let client = ApiClient::new("http://127.0.0.1:3000".to_string())
+        let client = ApiClient::new("http://127.0.0.1:13109".to_string())
             .with_timeout(Duration::from_secs(10));
-        assert_eq!(client.base_url, "http://127.0.0.1:3000");
+        assert_eq!(client.base_url, "http://127.0.0.1:13109");
     }
 
     #[test]
     fn test_api_client_with_max_retries() {
-        let client = ApiClient::new("http://127.0.0.1:3000".to_string()).with_max_retries(5);
+        let client = ApiClient::new("http://127.0.0.1:13109".to_string()).with_max_retries(5);
         assert_eq!(client.max_retries, 5);
     }
 
@@ -271,14 +271,14 @@ mod tests {
             "status": "ok",
             "version": "2025.11.2",
             "uptime_seconds": 123,
-            "port": 3000
+            "port": 13109
         }"#;
 
         let health: HealthResponse = serde_json::from_str(json).unwrap();
         assert_eq!(health.status, "ok");
         assert_eq!(health.version, "2025.11.2");
         assert_eq!(health.uptime_seconds, 123);
-        assert_eq!(health.port, 3000);
+        assert_eq!(health.port, 13109);
     }
 
     #[test]

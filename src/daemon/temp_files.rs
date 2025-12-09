@@ -389,8 +389,8 @@ impl TempFileManager {
         let home_dir = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/tmp"));
         let model_path = home_dir.join(".cco/models/qwen2.5-coder-1.5b-instruct-q2_k.gguf");
 
-        // Auto-discover daemon port (fallback to 3000 if not running)
-        let daemon_port = super::read_daemon_port().unwrap_or(3000);
+        // Auto-discover daemon port (fallback to 13109 if not running)
+        let daemon_port = super::read_daemon_port().unwrap_or(13109);
         let api_url = format!("http://localhost:{}", daemon_port);
 
         let settings = json!({

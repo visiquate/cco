@@ -668,7 +668,7 @@ mod tests {
         let content = PidFileContent {
             pid: 1234,
             started_at: Utc::now(),
-            port: 3000,
+            port: 13109,
             gateway_port: None,
             version: "2025.11.1".to_string(),
         };
@@ -677,7 +677,7 @@ mod tests {
         let deserialized: PidFileContent = serde_json::from_str(&json).unwrap();
 
         assert_eq!(deserialized.pid, 1234);
-        assert_eq!(deserialized.port, 3000);
+        assert_eq!(deserialized.port, 13109);
     }
 
     #[test]

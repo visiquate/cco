@@ -2513,6 +2513,19 @@
         "defaultModel": "llama3.2",
         "maxRetries": 2,
         "timeoutSecs": 300
+      },
+      "visiquate": {
+        "enabled": true,
+        "providerType": "visiquate",
+        "baseUrl": "https://coder.visiquate.com/v1",
+        "apiKeyRef": "",
+        "defaultModel": "gpt-oss-heretic",
+        "modelAliases": {
+          "heretic": "gpt-oss-heretic",
+          "minimax": "minimax-m2"
+        },
+        "timeoutSecs": 180,
+        "maxRetries": 3
       }
     },
     "routing": {
@@ -2529,7 +2542,11 @@
         "haiku": "anthropic",
         "gpt4": "azure",
         "gpt35": "azure",
-        "deepseek": "deepseek"
+        "deepseek": "deepseek",
+        "heretic": "visiquate",
+        "minimax": "visiquate",
+        "gpt-oss-heretic": "visiquate",
+        "minimax-m2": "visiquate"
       },
       "fallbackChain": ["anthropic", "azure", "deepseek", "ollama"]
     },

@@ -7,6 +7,7 @@ pub mod anthropic;
 pub mod azure;
 pub mod deepseek;
 pub mod ollama;
+pub mod visiquate;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -111,6 +112,9 @@ impl ProviderRegistry {
                 ProviderType::OpenAI => {
                     // OpenAI uses the same format as DeepSeek (OpenAI-compatible)
                     Arc::new(deepseek::DeepSeekProvider::new(name.clone(), config.clone()).await?)
+                }
+                ProviderType::VisiQuate => {
+                    Arc::new(visiquate::VisiquateProvider::new(name.clone(), config.clone()).await?)
                 }
             };
 

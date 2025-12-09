@@ -101,14 +101,18 @@ pub fn build_crud_prompt(command: &str) -> String {
 
     // Add few-shot examples from user corrections
     if !corrections.is_empty() {
-        prompt.push_str("Examples from user corrections:\n");
+        eprintln!("DEBUG: Loaded {} corrections for prompt", corrections.len());
+        prompt.push_str("IMPORTANT: Learn from these user-corrected examples:\n\n");
         for correction in &corrections {
+            // Show the misclassification and the correction
             prompt.push_str(&format!(
-                "Command: {} -> {}\n",
-                correction.command, correction.expected
+                "Command: {}\nWRONG: {} | CORRECT: {}\n\n",
+                correction.command, correction.predicted, correction.expected
             ));
         }
-        prompt.push_str("\n");
+        prompt.push_str("Now classify this command using the patterns above:\n");
+    } else {
+        eprintln!("DEBUG: No corrections loaded from ~/.cco/classifier-corrections.json");
     }
 
     // Add the command to classify
@@ -350,6 +354,10 @@ mod tests {
         assert!(prompt.contains("Command: ls -la"));
         // The prompt should end with the command to classify
         assert!(prompt.ends_with("Command: ls -la"));
+        // If corrections exist, they should be formatted with WRONG/CORRECT labels
+        if prompt.contains("IMPORTANT:") {
+            assert!(prompt.contains("WRONG:") || prompt.contains("CORRECT:"));
+        }
     }
 
     #[test]

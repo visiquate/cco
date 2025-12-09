@@ -244,7 +244,7 @@ mod tests {
         config.port = 0;
         assert!(config.validate().is_ok());
 
-        config.port = 3000;
+        config.port = 13109;
         config.log_level = "invalid".to_string();
         assert!(config.validate().is_err());
 

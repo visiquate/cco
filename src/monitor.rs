@@ -29,7 +29,7 @@ impl Default for MonitorConfig {
     fn default() -> Self {
         Self {
             cco_endpoint: "http://127.0.0.1".to_string(),
-            port: 3000,
+            port: 13109,
             metrics_buffer_size: 1000,
         }
     }
@@ -282,7 +282,7 @@ mod tests {
     async fn test_monitor_service_start_and_shutdown() {
         let config = MonitorConfig {
             cco_endpoint: "http://127.0.0.1".to_string(),
-            port: 3000,
+            port: 13109,
             metrics_buffer_size: 100,
         };
 
@@ -308,7 +308,7 @@ mod tests {
     async fn test_custom_buffer_size() {
         let config = MonitorConfig {
             cco_endpoint: "http://127.0.0.1".to_string(),
-            port: 3000,
+            port: 13109,
             metrics_buffer_size: 500,
         };
 

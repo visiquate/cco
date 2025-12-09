@@ -9,12 +9,6 @@ edition = "2021"
 # Example: 2025.11.17+e37b7c0
 display_version = "auto"
 
-[features]
-default = ["embedded_litellm"]
-# Embed litellm.pex in the binary for zero external dependencies
-# Disable with: cargo build --no-default-features
-embedded_litellm = []
-
 [[bin]]
 name = "cco"
 path = "src/main.rs"

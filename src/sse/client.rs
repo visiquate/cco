@@ -60,7 +60,7 @@ struct MachineInfo {
 
 /// SSE client for streaming analytics from CCO proxy
 pub struct SseClient {
-    /// CCO proxy endpoint (e.g., "http://localhost:3000")
+    /// CCO proxy endpoint (e.g., "http://localhost:13109")
     endpoint: String,
     /// Shared metrics engine for recording events
     metrics: Arc<MetricsEngine>,
@@ -73,7 +73,7 @@ impl SseClient {
     ///
     /// # Arguments
     ///
-    /// * `endpoint` - CCO proxy base URL (e.g., "http://localhost:3000")
+    /// * `endpoint` - CCO proxy base URL (e.g., "http://localhost:13109")
     /// * `metrics` - Shared metrics engine for recording events
     pub fn new(endpoint: String, metrics: Arc<MetricsEngine>) -> Self {
         Self {
@@ -251,15 +251,15 @@ mod tests {
     #[tokio::test]
     async fn test_sse_client_creation() {
         let metrics = Arc::new(MetricsEngine::new());
-        let client = SseClient::new("http://localhost:3000".to_string(), metrics);
+        let client = SseClient::new("http://localhost:13109".to_string(), metrics);
 
-        assert_eq!(client.endpoint, "http://localhost:3000");
+        assert_eq!(client.endpoint, "http://localhost:13109");
     }
 
     #[tokio::test]
     async fn test_process_analytics_event() {
         let metrics = Arc::new(MetricsEngine::new());
-        let client = SseClient::new("http://localhost:3000".to_string(), metrics.clone());
+        let client = SseClient::new("http://localhost:13109".to_string(), metrics.clone());
 
         // Create a mock SSE response
         let event_data = r#"{
@@ -302,7 +302,7 @@ mod tests {
     #[tokio::test]
     async fn test_shutdown_signal() {
         let metrics = Arc::new(MetricsEngine::new());
-        let client = SseClient::new("http://localhost:3000".to_string(), metrics);
+        let client = SseClient::new("http://localhost:13109".to_string(), metrics);
 
         // Initially not shutdown
         assert!(!*client.shutdown.lock().await);
@@ -317,7 +317,7 @@ mod tests {
     #[tokio::test]
     async fn test_parse_invalid_json() {
         let metrics = Arc::new(MetricsEngine::new());
-        let client = SseClient::new("http://localhost:3000".to_string(), metrics);
+        let client = SseClient::new("http://localhost:13109".to_string(), metrics);
 
         let invalid_json = "{ invalid json }";
         let result = client.process_analytics_event(invalid_json).await;
@@ -328,7 +328,7 @@ mod tests {
     #[tokio::test]
     async fn test_process_empty_activity() {
         let metrics = Arc::new(MetricsEngine::new());
-        let client = SseClient::new("http://localhost:3000".to_string(), metrics.clone());
+        let client = SseClient::new("http://localhost:13109".to_string(), metrics.clone());
 
         let event_data = r#"{
             "project": {
@@ -358,7 +358,7 @@ mod tests {
     #[tokio::test]
     async fn test_convert_activity_to_api_event() {
         let metrics = Arc::new(MetricsEngine::new());
-        let client = SseClient::new("http://localhost:3000".to_string(), metrics);
+        let client = SseClient::new("http://localhost:13109".to_string(), metrics);
 
         // Create an ActivityEvent
         let activity = ActivityEvent {
@@ -385,7 +385,7 @@ mod tests {
     #[tokio::test]
     async fn test_skip_non_api_call_events() {
         let metrics = Arc::new(MetricsEngine::new());
-        let client = SseClient::new("http://localhost:3000".to_string(), metrics.clone());
+        let client = SseClient::new("http://localhost:13109".to_string(), metrics.clone());
 
         // Create SSE response with cache_hit event (should be skipped)
         let event_data = r#"{

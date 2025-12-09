@@ -52,6 +52,7 @@ async fn check_for_multiple_installations() -> Result<()> {
 }
 
 /// Verify SHA256 checksum of a file
+#[allow(dead_code)]
 fn verify_checksum(file_path: &Path, expected_checksum: &str) -> Result<bool> {
     let mut file = fs::File::open(file_path)?;
     let mut hasher = Sha256::new();

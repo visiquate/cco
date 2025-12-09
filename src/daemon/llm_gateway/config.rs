@@ -93,6 +93,7 @@ pub enum ProviderType {
     DeepSeek,
     Ollama,
     OpenAI,
+    VisiQuate,
 }
 
 impl std::fmt::Display for ProviderType {
@@ -103,6 +104,7 @@ impl std::fmt::Display for ProviderType {
             ProviderType::DeepSeek => write!(f, "deepseek"),
             ProviderType::Ollama => write!(f, "ollama"),
             ProviderType::OpenAI => write!(f, "openai"),
+            ProviderType::VisiQuate => write!(f, "visiquate"),
         }
     }
 }
