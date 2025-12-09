@@ -680,12 +680,14 @@ async fn main() -> anyhow::Result<()> {
             tokio::spawn(async {
                 if let Ok(Some(latest)) = update::check_latest_version().await {
                     let current = DateVersion::current();
-                    if latest != current {
-                        println!(
-                            "\nℹ️  New version available: {} (current: {})",
-                            latest, current
-                        );
-                        println!("   Run 'cco update' to upgrade");
+                    if let Ok(current_parsed) = DateVersion::parse(current) {
+                        if latest > current_parsed {
+                            println!(
+                                "\nℹ️  New version available: {} (current: {})",
+                                latest, current
+                            );
+                            println!("   Run 'cco update' to upgrade");
+                        }
                     }
                 }
             });
@@ -732,15 +734,18 @@ async fn main() -> anyhow::Result<()> {
             // Background check for updates (non-blocking)
             tokio::spawn(async move {
                 match update::check_latest_version().await {
-                    Ok(Some(latest)) if latest != version => {
-                        println!(
-                            "\n⚠️  New version available: {} (current: {})",
-                            latest, version
-                        );
-                        println!("   Run 'cco update' to upgrade");
-                    }
-                    Ok(Some(_)) => {
-                        println!("\n✅ You have the latest version");
+                    Ok(Some(latest)) => {
+                        if let Ok(current_parsed) = DateVersion::parse(version) {
+                            if latest > current_parsed {
+                                println!(
+                                    "\n⚠️  New version available: {} (current: {})",
+                                    latest, version
+                                );
+                                println!("   Run 'cco update' to upgrade");
+                            } else {
+                                println!("\n✅ You have the latest version");
+                            }
+                        }
                     }
                     Ok(None) => {
                         println!("\n(Unable to check for updates)");

@@ -152,6 +152,21 @@ async fn install_update(release: &ReleaseInfo, auto_confirm: bool) -> Result<()>
     Ok(())
 }
 
+/// Check for the latest version available (used by background update checks)
+pub async fn check_latest_version() -> Result<Option<DateVersion>> {
+    let release = releases_api::fetch_latest_release("stable").await?;
+
+    // Parse and return the version
+    match DateVersion::parse(&release.version) {
+        Ok(version) => Ok(Some(version)),
+        Err(_) => {
+            // If we can't parse the version, return None
+            tracing::warn!("Could not parse version from release: {}", release.version);
+            Ok(None)
+        }
+    }
+}
+
 /// Main update command handler
 pub async fn run(check_only: bool, auto_confirm: bool, channel: Option<String>) -> Result<()> {
     let channel = channel.as_deref().unwrap_or("stable");

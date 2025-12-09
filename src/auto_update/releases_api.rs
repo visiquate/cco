@@ -194,12 +194,51 @@ async fn fetch_release(tag: Option<&str>) -> Result<ReleaseInfo> {
         .find(|a| a.name == asset_name)
         .ok_or_else(|| {
             let available: Vec<_> = release.assets.iter().map(|a| a.name.as_str()).collect();
-            anyhow!(
-                "No release asset found for platform: {}. Expected: {}. Available: {:?}",
-                platform.as_str(),
-                asset_name,
-                available
-            )
+
+            // Check if only SBOM files are present (build still running)
+            let only_sbom_files = available.iter().all(|name| {
+                name.contains("sbom") || name.contains("SBOM") ||
+                name.ends_with(".json") || name.ends_with(".txt")
+            });
+
+            if only_sbom_files && !available.is_empty() {
+                anyhow!(
+                    "Release binaries not yet available for version {}. The release build is still in progress.\n\
+                    \n\
+                    Available files: {:?}\n\
+                    \n\
+                    The GitHub Actions workflow is currently building the release binaries.\n\
+                    Please check back in a few minutes, or view the build status at:\n\
+                    https://github.com/{}/{}/actions\n\
+                    \n\
+                    Expected binary: {}",
+                    release.tag_name.trim_start_matches('v'),
+                    available,
+                    GITHUB_OWNER,
+                    GITHUB_REPO,
+                    asset_name
+                )
+            } else {
+                anyhow!(
+                    "No release asset found for platform: {}.\n\
+                    \n\
+                    Expected: {}\n\
+                    Available: {:?}\n\
+                    \n\
+                    This may indicate:\n\
+                    - The release build is still in progress\n\
+                    - Your platform is not supported\n\
+                    - There was an error during the release build\n\
+                    \n\
+                    Check the build status at:\n\
+                    https://github.com/{}/{}/actions",
+                    platform.as_str(),
+                    asset_name,
+                    available,
+                    GITHUB_OWNER,
+                    GITHUB_REPO
+                )
+            }
         })?;
 
     if asset.size > MAX_BINARY_SIZE {
