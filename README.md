@@ -31,7 +31,7 @@ curl -fsSL https://raw.githubusercontent.com/visiquate/cco-releases/main/install
 
 ### Manual Download
 
-Download the latest release for your platform from [Releases](https://github.com/visiquate/cco-releases/releases):
+Download the latest release for your platform from [Releases](https://github.com/visiquate/cco/releases):
 
 - macOS (Apple Silicon): `cco-aarch64-apple-darwin.tar.gz`
 - macOS (Intel): `cco-x86_64-apple-darwin.tar.gz`
@@ -193,18 +193,3 @@ cco orchestra conduct <requirement>     # Generate workflow
 - **Rust** - 1.70+ (for building from source)
 - **OS Support** - macOS, Linux, Windows
 
-## Documentation
-
-- [Quick Start Guide](https://github.com/visiquate/cc-orchestra/blob/main/docs/QUICK_START.md)
-- [Orchestra Usage Guide](https://github.com/visiquate/cc-orchestra/blob/main/docs/ORCHESTRA_USAGE_GUIDE.md)
-- [Agent Architecture](https://github.com/visiquate/cc-orchestra/blob/main/docs/AGENT_ARCHITECTURE.md)
-- [Cost Monitoring](https://github.com/visiquate/cc-orchestra/blob/main/docs/COST_MONITORING.md)
-- [Credential Security](https://github.com/visiquate/cc-orchestra/blob/main/docs/CREDENTIAL_SECURITY.md)
-
-## Source Code
-
-The source code for CCO is available at [github.com/visiquate/cc-orchestra](https://github.com/visiquate/cc-orchestra).
-
-## License
-
-MIT
