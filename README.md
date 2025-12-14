@@ -1,18 +1,17 @@
 # CCO - Enhancement Layer for Claude Code
 
-CCO enhances Claude Code with intelligent command classification, persistent memory, cost monitoring, and multi-agent orchestration—without modifying Claude Code itself.
+CCO enhances Claude Code with intelligent command classification, persistent memory, and multi-agent orchestration—without modifying Claude Code itself.
 
 ## What is CCO?
 
-CCO is an optional enhancement layer for Claude Code that adds powerful productivity features through Claude Code's official plugin system. You can use Claude Code in its native form anytime by running `claude` directly, or get the enhanced experience by running `cco`.
+CCO is an optional enhancement layer for Claude Code that adds productivity features through Claude Code's official plugin system. Run `claude` directly for native Claude Code, or `cco` for the enhanced experience.
 
 ### Key Features
 
-- **Intelligent Command Classification** - Auto-approves safe READ operations (ls, cat, git status), maintains security for CREATE/UPDATE/DELETE
+- **Intelligent Command Classification** - Auto-approves safe READ operations (ls, cat, git status), requires confirmation for CREATE/UPDATE/DELETE
 - **Persistent Knowledge** - Context survives conversation compactions through integrated knowledge management
-- **Real-Time Cost Monitoring** - Track token usage and API costs with built-in dashboard
-- **Secure Credential Management** - OS keyring integration (Keychain/Secret Service/DPAPI) with FIPS 140-2 compliant encryption
-- **Multi-Agent Orchestration** - 119 specialized agents organized in 13 functional categories with TDD-first methodology
+- **Secure Credential Management** - OS keyring integration for secure secret storage
+- **Multi-Agent Orchestration** - 117 specialized agents organized in 13 functional categories
 
 ## Installation
 
@@ -37,7 +36,6 @@ Download the latest release for your platform from [Releases](https://github.com
 - macOS (Intel): `cco-x86_64-apple-darwin.tar.gz`
 - Linux (x86_64): `cco-x86_64-unknown-linux-gnu.tar.gz`
 - Linux (ARM64): `cco-aarch64-unknown-linux-gnu.tar.gz`
-- Windows (x86_64): `cco-x86_64-pc-windows-msvc.zip`
 
 Extract and add to PATH:
 
@@ -47,8 +45,6 @@ sudo mv cco /usr/local/bin/
 ```
 
 ## Quick Start
-
-### Basic Usage
 
 ```bash
 # Launch enhanced Claude Code
@@ -61,135 +57,76 @@ cco help
 cco --version
 ```
 
-### Command Classification
+## CLI Commands
 
-CCO automatically approves safe READ operations while maintaining security:
+### Core
 
 ```bash
-# Auto-approved (no permission prompt)
-ls -la
-cat config.json
-git status
-ps aux | grep node
-
-# Still require confirmation (CREATE/UPDATE/DELETE)
-touch newfile.txt
-echo "data" > file.txt
-rm -rf directory/
-git commit -m "message"
+cco                    # Launch enhanced Claude Code
+cco help               # Show help
+cco --version          # Show version
+cco health             # Check health status
+cco status             # Show running instances
 ```
 
-### Credential Management
+### Credentials
 
 ```bash
-# Store credentials securely
-cco credentials store api-key "your-key-here" --service github
-
-# Retrieve credentials
-cco credentials retrieve api-key
-
-# List all credentials
-cco credentials list
+cco credentials store <key> <value>   # Store credential
+cco credentials retrieve <key>        # Retrieve credential
+cco credentials list                  # List all credentials
+cco credentials delete <key>          # Delete credential
 ```
 
-### Knowledge Manager
+### Knowledge
 
 ```bash
-# Search knowledge base
-cco knowledge search "authentication"
-
-# View statistics
-cco knowledge stats
-
-# List recent entries
-cco knowledge list --limit 20
+cco knowledge search <query>          # Search knowledge base
+cco knowledge store <text>            # Store knowledge entry
+cco knowledge stats                   # Show statistics
 ```
 
-### Cost Monitoring
+### Orchestra
 
 ```bash
-# View cost dashboard
-cco cost dashboard
+cco orchestra stats                   # Show agent statistics
+cco orchestra generate <requirement>  # Generate agent spawn instructions
+cco orchestra workflow <requirement>  # Generate complete workflow
+```
 
-# Show session costs
-cco cost session
+### Classify
 
-# Export cost data
-cco cost export --format json
+```bash
+cco classify <command>                # Classify a shell command (READ/CREATE/UPDATE/DELETE)
 ```
 
 ## Agent Architecture
 
-CCO includes 119 specialized agents organized in 13 categories:
+CCO includes 117 specialized agents in 13 categories:
 
 ### Model Distribution
 
-- **1 agent** uses Opus 4.1 (Chief Architect - strategic decisions)
-- **37 agents** use Sonnet 4.5 (managers, reviewers, complex coding)
-- **81 agents** use Haiku 4.5 (basic coders, documentation, utilities)
+- **1 agent** uses Opus (Chief Architect - strategic decisions)
+- **35 agents** use Sonnet (managers, reviewers, complex coding)
+- **81 agents** use Haiku (basic coders, documentation, utilities)
 
-### Agent Categories
+### Categories
 
-1. **Development** - TDD Coding Agent, Language Specialists (Python, Swift, Go, Rust, Flutter)
-2. **Infrastructure** - DevOps Engineer, Cloud Architect, Terraform Specialist
-3. **Quality Assurance** - Test Engineer, Security Auditor, Performance Engineer
-4. **Documentation** - Technical Writer, API Documenter
-5. **Research** - Technical Researcher, Data Scientist
-6. **Support** - Credential Manager, DX Optimizer, Git Flow Manager
-
-## CLI Command Reference
-
-### Core Commands
-
-```bash
-cco                          # Launch enhanced Claude Code
-cco help                     # Show help and usage
-cco --version               # Show version information
-```
-
-### Credential Commands
-
-```bash
-cco credentials store <key> <value>     # Store credential
-cco credentials retrieve <key>          # Retrieve credential
-cco credentials list                    # List all credentials
-cco credentials delete <key>            # Delete credential
-cco credentials check-rotation          # Check rotation status
-```
-
-### Knowledge Manager Commands
-
-```bash
-cco knowledge search <query>            # Search knowledge base
-cco knowledge store <text>              # Store knowledge entry
-cco knowledge list                      # List knowledge entries
-cco knowledge stats                     # Show statistics
-```
-
-### Cost Monitoring Commands
-
-```bash
-cco cost dashboard                      # View cost dashboard
-cco cost session                        # Show session costs
-cco cost export                         # Export cost data
-```
-
-### Orchestra Commands
-
-```bash
-cco orchestra                           # View orchestra configuration
-cco orchestra conduct <requirement>     # Generate workflow
-```
-
-## Performance
-
-- **2.8-4.4x faster** than sequential development with multi-agent orchestration
-- **32% token reduction** via shared Knowledge Manager
-- **60-80% fewer permission prompts** with intelligent command classification
+- **Development** (28) - Language specialists, TDD agent
+- **Support** (18) - DX optimizer, git flow, utilities
+- **Data** (11) - Data engineering, analysis
+- **Infrastructure** (10) - DevOps, cloud, Terraform
+- **Research** (10) - Technical research, data science
+- **Security** (8) - Auditing, compliance
+- **Documentation** (7) - Technical writing, API docs
+- **Coding** (6) - Code review, refactoring
+- **MCP** (6) - MCP protocol specialists
+- **AI/ML** (5) - ML engineering, model evaluation
+- **Business** (4) - Analysis, product strategy
+- **Integration** (3) - API integration
+- **Leadership** (1) - Chief Architect
 
 ## Requirements
 
-- **Claude Code** - Latest version (0.8.0+) installed and in PATH
-- **Rust** - 1.70+ (for building from source)
-- **OS Support** - macOS, Linux, Windows
-
+- **Claude Code** - Version 0.8.0+ installed and in PATH
+- **OS Support** - macOS, Linux
