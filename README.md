@@ -25,7 +25,7 @@ brew install cco
 ### Shell Script (One-Line Install)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/visiquate/cco-releases/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/visiquate/cco/main/install.sh | bash
 ```
 
 ### Manual Download
