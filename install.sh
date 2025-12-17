@@ -310,23 +310,33 @@ log_info "Setting up daemon..."
 DAEMON_INSTALLED=false
 DAEMON_STARTED=false
 
+# Determine service file path based on platform
+if [ "$OS" = "darwin" ]; then
+    SERVICE_PATH="$HOME/Library/LaunchAgents/com.anthropic.cco.daemon.plist"
+else
+    SERVICE_PATH="$HOME/.config/systemd/user/cco-daemon.service"
+fi
+
 # Check if daemon is already installed
-if "$INSTALL_DIR/$BINARY_NAME" daemon status 2>/dev/null | grep -q "installed"; then
+if [ -f "$SERVICE_PATH" ]; then
     log_success "Daemon already installed"
     DAEMON_INSTALLED=true
 else
     # Try to install daemon
-    if "$INSTALL_DIR/$BINARY_NAME" daemon install 2>/dev/null; then
+    DAEMON_OUTPUT=$("$INSTALL_DIR/$BINARY_NAME" daemon install 2>&1 || true)
+
+    # Check if installation was successful or if service already exists
+    if [ -f "$SERVICE_PATH" ] || echo "$DAEMON_OUTPUT" | grep -q "Service is already installed"; then
         log_success "Daemon installed"
         DAEMON_INSTALLED=true
     else
-        log_warn "Could not install daemon automatically (may require sudo)"
+        log_warn "Could not install daemon automatically"
     fi
 fi
 
 # Try to start daemon if installed
 if [ "$DAEMON_INSTALLED" = true ]; then
-    if "$INSTALL_DIR/$BINARY_NAME" daemon status 2>/dev/null | grep -q "running"; then
+    if "$INSTALL_DIR/$BINARY_NAME" daemon status 2>/dev/null | grep -q "Running: true"; then
         log_success "Daemon already running"
         DAEMON_STARTED=true
     else
