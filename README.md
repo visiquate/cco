@@ -15,17 +15,17 @@ CCO is an optional enhancement layer for Claude Code that adds productivity feat
 
 ## Installation
 
+### Quick Install (Recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/visiquate/cco/main/install.sh | bash
+```
+
 ### Homebrew (macOS/Linux)
 
 ```bash
 brew tap visiquate/cco
 brew install cco
-```
-
-### Shell Script (One-Line Install)
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/visiquate/cco/main/install.sh | bash
 ```
 
 ### Manual Download
