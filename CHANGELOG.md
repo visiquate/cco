@@ -3,10 +3,32 @@
 All notable changes to Claude Code Orchestra will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to date-based versioning: YYYY.MM.DD
-For multiple releases on the same day, git commit hash is used for disambiguation.
+and this project adheres to sequential versioning: YYYY.MM.N (year.month.sequence).
 
-## [2025.11.28] - 2025-11-28
+## [v2026.2.20] - 2026-02-07
+
+### Added
+- **Autopilot Mode** - Autonomous multi-agent coordination for extended development sessions
+  - `/autopilot <goal>` skill enables Chief Architect to work autonomously for hours
+  - Natural interruption: any user message pauses autopilot
+  - Control commands: `/autopilot-resume`, `/autopilot-stop`, `/autopilot-status`
+  - Progress updates every 2 minutes
+  - Automatic agent spawning and coordination
+  - Safety features: max 4-hour runtime, approval gates for risky operations
+- **Plugin System Enhancement** - Skills from `cco-plugin/` directory now automatically loaded
+  - Repository-local skills, agents, and commands available in Claude Code sessions
+  - Launcher passes cco-plugin directory to Claude Code plugin system
+
+### Changed
+- **CI/CD Optimization** - All workflows now use shared local sccache for faster builds
+  - 90% cache hit rate expected after first build
+  - Build times reduced from ~90s to 5-15s on subsequent runs
+  - Cache shared across multiple self-hosted runners on same machine
+
+### Fixed
+- Skills were not being loaded from `cco-plugin/` directory in launched Claude Code sessions
+
+## [2025.11.1] - 2025-11-28
 
 ### Removed
 - **Sealed file system** (dead code) - Files were written but never read (~300 lines)
