@@ -15,18 +15,35 @@ and this project adheres to sequential versioning: YYYY.MM.N (year.month.sequenc
   - Progress updates every 2 minutes
   - Automatic agent spawning and coordination
   - Safety features: max 4-hour runtime, approval gates for risky operations
-- **Plugin System Enhancement** - Skills from `cco-plugin/` directory now automatically loaded
-  - Repository-local skills, agents, and commands available in Claude Code sessions
-  - Launcher passes cco-plugin directory to Claude Code plugin system
+- **Embedded Plugin System** - All 137 plugin files compiled directly into the CCO binary
+  - Skills, commands, and agent definitions available from any working directory
+  - Single binary distribution with no external dependencies
+  - Unified `cco-plugin/` directory replaces separate hooks and skills plugins
+- **Subagent Thread Visualization** - TUI shows subagent threads under parent conversations
+  - Indented tree view with model tier, agent type, description, message count, and cost
+  - Correlates agents to Task tool calls via progress event matching
+- **Model Tier Enforcement** - Mandatory model tier lookup table in orchestrator prompt
+  - Prevents agents from being spawned with incorrect (expensive) model tiers
+  - Includes verification checklist and correct/incorrect examples
+- **TUI Time Filtering** - All dashboard sections now respect time range filters
+  - Filter by today, this week, this month, or all time
+  - Applies to Overall Summary, Cost by Project, and Cost by Model views
+- **Daemon Auto-Restart** - Daemon automatically picks up newly installed binary after `cco update`
 
 ### Changed
-- **CI/CD Optimization** - All workflows now use shared local sccache for faster builds
-  - 90% cache hit rate expected after first build
+- **CI/CD Optimization** - Dual caching strategy for faster builds
+  - Shared sccache for C/C++ dependencies with 100% hit rate
+  - Shared `CARGO_TARGET_DIR` for Rust incremental builds across runners
   - Build times reduced from ~90s to 5-15s on subsequent runs
-  - Cache shared across multiple self-hosted runners on same machine
+- **Reproducible Builds** - `BUILD_DATE` derived from git commit timestamp instead of current date
+- **Versioning** - Clarified YYYY.MM.N format (N is sequential, not day of month)
 
 ### Fixed
 - Skills were not being loaded from `cco-plugin/` directory in launched Claude Code sessions
+- Checksum generation now happens after artifact download to prevent mismatches
+- Conversation title extraction skips system-generated messages
+- Corrected agent counts: 117 total (1 Opus + 35 Sonnet + 81 Haiku)
+- Token cost calculations consolidated into single pricing source of truth
 
 ## [2025.11.1] - 2025-11-28
 

@@ -10,7 +10,7 @@ CCO is an **optional enhancement layer** for Claude Code that adds powerful prod
 - Persistent knowledge across conversation compactions
 - Real-time cost monitoring and tracking
 - Secure credential management
-- Multi-agent orchestration with 119 specialized agents
+- Multi-agent orchestration with 117 specialized agents
 
 You can use Claude Code in its native form anytime by running `claude` directly, or get the enhanced experience by running `cco`.
 
@@ -22,6 +22,9 @@ You can use Claude Code in its native form anytime by running `claude` directly,
 - Run `cco` to get enhanced features via plugin hooks
 - Switch between them anytime—no configuration changes needed
 - Your Claude Code installation remains pristine and unmodified
+
+All 137 plugin files (skills, commands, agent definitions) are embedded directly in the CCO binary for single-binary distribution.
+
 
 CCO adds value through:
 - **SessionStart hooks** - Initialize knowledge manager, load saved context
@@ -118,7 +121,7 @@ cco knowledge list --limit 20
 - Session start hooks restore context
 - Agents coordinate through shared knowledge base
 
-### 3. Cost Monitoring Dashboard
+### 4. Cost Monitoring Dashboard
 
 **Problem:** API costs can spiral without visibility into usage patterns.
 
@@ -144,9 +147,10 @@ cco monitor export --format json
 - Historical tracking with SQLite persistence
 - Token usage analysis and forecasting
 - Alert thresholds for budget control
+- Subagent thread visualization (model tier, agent type, per-agent cost)
 - Minimal overhead (< 1% performance impact)
 
-### 4. Secure Credential Management
+### 5. Secure Credential Management
 
 **Problem:** Developers often hardcode credentials or use insecure environment variables.
 
@@ -181,16 +185,16 @@ cco credentials delete db_password
 - **Rotation Tracking**: Configurable per-credential policies
 - **Zero File Exposure**: Never stored in git or temp files
 
-### 5. Multi-Agent Orchestration (119 Specialized Agents)
+### 6. Multi-Agent Orchestration (117 Specialized Agents)
 
 **Problem:** Complex projects require diverse expertise (frontend, backend, security, testing, documentation).
 
-**Solution:** CCO provides 119 specialized agents organized by role and complexity:
+**Solution:** CCO provides 117 specialized agents organized by role and complexity:
 
-**Leadership (1 agent - Opus 4.1):**
+**Leadership (1 agent - Opus):**
 - **Chief Architect** - Strategic decisions, architecture design, agent coordination
 
-**Intelligent Managers (37 agents - Sonnet 4.5):**
+**Intelligent Managers (35 agents - Sonnet):**
 - TDD Coding Agent, Backend/Frontend Architects, Code Reviewers
 - Security Auditors, Penetration Testers, Compliance Specialists
 - Test Engineers, QA Automators, Performance Engineers
@@ -198,7 +202,7 @@ cco credentials delete db_password
 - API Specialists (Salesforce, Authentik, GraphQL)
 - Research Analysts, Technical Investigators
 
-**Basic Specialists (81 agents - Haiku 4.5):**
+**Basic Specialists (81 agents - Haiku):**
 - Language Specialists (Python, Swift, Go, Rust, Flutter, TypeScript, JavaScript)
 - Documentation Writers, Technical Writers, API Documenters
 - Utilities (Git Flow, Dependency Management, Monitoring)
@@ -229,7 +233,7 @@ Result: Complete system in 30-45 minutes (vs 2-3 hours sequential)
 - All agents work in parallel via Claude Code's Task tool
 - Automatic quality assurance (testing, security, docs)
 
-### 6. Claude Code Plugin System Integration
+### 7. Claude Code Plugin System Integration
 
 CCO seamlessly integrates via Claude Code's official plugin system:
 
@@ -354,7 +358,7 @@ CCO automatically activates the orchestra for complex tasks:
 | **Context Persistence** | ❌ Lost during compaction | ✅ LanceDB vector database |
 | **Cost Visibility** | ❌ No tracking | ✅ Real-time monitoring dashboard |
 | **Credential Security** | ⚠️ Manual management | ✅ OS keyring integration |
-| **Multi-Agent** | ❌ Single agent | ✅ 119 specialized agents |
+| **Multi-Agent** | ❌ Single agent | ✅ 117 specialized agents |
 | **Parallel Execution** | ❌ Sequential only | ✅ 2.8-4.4x faster |
 | **Plugin System** | ✅ Native support | ✅ Integrates via hooks |
 | **Installation** | Direct install | Wrapper + plugin config |
@@ -387,12 +391,12 @@ CCO automatically activates the orchestra for complex tasks:
                       │ When triggered
                       ▼
 ┌───────────────────────────────────────────────────────┐
-│          Multi-Agent Orchestra (119 Agents)            │
+│          Multi-Agent Orchestra (117 Agents)            │
 ├───────────────────────────────────────────────────────┤
-│  Chief Architect (Opus 4.1)                           │
-│    ├─ 37 Intelligent Managers (Sonnet 4.5)           │
+│  Chief Architect (Opus)                           │
+│    ├─ 35 Intelligent Managers (Sonnet)           │
 │    │   • TDD, Security, QA, DevOps, Architects       │
-│    └─ 81 Basic Specialists (Haiku 4.5)               │
+│    └─ 81 Basic Specialists (Haiku)               │
 │        • Language Coders, Docs, Utilities             │
 └───────────────────────────────────────────────────────┘
 ```
@@ -401,12 +405,12 @@ CCO automatically activates the orchestra for complex tasks:
 
 CCO optimizes costs through intelligent model selection:
 
-- **Chief Architect (Opus 4.1)**: $15.00 per million input tokens
-- **Intelligent Managers (Sonnet 4.5)**: $3.00 per million input tokens
-- **Basic Specialists (Haiku 4.5)**: $0.80 per million input tokens
+- **Chief Architect (Opus)**: $5.00 per million input tokens
+- **Intelligent Managers (Sonnet)**: $3.00 per million input tokens
+- **Basic Specialists (Haiku)**: $1.00 per million input tokens
 
 **Example Savings:**
-- 68% of agents use cost-effective Haiku 4.5
+- 69% of agents use cost-effective Haiku
 - Average cost per orchestration: $0.50-$2.00 (depending on complexity)
 - Small project (5 agents): ~$0.30 per run
 - Large project (30 agents): ~$1.50 per run
@@ -561,7 +565,7 @@ Time: 1-2 hours (vs 4-6 hours sequential)
 
 ## Documentation
 
-- **[Orchestra Roster](ORCHESTRA_ROSTER.md)** - Complete 119-agent specifications
+- **[Orchestra Roster](ORCHESTRA_ROSTER.md)** - Complete 117-agent specifications
 - **[Quick Start](docs/QUICK_START.md)** - Get started with examples
 - **[Usage Guide](docs/ORCHESTRA_USAGE_GUIDE.md)** - Comprehensive instructions
 - **[API Integration Guide](docs/API_INTEGRATION_GUIDE.md)** - Salesforce/Authentik
