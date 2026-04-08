@@ -264,29 +264,29 @@ brew install cco
 #### Shell Script
 
 ```bash
-curl -sSL https://get.cco.dev | bash
+curl -fsSL https://raw.githubusercontent.com/visiquate/cco/main/install.sh | bash
 ```
 
 #### Manual Download
 
+Download the latest release archive for your platform from [GitHub Releases](https://github.com/visiquate/cco/releases/latest), then extract and install:
+
 ```bash
 # macOS Apple Silicon
-wget https://github.com/visiquate/cco/releases/latest/download/cco-macos-arm64
-chmod +x cco-macos-arm64
-mkdir -p ~/.local/bin
-mv cco-macos-arm64 ~/.local/bin/cco
+curl -fsSL https://github.com/visiquate/cco/releases/latest/download/cco-aarch64-apple-darwin.tar.gz | tar xz
+mkdir -p ~/.local/bin && mv cco ~/.local/bin/cco
 
 # macOS Intel
-wget https://github.com/visiquate/cco/releases/latest/download/cco-macos-x86_64
-chmod +x cco-macos-x86_64
-mkdir -p ~/.local/bin
-mv cco-macos-x86_64 ~/.local/bin/cco
+curl -fsSL https://github.com/visiquate/cco/releases/latest/download/cco-x86_64-apple-darwin.tar.gz | tar xz
+mkdir -p ~/.local/bin && mv cco ~/.local/bin/cco
 
-# Linux
-wget https://github.com/visiquate/cco/releases/latest/download/cco-linux-x86_64
-chmod +x cco-linux-x86_64
-mkdir -p ~/.local/bin
-mv cco-linux-x86_64 ~/.local/bin/cco
+# Linux x86_64
+curl -fsSL https://github.com/visiquate/cco/releases/latest/download/cco-x86_64-unknown-linux-gnu.tar.gz | tar xz
+mkdir -p ~/.local/bin && mv cco ~/.local/bin/cco
+
+# Linux ARM64
+curl -fsSL https://github.com/visiquate/cco/releases/latest/download/cco-aarch64-unknown-linux-gnu.tar.gz | tar xz
+mkdir -p ~/.local/bin && mv cco ~/.local/bin/cco
 ```
 
 #### Canonical Installation Paths
@@ -300,7 +300,7 @@ If `which cco` returns `/usr/local/bin/cco`, delete that legacy copy and reinsta
 
 ```bash
 sudo rm -f /usr/local/bin/cco
-curl -sSL https://get.cco.dev | bash  # reinstalls to ~/.local/bin/cco
+curl -fsSL https://raw.githubusercontent.com/visiquate/cco/main/install.sh | bash  # reinstalls to ~/.local/bin/cco
 which cco
 ```
 
