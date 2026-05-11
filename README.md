@@ -276,18 +276,15 @@ Download the latest release archive for your platform from [GitHub Releases](htt
 curl -fsSL https://github.com/visiquate/cco/releases/latest/download/cco-aarch64-apple-darwin.tar.gz | tar xz
 mkdir -p ~/.local/bin && mv cco ~/.local/bin/cco
 
-# macOS Intel
-curl -fsSL https://github.com/visiquate/cco/releases/latest/download/cco-x86_64-apple-darwin.tar.gz | tar xz
-mkdir -p ~/.local/bin && mv cco ~/.local/bin/cco
-
 # Linux x86_64
 curl -fsSL https://github.com/visiquate/cco/releases/latest/download/cco-x86_64-unknown-linux-gnu.tar.gz | tar xz
 mkdir -p ~/.local/bin && mv cco ~/.local/bin/cco
-
-# Linux ARM64
-curl -fsSL https://github.com/visiquate/cco/releases/latest/download/cco-aarch64-unknown-linux-gnu.tar.gz | tar xz
-mkdir -p ~/.local/bin && mv cco ~/.local/bin/cco
 ```
+
+> **Other platforms** (macOS Intel, Linux ARM64): not pre-built; build from
+> source via `cargo build --release` on the target machine. macOS Intel
+> additionally needs the `local-inference` feature gated off
+> (`--no-default-features`) since the embedded model is Apple-Silicon-only.
 
 #### Canonical Installation Paths
 
