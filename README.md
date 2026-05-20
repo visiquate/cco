@@ -254,18 +254,13 @@ claude                 # Pure Claude Code experience
 
 ### Installation
 
-#### Homebrew (Recommended for macOS)
-
-```bash
-brew tap visiquate/cco
-brew install cco
-```
-
-#### Shell Script
+#### Shell Script (Recommended)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/visiquate/cco/main/install.sh | bash
 ```
+
+This is the canonical install path on macOS and Linux. The binary lands in `~/.local/bin/cco`, and `cco update` replaces it in place.
 
 #### Manual Download
 
