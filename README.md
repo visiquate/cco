@@ -1,260 +1,73 @@
-# CCO - Claude Code Orchestrator
+# CCO — Claude Orchestra
 
-> **CCO enhances Claude Code with persistent memory, intelligent command classification, cost monitoring, and multi-agent orchestration—while keeping Claude Code completely clean and unmodified.**
+CCO is a Rust CLI and background daemon that wraps and extends Claude Code. It adds persistent cost and token tracking backed by DuckDB, a roster of 117 specialized agents across three model tiers with automatic work-delegation nudges, an MCP server exposing task DAGs, a knowledge graph, code search, and cost tools to any MCP client, and conveniences such as the RTK token-compression shim, a configurable statusline, and Claude Code Remote Control. A terminal TUI shows cost, cache efficiency, and delegation metrics in real time.
 
-## What is CCO?
+## Contents
 
-CCO is an **optional enhancement layer** for Claude Code that adds powerful productivity features without modifying Claude Code itself. Think of it as a sophisticated wrapper that adds:
+- [Features](#features)
+- [Install](#install)
+- [Quickstart](#quickstart)
+- [Configuration](#configuration)
+- [Telemetry and Privacy](#telemetry-and-privacy)
+- [Documentation](#documentation)
+- [License](#license)
 
-- Intelligent command classification (auto-approve safe READ operations)
-- Persistent knowledge across conversation compactions
-- Real-time cost monitoring and tracking
-- Secure credential management
-- Multi-agent orchestration with 117 specialized agents
+---
 
-You can use Claude Code in its native form anytime by running `claude` directly, or get the enhanced experience by running `cco`.
+## Features
 
-## Claude Code Stays Clean
+### Cost Intelligence
 
-**Important:** CCO doesn't modify Claude Code itself. It integrates through Claude Code's official plugin system (`--plugin-dir`) and acts as a smart launcher.
+CCO tracks every Claude Code API call without touching Anthropic's servers. All data stays on your machine in a local DuckDB file.
 
-- Run `claude` directly for the native Claude Code experience
-- Run `cco` to get enhanced features via plugin hooks
-- Switch between them anytime—no configuration changes needed
-- Your Claude Code installation remains pristine and unmodified
+- Parses every `~/.claude/projects/*.jsonl` transcript into `~/.cco/claude_history.duckdb`; no external service required
+- `cco cost dashboard` — totals and trends by period (today / week / month / all)
+- `cco cost session` — per-session breakdown with token and dollar detail
+- `cco cost agents` — spending by model tier (opus / sonnet / haiku)
+- `cco cost cache` — cache hit-rate, savings estimate, and detection of silent-buster threads (cache writes that are never read)
+- `cco cost gate` — CI-friendly budget guard; exits 1 when spend exceeds a threshold; reads `daily_budget_usd` or `weekly_budget_usd` from config if no `--max-usd` flag is provided
+- Optional soft budget-gate hook that fires a non-blocking reminder when today's spend approaches your daily limit
+- Refreshable pricing loaded at runtime from `~/.cco/pricing.json` (no rebuild needed); supports all current tiers including Claude Fable 5 / Mythos 5
+- RTK token savings reported inline: tokens compressed by RTK are converted to implied USD using your actual blended input rate
 
-All 137 plugin files (skills, commands, agent definitions) are embedded directly in the CCO binary for single-binary distribution.
+### Multi-Agent Orchestration and Delegation
 
+- 117 compiled-in agent definitions across three model tiers:
+  - **haiku** — 81 agents: language specialists, documentation, utilities, research
+  - **sonnet** — 35 agents: managers, reviewers, security, QA, DevOps, architects
+  - **opus** — 1 agent: Chief Architect
+- Agent definitions live in source at `src/agents/*.md` (YAML frontmatter + prompt body) and are compiled into the binary at build time — no external files required at runtime
+- The **delegation nudge** is a soft PostToolUse hook that reminds the orchestrator to push implementation work to a lower-cost tier rather than doing it inline; non-blocking and rate-limited so it does not interrupt your session
 
-CCO adds value through:
-- **SessionStart hooks** - Initialize knowledge manager, load saved context
-- **PreToolUse hooks** - Classify Bash commands, auto-approve READ operations
-- **PreCompact hooks** - Save conversation state before compaction
+### MCP Server and Control Plane
 
-## Features CCO Adds to Claude Code
+- `cco mcp serve` — starts an MCP server (stdio JSON-RPC transport) registerable in Claude Code, Claude Desktop, or Cursor
+- 23 tools across five categories: knowledge and graph search, session management, task DAG, analytics, and cost intelligence
+- **Cost tools**: `cost_summary`, `budget_status`, `recommend_config` — query metrics without the daemon being online
+- **Control plane** (Phase B3): `control_list_agents`, `control_spawn_agent`, `control_agent_status`, `control_agent_output` — lets a parent Claude instance observe and direct CCO's agent registry and task DAG
+- Task DAG: `cco tasks` — create, list, and check status of structured work items
+- Knowledge graph: `cco graph` — search, traverse, and add relationship nodes
+- Code index: `cco index` — scan workspace, search symbols, show stats
+- Event bus: `cco events` — list, count, and prune orchestration events
+- Daemon communicates over a Unix domain socket at `~/.cco/daemon.sock` (no TCP port required; 0700 permissions, owner-only)
 
-### 1. Autopilot Mode (NEW in v2026.2.20)
+### Integrations
 
-**Problem:** Complex tasks require constant supervision and manual coordination of multiple agents.
+- **RTK (Rust Token Killer)** — optional shim that compresses Bash output 60–90% before it reaches Claude, reducing token consumption; bundled by default and controlled by `rtk_enabled` in config; RTK's own telemetry is disabled automatically
+- **Statusline** — CCO injects a `statusLine` into Claude Code settings showing live model, effort level, directory, git branch, context tokens, cost, and rate limits; customizable via `statusline_command` or disabled via `statusline_enabled = false`
+- **Claude Code Remote Control** — enabled by default (OAuth sessions only; skipped automatically when `ANTHROPIC_API_KEY` is set); connects claude.ai/code and the Claude mobile app to the local session; session named from the current working directory by default
 
-**Solution:** CCO adds autonomous agent coordination via the Chief Architect:
+### TUI
 
-```bash
-# Launch CCO
-cco
+- `cco tui` — terminal dashboard with cost totals, cache-efficiency view, and delegation-nudge metrics
+- Refreshes continuously from the local DuckDB store; no network required
+- Three panels: Cost, Cache, Delegation; navigate with arrow keys or Tab
 
-# In Claude Code session
-/autopilot Build a REST API with JWT authentication
+---
 
-# Chief Architect works autonomously for hours
-# - Spawns agents strategically
-# - Makes technical decisions
-# - Reports progress every 2 minutes
-# - Natural interruption: just send a message to pause
-```
+## Install
 
-**Control Commands:**
-- `/autopilot <goal>` - Start autonomous session
-- `/autopilot-resume` - Resume after pause
-- `/autopilot-stop` - Stop and show summary
-- `/autopilot-status` - Check status without interrupting
-
-**Benefits:**
-- Work autonomously for hours with minimal intervention
-- Natural interruption (any user message pauses)
-- Automatic agent spawning and coordination
-- Progress updates every 2 minutes
-- Safety features: max 4-hour runtime, approval gates for risky operations
-
-### 2. Intelligent Command Classification (NEW in v2025.12.6)
-
-**Problem:** Claude Code asks for permission on EVERY Bash command, even safe ones like `ls`, `cat`, or `git status`.
-
-**Solution:** CCO embeds a Qwen2.5-Coder LLM that classifies commands as READ/CREATE/UPDATE/DELETE:
-
-```bash
-# Auto-approved (READ operations)
-ls -la                                    # ✓ Instant execution
-cat config.json                           # ✓ No permission prompt
-git status                                # ✓ Seamless workflow
-ps aux | grep node                        # ✓ Pipes to STDOUT
-curl -I https://example.com | grep HTTP   # ✓ Network checks
-
-# Still require confirmation (CREATE/UPDATE/DELETE)
-touch newfile.txt                         # ⚠ Permission required
-echo "data" > file.txt                    # ⚠ Permission required
-rm -rf directory/                         # ⚠ Permission required
-git commit -m "message"                   # ⚠ Permission required
-```
-
-**Benefits:**
-- Reduces friction by 60-80% for development workflows
-- Maintains security for potentially dangerous operations
-- No more repetitive approvals for safe commands
-- Embedded LLM runs locally (no API calls, no latency)
-
-### 3. Persistent Knowledge Manager
-
-**Problem:** Claude Code loses context during conversation compactions (when context window fills up).
-
-**Solution:** CCO adds a LanceDB vector database that preserves knowledge across compactions:
-
-```bash
-# Store knowledge during development
-cco knowledge store "Architecture decision: Using FastAPI for REST API" --type decision
-
-# Search knowledge anytime
-cco knowledge search "authentication"
-cco knowledge search "database schema"
-
-# View statistics
-cco knowledge stats
-
-# List recent knowledge
-cco knowledge list --limit 20
-```
-
-**Benefits:**
-- Knowledge survives conversation compactions
-- Semantic search finds relevant context instantly
-- Pre-compaction hooks automatically save state
-- Session start hooks restore context
-- Agents coordinate through shared knowledge base
-
-### 4. Cost Monitoring Dashboard
-
-**Problem:** API costs can spiral without visibility into usage patterns.
-
-**Solution:** CCO includes a lightweight background daemon with real-time TUI dashboard:
-
-```bash
-# Start cost monitoring daemon
-cco monitor start
-
-# View real-time dashboard
-cco monitor dashboard
-
-# View cost summary
-cco monitor summary
-
-# Export cost reports
-cco monitor export --format json
-```
-
-**Features:**
-- Real-time cost tracking as API requests are made
-- Per-model cost breakdowns (Opus/Sonnet/Haiku)
-- Historical tracking with SQLite persistence
-- Token usage analysis and forecasting
-- Alert thresholds for budget control
-- Subagent thread visualization (model tier, agent type, per-agent cost)
-- Minimal overhead (< 1% performance impact)
-
-### 5. Secure Credential Management
-
-**Problem:** Developers often hardcode credentials or use insecure environment variables.
-
-**Solution:** CCO provides OS-integrated credential management:
-
-```bash
-# Store credentials securely
-cco credentials store db_password "secret123" \
-  --credential-type database \
-  --service primary_db \
-  --description "Production database"
-
-# Retrieve credentials
-cco credentials retrieve db_password
-
-# List all credentials
-cco credentials list
-
-# Check rotation status
-cco credentials check-rotation
-
-# Delete credentials
-cco credentials delete db_password
-```
-
-**Security Features:**
-- **OS Keyring Integration**: macOS Keychain, Linux Secret Service (systemd-user-secrets), Windows DPAPI
-- **FIPS 140-2 Compliant**: AES-256-GCM encryption (superior to legacy AES-256-CBC)
-- **Secure Memory**: SecretString zeroization prevents memory attacks
-- **Audit Logging**: All operations logged with timestamps
-- **Rate Limiting**: 10 attempts per 60 seconds prevents brute-force
-- **Rotation Tracking**: Configurable per-credential policies
-- **Zero File Exposure**: Never stored in git or temp files
-
-### 6. Multi-Agent Orchestration (117 Specialized Agents)
-
-**Problem:** Complex projects require diverse expertise (frontend, backend, security, testing, documentation).
-
-**Solution:** CCO provides 117 specialized agents organized by role and complexity:
-
-**Leadership (1 agent - Opus):**
-- **Chief Architect** - Strategic decisions, architecture design, agent coordination
-
-**Intelligent Managers (35 agents - Sonnet):**
-- TDD Coding Agent, Backend/Frontend Architects, Code Reviewers
-- Security Auditors, Penetration Testers, Compliance Specialists
-- Test Engineers, QA Automators, Performance Engineers
-- DevOps Engineers, Cloud Architects, Database Architects
-- API Specialists (Salesforce, Authentik, GraphQL)
-- Research Analysts, Technical Investigators
-
-**Basic Specialists (81 agents - Haiku):**
-- Language Specialists (Python, Swift, Go, Rust, Flutter, TypeScript, JavaScript)
-- Documentation Writers, Technical Writers, API Documenters
-- Utilities (Git Flow, Dependency Management, Monitoring)
-- Research Assistants, Fact Checkers, Query Clarifiers
-- Business Analysts, Content Marketers
-
-**How It Works:**
-```bash
-# Example: Build a REST API with authentication
-User: "Build a Python API with JWT authentication and Docker deployment"
-
-CCO Response:
-✓ Chief Architect designs auth flow and architecture
-✓ TDD Coding Agent writes tests FIRST
-✓ Python Specialist implements FastAPI with JWT
-✓ Security Auditor reviews authentication logic
-✓ Test Engineer validates coverage and integration tests
-✓ DevOps Engineer creates Dockerfile and docker-compose.yml
-✓ Technical Writer documents API endpoints
-✓ Credential Manager secures JWT signing key
-
-Result: Complete system in 30-45 minutes (vs 2-3 hours sequential)
-```
-
-**Performance:**
-- 2.8-4.4x faster than sequential development
-- 32% token reduction via shared knowledge
-- All agents work in parallel via Claude Code's Task tool
-- Automatic quality assurance (testing, security, docs)
-
-### 7. Claude Code Plugin System Integration
-
-CCO seamlessly integrates via Claude Code's official plugin system:
-
-```bash
-# CCO launches Claude Code with plugin hooks
-cco                    # Enhanced Claude Code experience
-
-# Native Claude Code (no CCO features)
-claude                 # Pure Claude Code experience
-```
-
-**Plugin Hooks Used:**
-- **SessionStart** - Initialize knowledge manager, load saved context
-- **PreToolUse** - Classify Bash commands, auto-approve READ operations
-- **PreCompact** - Save conversation state before compaction
-
-## Quick Start
-
-### Installation
-
-#### Shell Script (Recommended)
+### Shell Script (Recommended)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/visiquate/cco/main/install.sh | bash
@@ -262,9 +75,9 @@ curl -fsSL https://raw.githubusercontent.com/visiquate/cco/main/install.sh | bas
 
 This is the canonical install path on macOS and Linux. The binary lands in `~/.local/bin/cco`, and `cco update` replaces it in place.
 
-#### Manual Download
+### Manual Download
 
-Download the latest release archive for your platform from [GitHub Releases](https://github.com/visiquate/cco/releases/latest), then extract and install:
+Download the latest signed release archive for your platform from [GitHub Releases](https://github.com/visiquate/cco/releases/latest), then extract and install:
 
 ```bash
 # macOS Apple Silicon
@@ -276,324 +89,135 @@ curl -fsSL https://github.com/visiquate/cco/releases/latest/download/cco-x86_64-
 mkdir -p ~/.local/bin && mv cco ~/.local/bin/cco
 ```
 
-> **Other platforms** (macOS Intel, Linux ARM64): not pre-built; build from
-> source via `cargo build --release` on the target machine. macOS Intel
-> additionally needs the `local-inference` feature gated off
-> (`--no-default-features`) since the embedded model is Apple-Silicon-only.
+For macOS Intel or Linux ARM64, build from source (see below).
 
-#### Canonical Installation Paths
+### Build from Source
+
+Requires Rust 1.70+ and Claude Code.
+
+```bash
+git clone https://github.com/visiquate/cco.git
+cd cco
+cargo build --release
+# or
+make install    # builds release and copies to ~/.local/bin
+```
+
+### Canonical Installation Paths
 
 All installers target the same directories so `cco update` can safely replace the binary in place:
 
-- **macOS/Linux:** `~/.local/bin/cco`
+- **macOS / Linux:** `~/.local/bin/cco`
 - **Windows:** `%ProgramFiles%\CCO\cco.exe`
 
 If `which cco` returns `/usr/local/bin/cco`, delete that legacy copy and reinstall so the canonical location takes precedence:
 
 ```bash
 sudo rm -f /usr/local/bin/cco
-curl -fsSL https://raw.githubusercontent.com/visiquate/cco/main/install.sh | bash  # reinstalls to ~/.local/bin/cco
+curl -fsSL https://raw.githubusercontent.com/visiquate/cco/main/install.sh | bash
 which cco
 ```
 
-Windows users should rerun `install.ps1` and confirm `%ProgramFiles%\CCO\cco.exe` is on their `PATH`. Detailed migration steps (including PATH updates) live in `docs/installation.md` inside the `cc-orchestra` repository.
+### Verify the Installation
 
-### Basic Usage
-
+After placing the binary on your PATH, run once to verify and repair any issues:
 
 ```bash
-# Run enhanced Claude Code
+cco doctor --fix
+```
+
+`cco doctor --fix` checks that Claude Code is present, the daemon socket is reachable, hooks are registered, and RTK is configured; it repairs common issues automatically.
+
+---
+
+## Quickstart
+
+```bash
+# Start the background daemon (manages the DuckDB store and Unix socket)
+cco daemon start
+
+# Launch Claude Code through CCO (applies hooks, statusline, Remote Control)
 cco
 
-# Monitor costs
-cco monitor start
-cco monitor dashboard
+# Open the TUI cost/cache dashboard in a second terminal
+cco tui
 
-# Manage credentials
-cco credentials store api_key "sk-..." --credential-type api-token
-cco credentials list
+# Summarize all-time costs
+cco cost dashboard
 
-# Manage knowledge
-cco knowledge search "authentication"
-cco knowledge stats
+# Show cache efficiency for the current week
+cco cost cache --period week
+
+# Check whether today's spend is under a threshold (exits 1 if over)
+cco cost gate --max-usd 10.00
+
+# Run a full health check and auto-fix common issues
+cco doctor --fix
 ```
 
-### Agent Orchestration
+---
 
-CCO automatically activates the orchestra for complex tasks:
+## Configuration
 
-**Automatic Activation Triggers:**
-- Full-stack applications: "Build a mobile app with backend"
-- Multi-technology projects: "Create with Python and Go"
-- Complex features: "API with Salesforce integration"
-- DevOps tasks: "Deploy to AWS with Kubernetes"
-- Enterprise integrations: "Set up Authentik authentication"
-- Production systems: "Build with tests, security, and monitoring"
+CCO reads `~/.cco/config.toml`. All keys are optional; omitting a key uses the documented default.
 
-**Bypass for Simple Tasks:**
-- Single-file changes: "Fix typo in README"
-- Simple queries: "What does this function do?"
-- Basic operations: "Run tests", "Check git status"
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `rtk_enabled` | bool | `true` | Enable RTK Bash-output compression when `rtk` is on PATH |
+| `daily_budget_usd` | float | — | Daily spend ceiling; triggers soft budget-gate warnings |
+| `weekly_budget_usd` | float | — | Weekly spend ceiling; used by `cco cost gate --period week` |
+| `telemetry_enabled` | bool | `true` | Upload aggregate token/cost metrics (no prompt text) |
+| `telemetry_upload_transcripts` | bool | `false` | Upload full prompt/response transcripts (explicit opt-in) |
+| `statusline_enabled` | bool | `true` | Inject CCO statusline into Claude Code settings |
+| `statusline_command` | string | — | Custom command for the statusline; overrides the default script |
+| `remote_control_enabled` | bool | `true` | Enable Claude Code Remote Control (OAuth sessions only) |
+| `session_name` | string | — | Override the session label shown in the TUI and control plane |
 
-**Explicit Invocation:**
-```
-"Use the Claude Orchestra to build this feature"
-"Deploy the full orchestra for this task"
-```
+Example `~/.cco/config.toml`:
 
-## Native Claude Code vs CCO
-
-| Feature | Claude Code | CCO |
-|---------|-------------|-----|
-| **Basic Usage** | ✅ Terminal AI assistant | ✅ Enhanced AI assistant |
-| **Command Execution** | ⚠️ Prompts on every command | ✅ Auto-approves READ operations |
-| **Context Persistence** | ❌ Lost during compaction | ✅ LanceDB vector database |
-| **Cost Visibility** | ❌ No tracking | ✅ Real-time monitoring dashboard |
-| **Credential Security** | ⚠️ Manual management | ✅ OS keyring integration |
-| **Multi-Agent** | ❌ Single agent | ✅ 117 specialized agents |
-| **Parallel Execution** | ❌ Sequential only | ✅ 2.8-4.4x faster |
-| **Plugin System** | ✅ Native support | ✅ Integrates via hooks |
-| **Installation** | Direct install | Wrapper + plugin config |
-
-## Architecture
-
-```
-┌───────────────────────────────────────────────────────┐
-│                   CCO Launcher                         │
-│  (Rust binary with embedded Qwen2.5-Coder LLM)        │
-├───────────────────────────────────────────────────────┤
-│  • Command classification (READ/CREATE/UPDATE/DELETE) │
-│  • Plugin hook registration (SessionStart/PreToolUse) │
-│  • Knowledge Manager initialization (LanceDB)         │
-│  • Cost monitoring daemon (SQLite + TUI)              │
-│  • Credential management (OS keyring integration)     │
-└─────────────────────┬─────────────────────────────────┘
-                      │
-                      │ Launches with --plugin-dir
-                      ▼
-┌───────────────────────────────────────────────────────┐
-│              Claude Code (Unmodified)                  │
-│                                                        │
-│  • Native Claude Code experience                      │
-│  • Plugin system triggers CCO hooks                   │
-│  • Task tool for parallel agent execution             │
-│  • All standard Claude Code features                  │
-└───────────────────────────────────────────────────────┘
-                      │
-                      │ When triggered
-                      ▼
-┌───────────────────────────────────────────────────────┐
-│          Multi-Agent Orchestra (117 Agents)            │
-├───────────────────────────────────────────────────────┤
-│  Chief Architect (Opus)                           │
-│    ├─ 35 Intelligent Managers (Sonnet)           │
-│    │   • TDD, Security, QA, DevOps, Architects       │
-│    └─ 81 Basic Specialists (Haiku)               │
-│        • Language Coders, Docs, Utilities             │
-└───────────────────────────────────────────────────────┘
+```toml
+daily_budget_usd = 5.00
+weekly_budget_usd = 25.00
+rtk_enabled = true
+telemetry_enabled = true
+telemetry_upload_transcripts = false
+statusline_enabled = true
+remote_control_enabled = true
 ```
 
-## Cost Efficiency
+Environment variable overrides:
 
-CCO optimizes costs through intelligent model selection:
+| Variable | Effect |
+|----------|--------|
+| `CCO_TELEMETRY_DISABLED=1` | Disable aggregate telemetry regardless of config |
+| `CCO_TELEMETRY_TRANSCRIPTS=1` | Enable transcript upload regardless of config |
+| `CCO_REMOTE_CONTROL=0` | Disable Remote Control regardless of config |
+| `CCO_DAILY_BUDGET_USD` | Set daily budget ceiling without editing config |
+| `CCO_CONFIG_PATH` | Override config file path |
 
-- **Chief Architect (Opus)**: $5.00 per million input tokens
-- **Intelligent Managers (Sonnet)**: $3.00 per million input tokens
-- **Basic Specialists (Haiku)**: $1.00 per million input tokens
+---
 
-**Example Savings:**
-- 69% of agents use cost-effective Haiku
-- Average cost per orchestration: $0.50-$2.00 (depending on complexity)
-- Small project (5 agents): ~$0.30 per run
-- Large project (30 agents): ~$1.50 per run
+## Telemetry and Privacy
 
-**Cost Monitoring:**
-```bash
-# View real-time cost dashboard
-cco monitor dashboard
+Aggregate telemetry (token counts and cost totals — no prompt or response text) is on by default in official builds. To opt out, set `telemetry_enabled = false` in `~/.cco/config.toml` or export `CCO_TELEMETRY_DISABLED=1`.
 
-# Export monthly report
-cco monitor export --month 12 --year 2025 --format json
-```
+Transcript upload is off by default and must be explicitly opted in. Administrators can enforce org-wide telemetry policy via an MDM-managed config file that users cannot override.
 
-## Coordination Protocol
+See [docs/telemetry.md](docs/telemetry.md) for the full data schema, retention policy, MDM lockdown instructions, and opt-out details.
 
-Every agent follows this workflow using CCO's Knowledge Manager:
-
-**Before Work:**
-```bash
-# Review knowledge base for context
-cco knowledge search "task keywords"
-cco knowledge search "architect decisions"
-
-# Check credential inventory
-cco credentials list
-```
-
-**During Work:**
-```bash
-# Update knowledge base with progress
-cco knowledge store "Edit: [filename] - [changes]" --type edit
-
-# Manage credentials securely
-cco credentials store [key] [value] --credential-type [type]
-```
-
-**After Work:**
-```bash
-# Document task completion
-cco knowledge store "Task complete: [task]" --type completion
-
-# Verify credential rotation
-cco credentials check-rotation
-```
-
-## Cross-Repository Usage
-
-CCO works from ANY directory—you don't need to be in the CCO repository to use it:
-
-```bash
-# Navigate to ANY project
-cd ~/projects/my-awesome-app
-
-# Run CCO (enhanced Claude Code)
-cco
-
-# Orchestra automatically deploys if task is complex
-```
-
-**How It Works:**
-1. CCO configuration lives in `~/.config/cco/`
-2. CCO operates in your current working directory
-3. Auto-detection triggers orchestra based on task complexity
-4. Agents create files in YOUR project directory
-5. Coordination via shared Knowledge Manager
-
-## Project-Specific Customization
-
-Create a `CLAUDE.md` in your project root to customize CCO behavior:
-
-```markdown
-## Claude Orchestra Configuration
-
-### Agent Preferences
-- [x] Python Expert - All backend work
-- [x] Flutter Expert - Mobile app
-- [x] Authentik API Expert - OAuth2 integration
-- [x] All support agents (Docs, QA, Security, DevOps, Credentials)
-
-### Technology Stack
-- Backend: Python 3.11 + FastAPI
-- Frontend: Flutter 3.x
-- Auth: Authentik OAuth2
-- Deployment: AWS ECS
-```
-
-## Usage Examples
-
-### Example 1: Simple Feature (6 agents)
-```
-User: "Add JWT authentication to the Python API"
-
-CCO Response:
-- Chief Architect: Designs auth flow
-- TDD Coding Agent: Writes tests FIRST
-- Python Specialist: Implements JWT with FastAPI
-- Security Auditor: Reviews security
-- Test Engineer: Validates coverage
-- Technical Writer: Documents endpoints
-
-Time: 30-45 minutes (vs 2-3 hours sequential)
-```
-
-### Example 2: Full-Stack Application (12 agents)
-```
-User: "Build a task manager with Flutter frontend and Go backend"
-
-CCO Response:
-- Chief Architect: Designs 3-tier architecture
-- TDD Coding Agent: Comprehensive test suite
-- Flutter Specialist: Mobile app with state management
-- Go Specialist: REST API with PostgreSQL
-- API Explorer: API contract and integration
-- Test Engineer: E2E and integration tests
-- Security Auditor: Full security review
-- DevOps Engineer: Docker + Kubernetes deployment
-- Database Architect: Schema optimization
-- Technical Writer: System documentation
-- API Documenter: OpenAPI spec
-- Credential Manager: Database credentials
-
-Time: 2-3 hours (vs 8-10 hours sequential)
-```
-
-### Example 3: Enterprise Integration (8 agents)
-```
-User: "Integrate Salesforce Opportunities sync to our database"
-
-CCO Response:
-- Chief Architect: Integration architecture
-- TDD Coding Agent: Test suite for sync logic
-- Salesforce API Expert: SOQL queries and OAuth
-- Python Specialist: ETL pipeline with async
-- Security Auditor: API security review
-- Test Engineer: Integration testing
-- Credential Manager: Salesforce OAuth tokens
-- Technical Writer: Integration documentation
-
-Time: 1-2 hours (vs 4-6 hours sequential)
-```
-
-## Best Practices
-
-1. ✅ **Always use native `claude` for simple tasks** - Don't overcomplicate
-2. ✅ **Use `cco` for complex multi-step projects** - Let the orchestra handle it
-3. ✅ **Let the Architect lead** - Don't micromanage coding agents
-4. ✅ **Use Knowledge Manager** - Enable cross-agent communication
-5. ✅ **Store decisions persistently** - Knowledge survives compactions
-6. ✅ **Never hardcode credentials** - Use `cco credentials` CLI
-7. ✅ **Monitor costs** - Run `cco monitor dashboard` periodically
-8. ✅ **Document as you build** - Documentation agents run in parallel
+---
 
 ## Documentation
 
-- **[Orchestra Roster](ORCHESTRA_ROSTER.md)** - Complete 117-agent specifications
-- **[Quick Start](docs/QUICK_START.md)** - Get started with examples
-- **[Usage Guide](docs/ORCHESTRA_USAGE_GUIDE.md)** - Comprehensive instructions
-- **[API Integration Guide](docs/API_INTEGRATION_GUIDE.md)** - Salesforce/Authentik
-- **[DevOps Guide](docs/DEVOPS_AGENT_GUIDE.md)** - Infrastructure and deployment
-- **[Configuration](config/orchestra-config.json)** - Agent configuration
-- **[Cost Monitoring](docs/COST_MONITORING.md)** - Dashboard and tracking
-- **[Credential Security](docs/CREDENTIAL_SECURITY.md)** - OS keyring integration
+| Document | Description |
+|----------|-------------|
+| [docs/cost-metrics.md](docs/cost-metrics.md) | DuckDB store, token parsing, dual-parser design, cache efficiency, budget gate, and RTK savings |
+| [docs/telemetry.md](docs/telemetry.md) | Data collected, retention, opt-out, and MDM lockdown |
+| [docs/mcp-and-control-plane.md](docs/mcp-and-control-plane.md) | MCP server tools, task DAG, knowledge graph, and control-plane API |
+| [docs/integrations.md](docs/integrations.md) | RTK setup, statusline customization, Remote Control, editor surfaces, and `cco doctor` |
 
-## Requirements
-
-- **Claude Code** - Latest version (0.8.0+)
-- **Node.js** - 16+ (for Knowledge Manager and plugin hooks)
-- **Rust** - 1.70+ (for credential management and cost monitoring)
-- **OS Support** - macOS, Linux, Windows
-
-## Performance Benchmarks
-
-**Sequential Development (Native Claude Code):**
-- Simple feature: 2-3 hours
-- Full-stack app: 8-10 hours
-- Enterprise integration: 4-6 hours
-
-**CCO Multi-Agent Orchestra:**
-- Simple feature: 30-45 minutes (2.8-4.4x faster)
-- Full-stack app: 2-3 hours (2.8-4.4x faster)
-- Enterprise integration: 1-2 hours (2.8-4.4x faster)
-
-**Token Efficiency:**
-- 32% token reduction via shared Knowledge Manager
-- Intelligent model routing (Opus → Sonnet → Haiku)
-- Parallel execution reduces redundant context
-
-## Contributing
-
-This is a personal project demonstrating multi-agent development patterns with Claude Code. Feel free to fork and adapt for your needs.
+---
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).

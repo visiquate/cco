@@ -5,6 +5,31 @@ All notable changes to Claude Code Orchestra will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to sequential versioning: YYYY.MM.N (year.month.sequence).
 
+## [Unreleased]
+
+### Added
+
+- **Cost-cache advisor** (`cco cost cache`) — Reports cache hit-rate, estimated savings, and silent-buster threads (cache writes with zero subsequent reads). Helps identify cache-control placement issues that silently waste budget.
+- **Refreshable pricing** — Pricing is no longer hard-coded. Loaded at runtime from `~/.cco/pricing.json` (user override) → embedded `pricing_overrides.json` → fallback constants. No rebuild required to update rates. Includes Claude Fable 5 / Mythos 5 tier ($10/$50 per MTok).
+- **MCP cost tools** — Three new MCP server tools: `cost_summary` (per-tier spend with cache hit-rate), `budget_status` (daily/weekly spend vs. configured limits), `recommend_config` (suggests model tier for a task). Available to any MCP client without the daemon online.
+- **MCP control plane** (Phase B3) — Four tools (`control_list_agents`, `control_spawn_agent`, `control_agent_status`, `control_agent_output`) expose CCO's 117-agent registry and task DAG to a parent Claude orchestrator for meta-orchestration.
+- **RTK bundled by default** — RTK (Rust Token Killer) is now enabled by default when `rtk` is on PATH. RTK's own telemetry is suppressed automatically. Lifetime token and implied-USD savings appear in `cco cost dashboard`.
+- **Configurable statusline** — Live status bar (model, effort, directory, branch, context tokens, cost, rate limits) injected into Claude Code settings. Customizable via `statusline_command` or disabled via `statusline_enabled = false`.
+- **Claude Code Remote Control on by default** — Named by current working directory basename; OAuth-only; auto-disabled when `ANTHROPIC_API_KEY` is set. Controlled by `remote_control_enabled` config key or `--remote-control`/`--no-remote-control` flags.
+- **Opt-out aggregate telemetry** — Token counts and cost totals are sent to the VisiQuate ingest endpoint by default in official builds (no prompt text). Opt out via `telemetry_enabled = false` or `CCO_TELEMETRY_DISABLED=1`. MDM-lockable for teams.
+- **`cco doctor --fix`** — Auto-remediates common installation issues: creates missing directories, fixes permissions, codesigns on macOS, starts the daemon, and installs RTK.
+- **`cco tui`** — Terminal dashboard with Cost, Cache, and Delegation panels; replaces the old `cco monitor` command.
+- **Delegation nudge** — Soft PostToolUse hook that reminds the orchestrator to push implementation work to a lower-cost tier; non-blocking and rate-limited.
+- **Budget-gate hook** — When `daily_budget_usd` is set, a PostToolUse hook emits a soft non-blocking reminder when today's spend approaches the limit.
+
+### Removed
+
+- **Cornet browser UI** — Removed. The Cloudflare Worker signaling relay, browser PWA, and `cornet.privatelink.io` endpoint are no longer shipped or maintained.
+- **Dead auth commands** (`cco login`, `cco logout`) — Removed. Authentication is handled entirely by Claude Code's own OAuth flow.
+- **Embedded Qwen2.5-Coder LLM command classifier** — Removed. The on-device model used for READ/WRITE/DELETE classification is no longer bundled.
+- **`cco monitor`** — Replaced by `cco tui` and `cco cost` subcommands.
+- **`cco credentials` CLI** — Removed from public surface.
+
 ## [v2026.2.20] - 2026-02-07
 
 ### Added
