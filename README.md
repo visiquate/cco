@@ -88,6 +88,12 @@ Here are the handful of commands you'll actually use:
 
 **MCP server** — Register CCO as an MCP server in Claude Desktop or Cursor. Other AI tools can then query your costs, agents, and knowledge graph without the daemon being online. See [`docs/mcp-and-control-plane.md`](docs/mcp-and-control-plane.md).
 
+**Tune which models your agents use** — By default, CCO runs the heavy thinkers on bigger models and the routine work on faster, cheaper ones. Want a different balance? Set one line in your config:
+```toml
+agent_tier = "premium"   # options: economy | balanced (default) | premium | max
+```
+`economy` keeps costs lowest; `max` puts the biggest models everywhere. You can also fine-tune per role (authors vs reviewers vs the lead architect) or per project. Plus, agent teamwork (agents handing off to each other) is on by default.
+
 **Multi-tool tracking** — `cco codex` launcher lets you use Codex for code review with CCO's cost tracking. All the savings and metrics flow back into your dashboard.
 
 ---
