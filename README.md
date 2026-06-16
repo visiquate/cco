@@ -1,220 +1,114 @@
-# CCO — Claude Orchestra
+Hey there, welcome to Claude Orchestra!
 
-CCO is a Rust CLI and background daemon that wraps and extends Claude Code. It adds persistent cost and token tracking backed by DuckDB, a roster of 117 specialized agents across three model tiers with automatic work-delegation nudges, an MCP server exposing task DAGs, a knowledge graph, code search, and cost tools to any MCP client, and conveniences such as the RTK token-compression shim, a configurable statusline, and Claude Code Remote Control. A terminal TUI shows cost, cache efficiency, and delegation metrics in real time.
-
-## Contents
-
-- [Features](#features)
-- [Install](#install)
-- [Quickstart](#quickstart)
-- [Configuration](#configuration)
-- [Telemetry and Privacy](#telemetry-and-privacy)
-- [Documentation](#documentation)
-- [License](#license)
+If you're here, you probably code with Claude Code and have ever wondered: *How much is this costing me?* or *Is my context efficient?* or *Could I automate more of this work with specialized agents?* If any of that rings a bell, you're in the right place.
 
 ---
 
-## Features
+## What is CCO?
 
-### Cost Intelligence
+Claude Orchestra (CCO) is your local sidekick for Claude Code. It's a small command-line tool that runs quietly in the background and does three things really well:
 
-CCO tracks every Claude Code API call without touching Anthropic's servers. All data stays on your machine in a local DuckDB file.
+1. **Tracks your AI spending in real time** — Every token you use is logged locally (on your machine, never uploaded unless you opt in). You get instant visibility into what things cost.
+2. **Gives you a fleet of 117 specialist agents** — Rather than doing everything yourself at the top tier, CCO lets you delegate work to cheaper, focused agents that excel at specific tasks (documentation, code review, security, testing, etc.). Plus a live dashboard to manage them.
+3. **Shrinks your token bills quietly** — CCO bundles compression tools (RTK, lean-ctx, Headroom) that cut token use 60–90% on typical tasks. You see the savings tracked in real time.
 
-- Parses every `~/.claude/projects/*.jsonl` transcript into `~/.cco/claude_history.duckdb`; no external service required
-- `cco cost dashboard` — totals and trends by period (today / week / month / all)
-- `cco cost session` — per-session breakdown with token and dollar detail
-- `cco cost agents` — spending by model tier (opus / sonnet / haiku)
-- `cco cost cache` — cache hit-rate, savings estimate, and detection of silent-buster threads (cache writes that are never read)
-- `cco cost gate` — CI-friendly budget guard; exits 1 when spend exceeds a threshold; reads `daily_budget_usd` or `weekly_budget_usd` from config if no `--max-usd` flag is provided
-- Optional soft budget-gate hook that fires a non-blocking reminder when today's spend approaches your daily limit
-- Refreshable pricing loaded at runtime from `~/.cco/pricing.json` (no rebuild needed); supports all current tiers including Claude Fable 5 / Mythos 5
-- RTK token savings reported inline: tokens compressed by RTK are converted to implied USD using your actual blended input rate
-
-### Multi-Agent Orchestration and Delegation
-
-- 117 compiled-in agent definitions across three model tiers:
-  - **haiku** — 81 agents: language specialists, documentation, utilities, research
-  - **sonnet** — 35 agents: managers, reviewers, security, QA, DevOps, architects
-  - **opus** — 1 agent: Chief Architect
-- Agent definitions live in source at `src/agents/*.md` (YAML frontmatter + prompt body) and are compiled into the binary at build time — no external files required at runtime
-- The **delegation nudge** is a soft PostToolUse hook that reminds the orchestrator to push implementation work to a lower-cost tier rather than doing it inline; non-blocking and rate-limited so it does not interrupt your session
-
-### MCP Server and Control Plane
-
-- `cco mcp serve` — starts an MCP server (stdio JSON-RPC transport) registerable in Claude Code, Claude Desktop, or Cursor
-- 23 tools across five categories: knowledge and graph search, session management, task DAG, analytics, and cost intelligence
-- **Cost tools**: `cost_summary`, `budget_status`, `recommend_config` — query metrics without the daemon being online
-- **Control plane** (Phase B3): `control_list_agents`, `control_spawn_agent`, `control_agent_status`, `control_agent_output` — lets a parent Claude instance observe and direct CCO's agent registry and task DAG
-- Task DAG: `cco tasks` — create, list, and check status of structured work items
-- Knowledge graph: `cco graph` — search, traverse, and add relationship nodes
-- Code index: `cco index` — scan workspace, search symbols, show stats
-- Event bus: `cco events` — list, count, and prune orchestration events
-- Daemon communicates over a Unix domain socket at `~/.cco/daemon.sock` (no TCP port required; 0700 permissions, owner-only)
-
-### Integrations
-
-- **RTK (Rust Token Killer)** — optional shim that compresses Bash output 60–90% before it reaches Claude, reducing token consumption; bundled by default and controlled by `rtk_enabled` in config; RTK's own telemetry is disabled automatically
-- **Statusline** — CCO injects a `statusLine` into Claude Code settings showing live model, effort level, directory, git branch, context tokens, cost, and rate limits; customizable via `statusline_command` or disabled via `statusline_enabled = false`
-- **Claude Code Remote Control** — enabled by default (OAuth sessions only; skipped automatically when `ANTHROPIC_API_KEY` is set); connects claude.ai/code and the Claude mobile app to the local session; session named from the current working directory by default
-
-### TUI
-
-- `cco tui` — terminal dashboard with cost totals, cache-efficiency view, and delegation-nudge metrics
-- Refreshes continuously from the local DuckDB store; no network required
-- Three panels: Cost, Cache, Delegation; navigate with arrow keys or Tab
+All of this runs locally. Your data, your machine, your control.
 
 ---
 
-## Install
+## Why you'd want this
 
-### Shell Script (Recommended)
+**Surprise AI bills:** Claude Code sessions add up fast, and without visibility, you don't know where the money's going. CCO shows you exactly.
+
+**No cache insight:** Prompt caching can save a fortune, but you don't know if it's working. CCO shows you hit rates and estimated savings per model tier.
+
+**Manual delegation:** If you're doing all the coding yourself with Opus, you're paying premium rates for tasks that could be handled by a specialist. CCO's delegation nudge reminds you to use the right tool for the job.
+
+**Token bloat:** Bash output, logs, and verbose responses eat tokens. CCO's compression tools trim the noise automatically.
+
+---
+
+## Getting started (one command)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/visiquate/cco/main/install.sh | bash
 ```
 
-This is the canonical install path on macOS and Linux. The binary lands in `~/.local/bin/cco`, and `cco update` replaces it in place.
+That's it. The binary lands in `~/.local/bin/cco` and updates itself with `cco update`.
 
-### Manual Download
-
-Download the latest signed release archive for your platform from [GitHub Releases](https://github.com/visiquate/cco/releases/latest), then extract and install:
-
-```bash
-# macOS Apple Silicon
-curl -fsSL https://github.com/visiquate/cco/releases/latest/download/cco-aarch64-apple-darwin.tar.gz | tar xz
-mkdir -p ~/.local/bin && mv cco ~/.local/bin/cco
-
-# Linux x86_64
-curl -fsSL https://github.com/visiquate/cco/releases/latest/download/cco-x86_64-unknown-linux-gnu.tar.gz | tar xz
-mkdir -p ~/.local/bin && mv cco ~/.local/bin/cco
-```
-
-For macOS Intel or Linux ARM64, build from source (see below).
-
-### Build from Source
-
-Requires Rust 1.70+ and Claude Code.
-
-```bash
-git clone https://github.com/visiquate/cco.git
-cd cco
-cargo build --release
-# or
-make install    # builds release and copies to ~/.local/bin
-```
-
-### Canonical Installation Paths
-
-All installers target the same directories so `cco update` can safely replace the binary in place:
-
-- **macOS / Linux:** `~/.local/bin/cco`
-- **Windows:** `%ProgramFiles%\CCO\cco.exe`
-
-If `which cco` returns `/usr/local/bin/cco`, delete that legacy copy and reinstall so the canonical location takes precedence:
-
-```bash
-sudo rm -f /usr/local/bin/cco
-curl -fsSL https://raw.githubusercontent.com/visiquate/cco/main/install.sh | bash
-which cco
-```
-
-### Verify the Installation
-
-After placing the binary on your PATH, run once to verify and repair any issues:
+Next, run the health check (it'll fix things automatically):
 
 ```bash
 cco doctor --fix
 ```
 
-`cco doctor --fix` checks that Claude Code is present, the daemon socket is reachable, hooks are registered, and RTK is configured; it repairs common issues automatically.
+This verifies Claude Code is installed, starts the daemon, and optionally sets up compression tools.
 
 ---
 
-## Quickstart
+## Day-to-day commands
 
-```bash
-# Start the background daemon (manages the DuckDB store and Unix socket)
-cco daemon start
+Here are the handful of commands you'll actually use:
 
-# Launch Claude Code through CCO (applies hooks, statusline, Remote Control)
-cco
+**`cco`** — Launch Claude Code through CCO. Everything gets tracked automatically.
 
-# Open the TUI cost/cache dashboard in a second terminal
-cco tui
+**`cco tui`** — The live dashboard. Shows your spend, cache hit rate, active agents, and more. Press `?` for keybindings.
 
-# Summarize all-time costs
-cco cost dashboard
+**`cco cost dashboard`** — Text summary: total spend, breakdown by model, trends.
 
-# Show cache efficiency for the current week
-cco cost cache --period week
+**`cco cost cache --period today`** — Cache efficiency: how much you saved with prompt caching.
 
-# Check whether today's spend is under a threshold (exits 1 if over)
-cco cost gate --max-usd 10.00
+**`cco cost gate --max-usd 10.00`** — Budget guard for CI/CD: exits with code 1 if you're over budget.
 
-# Run a full health check and auto-fix common issues
-cco doctor --fix
-```
+**`cco doctor --fix`** — Health check. Repairs issues automatically.
 
 ---
 
-## Configuration
+## What to expect
 
-CCO reads `~/.cco/config.toml`. All keys are optional; omitting a key uses the documented default.
+**It runs quietly in the background.** Once you start the daemon (`cco daemon start`), it stays out of your way.
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `rtk_enabled` | bool | `true` | Enable RTK Bash-output compression when `rtk` is on PATH |
-| `daily_budget_usd` | float | — | Daily spend ceiling; triggers soft budget-gate warnings |
-| `weekly_budget_usd` | float | — | Weekly spend ceiling; used by `cco cost gate --period week` |
-| `telemetry_enabled` | bool | `true` | Upload aggregate token/cost metrics (no prompt text) |
-| `telemetry_upload_transcripts` | bool | `false` | Upload full prompt/response transcripts (explicit opt-in) |
-| `statusline_enabled` | bool | `true` | Inject CCO statusline into Claude Code settings |
-| `statusline_command` | string | — | Custom command for the statusline; overrides the default script |
-| `remote_control_enabled` | bool | `true` | Enable Claude Code Remote Control (OAuth sessions only) |
-| `session_name` | string | — | Override the session label shown in the TUI and control plane |
+**Cost tracking is instant and offline.** No cloud services, no data uploaded (unless you opt in for telemetry). Everything lives in a local DuckDB file.
 
-Example `~/.cco/config.toml`:
+**First run might be slower.** The daemon loads a small semantic embedding model for code search and context compression. After that, it's fast.
 
-```toml
-daily_budget_usd = 5.00
-weekly_budget_usd = 25.00
-rtk_enabled = true
-telemetry_enabled = true
-telemetry_upload_transcripts = false
-statusline_enabled = true
-remote_control_enabled = true
-```
-
-Environment variable overrides:
-
-| Variable | Effect |
-|----------|--------|
-| `CCO_TELEMETRY_DISABLED=1` | Disable aggregate telemetry regardless of config |
-| `CCO_TELEMETRY_TRANSCRIPTS=1` | Enable transcript upload regardless of config |
-| `CCO_REMOTE_CONTROL=0` | Disable Remote Control regardless of config |
-| `CCO_DAILY_BUDGET_USD` | Set daily budget ceiling without editing config |
-| `CCO_CONFIG_PATH` | Override config file path |
+**Privacy by default.** Prompts, responses, and code never leave your machine. Aggregate telemetry (token counts and costs — no text) is opt-out. Transcript upload is off by default and must be explicitly turned on.
 
 ---
 
-## Telemetry and Privacy
+## Cool stuff to explore
 
-Aggregate telemetry (token counts and cost totals — no prompt or response text) is on by default in official builds. To opt out, set `telemetry_enabled = false` in `~/.cco/config.toml` or export `CCO_TELEMETRY_DISABLED=1`.
+**The TUI cockpit** (`cco tui`) is your command center. Five pages: Dashboard (spend + sparklines), Activity (live event tail), Cache (efficiency), Delegation (agent work distribution), and Agents (spawn/kill agents with a form). Press `p` to filter by project, `t` to change time range, `n` to spawn an agent. Full guide at [`docs/tui.md`](docs/tui.md).
 
-Transcript upload is off by default and must be explicitly opted in. Administrators can enforce org-wide telemetry policy via an MDM-managed config file that users cannot override.
+**Cache buster detection** (`cco cost cache`) finds cache writes that were never read — wasted money. This is hard to spot manually but CCO finds it automatically.
 
-See [docs/telemetry.md](docs/telemetry.md) for the full data schema, retention policy, MDM lockdown instructions, and opt-out details.
+**Token compression** — RTK is included by default and cuts Bash output 60–90%. You can also opt into lean-ctx (semantic compression) or Headroom (API-boundary caching). See `docs/integrations.md` for the full tour.
+
+**Delegation nudges** — When you're doing implementation work inline with Opus, the system nudges you to use a Sonnet or Haiku specialist instead. Non-blocking, rate-limited, and it learns from your preferences.
+
+**MCP server** — Register CCO as an MCP server in Claude Desktop or Cursor. Other AI tools can then query your costs, agents, and knowledge graph without the daemon being online. See [`docs/mcp-and-control-plane.md`](docs/mcp-and-control-plane.md).
+
+**Multi-tool tracking** — `cco codex` launcher lets you use Codex for code review with CCO's cost tracking. All the savings and metrics flow back into your dashboard.
 
 ---
 
-## Documentation
+## Getting help
 
-| Document | Description |
-|----------|-------------|
-| [docs/cost-metrics.md](docs/cost-metrics.md) | DuckDB store, token parsing, dual-parser design, cache efficiency, budget gate, and RTK savings |
-| [docs/telemetry.md](docs/telemetry.md) | Data collected, retention, opt-out, and MDM lockdown |
-| [docs/mcp-and-control-plane.md](docs/mcp-and-control-plane.md) | MCP server tools, task DAG, knowledge graph, and control-plane API |
-| [docs/integrations.md](docs/integrations.md) | RTK setup, statusline customization, Remote Control, editor surfaces, and `cco doctor` |
+**`cco doctor`** — Diagnoses problems and suggests fixes. Usually solves issues automatically with `--fix`.
+
+**`docs/` folder** — Detailed guides for [TUI usage](docs/tui.md), [integrations](docs/integrations.md), [cost metrics](docs/cost-metrics.md), and [telemetry](docs/telemetry.md).
+
+**GitHub Issues** — Found a bug? Have a feature idea? GitHub issues for the main repo: https://github.com/langstons/cco/issues
+
+---
+
+## You've got this
+
+You're now in control of your AI coding spend, have a toolkit for smarter delegation, and can watch your token compression happen in real time. No surprise bills. No guessing. Just you, Claude, and visibility.
+
+Questions? Start with `cco doctor`. Want to go deeper? Read `docs/tui.md` and `docs/integrations.md`.
+
+Happy coding.
 
 ---
 
