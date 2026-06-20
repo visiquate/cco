@@ -4,7 +4,7 @@
 
 CCO exposes a **Model Context Protocol (MCP) server** that allows Claude-based tools and clients (Claude Code, Claude Desktop, Cursor) to interact with the CCO daemon and agent orchestration system over stdio JSON-RPC. The server implements **23 tools** organized into knowledge, task management, cost analysis, and control-plane categories.
 
-The **control plane** (Phase B3) is a subset of MCP tools that let a parent Claude agent observe and direct CCO's own 117-agent registry and task DAG — enabling meta-orchestration where Claude can spawn tracked work, query agent status, and retrieve performance metrics.
+The **control plane** (Phase B3) is a new subset of MCP tools that let a parent Claude agent observe and direct CCO's own 117-agent registry and task DAG—enabling meta-orchestration where Claude can spawn tracked work, query agent status, and retrieve performance metrics.
 
 ---
 
@@ -21,13 +21,13 @@ The **control plane** (Phase B3) is a subset of MCP tools that let a parent Clau
 
 ```
 Claude (Client)
-    |
+    ↓
 MCP Server (stdio JSON-RPC)
-    |
+    ↓
 Tool Handler (e.g., cost_summary, control_spawn_agent)
-    |
-Unix Socket -> Daemon (HTTP API over socket)
-    |
+    ↓
+Unix Socket → Daemon (HTTP API over socket)
+    ↓
 Task Store, Agent Registry, Metrics DB, etc.
 ```
 
@@ -35,7 +35,7 @@ Task Store, Agent Registry, Metrics DB, etc.
 
 ## Tools (23 Total)
 
-### Knowledge and Graph (6 tools)
+### Knowledge & Graph (6 tools)
 
 - **`knowledge_search`** — Full-text search over stored documents.
 - **`knowledge_store`** — Index a new document in the knowledge base.
@@ -44,7 +44,7 @@ Task Store, Agent Registry, Metrics DB, etc.
 - **`knowledge_lifecycle_status`** — Check indexing status and storage metrics.
 - **`knowledge_graph_query`** — Query relationships in the knowledge graph.
 
-### Context and Agents (2 tools)
+### Context & Agents (3 tools)
 
 - **`get_context`** — Fetch agent execution context and environment.
 - **`list_agents`** — Enumerate all 117 registered agents with their metadata.
@@ -60,15 +60,15 @@ Task Store, Agent Registry, Metrics DB, etc.
 - **`task_status`** — Query the status of a task by ID.
 - **`task_list`** — List all tasks, optionally filtered by project and status.
 
-### Analytics and Monitoring (3 tools)
+### Analytics & Monitoring (3 tools)
 
-- **`agent_performance_stats`** — Retrieve success rate, duration, and token metrics for an agent.
+- **`agent_performance_stats`** — Retrieve success rate, duration, token metrics for an agent.
 - **`codex_status`** — Check code index status and search capability.
 - **`code_search`** — Full-text search over indexed source code.
 
 ### Cost Intelligence (3 tools)
 
-- **`cost_summary`** — Aggregated spend totals, per-tier breakdown (opus/sonnet/haiku), cache hit-rate, and token counts for a time period (`today`, `week`, `month`, `all`, or `7d`).
+- **`cost_summary`** — Aggregated spend totals, per-tier breakdown (opus/sonnet/haiku), cache hit-rate, token counts for a time period ('today', 'week', 'month', 'all', or '7d').
 - **`budget_status`** — Check today's and this week's spend against configured daily/weekly budgets.
 - **`recommend_config`** — Suggest a Claude model tier and effort level for a natural-language task description based on the embedded agent registry.
 
@@ -85,7 +85,7 @@ Task Store, Agent Registry, Metrics DB, etc.
 
 ### What It Does
 
-The control plane exposes CCO's own orchestration objects — the 117-agent registry and the task DAG — so that a parent Claude instance can:
+The control plane exposes CCO's own orchestration objects—the 117-agent registry and the task DAG—so that a parent Claude instance can:
 
 - **List agents** with live task counts and capabilities.
 - **Spawn tracked work** as a task-DAG node assigned to a named agent.
@@ -99,8 +99,8 @@ The control plane exposes CCO's own orchestration objects — the 117-agent regi
 Therefore:
 
 - `control_spawn_agent` creates a *queued work request* (task node) that the orchestrator must discover and dispatch.
-- `send_to_agent` and `interrupt_agent` are deliberately omitted — there is no IPC channel to a running agent subprocess.
-- The orchestrator uses `task_list` (filtered by `project_id`) to discover ready/pending tasks created by `control_spawn_agent`, then dispatches them using the standard Task tool.
+- **`send_to_agent` and `interrupt_agent` are deliberately omitted**—there is no IPC channel to a running agent subprocess, and implementing them as stubs would mislead callers.
+- The orchestrator uses `task_list` (with `project_id` to filter) to discover ready/pending tasks created by `control_spawn_agent`, then dispatches them using the standard Task tool.
 
 ### Control Plane Endpoints (Daemon Side)
 
@@ -122,8 +122,12 @@ All routes are served over the Unix domain socket and require no additional auth
 The CCO binary exposes the MCP server via the `cco mcp serve` command:
 
 ```bash
-cco mcp serve [--server-name NAME] [--server-version VERSION]
+cco mcp serve [--daemon-url URL] [--server-name NAME] [--server-version VERSION]
 ```
+
+- `--daemon-url` (default: `http://localhost:13109`) — Legacy HTTP proxy URL; currently unused (all communication is via Unix socket).
+- `--server-name` (default: `cco-mcp-server`) — Identifies the server in initialize responses.
+- `--server-version` (default: binary version) — Server version string.
 
 The server reads JSON-RPC requests from stdin and writes responses to stdout (no buffering).
 
@@ -215,9 +219,21 @@ Location: `.cursor/mcp.json` in the project root.
       "total_tokens": 1250000,
       "cache_hit_rate": 0.652,
       "by_tier": [
-        { "tier": "opus",   "cost_usd": 5.1234, "tokens": 500000 },
-        { "tier": "sonnet", "cost_usd": 4.5678, "tokens": 450000 },
-        { "tier": "haiku",  "cost_usd": 2.6544, "tokens": 300000 }
+        {
+          "tier": "opus",
+          "cost_usd": 5.1234,
+          "tokens": 500000
+        },
+        {
+          "tier": "sonnet",
+          "cost_usd": 4.5678,
+          "tokens": 450000
+        },
+        {
+          "tier": "haiku",
+          "cost_usd": 2.6544,
+          "tokens": 300000
+        }
       ]
     }
   }
@@ -257,7 +273,16 @@ Location: `.cursor/mcp.json` in the project root.
     "status": "pending",
     "project_id": "buffer-project",
     "created_at": "2026-06-14T10:30:45.123Z",
-    "next_steps": "Poll status: GET /api/control/status/550e8400-e29b-41d4-a716-446655440000. Orchestrator must dispatch via Task tool with agent='rust-specialist' model='sonnet'."
+    "next_steps": "Poll status: GET /api/control/status/550e8400-e29b-41d4-a716-446655440000. Orchestrator must dispatch via Task tool with agent='rust-specialist' model='sonnet'.",
+    "task": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "title": "rust-specialist: Implement a safe async ring...",
+      "description": "Agent: rust-specialist\nModel tier: sonnet\nPrompt:\nImplement a safe async ring buffer with lock-free pop/push semantics\n\nNOTE: This task-DAG node was created by control_spawn_agent (Phase B3). The orchestrator must pick it up and dispatch it via its Task tool. The daemon scheduler will set status to `in_progress` when dependencies are met but will NOT spawn a subprocess.",
+      "status": "pending",
+      "created_at": "2026-06-14T10:30:45.123Z",
+      "agent": "rust-specialist",
+      "dependencies": []
+    }
   }
 }
 ```
@@ -286,15 +311,18 @@ Location: `.cursor/mcp.json` in the project root.
   "id": 3,
   "result": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
+    "title": "rust-specialist: Implement a safe async ring...",
     "status": "completed",
-    "agent": "rust-specialist",
+    "created_at": "2026-06-14T10:30:45.123Z",
     "started_at": "2026-06-14T10:31:00.000Z",
     "completed_at": "2026-06-14T10:45:30.567Z",
+    "agent": "rust-specialist",
     "result": {
       "code": "pub struct RingBuffer<T> { ... }",
       "tests_passed": 42,
       "compilation_warnings": 0
-    }
+    },
+    "dependencies": []
   }
 }
 ```
@@ -305,7 +333,7 @@ Location: `.cursor/mcp.json` in the project root.
 
 ### Task DAG Integration
 
-The control plane and standard task engine share the same task-DAG store. A task spawned with `control_spawn_agent` can be monitored with `task_status` and `task_list`. Conversely, any task in the DAG appears in `control_agent_output` when scoped to the agent.
+The control plane and standard task engine share the same task-DAG store. A task spawned with `control_spawn_agent` can be monitored with the standard `task_status` and `task_list` tools. Conversely, any task in the DAG (regardless of source) appears in `control_agent_output` when scoped to the agent.
 
 ### Cost Tracking
 
@@ -313,7 +341,15 @@ Cost tools (`cost_summary`, `budget_status`, `recommend_config`) do not depend o
 
 ### Agent Registry
 
-The 117-agent registry is compiled into the binary at build time (from `src/agents/*.md`) and is always available — even if the daemon is not running. `control_list_agents` falls back to the embedded registry if the daemon is unreachable, though it then returns an empty `task_counts` object.
+The 117 agent registry is compiled into the binary at build time (from `src/agents/*.md`) and is always available—even if the daemon is not running. `control_list_agents` falls back to the embedded registry if the daemon is unreachable, though it then returns an empty `task_counts` object and omits live DAG data.
+
+---
+
+## Related Documentation
+
+- [Cost Metrics & Budget Tracking](docs/cost-metrics.md) — Details on cost summary, budget alerts, and per-tier pricing.
+- [Integrations & External Tools](docs/integrations.md) — MCP client setup, webhook patterns, and third-party service integration.
+- [Agent Registry & Configuration](src/agents/) — Agent definitions, model tiers, and capability tags.
 
 ---
 
@@ -326,7 +362,6 @@ The client tried to call a tool without sending an `initialize` request first. A
 ### "Daemon unavailable — registry served from embedded binary only"
 
 The MCP server could not reach the daemon on the Unix socket. Possible causes:
-
 - The daemon is not running. Start it with `cco daemon start`.
 - The socket file `~/.cco/daemon.sock` was deleted. Restart the daemon.
 - Permissions issue. Check that `~/.cco/daemon.sock` is readable by your user (should be 0700, owner-only).
@@ -335,7 +370,7 @@ Tool calls will still work for read-only operations (e.g., `list_agents` returns
 
 ### "Task store not available"
 
-The daemon is running but the task-DAG store failed to initialize. Check daemon logs: `cco daemon logs --follow`.
+The daemon is running but the task-DAG store (SQLite or other backend) failed to initialize. Check daemon logs: `cco daemon logs --follow`.
 
 ---
 
@@ -345,8 +380,3 @@ The daemon is running but the task-DAG store failed to initialize. Check daemon 
 2. **No credentials in MCP**: The MCP layer does not validate API keys or tokens. The socket permissions are the security boundary.
 3. **Audit trail**: All tool calls are logged to the daemon and can be audited via `cco daemon logs`.
 4. **Read-only registry**: The agent registry is immutable at runtime (compiled at build time). New agents require a code change and recompilation.
-
-## See Also
-
-- [Cost Metrics and Budget Tracking](cost-metrics.md) — details on cost summary, budget alerts, and per-tier pricing
-- [Integrations](integrations.md) — MCP client setup, editor surfaces, and RTK

@@ -57,7 +57,9 @@ Pricing is not hard-coded. The system loads pricing from multiple sources in pri
 2. **Embedded overrides** (`pricing_overrides.json` bundled in the binary)
 3. **Hard-coded constants** (fallback; should never be used in practice)
 
-This allows you to update pricing without rebuilding CCO. To override prices, create `~/.cco/pricing.json`:
+This allows operators to update pricing without rebuilding CCO. To override prices:
+
+Create `~/.cco/pricing.json`:
 
 ```json
 {
@@ -123,22 +125,22 @@ cco cost dashboard [--period PERIOD] [--format FORMAT]
 ║              CLAUDE CODE COST DASHBOARD (week)              ║
 ╚════════════════════════════════════════════════════════════════╝
 
-Total Spend (week): $42.67
+📊 Total Spend (week): $42.67
    Conversations: 18  | Messages: 523
    Daily Average: $6.10
    Cache Savings: $0.0825
 
-Breakdown by Model Tier:
+💼 Breakdown by Model Tier:
    [████████████░░░░░░] claude-opus-4-5          $28.45 (66.7%)
    [███████░░░░░░░░░░░] claude-sonnet-4         $10.22 (23.9%)
    [████░░░░░░░░░░░░░░] claude-haiku-4-5         $4.00 ( 9.4%)
 
-Top 3 Projects:
+📁 Top 3 Projects:
    • cc-orchestra - $31.50
    • my-ai-tool - $8.30
    • research-spike - $2.87
 
-Token Usage:
+📈 Token Usage:
    Input:  2,145,000 tokens ($6.82)
    Output:   523,000 tokens ($3.15)
    Cache Write: 145,000 tokens ($0.25)
@@ -177,7 +179,7 @@ cco cost agents [--period PERIOD] [--format FORMAT]
 
 **Example:**
 
-```
+```bash
 ╔═══════════════════════════════════════════════════════════════════════════════╗
 ║           COST BREAKDOWN BY MODEL/AGENT (week)                          ║
 ╚═══════════════════════════════════════════════════════════════════════════════╝
@@ -345,9 +347,9 @@ The interactive TUI (`cco tui`) includes dedicated cost and cache analysis panel
 
 - **Cost panel**: shows daily-average spend, model breakdown, and top projects
 - **Cache panel**: displays hit rate, savings, and silent-buster detection
-- **Delegation panel**: tracks delegation nudge metrics and agent coverage
+- **Delegation panel**: (if applicable) tracks delegation nudge metrics and agent coverage
 
-Navigate with arrow keys or Tab; press `q` to quit.
+Navigate with arrow keys or `Tab`; press `q` to quit.
 
 ## Integration with Telemetry
 
@@ -381,9 +383,9 @@ Cost and metrics data is stored locally in `~/.cco/claude_history.duckdb`. By de
 
 **Cause**: `rtk` is not installed or not on PATH.
 
-**Fix**: Install RTK (`cargo install rtk`) or via `cco doctor --fix`, which installs RTK via Homebrew if available or falls back to the curl installer.
+**Fix**: Install RTK (`cargo install rtk`) or skip it (RTK integration is optional).
 
 ## See Also
 
 - [Telemetry](telemetry.md) — privacy controls, aggregate metrics vs. transcript uploads
-- [Integrations](integrations.md) — RTK setup, statusline, and Remote Control
+- [Configuration](../CLAUDE.md) — how to set `daily_budget_usd` and `weekly_budget_usd`

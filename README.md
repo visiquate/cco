@@ -121,3 +121,7 @@ Happy coding.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Feature Catalog
+
+Every CCO capability in two sentences, with a link to its deep dive: see **[docs/FEATURES.md](docs/FEATURES.md)**.

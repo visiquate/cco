@@ -6,7 +6,7 @@ CCO collects aggregate metrics (token counts, costs) and optionally full convers
 
 CCO separates telemetry into two categories:
 
-1. **Aggregate metrics** (ON by default in official builds) — token counts and cost data only, no text
+1. **Aggregate metrics** (ON by default in official builds) — token counts and cost data *only*, no text
 2. **Full transcripts** (OFF by default, opt-in) — complete prompts and responses, for debugging and analysis
 
 ### Official vs. Community Builds
@@ -210,7 +210,7 @@ The daemon tracks what has been sent via `~/.cco/metrics_export_state.json` so i
 }
 ```
 
-On daemon restart, it resumes from these watermarks — no re-uploads.
+On daemon restart, it resumes from these watermarks—no re-uploads.
 
 ### Cycle Timing
 
@@ -224,7 +224,7 @@ On daemon restart, it resumes from these watermarks — no re-uploads.
 - **Aggregate metrics**: stored in VisiQuate's D1 database; used for dashboards and usage reports
 - **Transcripts**: stored in R2 object storage under a user/host prefix; encrypted at rest
 
-The ingest endpoint validates signatures, deduplicates, and routes data to the backend for storage.
+The ingest endpoint (VisiQuate Worker) validates signatures, deduplicates, and routes data to the backend for storage. Dashboards can query aggregate metrics directly from D1 without re-parsing raw data.
 
 ## Common Scenarios
 
@@ -316,4 +316,5 @@ Disable again when done by restarting without the env var.
 ## See Also
 
 - [Cost and Metrics Analysis](cost-metrics.md) — how token data is collected and priced
-- [Integrations](integrations.md) — RTK, statusline, and Remote Control
+- [User Configuration](../src/user_config.rs) — source reference for config fields
+- [Metrics Export](../src/daemon/metrics_export.rs) — implementation details
