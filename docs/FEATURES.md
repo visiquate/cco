@@ -18,11 +18,11 @@ are fully remappable via config presets or per-row overrides.
 
 ## Cortex: Repo-Shared Self-Improving Memory
 
-Cortex is an opt-in, repo-scoped memory system that commits extracted lessons as
-Markdown files under `.cco/cortex/memories/`, sharing them across every developer and
-worktree via normal git push/pull. A nightly consolidation worker clusters near-
-duplicates, decays stale memories, and auto-primes new sessions with the most relevant
-context within a configurable token budget.
+Cortex is enabled by default and runs the full self-improving loop automatically across
+all your Claude Code repos: recall/auto-prime at session start; a daily worker that
+incrementally captures new transcript content into per-repo memories and consolidates
+near-duplicates; each batch of new memories surfaces as a reviewable `cortex/updates`
+PR (never a direct write to your working branch).
 
 -> Deep dive: [Cortex Deep Dive](cortex.md)
 

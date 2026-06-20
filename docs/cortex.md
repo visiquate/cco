@@ -1,29 +1,44 @@
 # CCO Cortex: Repo-Shared Self-Improving Memory
 
-Cortex is CCO's opt-in, repo-scoped memory system. Memories are plain Markdown files
+Cortex is CCO's repo-scoped memory system. Memories are plain Markdown files
 committed under `.cco/cortex/memories/` (one file per memory), so every developer,
 worktree, and agent that has the repo can benefit from them, and improvements propagate
 through normal `git push`/`pull`. A local, gitignored `.cco/cortex/.cache/` directory
 holds the derived vector index (LanceDB) and SQLite graph built from those files.
 
-Cortex is **disabled by default** and requires explicit opt-in via `cortex_enabled = true`
-plus a `cortex_repo_root` pointing at the target repository.
+**Cortex is enabled by default.** The full self-improving loop runs automatically
+across ALL your Claude Code repos: recall/auto-prime at session start; a daily
+maintenance worker that incrementally captures new transcript content into per-repo
+memories and consolidates near-duplicates; each repo that accumulates memories gets a
+reviewable `cortex/updates` PR (never a direct write to your main/working branch).
+
+To fully disable Cortex (including recall): `cco config set cortex_enabled false`.
 
 ---
 
 ## Quickstart
 
-```bash
-# 1. Enable Cortex for a repository
-cco config set cortex_enabled true
-cco config set cortex_repo_root /absolute/path/to/your/repo
+Cortex runs automatically with no configuration required. The daily worker discovers
+your Claude Code repos, captures new transcript content incrementally, and consolidates
+memories. Each batch of new memories surfaces as a `cortex/updates` pull request for
+your review.
 
-# 2. Seed from existing Claude Code transcript history (dry-run first)
+```bash
+# Check status across discovered repos
+cco cortex status
+
+# Seed from existing Claude Code transcript history now (dry-run first)
 cco cortex bootstrap --dry-run
 cco cortex bootstrap
 
-# 3. Check status
-cco cortex status
+# Pin Cortex to a single repo instead of all discovered repos
+cco config set cortex_repo_root /absolute/path/to/your/repo
+
+# Exclude a sensitive repo from all Cortex operations
+cco config set cortex_denylist secret-repo,another-repo
+
+# To fully disable Cortex (including recall):
+cco config set cortex_enabled false
 ```
 
 After bootstrap completes, Cortex opens a `cortex/bootstrap` pull request on your repo
@@ -88,25 +103,35 @@ for use by the utility-tracking signal.
 
 ### Nightly consolidation: cluster, merge, decay, and promote
 
-A daemon background worker runs on a configurable schedule (enabled via
-`cortex_consolidate = true`). It:
+A daemon background worker runs daily (enabled by default, gated on
+`cortex_consolidate` not being set to `false`). It:
 
 - Clusters near-duplicate memories by embedding similarity.
 - Spawns haiku subagents to merge each cluster into a single canonical memory.
 - Decays stale low-utility memories: hot to warm to cold to archive.
 - Promotes memories that appear consistently in successful sessions.
 - Rebuilds `INDEX.md` from the current set of committed memories.
+- Only acts on repos that already have a `.cco/cortex/memories/` directory (no cost for
+  repos with no memories yet).
 
 All changes surface as a reviewable diff on the `cortex/updates` PR. Live runtime
 statistics (`access_count`, `injected_count`, `last_used`) are kept in `.cache/stats.db`
 and are never committed, so the git history stays clean.
+
+### Incremental daily capture
+
+The maintenance worker persists a "last successful capture" timestamp at
+`~/.cco/cortex_last_capture`. On the first run, the capture window falls back to the
+last `CORTEX_CAPTURE_LOOKBACK_DAYS` (7 days). Every subsequent run captures only
+transcript content modified since the previous cycle, keeping per-cycle LLM cost
+proportional to new activity rather than total history.
 
 ---
 
 ## CLI Reference
 
 All `cco cortex` subcommands operate on the repository identified by `cortex_repo_root`
-in your config.
+in your config, or on all discovered repos when `cortex_repo_root` is unset.
 
 ### `cco cortex status`
 
@@ -175,27 +200,26 @@ All cortex keys are managed via `cco config set/get/unset`. They live in
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `cortex_enabled` | bool | unset (off) | Activate Cortex for the configured repo root. Must be `true` for any cortex feature to run. |
-| `cortex_repo_root` | string | unset | Absolute path of the git repository Cortex should operate on. Required; the worker skips its cycle when unset. |
-| `cortex_autoprime` | bool | unset (off) | Inject the most relevant memories at session start within the token budget. |
-| `cortex_consolidate` | bool | unset (off) | Run the nightly consolidation worker (cluster, merge, decay, promote). Requires `cortex_enabled = true`. |
+| `cortex_enabled` | bool | true | Controls all Cortex features. Unset or `true` = enabled (full loop runs automatically); `false` = fully disabled. To turn off: `cco config set cortex_enabled false`. |
+| `cortex_repo_root` | string | unset | Pin Cortex to a single absolute-path git repository instead of all discovered repos. Denylisted repos are skipped even if pinned. When unset, the daily worker discovers all your Claude Code repos automatically. |
+| `cortex_autoprime` | bool | unset (on by default) | Inject the most relevant memories at session start within the token budget. Runs automatically when `cortex_enabled` is not false; set to `false` to disable only recall while leaving other write paths active. |
+| `cortex_consolidate` | bool | true | Run the nightly consolidation worker (cluster, merge, decay, promote). Enabled by default; set to `false` to disable. Requires `cortex_enabled = true`. |
 | `cortex_scope` | string | `"repo"` | Scope for cortex operations: `"repo"` or `"all"`. |
 | `cortex_token_budget` | u32 | unset | Maximum tokens the auto-prime injector may use per session. |
-| `cortex_denylist` | string list | unset | Comma-separated repo names or paths the cortex worker must skip entirely. |
+| `cortex_denylist` | string list | unset | Comma-separated repo names or paths the cortex worker must skip entirely. Honored everywhere: discovery, pinned-root, and runtime. |
 
 ### Examples
 
 ```bash
-# Enable Cortex and point it at a repo
-cco config set cortex_enabled true
+# Pin Cortex to a single repo (recall still runs on current-cwd repos)
 cco config set cortex_repo_root /Users/you/projects/myrepo
 
 # Enable auto-prime with a 2000-token budget
 cco config set cortex_autoprime true
 cco config set cortex_token_budget 2000
 
-# Enable nightly consolidation
-cco config set cortex_consolidate true
+# Disable nightly consolidation
+cco config set cortex_consolidate false
 
 # Exclude a sensitive repo from all cortex operations
 cco config set cortex_denylist phi-data-repo,customer-data
@@ -226,6 +250,9 @@ cco config set cortex_enabled false
         queue.db                        #   pending extraction jobs
         manifest.json                   #   content-hash to index staleness map
         watermarks.json                 #   last-processed transcript offsets
+
+~/.cco/
+  cortex_last_capture                   # RFC 3339 timestamp of last successful capture
 ```
 
 The `.cache/` directory is self-gitignoring: a `.gitignore` file containing `*` is
@@ -237,8 +264,11 @@ committed inside it so the cache contents are never accidentally staged. Everyth
 
 ## Safety and Privacy
 
-**Cortex is disabled by default.** Every LLM call and every destructive action (write,
-commit, consolidate) is gated on `cortex_enabled = true`.
+**Recall is read-only; write paths run automatically but are fully auditable.** The
+auto-prime/recall path reads already-committed, already-redacted memory files and makes
+no LLM call and commits nothing. Every LLM extraction call and every write/commit/
+consolidate action surfaces as a reviewable pull request before any memory reaches a
+shared branch. To fully disable all Cortex activity, set `cortex_enabled = false`.
 
 **Layered redaction before the LLM:** The extraction worker runs a mandatory redaction
 pass on all input content before any subagent sees it. This pass covers:
@@ -254,9 +284,10 @@ any credential or flagged pattern in the candidate memory files.
 assessment; a human makes the final merge before memories reach a shared branch.
 
 **Residual risk (accepted by the operator):** PHI redaction is best-effort and
-pattern-based. It is not a guarantee. The org policy is "Never Process PHI." Cortex on
-a PHI-bearing repository is the operator's explicit opt-in risk, accepted by setting
-`cortex_enabled = true` and `cortex_repo_root` on that repository.
+pattern-based. It is not a guarantee. The org policy is "Never Process PHI." Enabling
+the extraction write path on a PHI-bearing repository is the operator's explicit opt-in
+risk. Recall alone reads only already-committed, already-redacted memory files and makes
+no LLM call.
 
 ### Privacy architecture summary
 
