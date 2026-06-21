@@ -16,13 +16,12 @@ are fully remappable via config presets or per-row overrides.
 
 ---
 
-## Cortex: Repo-Shared Self-Improving Memory
+## Cortex: Local-First Self-Improving Memory
 
-Cortex is enabled by default and runs the full self-improving loop automatically across
-all your Claude Code repos: recall/auto-prime at session start; a daily worker that
-incrementally captures new transcript content into per-repo memories and consolidates
-near-duplicates; each batch of new memories surfaces as a reviewable `cortex/updates`
-PR (never a direct write to your working branch).
+Cortex is enabled by default and runs the full self-improving loop automatically on your
+machine: capture, consolidation, and recall all use a local store at
+`~/.cco/cortex/<repo-id>/`. Share deliberately via `cco cortex export` to write
+memories into the repo's `.cco/cortex/memories/` for git tracking and team access.
 
 -> Deep dive: [Cortex Deep Dive](cortex.md)
 
