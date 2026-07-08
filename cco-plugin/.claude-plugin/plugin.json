@@ -1,0 +1,12 @@
+{
+  "name": "cco",
+  "version": "0.0.0",
+  "description": "Claude Code Orchestra - Multi-agent orchestration with 117 specialized agents",
+  "author": {
+    "name": "CCO Team"
+  },
+  "license": "MIT",
+  "keywords": ["orchestra", "agents", "tdd", "coordination"],
+  "skills": "./skills/",
+  "commands": "./commands/"
+}
