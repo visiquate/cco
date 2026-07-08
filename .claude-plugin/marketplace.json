@@ -10,7 +10,7 @@
       "description": "Multi-agent orchestration with specialized agents, model-tier routing, and knowledge memory.",
       "source": {
         "source": "git-subdir",
-        "url": "https://github.com/langstons/cco.git",
+        "url": "https://github.com/visiquate/cco.git",
         "path": "cco-plugin",
         "ref": "main"
       }
